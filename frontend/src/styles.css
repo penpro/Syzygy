@@ -2062,29 +2062,11 @@ select:focus {
   transform-box: view-box;
   animation: syz-sparkle 4.6s ease-out infinite;
 }
-.syz-spark-echo {
-  animation-name: syz-sparkle-echo;
-}
-.syz-spark-echo2 {
-  animation-name: syz-sparkle-echo2;
-}
 @keyframes syz-sparkle {
   0%, 39% { opacity: 0; transform: scale(0.2) rotate(-20deg); }
   46% { opacity: 1; transform: scale(1.08) rotate(0deg); }
   60% { opacity: 0; transform: scale(1.3) rotate(14deg); }
   100% { opacity: 0; transform: scale(0.2) rotate(-20deg); }
-}
-@keyframes syz-sparkle-echo {
-  0%, 44% { opacity: 0; transform: scale(0.2); }
-  52% { opacity: 1; transform: scale(1.1); }
-  66% { opacity: 0; transform: scale(1.35); }
-  100% { opacity: 0; transform: scale(0.2); }
-}
-@keyframes syz-sparkle-echo2 {
-  0%, 48% { opacity: 0; transform: scale(0.2); }
-  56% { opacity: 0.9; transform: scale(1); }
-  70% { opacity: 0; transform: scale(1.3); }
-  100% { opacity: 0; transform: scale(0.2); }
 }
 /* Reduced motion: rest in the aligned state with the sparkle hidden. */
 html[data-reduce-motion='true'] .syz-spark {

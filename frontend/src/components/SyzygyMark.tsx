@@ -21,25 +21,11 @@ export function SyzygySplashMark({ width = 300 }: { width?: number }) {
       <circle className="syz-sat syz-sat-r" cx="254" cy="72" r="11" fill="var(--text)" />
       {/* primary (accent) — pulses at the moment of alignment */}
       <circle className="syz-core" cx="160" cy="72" r="21" fill="var(--accent)" />
-      {/* the syzygy sparkle — a four-point star + its 45° echo, firing on alignment */}
-      <g className="syz-spark" transform-origin="160 72">
-        <path
-          d="M160 34 L165 65 L196 72 L165 79 L160 110 L155 79 L124 72 L155 65 Z"
-          fill="var(--violet)"
-        />
-        <path
-          d="M160 50 L163 68 L182 72 L163 76 L160 94 L157 76 L138 72 L157 68 Z"
-          fill="var(--on-accent)"
-          opacity="0.9"
-          transform="rotate(45 160 72)"
-        />
-      </g>
-      {/* two little echo twinkles, slightly delayed */}
-      <g className="syz-spark syz-spark-echo" transform-origin="216 40">
-        <path d="M216 30 L218 38 L226 40 L218 42 L216 50 L214 42 L206 40 L214 38 Z" fill="var(--violet)" />
-      </g>
-      <g className="syz-spark syz-spark-echo2" transform-origin="106 106">
-        <path d="M106 98 L108 104 L114 106 L108 108 L106 114 L104 108 L98 106 L104 104 Z" fill="var(--accent-2)" />
+      {/* the syzygy glint — a small, thin-rayed flare just off the primary's upper-right limb
+          (the Penumbra flair, not an emoji star), firing at the moment of alignment */}
+      <g className="syz-spark" transform-origin="183 49">
+        <path d="M183 36 L184.6 47.4 L196 49 L184.6 50.6 L183 62 L181.4 50.6 L170 49 L181.4 47.4 Z" fill="var(--violet)" />
+        <circle cx="191" cy="41" r="1.6" fill="var(--violet)" opacity="0.8" />
       </g>
     </svg>
   )

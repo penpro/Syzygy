@@ -9,9 +9,10 @@
   point (solitary, offline AI); Syzygy = alignment (people and documents converging).
 - **The mark**: three bodies on a horizontal orbital axis — two ink satellites flanking
   an Observatory-Blue primary (`SyzygyMark.tsx`). The animated splash version
-  (`SyzygySplashMark`) drifts the satellites in from off-axis and fires an ochre
-  four-point sparkle at the moment of alignment. Its **resting (unanimated) state is
-  perfect alignment**, so reduced-motion shows a clean static mark.
+  (`SyzygySplashMark`) drifts the satellites in from off-axis and fires a **small,
+  thin-rayed ochre glint just off the primary's upper-right limb** at the moment of
+  alignment (the Penumbra flair — subtle, never an emoji-style star). Its **resting
+  (unanimated) state is perfect alignment**, so reduced-motion shows a clean static mark.
 - **Wordmark**: `SYZYGY` letterspaced (`.brand-word` / `.splash-title`: IBM Plex Mono,
   700, tracking ~0.32–0.42em).
 

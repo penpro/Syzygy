@@ -242,6 +242,40 @@ pub fn google_drive_mirror_dir(app: tauri::AppHandle) -> Result<String, String> 
     Ok(dir.to_string_lossy().to_string())
 }
 
+/// Rotation cap for transcript logs: past this, the next exchange starts `_NNN+1`.
+const LOG_ROTATE_BYTES: u64 = 256 * 1024;
+
+/// Append an exchange to the thread's rotating transcript in the LOCAL mirror —
+/// `ask_<base>_001.md`, `_002`, … The mirror is the single write path; a Drive sync
+/// (caller-triggered) carries it up. Local-only, so it works offline and never blocks.
+#[tauri::command]
+pub fn google_drive_mirror_append_log(app: tauri::AppHandle, base: String, content: String) -> Result<String, String> {
+    let mirror = PathBuf::from(google_drive_mirror_dir(app)?);
+    // Sanitize the base defensively (the frontend already does) — filesystem-hostile chars out.
+    let base: String = base.chars().map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
+    let base = if base.is_empty() { "ask_untitled".to_string() } else { base };
+    let mut n: u32 = 1;
+    let path = loop {
+        let p = mirror.join(format!("{base}_{n:03}.md"));
+        match std::fs::metadata(&p) {
+            Err(_) => break p, // doesn't exist yet — use it
+            Ok(m) if m.len() < LOG_ROTATE_BYTES => break p,
+            Ok(_) => n += 1, // full — roll to the next
+        }
+        if n > 999 {
+            return Err("Transcript log rotation exceeded 999 files.".into());
+        }
+    };
+    use std::io::Write;
+    let mut f = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .map_err(|e| e.to_string())?;
+    f.write_all(content.as_bytes()).map_err(|e| e.to_string())?;
+    Ok(path.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_default())
+}
+
 #[derive(Serialize)]
 pub struct SyncReport {
     pub pulled: u32,

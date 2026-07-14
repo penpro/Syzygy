@@ -70,11 +70,15 @@ will build on.
   echo ping-pong. Subfolders are not synced (v1 is flat).
 
 **UI surface (Ask top bar):**
-- **📂 Use Drive folder** — syncs, then sets the thread's knowledge/document folder to
-  the mirror (also grants the path).
-- **☁ Sync** — manual sync, flashes `✓ ⬇pulled ⬆pushed`.
-- **✍ Mirror** — per-thread toggle appending each sent prompt to `ask-<title>.md` in the
-  folder (fire-and-forget; the collab smoke test).
+- **☁ Shared folder** — the per-thread mode toggle. Enabling it: sets the thread's
+  knowledge/document folder to the mirror (granting it), pull-syncs immediately, then
+  per exchange: **pull-sync before retrieval** (so "look at the project files" sees what
+  collaborators just added) and **appends the complete exchange (prompt + response)** to
+  the thread's rotating transcript, pushing after.
+- **Transcripts**: `ask_<TabName>_001.md` in the mirror (name sanitized from the ask
+  tab's title; rotates to `_002`… at 256 KB — `google_drive_mirror_append_log`).
+  Renaming the tab starts a new transcript file under the new name.
+- **☁ Sync** — manual two-way sync, flashes `✓ ⬇pulled ⬆pushed`.
 - Closing the Document modal auto-syncs when the thread folder is the mirror.
 
 ## Known limitations / next steps

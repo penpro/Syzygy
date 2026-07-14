@@ -22,7 +22,7 @@ const SCOPE_PROBLEM = /insufficient|scope|checkbox|drive access/i
  * Auth + a create-folder smoke test for now; the shared-folder sync layer builds on this.
  * The OAuth flow and tokens live entirely in the Rust core — this only sees the email.
  */
-export function GoogleDriveButton({ onUseFolder }: { onUseFolder?: (mirrorPath: string) => void }) {
+export function GoogleDriveButton() {
   const clientId = useStore((s) => s.settings.googleClientId)
   const clientSecret = useStore((s) => s.settings.googleClientSecret)
   const [email, setEmail] = useState<string | null>(null)
@@ -64,18 +64,12 @@ export function GoogleDriveButton({ onUseFolder }: { onUseFolder?: (mirrorPath: 
     }
   }
 
-  /** Two-way sync now; optionally hand the mirror path to the caller (→ set as the thread folder). */
-  const syncNow = async (thenUse: boolean) => {
+  const syncNow = async () => {
     setBusy(true)
     try {
       const r = await googleDriveSyncFolder(DRIVE_FOLDER)
       logInfo('drive', `Sync: pulled ${r.pulled}, pushed ${r.pushed} (${r.mirror})`)
-      if (thenUse && onUseFolder) {
-        onUseFolder(r.mirror)
-        showFlash('✅ Using Drive folder', `This thread now reads & writes ${r.mirror}, synced with Drive`)
-      } else {
-        showFlash(`✅ Synced ⬇${r.pulled} ⬆${r.pushed}`, `Mirror: ${r.mirror} ↔ Drive/"${DRIVE_FOLDER}"`)
-      }
+      showFlash(`✅ Synced ⬇${r.pulled} ⬆${r.pushed}`, `Mirror: ${r.mirror} ↔ Drive/"${DRIVE_FOLDER}"`)
     } catch (e) {
       const msg = (e as { message?: string })?.message ?? String(e)
       if (SCOPE_PROBLEM.test(msg)) setShowScopeHelp(true)
@@ -182,21 +176,11 @@ export function GoogleDriveButton({ onUseFolder }: { onUseFolder?: (mirrorPath: 
 
   return (
     <span className="row" style={{ gap: 4, alignItems: 'center' }}>
-      {onUseFolder && (
-        <button
-          className="btn sm ghost"
-          title={`Point this thread at the shared Drive folder: knowledge is read from it and generated documents land in it (local mirror at Documents\\Syzygy, synced with Drive/"${DRIVE_FOLDER}")`}
-          disabled={busy}
-          onClick={() => syncNow(true)}
-        >
-          {busy ? '…' : '📂 Use Drive folder'}
-        </button>
-      )}
       <button
         className="btn sm ghost"
-        title={`Linked as ${email} — sync the local mirror with Drive/"${DRIVE_FOLDER}" now`}
+        title={`Linked as ${email} — sync Documents\\Syzygy with Drive/"${DRIVE_FOLDER}" now`}
         disabled={busy}
-        onClick={() => syncNow(false)}
+        onClick={syncNow}
       >
         {busy ? '…' : '☁ Sync'}
       </button>

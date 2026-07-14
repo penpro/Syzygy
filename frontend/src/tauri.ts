@@ -200,6 +200,11 @@ export interface DriveSyncReport {
 export const googleDriveSyncFolder = (folderName: string): Promise<DriveSyncReport> =>
   invoke('google_drive_sync_folder', { folderName })
 
+/** Append an exchange to a rotating transcript in the mirror (`<base>_001.md`, 256KB cap);
+ * resolves to the file name written. Local-only — pair with a sync to push it to Drive. */
+export const googleDriveMirrorAppendLog = (base: string, content: string): Promise<string> =>
+  invoke('google_drive_mirror_append_log', { base, content })
+
 // ---------- app ----------
 
 /** The running app version (from Cargo). */

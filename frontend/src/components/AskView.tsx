@@ -23,7 +23,7 @@ import { MessageInput } from './MessageInput'
 import { ExpertEditor } from './ExpertEditor'
 import { FolderGrant } from './FolderGrant'
 import { GoogleDriveButton, DRIVE_FOLDER } from './GoogleDriveButton'
-import { googleDriveAppendText, googleDriveSyncFolder } from '../tauri'
+import { googleDriveSyncFolder, googleDriveMirrorDir, googleDriveMirrorAppendLog } from '../tauri'
 import { logInfo } from '../log'
 import { DocumentModal } from './DocumentModal'
 import { ImageFinderModal } from './ImageFinderModal'
@@ -42,6 +42,15 @@ const fileToDataUrl = (f: File): Promise<string> =>
   })
 
 const TEXT_RE = /\.(txt|md|markdown|text|html?|css|jsx?|tsx?|json|csv|xml|ya?ml|java|py|rs|go|c|cpp|h|sh|sql|log|ini|toml)$/i
+
+/** Rotating-transcript base name from the ask tab's name: `ask_<Title>` (sanitized, capped). */
+const logBase = (title: string) =>
+  'ask_' +
+  ((title || 'untitled')
+    .slice(0, 32)
+    .replace(/[^\w\- ]/g, '')
+    .trim()
+    .replace(/\s+/g, '_') || 'untitled')
 
 export function AskView() {
   const asks = useStore((s) => s.asks)
@@ -199,14 +208,6 @@ export function AskView() {
     const note = noteBits.length ? `\n\n_[attached: ${noteBits.join(' · ')}]_` : ''
     const userId = addAskMessage(ask.id, { role: 'user', content: userText + note })
     const assistantId = addAskMessage(ask.id, { role: 'assistant', content: '', reasoning: '' })
-    // Shared-folder collab test: mirror the prompt to the Drive "Syzygy" folder, fire-and-forget —
-    // a Drive hiccup must never block the local conversation.
-    if (ask.syncToDrive && text.trim()) {
-      const stamp = new Date().toISOString()
-      googleDriveAppendText('Syzygy', `ask-${(ask.title || ask.id).slice(0, 40).replace(/[\\/:*?"<>|]/g, '_')}.md`, `\n**[${stamp}]**\n${text.trim()}\n`)
-        .then((id) => logInfo('drive', `Prompt mirrored to Drive (file ${id})`))
-        .catch(() => {}) // failure already logged by the invoke wrapper
-    }
     setPending([])
     setPendingText([])
     if (mode === 'image') setLastImages(imgs)
@@ -222,6 +223,16 @@ export function AskView() {
     setBusy(true)
     setError('')
     try {
+      // Shared-folder mode: pull the latest from Drive BEFORE retrieval, so "look at the
+      // project files" sees what collaborators just added. Failure is non-fatal (offline etc.).
+      if (ask.syncToDrive) {
+        try {
+          const r = await googleDriveSyncFolder(DRIVE_FOLDER)
+          if (r.pulled || r.pushed) logInfo('drive', `Pre-send sync: ⬇${r.pulled} ⬆${r.pushed}`)
+        } catch {
+          /* already in the diagnostic log via the invoke wrapper */
+        }
+      }
       // Knowledge folder: fold the passages most relevant to this question into the system prompt.
       let sysFull = sys
       if (ask.knowledgeFolder) {
@@ -268,6 +279,22 @@ export function AskView() {
         signal: ctrl.signal,
         handlers,
       })
+      // Shared-folder mode: record the COMPLETE exchange (prompt + response) in the thread's
+      // rotating transcript inside the mirror, then push to Drive. Fire-and-forget — a Drive
+      // hiccup must never block the conversation.
+      if (ask.syncToDrive) {
+        const done = useStore.getState().asks.find((a) => a.id === ask.id)
+        const reply = done?.messages.find((m) => m.id === assistantId)?.content ?? ''
+        const stamp = new Date().toISOString().replace('T', ' ').slice(0, 16)
+        const block = `\n---\n\n**[${stamp}] You**\n\n${userText}\n\n**[${stamp}] ${modelName}**\n\n${reply}\n`
+        googleDriveMirrorAppendLog(logBase(ask.title), block)
+          .then((file) => {
+            logInfo('drive', `Exchange logged to ${file}`)
+            return googleDriveSyncFolder(DRIVE_FOLDER)
+          })
+          .then((r) => logInfo('drive', `Post-exchange sync: ⬇${r.pulled} ⬆${r.pushed}`))
+          .catch(() => {}) // already in the diagnostic log via the invoke wrapper
+      }
     } catch (e) {
       const err = e as { name?: string; message?: string }
       if (err?.name !== 'AbortError') {
@@ -422,14 +449,28 @@ export function AskView() {
           className={cx('btn sm ghost', ask.syncToDrive && 'sel')}
           title={
             ask.syncToDrive
-              ? 'Prompts in this thread are being mirrored to the "Syzygy" folder in your Drive — click to stop'
-              : 'Mirror each prompt in this thread to the "Syzygy" folder in your Drive (collab test)'
+              ? 'Shared-folder mode is ON: this thread reads its knowledge from Documents\\Syzygy (synced with Drive) and logs each exchange there — click to stop'
+              : 'Shared-folder mode: point this thread at the Drive-synced folder — it reads project files from there and logs the conversation into it'
           }
-          onClick={() => updateAsk(ask.id, { syncToDrive: !ask.syncToDrive })}
+          onClick={async () => {
+            if (ask.syncToDrive) {
+              updateAsk(ask.id, { syncToDrive: false })
+              return
+            }
+            try {
+              const mirror = await googleDriveMirrorDir()
+              updateAsk(ask.id, { syncToDrive: true, knowledgeFolder: mirror })
+              googleDriveSyncFolder(DRIVE_FOLDER)
+                .then((r) => logInfo('drive', `Shared-folder on: ⬇${r.pulled} ⬆${r.pushed}`))
+                .catch(() => {})
+            } catch (e) {
+              setError((e as { message?: string })?.message ?? 'Could not open the shared folder.')
+            }
+          }}
         >
-          {ask.syncToDrive ? '✍ Mirroring' : '✍ Mirror'}
+          {ask.syncToDrive ? '☁ Shared ✓' : '☁ Shared folder'}
         </button>
-        <GoogleDriveButton onUseFolder={(p) => updateAsk(ask.id, { knowledgeFolder: p })} />
+        <GoogleDriveButton />
         <FolderGrant
           folder={ask.knowledgeFolder}
           onSetFolder={(p) => updateAsk(ask.id, { knowledgeFolder: p ?? undefined })}

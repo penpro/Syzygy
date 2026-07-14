@@ -121,6 +121,7 @@ pub fn run() {
             google_drive::google_drive_read_file,
             google_drive::google_drive_mirror_dir,
             google_drive::google_drive_sync_folder,
+            google_drive::google_drive_mirror_append_log,
             updates::app_version
         ])
         .run(tauri::generate_context!())

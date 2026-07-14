@@ -63,6 +63,7 @@ Updater endpoint: `https://github.com/penpro/Syzygy/releases/latest/download/lat
 | Push rejected: `GH013 … Push cannot contain secrets` | OAuth creds in source. `git reset --soft HEAD~1`, move them to `.env.local` / Actions secrets, re-commit. Never "allow" the secret through. |
 | `npm run bump` reports a file didn't contain the old version | Version files drifted out of lockstep — fix the odd one by hand, keep all five identical. |
 | Windows says "protected your PC" on the installer | Unsigned (no code-signing cert — separate thing from updater signing). More info → Run anyway. |
+| "Check for updates" says up-to-date right after tagging | The CI matrix publishes `latest.json` **per-OS as each job finishes** (macOS/Linux usually beat Windows). Until the `windows-x86_64` entry appears, Windows correctly sees no update. Wait for the release run to complete (~10 min) — verify with `curl -sL .../latest.json` and look for your platform key. |
 
 ## Diagnostic log
 

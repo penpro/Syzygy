@@ -1,0 +1,81 @@
+# Development & Release Processes
+
+## Daily dev
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm install                # once
+npm run fetch-engine       # once — MUST run from PowerShell, not Git Bash (see gotchas)
+npm run tauri dev          # full app (Rust + webview)
+npm run dev                # webview only on :5173 (splash overlays without the engine)
+```
+
+Checks (all must be green before shipping):
+```powershell
+npx tsc -b --force         # 0 errors
+npx vitest run             # all pass
+cargo check                # in src-tauri (cargo is at C:\Users\penum\.cargo\bin, not on PATH)
+```
+
+## Local installer build
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm run tauri build
+# → src-tauri\target\release\bundle\nsis\Syzygy_<version>_x64-setup.exe
+```
+
+## Release (the iteration loop)
+
+1. Land the work; checks green.
+2. `npm run bump patch` (syncs package.json, package-lock ×2, tauri.conf.json,
+   Cargo.toml, Cargo.lock — all five must stay in lockstep).
+3. Commit → `git push origin main` → `git tag vX.Y.Z` → `git push origin vX.Y.Z`.
+4. CI (`.github/workflows/release.yml`, tag `v*`) builds Win/macOS/Linux via
+   tauri-action, **signs updater artifacts**, publishes the GitHub release including
+   `latest.json`.
+5. Users: **Settings → ⬆ Updates → Check for updates** → downloads, verifies signature,
+   relaunches.
+
+Updater endpoint: `https://github.com/penpro/Syzygy/releases/latest/download/latest.json`.
+
+### Release configuration split
+
+- Base `tauri.conf.json`: `createUpdaterArtifacts: false`, nsis-only — local builds need
+  no signing key.
+- `tauri.release.conf.json` (CI overlay via `args: --config`): updater artifacts **on**,
+  all OS bundle targets.
+
+### Secrets & keys
+
+| Thing | Where | Notes |
+|---|---|---|
+| Updater signing key | `~/.tauri/syzygy.key` (private, empty password) + repo secret `TAURI_SIGNING_PRIVATE_KEY` | **BACK UP THE KEY FILE.** Lose it → can never sign another update; users must manually reinstall. Pubkey is in `tauri.conf.json`. |
+| Google OAuth client | `frontend/.env.local` (gitignored) + repo secrets `VITE_GOOGLE_OAUTH_CLIENT_ID` / `VITE_GOOGLE_OAUTH_CLIENT_SECRET` | Injected at build time (`import.meta.env`). **Never commit them** — GitHub push protection will (correctly) block the push. They do ship inside the binary; Google documents Desktop-client creds as non-confidential. |
+
+## Gotchas (every one of these burned us once)
+
+| Symptom | Cause → fix |
+|---|---|
+| `fetch-engine` fails: `tar: Cannot connect to C:` | Git Bash's MSYS tar misparses `C:\` paths → run from **PowerShell** (uses Windows tar). |
+| Build fails: `failed to rename app binary … Access is denied` | **Syzygy.exe is running** (locks target\release binary). Close the app; check `tasklist | findstr Syzygy` for zombies. |
+| Frontend change builds "successfully" but the exe shows the **old UI** | Tauri embeds `dist/` at Rust-compile time; with no Rust edits cargo used to skip re-embedding. Fixed permanently by `build.rs`: `cargo:rerun-if-changed=../dist`. If it ever recurs: `touch src-tauri/src/lib.rs` and rebuild — and confirm `Compiling app` appears in the build log. |
+| Push rejected: `GH013 … Push cannot contain secrets` | OAuth creds in source. `git reset --soft HEAD~1`, move them to `.env.local` / Actions secrets, re-commit. Never "allow" the secret through. |
+| `npm run bump` reports a file didn't contain the old version | Version files drifted out of lockstep — fix the odd one by hand, keep all five identical. |
+| Windows says "protected your PC" on the installer | Unsigned (no code-signing cert — separate thing from updater signing). More info → Run anyway. |
+
+## Diagnostic log
+
+`src/log.ts` — in-app ring buffer (Settings → 📜 View log). Every backend command
+failure is captured automatically by the `invoke` wrapper in `tauri.ts` (command name +
+error only — never prompts/file contents/tokens), plus uncaught errors and unhandled
+rejections; consecutive repeats collapse to `×N`. Feature milestones worth debugging
+later should `logInfo(tag, msg)`. First stop for any user-reported failure: **Copy all**.
+
+## Conventions
+
+- Components never import `invoke` — add a typed wrapper in `tauri.ts`.
+- No hard-coded colors — theme tokens only (`docs/DESIGN.md`).
+- Save-shape changes go through `migrations.ts` with idempotent backfills.
+- Copy follows the local-first voice rules (`docs/DESIGN.md → Voice`).
+- Commit messages: what + why, wrapped ~72 cols.

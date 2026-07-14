@@ -21,6 +21,16 @@
 
 **Where this is heading:** a free, local-first collaborative document editor — the fully-free rework of the ideas in [PolicyPad](https://github.com/kjfeng/policypad) (CHI 2026), with the collaborative Tiptap editor as the main workspace and pluggable sync (shared folder / self-hosted / P2P). The Ask workspace above is the foundation it lands on.
 
+## Documentation
+
+| Doc | What's in it |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | The mental model: shell, Rust core, frontend, persistence, invariants |
+| [docs/DESIGN.md](docs/DESIGN.md) | Design system: palette, type, theming rules, motion, copy voice |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Dev/build/release processes, secrets & keys, the gotcha table |
+| [docs/GOOGLE-DRIVE.md](docs/GOOGLE-DRIVE.md) | Drive auth + folder-mirror sync, Google quirks, limitations |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Lineage, shipped versions, what's next, decision log |
+
 ## Build from source
 
 **Prerequisites:** [Rust](https://rustup.rs/), [Node.js](https://nodejs.org/) 18+, and VS C++ Build Tools.

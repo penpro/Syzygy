@@ -73,5 +73,21 @@ jobs:
             • **Windows** — `-setup.exe`  • **macOS** — `.dmg`  • **Linux** — `.AppImage` or `.deb`
 
             macOS builds are not yet notarized; right-click → Open the first time. Windows: More info → Run anyway.
-          releaseDraft: false
+          # Draft until every OS has uploaded — otherwise the updater feed goes live with a
+          # partial platforms object and Windows users get "no platform found" errors while
+          # the (slowest) Windows job is still building. The publish job below flips it live.
+          releaseDraft: true
           prerelease: false
+
+  # Publish the release only after ALL platform builds have uploaded their artifacts.
+  # Until then the previous complete release remains "latest" and updaters see a whole feed.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the drafted release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "${{ github.event.inputs.tag || github.ref_name }}" \
+            --repo "${{ github.repository }}" --draft=false

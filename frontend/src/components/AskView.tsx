@@ -22,6 +22,9 @@ import { Markdown } from './Markdown'
 import { MessageInput } from './MessageInput'
 import { ExpertEditor } from './ExpertEditor'
 import { FolderGrant } from './FolderGrant'
+import { GoogleDriveButton } from './GoogleDriveButton'
+import { googleDriveAppendText } from '../tauri'
+import { logInfo } from '../log'
 import { DocumentModal } from './DocumentModal'
 import { ImageFinderModal } from './ImageFinderModal'
 import { cx } from '../util'
@@ -196,6 +199,14 @@ export function AskView() {
     const note = noteBits.length ? `\n\n_[attached: ${noteBits.join(' · ')}]_` : ''
     const userId = addAskMessage(ask.id, { role: 'user', content: userText + note })
     const assistantId = addAskMessage(ask.id, { role: 'assistant', content: '', reasoning: '' })
+    // Shared-folder collab test: mirror the prompt to the Drive "Syzygy" folder, fire-and-forget —
+    // a Drive hiccup must never block the local conversation.
+    if (ask.syncToDrive && text.trim()) {
+      const stamp = new Date().toISOString()
+      googleDriveAppendText('Syzygy', `ask-${(ask.title || ask.id).slice(0, 40).replace(/[\\/:*?"<>|]/g, '_')}.md`, `\n**[${stamp}]**\n${text.trim()}\n`)
+        .then((id) => logInfo('drive', `Prompt mirrored to Drive (file ${id})`))
+        .catch(() => {}) // failure already logged by the invoke wrapper
+    }
     setPending([])
     setPendingText([])
     if (mode === 'image') setLastImages(imgs)
@@ -407,6 +418,18 @@ export function AskView() {
           </button>
         </div>
         <div style={{ flex: 1 }} />
+        <button
+          className={cx('btn sm ghost', ask.syncToDrive && 'sel')}
+          title={
+            ask.syncToDrive
+              ? 'Prompts in this thread are being mirrored to the "Syzygy" folder in your Drive — click to stop'
+              : 'Mirror each prompt in this thread to the "Syzygy" folder in your Drive (collab test)'
+          }
+          onClick={() => updateAsk(ask.id, { syncToDrive: !ask.syncToDrive })}
+        >
+          {ask.syncToDrive ? '☁ Syncing' : '☁ Sync'}
+        </button>
+        <GoogleDriveButton />
         <FolderGrant
           folder={ask.knowledgeFolder}
           onSetFolder={(p) => updateAsk(ask.id, { knowledgeFolder: p ?? undefined })}

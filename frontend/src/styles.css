@@ -48,6 +48,46 @@
 }
 
 /* Theme presets — accent + void swaps; borders/glows/gradients re-derive automatically. */
+
+/* Syzygy (default) — the paper-and-ink research aesthetic: warm paper surfaces, Research Ink
+   text, Observatory Blue as the working accent, copper/ochre for warnings and tags.
+   A LIGHT theme, so it also overrides text/border/glow tokens the dark presets inherit. */
+[data-theme='syzygy'] {
+  --accent: #2e5c8a; /* Observatory Blue */
+  --accent-2: #4c7f7a; /* Muted Teal */
+  --magenta: #b26d4a; /* Oxidized Copper */
+  --violet: #d6a24c; /* Ochre */
+  --bg: #f6f2e7; /* Warm Paper */
+  --panel: #fbf8f0;
+  --bg-2: #efe9da;
+  --bg-3: #e6dfcc;
+  --panel-glass: rgba(251, 248, 240, 0.78);
+  --text: #0b1d2a; /* Research Ink */
+  --text-2: #3e5361;
+  --muted: #5a6e7a;
+  --faint: #8a97a0;
+  --on-accent: #fbf8f0;
+  --danger: #b3382e;
+  --warn: #b26d4a;
+  /* ink-based borders — accent-tinted borders read as smudges on paper */
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --border: color-mix(in srgb, #0b1d2a 14%, transparent);
+  --border-2: color-mix(in srgb, #0b1d2a 28%, transparent);
+  --glow: 0 1px 3px rgba(11, 29, 42, 0.08);
+  --glow-sm: 0 1px 2px rgba(11, 29, 42, 0.06);
+  --grad: linear-gradient(120deg, #2e5c8a, #4c7f7a);
+  --grad-hot: linear-gradient(120deg, #2e5c8a, #b26d4a);
+  --font: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-head: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', 'Consolas', monospace;
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+/* Paper is flat — no starfield backdrop, no glow gradients. */
+[data-theme='syzygy'] body {
+  background: var(--bg);
+}
+
 [data-theme='synthwave'] {
   --accent: #ff5cf4;
   --accent-2: #ff79c6;
@@ -1939,4 +1979,139 @@ select:focus {
   font-size: 12px;
   font-style: italic;
   padding-left: 4px;
+}
+
+/* ---------- Syzygy design-language additions ---------- */
+
+/* Letterspaced wordmark in the title bar (per the brand sheet: mono, tracked wide). */
+.brand-word {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.32em;
+  margin-left: 8px;
+  transform: translateY(0.5px);
+}
+
+/* Sidebar thread list must ALWAYS scroll internally, never push the footer off-screen:
+   pin the growing section's basis to 0 so the list gets exactly the leftover space. */
+.side-section.grow {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.side-section.grow .chat-list {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Paper theme: side panels and modals sit as crisp cards, not glowing glass. */
+[data-theme='syzygy'] .sidebar,
+[data-theme='syzygy'] .topbar {
+  box-shadow: 0 1px 3px rgba(11, 29, 42, 0.06);
+}
+[data-theme='syzygy'] .side-head span,
+[data-theme='syzygy'] .field-label > span:first-child {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ---------- Syzygy splash animation: bodies drift into alignment, sparkle at syzygy ----------
+   Base SVG positions are the ALIGNED state, so when a11y.css kills animations
+   (reduced motion) the mark rests aligned instead of freezing mid-drift.
+   One 4.6s cycle: drift in (0-40%) → alignment + sparkle (40-60%) → hold → drift out. */
+.syz-sat {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.syz-sat-l {
+  animation: syz-drift-l 4.6s cubic-bezier(0.55, 0, 0.3, 1) infinite;
+}
+.syz-sat-r {
+  animation: syz-drift-r 4.6s cubic-bezier(0.55, 0, 0.3, 1) infinite;
+}
+@keyframes syz-drift-l {
+  0% { transform: translate(-16px, -30px); }
+  40%, 82% { transform: translate(0, 0); }
+  100% { transform: translate(-16px, -30px); }
+}
+@keyframes syz-drift-r {
+  0% { transform: translate(16px, 30px); }
+  40%, 82% { transform: translate(0, 0); }
+  100% { transform: translate(16px, 30px); }
+}
+.syz-core {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: syz-core-pulse 4.6s ease-in-out infinite;
+}
+@keyframes syz-core-pulse {
+  0%, 38% { transform: scale(1); }
+  46% { transform: scale(1.16); }
+  56%, 100% { transform: scale(1); }
+}
+/* Sparkles rest invisible (base opacity 0 via the 0%/100% frames won't apply without the
+   animation, so set it on the element) and burst right as the bodies align. */
+.syz-spark {
+  opacity: 0;
+  transform-box: view-box;
+  animation: syz-sparkle 4.6s ease-out infinite;
+}
+.syz-spark-echo {
+  animation-name: syz-sparkle-echo;
+}
+.syz-spark-echo2 {
+  animation-name: syz-sparkle-echo2;
+}
+@keyframes syz-sparkle {
+  0%, 39% { opacity: 0; transform: scale(0.2) rotate(-20deg); }
+  46% { opacity: 1; transform: scale(1.08) rotate(0deg); }
+  60% { opacity: 0; transform: scale(1.3) rotate(14deg); }
+  100% { opacity: 0; transform: scale(0.2) rotate(-20deg); }
+}
+@keyframes syz-sparkle-echo {
+  0%, 44% { opacity: 0; transform: scale(0.2); }
+  52% { opacity: 1; transform: scale(1.1); }
+  66% { opacity: 0; transform: scale(1.35); }
+  100% { opacity: 0; transform: scale(0.2); }
+}
+@keyframes syz-sparkle-echo2 {
+  0%, 48% { opacity: 0; transform: scale(0.2); }
+  56% { opacity: 0.9; transform: scale(1); }
+  70% { opacity: 0; transform: scale(1.3); }
+  100% { opacity: 0; transform: scale(0.2); }
+}
+/* Reduced motion: rest in the aligned state with the sparkle hidden. */
+html[data-reduce-motion='true'] .syz-spark {
+  opacity: 0 !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .syz-spark { opacity: 0 !important; animation: none !important; }
+  .syz-sat, .syz-core { animation: none !important; }
+}
+
+/* The mark self-animates now — retire the old whole-mark pulse + glow for the splash,
+   and set the title in the letterspaced wordmark style. */
+.splash-mark {
+  animation: none;
+  filter: none;
+}
+.splash-title {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.42em;
+  margin-left: 0.42em; /* optically recenter (tracking adds trailing space) */
+}
+
+/* Active-state pill for toggleable top-bar buttons (e.g. ☁ Sync to Drive). */
+.btn.sel {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
 }

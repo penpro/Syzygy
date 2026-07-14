@@ -3,7 +3,7 @@ import { useStore } from '../store'
 import { getEngineStatus } from '../api/ollama'
 import { gpuVram } from '../tauri'
 import { friendlyModelName } from '../models'
-import { CoronaMark } from './CoronaMark'
+import { SyzygySplashMark } from './SyzygyMark'
 import { cx } from '../util'
 
 type Phase = 'down' | 'loading' | 'ready'
@@ -69,9 +69,9 @@ export function SplashScreen() {
     <div className={cx('splash', fading && 'is-out')} data-tauri-drag-region>
       <div className="splash-inner">
         <div className="splash-mark">
-          <CoronaMark size={264} />
+          <SyzygySplashMark width={300} />
         </div>
-        <div className="splash-title">Syzygy</div>
+        <div className="splash-title">SYZYGY</div>
         <div className="splash-msg">
           {phase === 'down' ? 'Warming up the engine…' : `Loading ${model} into memory…`}
         </div>

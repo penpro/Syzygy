@@ -29,6 +29,7 @@ export interface Settings {
   sidebarCollapsed?: boolean // dock the left navigator away for an immersive work area
   crashReports?: boolean // opt-in anonymous crash reports (Sentry, errors only) — default OFF, disclosed in Settings
   googleClientId: string // OAuth Client ID (Desktop app) for Google Drive linking; '' = not configured
+  googleClientSecret: string // Google requires this at the token endpoint for Desktop clients (not confidential for installed apps)
   // advanced sampling — defaults match llama.cpp, so behavior is unchanged until tuned
   topK: number
   minP: number
@@ -75,6 +76,7 @@ export interface Ask {
   messages: ChatMessage[]
   think: boolean
   knowledgeFolder?: string // read/write folder: reference docs in, generated documents out
+  syncToDrive?: boolean // mirror each sent prompt to the shared Drive folder (collab test)
   createdAt: number
   updatedAt: number
 }

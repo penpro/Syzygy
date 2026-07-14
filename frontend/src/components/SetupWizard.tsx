@@ -68,14 +68,14 @@ export function SetupWizard({ onReady, onCancel }: { onReady: () => void; onCanc
           borderRadius: 8,
           cursor: 'pointer',
           color: 'inherit',
-          border: selected === m.id ? '1px solid #7c5cff' : '1px solid #2a2f3a',
-          background: selected === m.id ? 'rgba(124,92,255,.12)' : 'transparent',
+          border: selected === m.id ? '1px solid var(--accent)' : '1px solid var(--border)',
+          background: selected === m.id ? 'var(--accent-soft)' : 'transparent',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <strong>
             {m.name}
-            {m.id === recId && <span style={{ color: '#3fb6a8', fontSize: 12 }}> ★ Recommended</span>}
+            {m.id === recId && <span style={{ color: 'var(--accent-2)', fontSize: 12 }}> ★ Recommended</span>}
           </strong>
           <span className="muted xs">{m.sizeGb.toFixed(1)} GB</span>
         </div>
@@ -92,7 +92,7 @@ export function SetupWizard({ onReady, onCancel }: { onReady: () => void; onCanc
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(8,10,14,0.85)',
+        background: 'color-mix(in srgb, var(--bg) 82%, transparent)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -103,8 +103,8 @@ export function SetupWizard({ onReady, onCancel }: { onReady: () => void; onCanc
     >
       <div
         style={{
-          background: '#15181f',
-          border: '1px solid #2a2f3a',
+          background: 'var(--panel)',
+          border: '1px solid var(--border)',
           borderRadius: 12,
           padding: 24,
           width: '100%',
@@ -189,8 +189,8 @@ export function SetupWizard({ onReady, onCancel }: { onReady: () => void; onCanc
             <p style={{ marginBottom: 8 }}>
               Downloading {model?.name} — {pct.toFixed(0)}%
             </p>
-            <div style={{ height: 8, background: '#2a2f3a', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: pct + '%', background: '#7c5cff', transition: 'width .3s ease' }} />
+            <div style={{ height: 8, background: 'var(--bg-3)', borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: pct + '%', background: 'var(--accent)', transition: 'width .3s ease' }} />
             </div>
             <p className="muted xs" style={{ marginTop: 8 }}>
               One-time download. Keep the app open.

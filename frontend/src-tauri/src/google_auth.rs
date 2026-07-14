@@ -24,11 +24,18 @@ const TOKEN_ENDPOINT: &str = "https://oauth2.googleapis.com/token";
 const REVOKE_ENDPOINT: &str = "https://oauth2.googleapis.com/revoke";
 const SCOPE: &str = "openid email https://www.googleapis.com/auth/drive.file";
 /// How long we wait for the user to finish the consent screen in their browser.
+/// (The user can also abort early — google_oauth_cancel pokes the listener.)
 const CONSENT_TIMEOUT_SECS: u64 = 300;
+
+/// Port of the flow currently waiting on its loopback redirect (None = no flow in progress).
+/// Lets google_oauth_cancel unblock the listener by connecting to it with a /cancel request.
+static PENDING_PORT: std::sync::Mutex<Option<u16>> = std::sync::Mutex::new(None);
 
 #[derive(Serialize, Deserialize)]
 struct StoredAuth {
     client_id: String,
+    #[serde(default)]
+    client_secret: String,
     refresh_token: String,
     email: String,
 }
@@ -59,10 +66,15 @@ fn email_from_id_token(id_token: &str) -> Option<String> {
     json.get("email")?.as_str().map(str::to_owned)
 }
 
-/// Open a URL in the user's default browser (same mechanism as documents::open_path).
+/// Open a URL in the user's default browser.
+/// Windows: NOT `cmd /C start` — cmd splits the command at every `&` in the query string,
+/// truncating the URL (Google then errors with "missing response_type"). rundll32's
+/// FileProtocolHandler takes the URL as a plain argument with no shell parsing.
 fn open_browser(url: &str) -> Result<(), String> {
     #[cfg(target_os = "windows")]
-    let status = std::process::Command::new("cmd").args(["/C", "start", "", url]).status();
+    let status = std::process::Command::new("rundll32")
+        .args(["url.dll,FileProtocolHandler", url])
+        .status();
     #[cfg(target_os = "macos")]
     let status = std::process::Command::new("open").arg(url).status();
     #[cfg(all(unix, not(target_os = "macos")))]
@@ -121,6 +133,10 @@ fn wait_for_redirect(listener: TcpListener, expected_state: &str) -> Result<Stri
         );
     };
 
+    if url.path() == "/cancel" {
+        respond(&mut stream, "canceled");
+        return Err("Sign-in canceled.".into());
+    }
     if let Some(err) = query.get("error") {
         respond(&mut stream, "<html><body style='font-family:sans-serif'><h2>Sign-in was cancelled.</h2><p>You can close this tab and return to Syzygy.</p></body></html>");
         return Err(format!("Google returned: {err}"));
@@ -130,7 +146,8 @@ fn wait_for_redirect(listener: TcpListener, expected_state: &str) -> Result<Stri
         respond(&mut stream, "<html><body style='font-family:sans-serif'><h2>Sign-in failed a security check.</h2><p>Please try connecting again from Syzygy.</p></body></html>");
         return Err("OAuth state mismatch — possible interception; aborted.".into());
     }
-    respond(&mut stream, "<html><body style='font-family:sans-serif'><h2>Connected ✔</h2><p>Syzygy is now linked to your Google Drive. You can close this tab.</p></body></html>");
+    // Don't claim success here — the token exchange still has to happen back in the app.
+    respond(&mut stream, "<html><body style='font-family:sans-serif'><h2>Almost done…</h2><p>Return to Syzygy — it's finishing the link now. You can close this tab.</p></body></html>");
     Ok(code)
 }
 
@@ -139,6 +156,9 @@ struct TokenResponse {
     access_token: Option<String>,
     refresh_token: Option<String>,
     id_token: Option<String>,
+    /// Space-separated scopes the user ACTUALLY granted — Google's consent screen has
+    /// per-scope checkboxes, so this can be less than what we asked for.
+    scope: Option<String>,
     error_description: Option<String>,
     error: Option<String>,
 }
@@ -156,9 +176,16 @@ async fn token_request(params: &[(&str, &str)]) -> Result<TokenResponse, String>
 }
 
 /// Run the full connect flow. Returns the connected account's email.
+/// `client_secret`: required by Google's token endpoint for "Desktop app" clients even with
+/// PKCE (their documented deviation from RFC 8252 — for installed apps it is not confidential).
 #[tauri::command]
-pub async fn google_oauth_start(app: tauri::AppHandle, client_id: String) -> Result<String, String> {
+pub async fn google_oauth_start(
+    app: tauri::AppHandle,
+    client_id: String,
+    client_secret: String,
+) -> Result<String, String> {
     let client_id = client_id.trim().to_string();
+    let client_secret = client_secret.trim().to_string();
     if client_id.is_empty() {
         return Err("No Google OAuth client ID configured.".into());
     }
@@ -173,6 +200,15 @@ pub async fn google_oauth_start(app: tauri::AppHandle, client_id: String) -> Res
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
     let redirect_uri = format!("http://127.0.0.1:{port}");
 
+    // Single-flight: refuse a second concurrent sign-in instead of leaving two listeners racing.
+    {
+        let mut pending = PENDING_PORT.lock().unwrap_or_else(|e| e.into_inner());
+        if pending.is_some() {
+            return Err("A Google sign-in is already in progress — cancel it first.".into());
+        }
+        *pending = Some(port);
+    }
+
     let mut auth_url = url::Url::parse(AUTH_ENDPOINT).map_err(|e| e.to_string())?;
     auth_url
         .query_pairs_mut()
@@ -186,25 +222,46 @@ pub async fn google_oauth_start(app: tauri::AppHandle, client_id: String) -> Res
         .append_pair("prompt", "consent")
         .append_pair("state", &state);
 
-    open_browser(auth_url.as_str())?;
+    // Whatever happens past this point (browser fails to open, timeout, cancel, exchange
+    // error), the pending marker must be cleared or every later attempt would be refused.
+    let clear_pending = || *PENDING_PORT.lock().unwrap_or_else(|e| e.into_inner()) = None;
+
+    if let Err(e) = open_browser(auth_url.as_str()) {
+        clear_pending();
+        return Err(e);
+    }
 
     // The listener blocks — run it off the async runtime's core threads.
     let expected = state.clone();
-    let code = tauri::async_runtime::spawn_blocking(move || wait_for_redirect(listener, &expected))
+    let waited = tauri::async_runtime::spawn_blocking(move || wait_for_redirect(listener, &expected))
         .await
-        .map_err(|e| e.to_string())??;
+        .map_err(|e| e.to_string());
+    clear_pending();
+    let code = waited??;
 
-    let tokens = token_request(&[
+    let mut params = vec![
         ("client_id", client_id.as_str()),
         ("code", code.as_str()),
         ("code_verifier", verifier.as_str()),
         ("grant_type", "authorization_code"),
         ("redirect_uri", redirect_uri.as_str()),
-    ])
-    .await?;
+    ];
+    if !client_secret.is_empty() {
+        params.push(("client_secret", client_secret.as_str()));
+    }
+    let tokens = token_request(&params).await?;
 
     if let Some(err) = tokens.error {
         return Err(tokens.error_description.unwrap_or(err));
+    }
+    // Fail the link NOW if the Drive checkbox was left unticked on the consent screen —
+    // otherwise every later Drive call dies with "insufficient authentication scopes".
+    if !tokens.scope.as_deref().unwrap_or("").contains("drive.file") {
+        return Err(
+            "Linked without Drive access: the Drive checkbox on Google's consent screen wasn't ticked. \
+             Link again and tick “See, edit, create and delete only the specific Google Drive files you use with this app”."
+                .into(),
+        );
     }
     let refresh_token = tokens
         .refresh_token
@@ -215,7 +272,7 @@ pub async fn google_oauth_start(app: tauri::AppHandle, client_id: String) -> Res
         .and_then(email_from_id_token)
         .unwrap_or_else(|| "your Google account".into());
 
-    let stored = StoredAuth { client_id, refresh_token, email: email.clone() };
+    let stored = StoredAuth { client_id, client_secret, refresh_token, email: email.clone() };
     let path = auth_file(&app)?;
     std::fs::write(&path, serde_json::to_string_pretty(&stored).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())?;
@@ -227,6 +284,18 @@ pub async fn google_oauth_start(app: tauri::AppHandle, client_id: String) -> Res
 #[tauri::command]
 pub fn google_oauth_status(app: tauri::AppHandle) -> Option<String> {
     read_stored(&app).map(|s| s.email)
+}
+
+/// Abort a sign-in that's waiting on the browser: poke the loopback listener with a /cancel
+/// request so its blocking accept() returns immediately. No-op when nothing is pending.
+#[tauri::command]
+pub fn google_oauth_cancel() {
+    let port = *PENDING_PORT.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(port) = port {
+        if let Ok(mut stream) = std::net::TcpStream::connect(("127.0.0.1", port)) {
+            let _ = stream.write_all(b"GET /cancel HTTP/1.1\r\nConnection: close\r\n\r\n");
+        }
+    }
 }
 
 /// Best-effort token revocation, then remove the stored credentials.
@@ -247,19 +316,73 @@ pub async fn google_oauth_disconnect(app: tauri::AppHandle) -> Result<(), String
     Ok(())
 }
 
-/// Exchange the stored refresh token for a fresh access token (for Drive calls made from Rust).
+/// Exchange the stored refresh token for a fresh access token.
 /// No caching yet — callers are expected to be infrequent until the sync layer lands.
-#[tauri::command]
-pub async fn google_access_token(app: tauri::AppHandle) -> Result<String, String> {
-    let stored = read_stored(&app).ok_or("Not connected to Google Drive.")?;
-    let tokens = token_request(&[
+pub(crate) async fn access_token(app: &tauri::AppHandle) -> Result<String, String> {
+    let stored = read_stored(app).ok_or("Not connected to Google Drive.")?;
+    let mut params = vec![
         ("client_id", stored.client_id.as_str()),
         ("refresh_token", stored.refresh_token.as_str()),
         ("grant_type", "refresh_token"),
-    ])
-    .await?;
+    ];
+    if !stored.client_secret.is_empty() {
+        params.push(("client_secret", stored.client_secret.as_str()));
+    }
+    let tokens = token_request(&params).await?;
     if let Some(err) = tokens.error {
         return Err(tokens.error_description.unwrap_or(err));
     }
     tokens.access_token.ok_or("No access token in refresh response.".into())
+}
+
+/// Exchange the stored refresh token for a fresh access token (for Drive calls made from Rust).
+#[tauri::command]
+pub async fn google_access_token(app: tauri::AppHandle) -> Result<String, String> {
+    access_token(&app).await
+}
+
+/// Create a folder in the user's Drive (idempotent: returns the existing folder when one with
+/// this name already exists and is owned/visible under the app's `drive.file` scope).
+/// Returns `"created:<id>"` or `"exists:<id>"` so the caller can phrase the result honestly.
+#[tauri::command]
+pub async fn google_drive_create_folder(app: tauri::AppHandle, name: String) -> Result<String, String> {
+    let token = access_token(&app).await?;
+    let client = reqwest::Client::new();
+
+    // Look for an existing, non-trashed folder with this name first.
+    let query = format!(
+        "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+        name.replace('\\', "\\\\").replace('\'', "\\'")
+    );
+    let search: serde_json::Value = client
+        .get("https://www.googleapis.com/drive/v3/files")
+        .bearer_auth(&token)
+        .query(&[("q", query.as_str()), ("fields", "files(id,name)")])
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+    if let Some(id) = search["files"].get(0).and_then(|f| f["id"].as_str()) {
+        return Ok(format!("exists:{id}"));
+    }
+
+    let created: serde_json::Value = client
+        .post("https://www.googleapis.com/drive/v3/files")
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "name": name, "mimeType": "application/vnd.google-apps.folder" }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+    match created["id"].as_str() {
+        Some(id) => Ok(format!("created:{id}")),
+        None => Err(format!(
+            "Drive did not return a folder id: {}",
+            created["error"]["message"].as_str().unwrap_or(&created.to_string())
+        )),
+    }
 }

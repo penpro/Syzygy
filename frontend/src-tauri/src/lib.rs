@@ -4,6 +4,7 @@ mod documents;
 mod downloads;
 mod engine;
 mod google_auth;
+mod google_drive;
 mod knowledge;
 mod state;
 mod updates;
@@ -111,8 +112,13 @@ pub fn run() {
             downloads::download_status,
             google_auth::google_oauth_start,
             google_auth::google_oauth_status,
+            google_auth::google_oauth_cancel,
             google_auth::google_oauth_disconnect,
             google_auth::google_access_token,
+            google_auth::google_drive_create_folder,
+            google_drive::google_drive_append_text,
+            google_drive::google_drive_list_folder,
+            google_drive::google_drive_read_file,
             updates::app_version
         ])
         .run(tauri::generate_context!())

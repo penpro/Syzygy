@@ -2,9 +2,21 @@
 // calling `invoke('cmd', {...})` directly, so every command name, argument shape, and return type
 // lives in ONE place instead of being duplicated across ~40 call sites. Add a wrapper here for
 // every new `#[tauri::command]`; components should never import `invoke` themselves.
-import { invoke } from '@tauri-apps/api/core'
+import { invoke as rawInvoke } from '@tauri-apps/api/core'
 import { save } from '@tauri-apps/plugin-dialog'
 import { download as downloadBlob } from './util'
+import { logError } from './log'
+
+/** Every backend call goes through here, so every backend FAILURE lands in the diagnostic log
+ * automatically (command name + error text only — never arguments or file contents). */
+async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  try {
+    return await rawInvoke<T>(cmd, args)
+  } catch (e) {
+    logError('backend', `${cmd}: ${(e as { message?: string })?.message ?? String(e)}`)
+    throw e
+  }
+}
 
 // ---------- shared shapes ----------
 
@@ -138,14 +150,41 @@ export const readImageData = (folder: string, name: string): Promise<string> =>
 // ---------- Google Drive auth (the tokens live in the Rust core, never here) ----------
 
 /** Run the browser consent flow; resolves to the connected account's email. */
-export const googleOauthStart = (clientId: string): Promise<string> =>
-  invoke('google_oauth_start', { clientId })
+export const googleOauthStart = (clientId: string, clientSecret: string): Promise<string> =>
+  invoke('google_oauth_start', { clientId, clientSecret })
 
 /** The connected account's email, or null when not connected. */
 export const googleOauthStatus = (): Promise<string | null> => invoke('google_oauth_status')
 
+/** Abort a sign-in that's still waiting on the browser (no-op when none is pending). */
+export const googleOauthCancel = (): Promise<void> => invoke('google_oauth_cancel')
+
 /** Revoke (best-effort) and forget the stored Google credentials. */
 export const googleOauthDisconnect = (): Promise<void> => invoke('google_oauth_disconnect')
+
+/** Create (or find) a Drive folder by name; resolves to "created:<id>" | "exists:<id>". */
+export const googleDriveCreateFolder = (name: string): Promise<string> =>
+  invoke('google_drive_create_folder', { name })
+
+/** A file listed from a Drive folder. */
+export interface DriveFileInfo {
+  id: string
+  name: string
+  modified: string
+  size?: string
+}
+
+/** Append text to a file in a Drive folder (folder + file created on demand); resolves to the file id. */
+export const googleDriveAppendText = (folderName: string, fileName: string, content: string): Promise<string> =>
+  invoke('google_drive_append_text', { folderName, fileName, content })
+
+/** List files in a Drive folder (created on demand), newest first. */
+export const googleDriveListFolder = (folderName: string): Promise<DriveFileInfo[]> =>
+  invoke('google_drive_list_folder', { folderName })
+
+/** Read a Drive text file's content by id. */
+export const googleDriveReadFile = (fileId: string): Promise<string> =>
+  invoke('google_drive_read_file', { fileId })
 
 // ---------- app ----------
 

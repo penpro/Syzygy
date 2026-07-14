@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Syzygy",
   "mainBinaryName": "Syzygy",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "com.penumbra.syzygy",
   "build": {
     "frontendDist": "../dist",
@@ -67,7 +67,7 @@
   "plugins": {
     "updater": {
       "endpoints": ["https://github.com/penpro/Syzygy/releases/latest/download/latest.json"],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVBQUU4RUQ3RDQzRTQ3QzQKUldURVJ6N1UxNDZ1NmhheVMvUzZSczVLaFU3TTRUSzAzNWE3Zjg4MUJhVGZJbFpKZ045WTU4angK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY2NDFBMDlBRjJGMzZFRQpSV1R1TmkrdkNScGtCdDZkdlR2QmthZm1VZjdMdnhvL0dPaXZWQkpPRk1hckR6d0dVUFo0bG5aRQo=",
       "windows": {
         "installMode": "passive"
       }

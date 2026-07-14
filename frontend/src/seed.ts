@@ -13,12 +13,17 @@ export const defaultSettings: Settings = {
   proofread: false,
   seenTutorial: false,
   seenWelcome: false,
-  theme: 'penumbra',
+  theme: 'syzygy',
   visionModel: '',
   intentRouter: 'quick',
   reduceMotion: false,
   highContrast: false,
-  googleClientId: '',
+  // OAuth "Desktop app" credentials are injected at BUILD time (frontend/.env.local for local
+  // builds — gitignored; repo Actions secrets for CI) so they never sit in the public repo in
+  // plaintext. They still ship inside the binary — unavoidable and normal for installed apps
+  // (Google documents that Desktop-client credentials are not treated as confidential).
+  googleClientId: (import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string | undefined) ?? '',
+  googleClientSecret: (import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_SECRET as string | undefined) ?? '',
   // advanced sampling — llama.cpp defaults (behavior-preserving until changed)
   topK: 40,
   minP: 0.05,

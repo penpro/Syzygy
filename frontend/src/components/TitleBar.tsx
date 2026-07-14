@@ -1,5 +1,5 @@
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { CoronaMark } from './CoronaMark'
+import { SyzygyMark } from './SyzygyMark'
 import { ModelBar } from './ModelBar'
 
 // The main menu bar: brand + window controls. The window uses decorations:false, so the bar
@@ -11,8 +11,8 @@ export function TitleBar() {
   return (
     <div className="topbar" data-tauri-drag-region>
       <div className="topbar-brand" data-tauri-drag-region>
-        <CoronaMark size={20} />
-        <span>Syzygy</span>
+        <SyzygyMark size={16} />
+        <span className="brand-word">SYZYGY</span>
       </div>
       <div className="topbar-spacer" data-tauri-drag-region />
       <ModelBar />

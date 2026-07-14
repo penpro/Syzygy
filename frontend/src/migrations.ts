@@ -32,6 +32,18 @@ export function mergePersisted<S extends PersistedData>(persisted: unknown, curr
   if (!mergedSettings.baseUrl || mergedSettings.baseUrl.startsWith('/')) {
     mergedSettings.baseUrl = current.settings.baseUrl
   }
+  // Backfill the baked-in Google client ID/secret onto saves that predate them.
+  if (!mergedSettings.googleClientId) {
+    mergedSettings.googleClientId = current.settings.googleClientId
+  }
+  if (!mergedSettings.googleClientSecret) {
+    mergedSettings.googleClientSecret = current.settings.googleClientSecret
+  }
+  // Saves from before the paper design carry the old default theme — move them to the new
+  // default once. (A deliberately chosen dark preset like 'cyber' is left alone.)
+  if (!mergedSettings.theme || mergedSettings.theme === 'penumbra') {
+    mergedSettings.theme = 'syzygy'
+  }
   return {
     ...current,
     ...p,

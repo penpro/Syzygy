@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useStore } from '../store'
 import { DownloadIndicator } from './DownloadIndicator'
 import { TipRotator } from './TipRotator'
@@ -21,7 +22,16 @@ export function Sidebar({
   const activeAskId = useStore((s) => s.activeAskId)
   const createAsk = useStore((s) => s.createAsk)
   const openAsk = useStore((s) => s.openAsk)
+  const updateAsk = useStore((s) => s.updateAsk)
   const deleteAsk = useStore((s) => s.deleteAsk)
+  // Inline rename: which ask row is being edited, and its in-progress text.
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameText, setRenameText] = useState('')
+
+  const commitRename = () => {
+    if (renamingId && renameText.trim()) updateAsk(renamingId, { title: renameText.trim() })
+    setRenamingId(null)
+  }
 
   const sortedAsks = [...asks].sort((a, b) => b.updatedAt - a.updatedAt)
 
@@ -38,13 +48,39 @@ export function Sidebar({
           {sortedAsks.length === 0 && <div className="muted sm pad">No asks yet.</div>}
           {sortedAsks.map((a) => (
             <div key={a.id} className={cx('chat-row', a.id === activeAskId && 'active')} onClick={() => openAsk(a.id)}>
-              <div className="msg-avatar sm" style={{ background: '#7c5cff' }}>
+              <div className="msg-avatar sm" style={{ background: 'var(--accent)' }}>
                 🪄
               </div>
               <div className="chat-row-main">
-                <div className="chat-row-title">{a.title?.trim() ? a.title.trim().slice(0, 44) : a.messages?.[0]?.content?.trim().slice(0, 44) || 'New ask'}</div>
+                {renamingId === a.id ? (
+                  <input
+                    autoFocus
+                    value={renameText}
+                    onChange={(e) => setRenameText(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    onBlur={commitRename}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitRename()
+                      if (e.key === 'Escape') setRenamingId(null)
+                    }}
+                    style={{ width: '100%', font: 'inherit' }}
+                  />
+                ) : (
+                  <div className="chat-row-title">{a.title?.trim() ? a.title.trim().slice(0, 44) : a.messages?.[0]?.content?.trim().slice(0, 44) || 'New ask'}</div>
+                )}
                 <div className="muted xs">{timeAgo(a.updatedAt)}</div>
               </div>
+              <button
+                className="icon-btn sm row-action"
+                title="Rename"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setRenamingId(a.id)
+                  setRenameText(a.title?.trim() || a.messages?.[0]?.content?.trim().slice(0, 44) || '')
+                }}
+              >
+                ✎
+              </button>
               <button
                 className="icon-btn sm row-action"
                 title="Delete"

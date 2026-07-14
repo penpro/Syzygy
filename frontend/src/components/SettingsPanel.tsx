@@ -4,8 +4,8 @@ import { useStore } from '../store'
 import { friendlyModelName } from '../models'
 import { defaultSettings } from '../seed'
 import { VisionSettings } from './VisionSettings'
-import { GoogleDriveSettings } from './GoogleDriveSettings'
 import { ModelsModal } from './ModelsModal'
+import { LogModal } from './LogModal'
 import { UpdateCheck } from './UpdateCheck'
 import { crashReportsAvailable, startCrashReports, stopCrashReports } from '../crashReports'
 import { useConfirm } from './ConfirmDialog'
@@ -166,6 +166,7 @@ export function SettingsPanel({
   const settings = useStore((s) => s.settings)
   const updateSettings = useStore((s) => s.updateSettings)
   const [showModels, setShowModels] = useState(false)
+  const [showLog, setShowLog] = useState(false)
   const loadedModel = useStore((s) => s.loadedModel)
   const confirm = useConfirm()
 
@@ -235,6 +236,9 @@ export function SettingsPanel({
         <div className="field">
           <span>Your data</span>
           <div className="row gap">
+            <button className="btn sm ghost" onClick={() => setShowLog(true)}>
+              📜 View log
+            </button>
             <button className="btn sm ghost" onClick={exportBackup}>
               ⬇ Export backup
             </button>
@@ -283,8 +287,6 @@ export function SettingsPanel({
           </div>
         )}
 
-        <GoogleDriveSettings />
-
         <label className="field">
           <span>Engine API URL (bundled llama.cpp server)</span>
           <input value={settings.baseUrl} onChange={(e) => updateSettings({ baseUrl: e.target.value })} />
@@ -305,6 +307,7 @@ export function SettingsPanel({
         <label className="field">
           <span>Theme</span>
           <select value={settings.theme} onChange={(e) => updateSettings({ theme: e.target.value })}>
+            <option value="syzygy">Syzygy · paper</option>
             <option value="penumbra">Penumbra · cyan</option>
             <option value="synthwave">Synthwave · pink</option>
             <option value="cyber">Cyber · neon</option>
@@ -586,6 +589,7 @@ export function SettingsPanel({
         <em className="hint">Full-strength secondary text and stronger borders for better legibility.</em>
       </div>
     </Modal>
+    {showLog && <LogModal onClose={() => setShowLog(false)} />}
     {showModels && (
       <ModelsModal
         onClose={() => setShowModels(false)}

@@ -56,8 +56,15 @@ jobs:
           # Updater signing — produces signed update artifacts + latest.json (key has an empty password).
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+          # Google OAuth "Desktop app" client — injected at build time (kept out of the repo;
+          # ships inside the binary, which Google documents as expected for installed apps).
+          VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}
+          VITE_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_SECRET }}
         with:
           projectPath: frontend
+          # Release overlay: turns on signed updater artifacts (latest.json + .sig) and the
+          # full per-OS bundle set. Local dev builds keep the keyless nsis-only base config.
+          args: --config src-tauri/tauri.release.conf.json
           tagName: ${{ github.event.inputs.tag || github.ref_name }}
           releaseName: Syzygy ${{ github.event.inputs.tag || github.ref_name }}
           releaseBody: |

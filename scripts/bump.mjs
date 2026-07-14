@@ -41,10 +41,19 @@ const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 // [file, [from, to]...] — `from` is a RegExp (anchored) or exact string.
 const edits = [
   [pkgPath, [[`"version": "${current}"`, `"version": "${next}"`]]],
-  // both the root and the packages."" entry, keyed off the name line that precedes each.
+  // both the root and the packages."" entry, keyed off the name line that precedes each —
+  // the name is read from package.json so a package rename can't silently break the anchor.
   [
     join(fe, 'package-lock.json'),
-    [[new RegExp(`("name": "localllm-roleplay-studio",\\s*"version": ")${esc(current)}(")`, 'g'), `$1${next}$2`]],
+    [
+      [
+        new RegExp(
+          `("name": "${esc(JSON.parse(readFileSync(pkgPath, 'utf8')).name)}",\\s*"version": ")${esc(current)}(")`,
+          'g',
+        ),
+        `$1${next}$2`,
+      ],
+    ],
   ],
   [join(tauri, 'tauri.conf.json'), [[`"version": "${current}"`, `"version": "${next}"`]]],
   [join(tauri, 'Cargo.toml'), [[new RegExp(`(name = "app"\\r?\\nversion = ")${esc(current)}(")`), `$1${next}$2`]]],

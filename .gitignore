@@ -1,0 +1,23 @@
+﻿node_modules/
+dist/
+build/
+.DS_Store
+*.log
+# Rust / Tauri build output
+target/
+src-tauri/target/
+frontend/src-tauri/target/
+# Models & large binaries — never commit these
+*.gguf
+*.bin
+models/
+# Large media — demo recordings live on YouTube, not the repo (GitHub's 100 MB file limit)
+*.mp4
+*.mov
+*.webm
+*.mkv
+
+# Bundled engine binaries (fetched, not committed)
+frontend/src-tauri/bin/
+src-tauri/bin/
+*.tsbuildinfo

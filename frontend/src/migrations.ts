@@ -1,0 +1,41 @@
+// Save-format migrations: everything that reconciles an OLDER persisted store with the CURRENT
+// shape lives here, out of store.ts. This is zustand-persist's `merge` — it runs on every boot,
+// shallow-merging the persisted slices over the defaults and backfilling fields added since the
+// save was written. Every block is idempotent: a fully-migrated save passes through unchanged.
+import type { Settings, Expert, Ask } from './types'
+import { defaultExperts } from './seed'
+
+/** The persisted data slices the migrations touch (the rest of the save passes through as-is). */
+interface PersistedData {
+  settings: Settings
+  experts: Expert[]
+  asks: Ask[]
+}
+
+/**
+ * Merge a persisted save over the current defaults, migrating old shapes:
+ * - experts: seed built-ins on first run; backfill newly shipped built-ins by id
+ * - settings: deep-merge so new fields keep defaults; guard against a broken baseUrl
+ */
+export function mergePersisted<S extends PersistedData>(persisted: unknown, current: S): S {
+  const p = (persisted ?? {}) as Partial<PersistedData>
+  // Seed built-in experts on first run; backfill any newly shipped built-ins
+  // (matched by id) into existing saves without disturbing the user's own
+  // experts or their edits. (A deleted built-in reappears on next load.)
+  const persistedExperts = Array.isArray(p.experts) ? p.experts : []
+  const seenExpertIds = new Set(persistedExperts.map((e) => e.id))
+  const experts = persistedExperts.length
+    ? [...persistedExperts, ...defaultExperts.filter((e) => !seenExpertIds.has(e.id))]
+    : defaultExperts
+  const mergedSettings = { ...current.settings, ...((p.settings ?? {}) as Partial<Settings>) }
+  // Guard against a save with a missing/relative baseUrl (e.g. an old dev proxy).
+  if (!mergedSettings.baseUrl || mergedSettings.baseUrl.startsWith('/')) {
+    mergedSettings.baseUrl = current.settings.baseUrl
+  }
+  return {
+    ...current,
+    ...p,
+    experts,
+    settings: mergedSettings,
+  }
+}

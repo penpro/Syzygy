@@ -7,7 +7,7 @@ const TIPS: string[] = [
   'Lost? Replay the walkthrough anytime with Quick tour, just below.',
   'Your question is routed to the right expert automatically — or pick one yourself up top.',
   'Experts are editable — tweak a built-in’s rules or add your own from the expert picker.',
-  'It’s all local: once a model is downloaded, Syzygy keeps working with the internet unplugged.',
+  'The AI is all local: once a model is downloaded, Syzygy keeps answering with the internet unplugged.',
   'Grant a folder of PDFs or notes and the assistant answers from your own documents.',
   'Ask for a PDF, code file, or Markdown doc and it lands right in your granted folder.',
   'Add a vision model in Settings and the assistant can describe and search your images.',

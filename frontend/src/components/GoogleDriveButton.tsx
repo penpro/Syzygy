@@ -7,8 +7,11 @@ import {
   googleOauthStatus,
   googleOauthCancel,
   googleOauthDisconnect,
-  googleDriveCreateFolder,
+  googleDriveSyncFolder,
 } from '../tauri'
+
+/** The Drive folder every Syzygy instance shares (mirrored locally at Documents/Syzygy). */
+export const DRIVE_FOLDER = 'Syzygy'
 
 /** Google failures that all mean the same thing: the Drive permission checkbox on the consent
  * screen wasn't ticked, so the token can't touch Drive. */
@@ -19,7 +22,7 @@ const SCOPE_PROBLEM = /insufficient|scope|checkbox|drive access/i
  * Auth + a create-folder smoke test for now; the shared-folder sync layer builds on this.
  * The OAuth flow and tokens live entirely in the Rust core — this only sees the email.
  */
-export function GoogleDriveButton() {
+export function GoogleDriveButton({ onUseFolder }: { onUseFolder?: (mirrorPath: string) => void }) {
   const clientId = useStore((s) => s.settings.googleClientId)
   const clientSecret = useStore((s) => s.settings.googleClientSecret)
   const [email, setEmail] = useState<string | null>(null)
@@ -61,17 +64,22 @@ export function GoogleDriveButton() {
     }
   }
 
-  const makeTestFolder = async () => {
+  /** Two-way sync now; optionally hand the mirror path to the caller (→ set as the thread folder). */
+  const syncNow = async (thenUse: boolean) => {
     setBusy(true)
     try {
-      const result = await googleDriveCreateFolder('Syzygy')
-      const [status, id] = result.split(':', 2)
-      logInfo('drive', `Drive test: "Syzygy" folder ${status} (id ${id})`)
-      showFlash(status === 'created' ? '✅ Folder created' : '✅ Folder exists', `"Syzygy" folder id ${id} — check drive.google.com`)
+      const r = await googleDriveSyncFolder(DRIVE_FOLDER)
+      logInfo('drive', `Sync: pulled ${r.pulled}, pushed ${r.pushed} (${r.mirror})`)
+      if (thenUse && onUseFolder) {
+        onUseFolder(r.mirror)
+        showFlash('✅ Using Drive folder', `This thread now reads & writes ${r.mirror}, synced with Drive`)
+      } else {
+        showFlash(`✅ Synced ⬇${r.pulled} ⬆${r.pushed}`, `Mirror: ${r.mirror} ↔ Drive/"${DRIVE_FOLDER}"`)
+      }
     } catch (e) {
       const msg = (e as { message?: string })?.message ?? String(e)
       if (SCOPE_PROBLEM.test(msg)) setShowScopeHelp(true)
-      else showFlash('⚠ Drive call failed', msg, 8000)
+      else showFlash('⚠ Sync failed', msg, 8000)
     } finally {
       setBusy(false)
     }
@@ -174,13 +182,23 @@ export function GoogleDriveButton() {
 
   return (
     <span className="row" style={{ gap: 4, alignItems: 'center' }}>
+      {onUseFolder && (
+        <button
+          className="btn sm ghost"
+          title={`Point this thread at the shared Drive folder: knowledge is read from it and generated documents land in it (local mirror at Documents\\Syzygy, synced with Drive/"${DRIVE_FOLDER}")`}
+          disabled={busy}
+          onClick={() => syncNow(true)}
+        >
+          {busy ? '…' : '📂 Use Drive folder'}
+        </button>
+      )}
       <button
         className="btn sm ghost"
-        title={`Linked as ${email} — click to create a "Syzygy" test folder in your Drive`}
+        title={`Linked as ${email} — sync the local mirror with Drive/"${DRIVE_FOLDER}" now`}
         disabled={busy}
-        onClick={makeTestFolder}
+        onClick={() => syncNow(false)}
       >
-        {busy ? '…' : '📁 Drive test'}
+        {busy ? '…' : '☁ Sync'}
       </button>
       <button className="icon-btn sm" title={`Unlink Google Drive (${email})`} disabled={busy} onClick={unlink}>
         ✕

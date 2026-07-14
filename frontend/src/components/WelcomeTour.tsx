@@ -20,7 +20,7 @@ export function WelcomeTour({
     {
       icon: <CoronaMark size={76} />,
       title: 'Welcome to Syzygy',
-      body: 'A private AI workspace that runs entirely on your own machine — a tuned expert assistant with real access to your documents and folders, powered by a model on your GPU. Nothing you type ever leaves this PC.',
+      body: 'A local-first AI workspace: the model runs entirely on your own GPU, and your conversations with it never leave this PC. Link Google Drive when you want to collaborate — sharing only what you put in the shared folder, only at your say-so.',
     },
     {
       icon: '🧭',
@@ -39,11 +39,12 @@ export function WelcomeTour({
     },
     {
       icon: '🔒',
-      title: 'Yours, and private',
+      title: 'Local-first, by design',
       body: (
         <>
-          Models, samplers, and updates all live in <b>Settings</b>. Everything runs offline through the bundled
-          engine — once a model is downloaded you can unplug the network and it keeps working.{' '}
+          Models, samplers, and updates all live in <b>Settings</b>. The AI itself is fully local — once a model is
+          downloaded you can unplug the network and it keeps answering. Syzygy only reaches the internet for the
+          things you explicitly ask for: model downloads, update checks, and Google Drive collaboration.{' '}
           <button
             type="button"
             className="welcome-arch"

@@ -14,7 +14,7 @@ const boxStyle: CSSProperties = {
   fontSize: 13,
 }
 
-/** Manual, disclosed updater. Syzygy is offline by default; only on the user's click (after the
+/** Manual, disclosed updater. The AI is fully local; only on the user's click (after the
  * disclosure) does it contact GitHub. If a newer signed release exists it downloads + installs it
  * in-app with a progress bar and relaunches — no browser, no installer prompts. */
 export function UpdateCheck() {
@@ -90,9 +90,10 @@ export function UpdateCheck() {
       {phase === 'disclose' && (
         <div style={boxStyle}>
           <p style={{ margin: '0 0 8px' }}>
-            Syzygy runs fully offline. Checking for updates is the one time it reaches the internet — the app (not the
-            model) contacts <b>github.com</b> to look for a newer release and, if you choose, download it. Nothing about
-            you, your chats, or your files is sent.
+            The AI runs fully on your machine and never phones home. Like the other internet-touching features you
+            invoke yourself (model downloads, Google Drive), this one is explicit: the app (not the model) contacts{' '}
+            <b>github.com</b> to look for a newer release and, if you choose, download it. Nothing about you, your
+            threads, or your files is sent.
           </p>
           <div className="row gap">
             <button className="btn sm" onClick={doCheck}>

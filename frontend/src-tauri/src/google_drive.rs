@@ -194,3 +194,184 @@ pub async fn google_drive_read_file(app: tauri::AppHandle, file_id: String) -> R
     let token = access_token(&app).await?;
     read_file_content(&token, &file_id).await
 }
+
+// ---------------- folder mirror sync ----------------
+// The bridge that makes Drive a first-class destination: a local folder (Documents/Syzygy)
+// kept in sync with the Drive folder. Everything that already understands local folders —
+// knowledge retrieval, document generation — gets Drive for free by pointing at the mirror.
+
+use std::path::PathBuf;
+use tauri::Manager;
+
+fn rfc3339_to_epoch(s: &str) -> Option<i64> {
+    chrono::DateTime::parse_from_rfc3339(s).ok().map(|t| t.timestamp())
+}
+
+fn file_mtime_epoch(p: &std::path::Path) -> Option<i64> {
+    let meta = std::fs::metadata(p).ok()?;
+    let m = meta.modified().ok()?;
+    m.duration_since(std::time::UNIX_EPOCH).ok().map(|d| d.as_secs() as i64)
+}
+
+fn mime_for(name: &str) -> &'static str {
+    match name.rsplit('.').next().unwrap_or("").to_ascii_lowercase().as_str() {
+        "pdf" => "application/pdf",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "md" | "markdown" => "text/markdown",
+        "txt" | "log" => "text/plain",
+        "html" | "htm" => "text/html",
+        "json" => "application/json",
+        _ => "application/octet-stream",
+    }
+}
+
+/// The local mirror of the shared Drive folder: `<Documents>/Syzygy`, created on demand and
+/// granted so the document/knowledge commands may read and write inside it.
+#[tauri::command]
+pub fn google_drive_mirror_dir(app: tauri::AppHandle) -> Result<String, String> {
+    let dir: PathBuf = app.path().document_dir().map_err(|e| e.to_string())?.join("Syzygy");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    if let Ok(canon) = std::fs::canonicalize(&dir) {
+        app.state::<crate::state::Granted>()
+            .0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(canon);
+    }
+    Ok(dir.to_string_lossy().to_string())
+}
+
+#[derive(Serialize)]
+pub struct SyncReport {
+    pub pulled: u32,
+    pub pushed: u32,
+    pub mirror: String,
+}
+
+/// Two-way sync between the Drive folder and the local mirror. Last-write-wins by modified
+/// time (±2s slack for clock skew); after each transfer the local mtime is pinned to Drive's
+/// modifiedTime so a completed sync is a stable fixpoint, not a ping-pong.
+#[tauri::command]
+pub async fn google_drive_sync_folder(app: tauri::AppHandle, folder_name: String) -> Result<SyncReport, String> {
+    const SLACK: i64 = 2;
+    let token = access_token(&app).await?;
+    let folder_id = find_or_create_folder(&token, &folder_name).await?;
+    let mirror = google_drive_mirror_dir(app.clone())?;
+    let mirror_path = PathBuf::from(&mirror);
+    let client = reqwest::Client::new();
+
+    // Remote inventory (plain files only — native Google Docs types can't download as media).
+    let q = format!("'{}' in parents and trashed = false", esc(&folder_id));
+    let v = drive_get_json(
+        &token,
+        FILES_ENDPOINT,
+        &[("q", q.as_str()), ("fields", "files(id,name,mimeType,modifiedTime)"), ("pageSize", "200")],
+    )
+    .await?;
+    let mut remote: std::collections::HashMap<String, (String, i64)> = std::collections::HashMap::new();
+    for f in v["files"].as_array().map(|a| a.as_slice()).unwrap_or(&[]) {
+        let (Some(id), Some(name), Some(mt)) = (f["id"].as_str(), f["name"].as_str(), f["modifiedTime"].as_str())
+        else {
+            continue;
+        };
+        if f["mimeType"].as_str().unwrap_or("").starts_with("application/vnd.google-apps") {
+            continue;
+        }
+        remote.insert(name.to_string(), (id.to_string(), rfc3339_to_epoch(mt).unwrap_or(0)));
+    }
+
+    let mut pulled = 0u32;
+    let mut pushed = 0u32;
+
+    // Pull: remote file missing locally, or newer than the local copy.
+    for (name, (id, rtime)) in &remote {
+        let local = mirror_path.join(name);
+        let ltime = file_mtime_epoch(&local);
+        if ltime.map_or(true, |lt| *rtime > lt + SLACK) {
+            let resp = client
+                .get(format!("{FILES_ENDPOINT}/{id}"))
+                .bearer_auth(&token)
+                .query(&[("alt", "media")])
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if !resp.status().is_success() {
+                return Err(format!("Drive pull of {name} failed: HTTP {}", resp.status()));
+            }
+            let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
+            std::fs::write(&local, &bytes).map_err(|e| e.to_string())?;
+            let _ = filetime::set_file_mtime(&local, filetime::FileTime::from_unix_time(*rtime, 0));
+            pulled += 1;
+        }
+    }
+
+    // Push: local file missing remotely, or newer than the Drive copy.
+    let entries = std::fs::read_dir(&mirror_path).map_err(|e| e.to_string())?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(name) = path.file_name().map(|n| n.to_string_lossy().to_string()) else { continue };
+        let ltime = file_mtime_epoch(&path).unwrap_or(0);
+        let needs_push = match remote.get(&name) {
+            None => true,
+            Some((_, rtime)) => ltime > rtime + SLACK,
+        };
+        if !needs_push {
+            continue;
+        }
+        let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+        let mime = mime_for(&name);
+        let new_rtime: Option<String> = match remote.get(&name) {
+            Some((id, _)) => {
+                // overwrite existing content
+                let resp = client
+                    .patch(format!("{UPLOAD_ENDPOINT}/{id}"))
+                    .bearer_auth(&token)
+                    .query(&[("uploadType", "media"), ("fields", "modifiedTime")])
+                    .header("Content-Type", mime)
+                    .body(bytes)
+                    .send()
+                    .await
+                    .map_err(|e| e.to_string())?;
+                let v: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+                v["modifiedTime"].as_str().map(str::to_string)
+            }
+            None => {
+                let meta = serde_json::json!({ "name": name, "parents": [folder_id] }).to_string();
+                let form = reqwest::multipart::Form::new()
+                    .part(
+                        "metadata",
+                        reqwest::multipart::Part::text(meta)
+                            .mime_str("application/json")
+                            .map_err(|e| e.to_string())?,
+                    )
+                    .part(
+                        "media",
+                        reqwest::multipart::Part::bytes(bytes).mime_str(mime).map_err(|e| e.to_string())?,
+                    );
+                let v: serde_json::Value = client
+                    .post(UPLOAD_ENDPOINT)
+                    .bearer_auth(&token)
+                    .query(&[("uploadType", "multipart"), ("fields", "id,modifiedTime")])
+                    .multipart(form)
+                    .send()
+                    .await
+                    .map_err(|e| e.to_string())?
+                    .json()
+                    .await
+                    .map_err(|e| e.to_string())?;
+                v["modifiedTime"].as_str().map(str::to_string)
+            }
+        };
+        // Pin the local mtime to Drive's authoritative time so the next sync is a no-op.
+        if let Some(rt) = new_rtime.and_then(|s| rfc3339_to_epoch(&s)) {
+            let _ = filetime::set_file_mtime(&path, filetime::FileTime::from_unix_time(rt, 0));
+        }
+        pushed += 1;
+    }
+
+    Ok(SyncReport { pulled, pushed, mirror })
+}

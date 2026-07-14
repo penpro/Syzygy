@@ -22,8 +22,8 @@ import { Markdown } from './Markdown'
 import { MessageInput } from './MessageInput'
 import { ExpertEditor } from './ExpertEditor'
 import { FolderGrant } from './FolderGrant'
-import { GoogleDriveButton } from './GoogleDriveButton'
-import { googleDriveAppendText } from '../tauri'
+import { GoogleDriveButton, DRIVE_FOLDER } from './GoogleDriveButton'
+import { googleDriveAppendText, googleDriveSyncFolder } from '../tauri'
 import { logInfo } from '../log'
 import { DocumentModal } from './DocumentModal'
 import { ImageFinderModal } from './ImageFinderModal'
@@ -427,9 +427,9 @@ export function AskView() {
           }
           onClick={() => updateAsk(ask.id, { syncToDrive: !ask.syncToDrive })}
         >
-          {ask.syncToDrive ? '☁ Syncing' : '☁ Sync'}
+          {ask.syncToDrive ? '✍ Mirroring' : '✍ Mirror'}
         </button>
-        <GoogleDriveButton />
+        <GoogleDriveButton onUseFolder={(p) => updateAsk(ask.id, { knowledgeFolder: p })} />
         <FolderGrant
           folder={ask.knowledgeFolder}
           onSetFolder={(p) => updateAsk(ask.id, { knowledgeFolder: p ?? undefined })}
@@ -636,7 +636,15 @@ export function AskView() {
             has: ask.messages.length > 0,
             build: () => ask.messages.map((m) => `${m.role === 'user' ? 'You' : modelName}: ${m.content}`).join('\n\n'),
           }}
-          onClose={() => setShowDoc(false)}
+          onClose={() => {
+            setShowDoc(false)
+            // Documents generated into the Drive mirror get pushed to Drive right away.
+            if (ask.knowledgeFolder && /[\\/]Syzygy$/.test(ask.knowledgeFolder)) {
+              googleDriveSyncFolder(DRIVE_FOLDER)
+                .then((r) => logInfo('drive', `Post-document sync: ⬇${r.pulled} ⬆${r.pushed}`))
+                .catch(() => {}) // failure already in the log via the invoke wrapper
+            }
+          }}
         />
       )}
       {showFinder && (

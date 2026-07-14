@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.1.1"
+version = "0.1.2"
 description = "A Tauri App"
 authors = ["you"]
 license = ""
@@ -34,6 +34,9 @@ tauri-plugin-process = "2"
 sha2 = "0.10"
 getrandom = "0.2"
 url = "2"
+# Drive folder sync: RFC3339 timestamps + setting local file mtimes to match Drive
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+filetime = "0.2"
 
 # Windows-only — DXGI VRAM detection (used under #[cfg(windows)]); not built on macOS/Linux.
 [target.'cfg(windows)'.dependencies]

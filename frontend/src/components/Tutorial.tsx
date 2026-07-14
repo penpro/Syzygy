@@ -28,8 +28,8 @@ const PIECES: { icon: string; title: string; body: string }[] = [
   },
   {
     icon: '🔒',
-    title: 'Private by design',
-    body: 'Every step runs on your PC. Nothing leaves the machine — once the model is downloaded it keeps working with the network unplugged.',
+    title: 'Local-first by design',
+    body: 'The whole AI loop runs on your PC — your prompts and the model\'s answers never leave the machine. Only the things you explicitly invoke touch the internet: model downloads, update checks, and Google Drive collaboration.',
   },
 ]
 
@@ -65,7 +65,7 @@ export function Tutorial({ onClose }: { onClose: () => void }) {
             </defs>
 
             <rect x="146" y="26" width="466" height="120" rx="10" fill="none" stroke="rgba(94,234,212,0.28)" strokeDasharray="4 4" />
-            <text x="152" y="20" fill="#8b7ab0" fontSize="9.5" fontFamily="'JetBrains Mono', monospace" letterSpacing="2">YOUR PC · 100% OFFLINE</text>
+            <text x="152" y="20" fill="#8b7ab0" fontSize="9.5" fontFamily="'JetBrains Mono', monospace" letterSpacing="2">YOUR PC · AI LOOP 100% LOCAL</text>
 
             <g fontFamily="'JetBrains Mono', monospace" textAnchor="middle">
               <rect x="6" y="50" width="120" height="56" rx="8" fill="#0c0426" stroke="rgba(94,234,212,0.3)" />

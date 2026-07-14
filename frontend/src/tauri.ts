@@ -186,6 +186,20 @@ export const googleDriveListFolder = (folderName: string): Promise<DriveFileInfo
 export const googleDriveReadFile = (fileId: string): Promise<string> =>
   invoke('google_drive_read_file', { fileId })
 
+/** The local mirror of the shared Drive folder (Documents/Syzygy), created + granted on demand. */
+export const googleDriveMirrorDir = (): Promise<string> => invoke('google_drive_mirror_dir')
+
+/** Result of a mirror sync pass. */
+export interface DriveSyncReport {
+  pulled: number
+  pushed: number
+  mirror: string
+}
+
+/** Two-way sync between the Drive folder and the local mirror (last-write-wins by mtime). */
+export const googleDriveSyncFolder = (folderName: string): Promise<DriveSyncReport> =>
+  invoke('google_drive_sync_folder', { folderName })
+
 // ---------- app ----------
 
 /** The running app version (from Cargo). */

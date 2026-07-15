@@ -1,9 +1,10 @@
 //! Rust-owned remote model transport and normalization boundary.
 //!
 //! The webview must never construct provider HTTP requests or receive provider credentials.
-//! This first executable slice certifies one-shot OpenAI Responses requests against a fake
-//! loopback server. Product credential integration, frontend event delivery, UI invocation, and
-//! live-provider calls remain deliberately unavailable until their separate gates pass.
+//! Executable slices certify OpenAI Responses request/stream and Anthropic Messages one-shot
+//! contracts against fake loopback servers. Product credential integration, frontend event
+//! delivery, UI invocation, and live-provider calls remain deliberately unavailable until their
+//! separate gates pass.
 
 #![allow(dead_code)] // The runtime remains intentionally unwired until product-boundary review.
 
@@ -19,6 +20,7 @@ use std::{fmt, time::Duration};
 use zeroize::Zeroize;
 
 pub const OPENAI_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
+pub const ANTHROPIC_ADAPTER_STATUS: &str = "request-control-conformance";
 pub const DEFAULT_PROVIDER_TIMEOUT: Duration = Duration::from_secs(60);
 const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_STREAM_BYTES: usize = 32 * 1024 * 1024;
@@ -28,6 +30,7 @@ const MAX_PROVIDER_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 #[serde(rename_all = "kebab-case")]
 pub enum RemoteProviderId {
     OpenAi,
+    Anthropic,
 }
 
 /// Secret wrapper whose debug representation cannot disclose the credential.
@@ -259,7 +262,7 @@ fn checked_stream_total(received_bytes: usize, chunk_bytes: usize) -> Result<usi
         .ok_or(ProviderError::ResponseTooLarge)
 }
 
-fn validate_endpoint(endpoint: &Url) -> Result<(), ProviderError> {
+fn validate_endpoint(endpoint: &Url, expected_path: &str) -> Result<(), ProviderError> {
     let literal_loopback = matches!(endpoint.host_str(), Some("127.0.0.1" | "::1"));
     let allowed_scheme =
         endpoint.scheme() == "https" || (endpoint.scheme() == "http" && literal_loopback);
@@ -268,7 +271,7 @@ fn validate_endpoint(endpoint: &Url) -> Result<(), ProviderError> {
         || endpoint.password().is_some()
         || endpoint.query().is_some()
         || endpoint.fragment().is_some()
-        || endpoint.path() != "/v1/responses"
+        || endpoint.path() != expected_path
     {
         return Err(ProviderError::UnsafeEndpoint);
     }
@@ -286,6 +289,34 @@ fn openai_body(request: &GenerationRequest, stream: bool) -> Value {
         "store": false,
         "stream": stream,
     })
+}
+
+fn anthropic_body(request: &GenerationRequest) -> Result<Value, ProviderError> {
+    let messages = request
+        .input
+        .iter()
+        .filter(|item| item.role == InputRole::User)
+        .map(|item| json!({ "role": "user", "content": item.content }))
+        .collect::<Vec<_>>();
+    if messages.is_empty() {
+        return Err(ProviderError::InvalidRequest);
+    }
+    let system = request
+        .input
+        .iter()
+        .filter(|item| item.role == InputRole::Developer)
+        .map(|item| json!({ "type": "text", "text": item.content }))
+        .collect::<Vec<_>>();
+    let mut body = json!({
+        "model": request.model,
+        "messages": messages,
+        "max_tokens": request.max_output_tokens,
+        "stream": false,
+    });
+    if !system.is_empty() {
+        body["system"] = Value::Array(system);
+    }
+    Ok(body)
 }
 
 async fn bounded_body(response: reqwest::Response) -> Result<Vec<u8>, ProviderError> {
@@ -377,6 +408,76 @@ fn normalize_openai(value: Value) -> Result<NormalizedResponse, ProviderError> {
     })
 }
 
+fn normalize_anthropic(value: Value) -> Result<NormalizedResponse, ProviderError> {
+    if value.get("type").and_then(Value::as_str) != Some("message")
+        || value.get("role").and_then(Value::as_str) != Some("assistant")
+    {
+        return Err(ProviderError::MalformedResponse);
+    }
+    let id = value
+        .get("id")
+        .and_then(Value::as_str)
+        .filter(|id| !id.is_empty())
+        .ok_or(ProviderError::MalformedResponse)?
+        .to_owned();
+    let stop_reason = value
+        .get("stop_reason")
+        .and_then(Value::as_str)
+        .filter(|reason| !reason.is_empty())
+        .ok_or(ProviderError::MalformedResponse)?
+        .to_owned();
+    let content = value
+        .get("content")
+        .and_then(Value::as_array)
+        .ok_or(ProviderError::MalformedResponse)?;
+    let mut text = String::new();
+    let mut unknown_output_types = Vec::new();
+    for block in content {
+        match block.get("type").and_then(Value::as_str) {
+            Some("text") => text.push_str(
+                block
+                    .get("text")
+                    .and_then(Value::as_str)
+                    .ok_or(ProviderError::MalformedResponse)?,
+            ),
+            Some(other) => unknown_output_types.push(other.to_owned()),
+            None => unknown_output_types.push("missing".to_owned()),
+        }
+    }
+    let usage = value.get("usage").ok_or(ProviderError::MalformedResponse)?;
+    let input_tokens = usage
+        .get("input_tokens")
+        .and_then(Value::as_u64)
+        .ok_or(ProviderError::MalformedResponse)?;
+    let output_tokens = usage
+        .get("output_tokens")
+        .and_then(Value::as_u64)
+        .ok_or(ProviderError::MalformedResponse)?;
+    let total_tokens = input_tokens
+        .checked_add(output_tokens)
+        .ok_or(ProviderError::MalformedResponse)?;
+    Ok(NormalizedResponse {
+        provider: RemoteProviderId::Anthropic,
+        id,
+        status: stop_reason.clone(),
+        model: value
+            .get("model")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        text,
+        refusals: (stop_reason == "refusal")
+            .then(|| "provider-refusal".to_owned())
+            .into_iter()
+            .collect(),
+        unknown_output_types,
+        usage: Some(NormalizedUsage {
+            input_tokens,
+            output_tokens,
+            total_tokens,
+        }),
+    })
+}
+
 pub async fn execute_openai_response(
     client: &Client,
     endpoint: &Url,
@@ -396,7 +497,7 @@ pub async fn execute_openai_response_controlled(
     approval: &TransmissionApproval,
     execution: ProviderExecution,
 ) -> Result<NormalizedResponse, ProviderError> {
-    validate_endpoint(endpoint)?;
+    validate_endpoint(endpoint, "/v1/responses")?;
     request.validate()?;
     approval.validate_for(RemoteProviderId::OpenAi)?;
     let operation = async {
@@ -433,7 +534,7 @@ pub async fn execute_openai_stream_controlled<F>(
 where
     F: FnMut(NormalizedStreamEvent) -> Result<(), ProviderError>,
 {
-    validate_endpoint(endpoint)?;
+    validate_endpoint(endpoint, "/v1/responses")?;
     request.validate()?;
     approval.validate_for(RemoteProviderId::OpenAi)?;
     let operation = async {
@@ -528,6 +629,53 @@ where
         .map_err(|_| ProviderError::Cancelled)?
 }
 
+pub async fn execute_anthropic_response(
+    client: &Client,
+    endpoint: &Url,
+    secret: &ProviderSecret,
+    request: &GenerationRequest,
+    approval: &TransmissionApproval,
+) -> Result<NormalizedResponse, ProviderError> {
+    let (execution, _cancellation) = provider_execution(DEFAULT_PROVIDER_TIMEOUT)?;
+    execute_anthropic_response_controlled(client, endpoint, secret, request, approval, execution)
+        .await
+}
+
+pub async fn execute_anthropic_response_controlled(
+    client: &Client,
+    endpoint: &Url,
+    secret: &ProviderSecret,
+    request: &GenerationRequest,
+    approval: &TransmissionApproval,
+    execution: ProviderExecution,
+) -> Result<NormalizedResponse, ProviderError> {
+    validate_endpoint(endpoint, "/v1/messages")?;
+    request.validate()?;
+    approval.validate_for(RemoteProviderId::Anthropic)?;
+    let body = anthropic_body(request)?;
+    let operation = async {
+        let response = client
+            .post(endpoint.clone())
+            .timeout(execution.timeout)
+            .header("x-api-key", secret.expose())
+            .header("anthropic-version", "2023-06-01")
+            .header("content-type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|error| classify_transport_error(&error))?;
+        if !response.status().is_success() {
+            return Err(ProviderError::HttpStatus(response.status().as_u16()));
+        }
+        let body = bounded_body(response).await?;
+        let value = serde_json::from_slice(&body).map_err(|_| ProviderError::MalformedResponse)?;
+        normalize_anthropic(value)
+    };
+    Abortable::new(operation, execution.cancellation)
+        .await
+        .map_err(|_| ProviderError::Cancelled)?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -555,6 +703,14 @@ mod tests {
     fn approval() -> TransmissionApproval {
         TransmissionApproval {
             provider: RemoteProviderId::OpenAi,
+            content_categories: vec!["selected research excerpts".to_owned()],
+            accepted: true,
+        }
+    }
+
+    fn anthropic_approval() -> TransmissionApproval {
+        TransmissionApproval {
+            provider: RemoteProviderId::Anthropic,
             content_categories: vec!["selected research excerpts".to_owned()],
             accepted: true,
         }
@@ -592,6 +748,7 @@ mod tests {
 
     fn fake_server(status: &str, body: &str) -> (Url, mpsc::Receiver<String>) {
         fake_server_with_plan(
+            "/v1/responses",
             status,
             body,
             FakeResponsePlan::CompleteAfter(Duration::ZERO),
@@ -604,6 +761,7 @@ mod tests {
         response_delay: Duration,
     ) -> (Url, mpsc::Receiver<String>) {
         fake_server_with_plan(
+            "/v1/responses",
             status,
             body,
             FakeResponsePlan::CompleteAfter(response_delay),
@@ -611,6 +769,7 @@ mod tests {
     }
 
     fn fake_server_with_plan(
+        path: &str,
         status: &str,
         body: &str,
         response_plan: FakeResponsePlan,
@@ -620,6 +779,7 @@ mod tests {
         let (sender, receiver) = mpsc::channel();
         let status = status.to_owned();
         let body = body.to_owned();
+        let path = path.to_owned();
         thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("accept provider request");
             sender
@@ -653,7 +813,7 @@ mod tests {
             }
         });
         (
-            Url::parse(&format!("http://{address}/v1/responses")).expect("fake URL"),
+            Url::parse(&format!("http://{address}{path}")).expect("fake URL"),
             receiver,
         )
     }
@@ -854,6 +1014,7 @@ mod tests {
     #[test]
     fn fake_server_proves_timeout_covers_a_stalled_response_body() {
         let (endpoint, _captured) = fake_server_with_plan(
+            "/v1/responses",
             "200 OK",
             r#"{"id":"body_too_late","status":"completed","output":[]}"#,
             FakeResponsePlan::StallBody(Duration::from_millis(250)),
@@ -1129,5 +1290,170 @@ mod tests {
             }]
         );
         assert!(!format!("{events:?} {result:?}").contains(canary));
+    }
+
+    #[test]
+    fn anthropic_fake_server_proves_headers_system_shape_and_normalization() {
+        let (endpoint, captured) = fake_server_with_plan(
+            "/v1/messages",
+            "200 OK",
+            r#"{"id":"msg_test","type":"message","role":"assistant","model":"claude-test","content":[{"type":"text","text":"Supported finding."},{"type":"thinking","thinking":"not retained"}],"stop_reason":"end_turn","usage":{"input_tokens":10,"output_tokens":3}}"#,
+            FakeResponsePlan::CompleteAfter(Duration::ZERO),
+        );
+        let anthropic_request = GenerationRequest {
+            model: "claude-test".to_owned(),
+            input: vec![
+                ProviderInput {
+                    role: InputRole::Developer,
+                    content: "Use only the supplied evidence.".to_owned(),
+                },
+                ProviderInput {
+                    role: InputRole::User,
+                    content: "Compare the cited claims.".to_owned(),
+                },
+            ],
+            max_output_tokens: 700,
+        };
+        let secret_canary = "sk-ant-wire-canary";
+        let response = tauri::async_runtime::block_on(execute_anthropic_response(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new(secret_canary.to_owned()).expect("secret"),
+            &anthropic_request,
+            &anthropic_approval(),
+        ))
+        .expect("normalized Anthropic response");
+        assert_eq!(response.provider, RemoteProviderId::Anthropic);
+        assert_eq!(response.text, "Supported finding.");
+        assert_eq!(response.status, "end_turn");
+        assert_eq!(response.unknown_output_types, vec!["thinking"]);
+        assert_eq!(response.usage.expect("usage").total_tokens, 13);
+
+        let raw = captured.recv().expect("captured Anthropic request");
+        let (headers, body) = raw.split_once("\r\n\r\n").expect("HTTP request");
+        let headers = headers.to_ascii_lowercase();
+        assert!(headers.starts_with("post /v1/messages http/1.1"));
+        assert!(headers.contains(&format!("x-api-key: {secret_canary}")));
+        assert!(headers.contains("anthropic-version: 2023-06-01"));
+        assert!(!headers.contains("authorization:"));
+        let body: Value = serde_json::from_str(body).expect("Anthropic request JSON");
+        assert_eq!(body["model"], "claude-test");
+        assert_eq!(body["system"][0]["type"], "text");
+        assert_eq!(body["system"][0]["text"], "Use only the supplied evidence.");
+        assert_eq!(body["messages"][0]["role"], "user");
+        assert_eq!(body["max_tokens"], 700);
+        assert_eq!(body["stream"], false);
+        assert!(body.get("store").is_none());
+    }
+
+    #[test]
+    fn anthropic_fails_disclosure_and_missing_user_input_before_transport() {
+        let endpoint = Url::parse("https://api.anthropic.com/v1/messages").expect("URL");
+        let secret = ProviderSecret::new("fixture-key".to_owned()).expect("secret");
+        let wrong_disclosure = tauri::async_runtime::block_on(execute_anthropic_response(
+            &Client::new(),
+            &endpoint,
+            &secret,
+            &request(),
+            &approval(),
+        ));
+        assert_eq!(wrong_disclosure, Err(ProviderError::DisclosureRequired));
+
+        let developer_only = GenerationRequest {
+            model: "claude-test".to_owned(),
+            input: vec![ProviderInput {
+                role: InputRole::Developer,
+                content: "No user turn.".to_owned(),
+            }],
+            max_output_tokens: 10,
+        };
+        let missing_user = tauri::async_runtime::block_on(execute_anthropic_response(
+            &Client::new(),
+            &endpoint,
+            &secret,
+            &developer_only,
+            &anthropic_approval(),
+        ));
+        assert_eq!(missing_user, Err(ProviderError::InvalidRequest));
+    }
+
+    #[test]
+    fn anthropic_errors_and_usage_overflow_fail_closed_without_body_leakage() {
+        let response_canary = "anthropic-error-body-canary";
+        let (endpoint, _captured) = fake_server_with_plan(
+            "/v1/messages",
+            "429 Too Many Requests",
+            &format!(r#"{{"type":"error","error":{{"message":"{response_canary}"}}}}"#),
+            FakeResponsePlan::CompleteAfter(Duration::ZERO),
+        );
+        let error = tauri::async_runtime::block_on(execute_anthropic_response(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("anthropic-secret-canary".to_owned()).expect("secret"),
+            &request(),
+            &anthropic_approval(),
+        ))
+        .expect_err("429 must fail");
+        assert_eq!(error, ProviderError::HttpStatus(429));
+        assert!(!error.to_string().contains(response_canary));
+
+        let overflow = json!({
+            "id": "msg_overflow",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-test",
+            "content": [],
+            "stop_reason": "end_turn",
+            "usage": { "input_tokens": u64::MAX, "output_tokens": 1 }
+        });
+        assert_eq!(
+            normalize_anthropic(overflow),
+            Err(ProviderError::MalformedResponse)
+        );
+    }
+
+    #[test]
+    fn anthropic_controlled_request_times_out_and_cancels_distinctly() {
+        let response = r#"{"id":"msg_late","type":"message","role":"assistant","model":"claude-test","content":[],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}"#;
+        let (endpoint, _captured) = fake_server_with_plan(
+            "/v1/messages",
+            "200 OK",
+            response,
+            FakeResponsePlan::CompleteAfter(Duration::from_millis(250)),
+        );
+        let (execution, _cancellation) =
+            provider_execution(Duration::from_millis(40)).expect("execution controls");
+        let timeout = tauri::async_runtime::block_on(execute_anthropic_response_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("fixture-key".to_owned()).expect("secret"),
+            &request(),
+            &anthropic_approval(),
+            execution,
+        ));
+        assert_eq!(timeout, Err(ProviderError::Timeout));
+
+        let (endpoint, captured) = fake_server_with_plan(
+            "/v1/messages",
+            "200 OK",
+            response,
+            FakeResponsePlan::CompleteAfter(Duration::from_millis(250)),
+        );
+        let (execution, cancellation) =
+            provider_execution(Duration::from_secs(2)).expect("execution controls");
+        let cancel_from_task = cancellation.clone();
+        thread::spawn(move || {
+            captured.recv().expect("request reached fake server");
+            cancel_from_task.cancel();
+        });
+        let cancelled = tauri::async_runtime::block_on(execute_anthropic_response_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("fixture-key".to_owned()).expect("secret"),
+            &request(),
+            &anthropic_approval(),
+            execution,
+        ));
+        assert_eq!(cancelled, Err(ProviderError::Cancelled));
     }
 }

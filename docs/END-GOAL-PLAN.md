@@ -464,6 +464,9 @@ unwired Rust conformance suites and are reported as `request-and-stream-control-
 Aggregate remote execution remains `contract-only` until OS credential integration, the typed
 frontend event/disclosure bridge, streamed-tool handling, and opt-in live evidence pass.
 
+Anthropic Messages one-shot request/control conformance now passes the same unwired Rust boundary;
+its stream parser/network path and tool blocks remain open, so the adapter is not product-available.
+
 Credential progress: the cross-platform OS-vault abstraction, zeroizing secret wrapper, memory
 contract tests, and an opt-in Windows Credential Manager create/read/delete/absence canary pass.
 macOS/Linux live canaries, UI setup, and end-to-end leak scans remain open, so this boundary is

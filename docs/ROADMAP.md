@@ -118,6 +118,10 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - Adversarial run record v1 is now a public strict Draft 2020-12 schema, embedded in the headless
   MCP platform contract and checked for drift against the typed valid fixture. Structural schema
   success is explicitly separate from plan-relative semantic validation and any quality claim.
+- Anthropic Messages now has an unwired one-shot `request-control-conformance` slice. A fake server
+  proves the current `/v1/messages` path, `x-api-key`, pinned API version, system/user mapping,
+  bounds, normalized text/usage, thinking-block non-retention, sanitized failure, timeout, and
+  cancellation. Anthropic streaming, tools, frontend disclosure, and live proof remain open.
 
 ## Current completion snapshot
 

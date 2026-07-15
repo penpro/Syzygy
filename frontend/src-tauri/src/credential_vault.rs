@@ -32,6 +32,7 @@ impl CredentialId {
     fn account(&self) -> String {
         let provider = match self.provider {
             RemoteProviderId::OpenAi => "openai",
+            RemoteProviderId::Anthropic => "anthropic",
         };
         format!("{provider}:{}", self.profile)
     }
@@ -172,6 +173,17 @@ mod tests {
                 Err(CredentialVaultError::InvalidIdentifier)
             );
         }
+    }
+
+    #[test]
+    fn provider_credentials_use_distinct_accounts() {
+        let openai = CredentialId::new(RemoteProviderId::OpenAi, "default".to_owned())
+            .expect("OpenAI credential ID");
+        let anthropic = CredentialId::new(RemoteProviderId::Anthropic, "default".to_owned())
+            .expect("Anthropic credential ID");
+        assert_eq!(openai.account(), "openai:default");
+        assert_eq!(anthropic.account(), "anthropic:default");
+        assert_ne!(openai.account(), anthropic.account());
     }
 
     #[test]

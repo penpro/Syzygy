@@ -2,8 +2,9 @@
 
 **Contract version:** 1. **Runtime status:** local adapter available; OpenAI Responses request,
 bounded timeout/cancellation, and fake-network incremental stream dispatch are at
-`request-and-stream-control-conformance` and intentionally not product-callable; Anthropic,
-Gemini, xAI, and custom remote adapters are contract-only.
+`request-and-stream-control-conformance` and intentionally not product-callable; Anthropic
+Messages one-shot requests are at `request-control-conformance`; Gemini, xAI, and custom remote
+adapters are contract-only.
 
 The canonical TypeScript contract is `frontend/src/extensions/providerContract.ts`. It prevents
 research workflows from depending on a vendor response shape and keeps provider availability
@@ -72,6 +73,15 @@ uses an in-memory trait implementation; `npm run test:credentials:live` creates 
 the current OS credential store, reads it back, deletes it, and verifies absence without printing
 the canary. The Windows proof passes, but macOS/Linux live evidence and product-facing key setup are
 still open. Dependency provenance is recorded in `docs/audits/EXTENSION-PROVENANCE.md`.
+
+The first Anthropic Messages slice is also Rust-owned and fake-server-only. It proves the exact
+`/v1/messages` endpoint, `x-api-key`, `anthropic-version: 2023-06-01`, content type, separate system
+text blocks, user messages, `max_tokens`, and `stream:false`. The normalizer requires a complete
+assistant message, retains text blocks, reports other block types without storing their contents,
+computes overflow-safe total usage, maps refusal to a sanitized marker, bounds response bytes, and
+shares the disclosure, timeout, cancellation, TLS/loopback, and error-redaction gates. Anthropic
+streaming, tool blocks, beta headers, request IDs, live policy validation, UI, and opt-in live proof
+remain open.
 
 ## Certification suite
 

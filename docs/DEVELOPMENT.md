@@ -82,6 +82,12 @@ cancels between dispatched events. Passing this is request/stream/control confor
 availability; product credential integration, the frontend event bridge, UI disclosure, and an
 opt-in live canary are separate gates.
 
+The same command certifies the unwired Anthropic Messages one-shot boundary. Its fake server checks
+`POST /v1/messages`, `x-api-key`, `anthropic-version: 2023-06-01`, developer-to-system and user-to-
+message mapping, `max_tokens`, `stream:false`, normalized text/usage, unknown thinking-block
+non-retention, error-body redaction, timeout, and cancellation. This does not prove Anthropic SSE,
+tools, a live credential, or product availability.
+
 `npm run test:provider-streams` separately feeds the OpenAI decoder byte-by-byte and with
 multiline, unknown, malformed, mismatched, oversized, and truncated SSE fixtures. It proves parser
 normalization in isolation. `test:providers` separately proves the parser is fed through fake HTTP

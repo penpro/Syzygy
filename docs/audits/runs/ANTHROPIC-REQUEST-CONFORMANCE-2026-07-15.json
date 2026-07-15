@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "runId": "ANTHROPIC-REQUEST-CONFORMANCE-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "request-control-conformance",
+  "command": "npm run test:providers",
+  "result": {
+    "passed": true,
+    "providerBoundaryTestsPassed": 19,
+    "anthropicFocusedTestsPassed": 4,
+    "loopbackFakeNetworkUsed": true,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "paidProviderCalls": 0
+  },
+  "regressionGates": {
+    "fullRustTestsPassed": 50,
+    "extensionContractTestsPassed": 16,
+    "frontendModulesTransformed": 989,
+    "structuralAuditChecksPassed": 19,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true
+  },
+  "proved": [
+    "the Rust request uses POST /v1/messages with x-api-key, anthropic-version 2023-06-01, and application/json",
+    "developer inputs become separate system text blocks and user inputs become Messages API user turns",
+    "the body carries model, max_tokens, and stream:false without inventing an OpenAI-style store field",
+    "complete assistant text and overflow-safe usage normalize to the provider-neutral response while thinking block contents are not retained",
+    "wrong disclosure, missing user input, provider errors, malformed or overflowing usage, timeout, and cancellation fail with sanitized typed errors",
+    "OpenAI and Anthropic credential profiles map to distinct OS-vault account identifiers"
+  ],
+  "notProved": [
+    "Anthropic SSE normalization or network stream dispatch",
+    "tool_use, partial tool JSON, thinking signatures, fallback blocks, or beta headers",
+    "request-id capture, retry-after behavior, or live rate-limit handling",
+    "product credential integration, frontend disclosure, or UI availability",
+    "a live Anthropic request or any model-quality property"
+  ],
+  "primarySources": [
+    "https://platform.claude.com/docs/en/api/messages/create",
+    "https://platform.claude.com/docs/en/manage-claude/authentication",
+    "https://platform.claude.com/docs/en/build-with-claude/streaming",
+    "https://platform.claude.com/docs/en/api/errors"
+  ]
+}

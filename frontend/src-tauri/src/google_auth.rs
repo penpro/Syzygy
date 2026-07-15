@@ -422,6 +422,7 @@ pub async fn google_drive_create_folder(
     app: tauri::AppHandle,
     name: String,
 ) -> Result<String, String> {
+    require_collaboration_access(&app)?;
     let token = access_token(&app).await?;
     let client = reqwest::Client::new();
 
@@ -433,13 +434,21 @@ pub async fn google_drive_create_folder(
     let search: serde_json::Value = client
         .get("https://www.googleapis.com/drive/v3/files")
         .bearer_auth(&token)
-        .query(&[("q", query.as_str()), ("fields", "files(id,name)")])
+        .query(&[
+            ("q", query.as_str()),
+            ("fields", "files(id,name)"),
+            ("supportsAllDrives", "true"),
+            ("includeItemsFromAllDrives", "true"),
+        ])
         .send()
         .await
         .map_err(|e| e.to_string())?
         .json()
         .await
         .map_err(|e| e.to_string())?;
+    if let Some(message) = search["error"]["message"].as_str() {
+        return Err(format!("Drive folder lookup failed: {message}"));
+    }
     if let Some(id) = search["files"].get(0).and_then(|f| f["id"].as_str()) {
         return Ok(format!("exists:{id}"));
     }
@@ -447,6 +456,7 @@ pub async fn google_drive_create_folder(
     let created: serde_json::Value = client
         .post("https://www.googleapis.com/drive/v3/files")
         .bearer_auth(&token)
+        .query(&[("supportsAllDrives", "true"), ("fields", "id")])
         .json(
             &serde_json::json!({ "name": name, "mimeType": "application/vnd.google-apps.folder" }),
         )

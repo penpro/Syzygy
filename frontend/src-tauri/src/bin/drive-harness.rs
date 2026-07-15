@@ -80,8 +80,9 @@ async fn run() -> Result<ProbeOutput, String> {
                 .into(),
         );
     }
-    let expected = extract_expected_marker(&report.context)
-        .ok_or("The retrieved context did not contain a 'secret word is <value>' canary.")?;
+    let expected = extract_expected_marker(&report.native_context).ok_or(
+        "The retrieved native Google-file evidence did not contain a 'secret word is <value>' canary.",
+    )?;
 
     let client = reqwest::Client::new();
     let models: serde_json::Value = client
@@ -172,5 +173,13 @@ mod tests {
     #[test]
     fn refuses_context_without_canary() {
         assert!(extract_expected_marker("[notes]\nNo test marker here.").is_none());
+    }
+
+    #[test]
+    fn native_evidence_is_not_confused_by_transcript_language() {
+        let transcript = "The secret word is not visible without Drive.";
+        let native = "The secret word is narwhal.";
+        assert_eq!(extract_expected_marker(transcript).as_deref(), Some("not"));
+        assert_eq!(extract_expected_marker(native).as_deref(), Some("narwhal"));
     }
 }

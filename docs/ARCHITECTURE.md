@@ -81,6 +81,7 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
 | What | Where |
 |---|---|
 | Settings, experts, ask threads | localStorage key `syzygy` (webview) |
+| Sanitized diagnostic history (last 500 entries) | localStorage key `syzygy-diagnostic-log-v1` (webview) |
 | Google refresh token + client info | `<app-data>/google_auth.json` (Rust-only) |
 | Selected Drive workspace ID/name | `<app-data>/drive_workspace.json` |
 | Models (GGUF) | `<app-data>/models/` |

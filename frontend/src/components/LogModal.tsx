@@ -49,8 +49,8 @@ export function LogModal({ onClose }: { onClose: () => void }) {
       }
     >
       <p className="muted xs" style={{ marginTop: 0 }}>
-        What the app has been doing this session — backend errors land here automatically. Nothing in this log leaves
-        your machine; use <b>Copy all</b> to paste it into a bug report yourself.
+        Recent app activity — backend errors and Drive connection milestones land here automatically and survive
+        restarts. The log stays on this machine; use <b>Copy all</b> to paste it into a bug report yourself.
       </p>
       {entries.length === 0 && <div className="muted pad">Nothing logged yet.</div>}
       <div style={{ display: 'flex', flexDirection: 'column-reverse', gap: 2, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>

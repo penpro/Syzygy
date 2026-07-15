@@ -91,11 +91,14 @@ Updater endpoint: `https://github.com/penpro/Syzygy/releases/latest/download/lat
 
 ## Diagnostic log
 
-`src/log.ts` — in-app ring buffer (Settings → 📜 View log). Every backend command
+`src/log.ts` — persistent in-app ring buffer (Settings → 📜 View log, localStorage key
+`syzygy-diagnostic-log-v1`, newest 500 entries). Every backend command
 failure is captured automatically by the `invoke` wrapper in `tauri.ts` (command name +
 error only — never prompts/file contents/tokens), plus uncaught errors and unhandled
-rejections; consecutive repeats collapse to `×N`. Feature milestones worth debugging
-later should `logInfo(tag, msg)`. First stop for any user-reported failure: **Copy all**.
+rejections; consecutive repeats collapse to `×N`. Drive logs restored/linked/disconnected state,
+workspace discovery/selection, sync summaries, and high-level failure phase without file contents or
+tokens. Entries survive app restarts until **Clear**. First stop for any user-reported failure:
+**Copy all**.
 
 ## Conventions
 

@@ -39,10 +39,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current validation tranche
 
-- The v0.1.5 implementation and production package pass local build, runtime, unit, structural,
-  formatting, and packaging checks.
-- S-01 remains externally blocked until the test account re-links once and the live harness proves
-  the collaborator-created native Google Doc canary through the local model.
+- The reauthorized Windows account now passes the headless collaborator-created native Google
+  Doc→local-model canary proof without a mirror. S-01 is `implemented_unverified` pending the
+  planned second-account/second-install reproduction.
+- The v0.1.6 patch adds the required shared-drive flag to traversal/read/write/sync requests,
+  distinguishes OAuth success from workspace setup failures, and persists sanitized diagnostics
+  across restarts.
 
 ## Next (in intended order)
 
@@ -50,9 +52,8 @@ Shared-folder Ask now uses remote-first Drive retrieval, including native Google
 Docs/Sheets/Slides export. The local mirror remains available through explicit Sync so
 collaborators are not required to download large project folders.
 
-1. **Close the Drive authorization gate** — configure/verify the restricted scope, re-link the
-   test account, and make `npm run test:drive-live` pass on the collaborator-created native Doc.
-   Then run the same harness from a second account/install and attach evidence to S-01.
+1. **Close the second-install Drive gate** — run the passing `npm run test:drive-live` proof from a
+   second account/install and attach that evidence to S-01.
 2. **Build the Penumbra collaborative editor independently**:
    - Start with exact-version MIT Lexical and Yjs packages after the provenance gate in
      `END-GOAL-PLAN.md`; author every node, plugin, command, schema, test, and UI here.

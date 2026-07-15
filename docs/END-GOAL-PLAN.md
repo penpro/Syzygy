@@ -187,8 +187,10 @@ calls, object growth, storage, and latency.
 `RESOLVED-GOOGLE-01` (2026-07-14): a live comparison proved `drive.file` omitted a
 collaborator-created Google Doc from the same app-created folder. ADR-0001 records the evidence,
 Picker comparison, restricted-scope/verification burden, explicit re-link requirement, and the
-selected-folder application boundary. S-01 remains `blocked_external` until the reauthorized
-Drive→local-model harness passes; the decision is implemented but the capability is not verified.
+selected-folder application boundary. The reauthorized Drive→local-model harness passed on
+2026-07-14 against a collaborator-created native Google file. S-01 is now
+`implemented_unverified`; a second-account/second-install reproduction is still required before
+the capability becomes `verified`.
 
 ### AI task contract
 

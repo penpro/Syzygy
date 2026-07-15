@@ -16,8 +16,52 @@ export interface LogEntry {
 }
 
 const MAX_ENTRIES = 500
+const STORAGE_KEY = 'syzygy-diagnostic-log-v1'
 
-let entries: LogEntry[] = []
+/** Validate persisted diagnostics defensively so corrupted localStorage cannot break app startup. */
+export function normalizeStoredLog(value: unknown): LogEntry[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((entry): entry is Partial<LogEntry> => Boolean(entry) && typeof entry === 'object')
+    .filter(
+      (entry) =>
+        (entry.level === 'info' || entry.level === 'warn' || entry.level === 'error') &&
+        typeof entry.tag === 'string' &&
+        typeof entry.message === 'string' &&
+        typeof entry.ts === 'number' &&
+        Number.isFinite(entry.ts),
+    )
+    .map((entry) => ({
+      ts: entry.ts as number,
+      level: entry.level as LogLevel,
+      tag: (entry.tag as string).slice(0, 80),
+      message: (entry.message as string).slice(0, 2000),
+      count:
+        typeof entry.count === 'number' && Number.isInteger(entry.count) && entry.count > 0 ? entry.count : 1,
+    }))
+    .slice(-MAX_ENTRIES)
+}
+
+function loadPersistedLog(): LogEntry[] {
+  if (typeof localStorage === 'undefined') return []
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    return stored ? normalizeStoredLog(JSON.parse(stored)) : []
+  } catch {
+    return []
+  }
+}
+
+function persistLog(next: LogEntry[]): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+  } catch {
+    // Diagnostics must never make the app fail when storage is unavailable or full.
+  }
+}
+
+let entries: LogEntry[] = loadPersistedLog()
 let listeners: Array<() => void> = []
 
 function notify() {
@@ -30,11 +74,13 @@ export function addLog(level: LogLevel, tag: string, message: string): void {
   const last = entries[entries.length - 1]
   if (last && last.level === level && last.tag === tag && last.message === msg) {
     entries = [...entries.slice(0, -1), { ...last, ts: Date.now(), count: last.count + 1 }]
+    persistLog(entries)
     notify()
     return
   }
   const entry: LogEntry = { ts: Date.now(), level, tag, message: msg, count: 1 }
   entries = entries.length >= MAX_ENTRIES ? [...entries.slice(1), entry] : [...entries, entry]
+  persistLog(entries)
   // Mirror to the devtools console so `tauri dev` sessions see everything in one place.
   // eslint-disable-next-line no-console
   ;(level === 'error' ? console.error : level === 'warn' ? console.warn : console.info)(`[${tag}] ${message}`)
@@ -52,6 +98,13 @@ export function getLog(): LogEntry[] {
 
 export function clearLog(): void {
   entries = []
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.removeItem(STORAGE_KEY)
+    } catch {
+      // Clearing the in-memory view is still useful if storage is unavailable.
+    }
+  }
   notify()
 }
 
@@ -74,6 +127,7 @@ export function logAsText(): string {
 
 // ---- global capture: errors that would otherwise vanish ----
 if (typeof window !== 'undefined') {
+  addLog('info', 'app', 'Diagnostic session started')
   window.addEventListener('error', (e) => {
     addLog('error', 'window', e.message || String(e.error ?? 'unknown error'))
   })

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-07-14",
+  "releaseCandidate": "0.1.6",
+  "command": "npm run test:drive-live",
+  "environment": "Windows desktop; stored production OAuth grant; selected Drive workspace; bundled loopback model",
+  "result": {
+    "passed": true,
+    "visibleFiles": 4,
+    "supportedFiles": 4,
+    "nativeGoogleFiles": 1,
+    "canarySource": "native Google-file evidence only",
+    "modelAnswerMatchedCanary": true
+  },
+  "privacy": {
+    "canaryValueCommitted": false,
+    "fileNamesCommitted": false,
+    "oauthDataCommitted": false,
+    "modelPathCommitted": false
+  },
+  "limitations": [
+    "This run proves one reauthorized account/install can retrieve a collaborator-created native Google file without a mirror and pass it to the local model.",
+    "The planned second-account/second-install reproduction is still required before S-01 is marked verified."
+  ]
+}

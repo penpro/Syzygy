@@ -46,6 +46,7 @@ never treated as evidence.
 | Consent screen omits or denies the requested scope | Link fails immediately; the UI explains why collaborator-created files require re-linking. |
 | Consent screen in **Testing** mode | Only listed test users may auth (`403 access_denied`), and refresh tokens expire in **7 days**. Public use of the restricted scope requires Google's verification process; do not describe it as instant. |
 | **Drive API disabled** on the Cloud project | Every Drive call 403s (`Drive API has not been used in project…`). Enable at console.cloud.google.com → APIs & Services → Library. |
+| Selected folder is inside a shared drive | Every compatible `files.list/get/create/update` and upload request must send `supportsAllDrives=true`; listings also send `includeItemsFromAllDrives=true`. Missing the first flag returns Google's literal `supportsAllDrives parameter was not set to true` error. |
 | `cmd /C start <url>` truncates at `&` | Google errors `Required parameter is missing: response_type`. Use rundll32 (above). |
 
 ## Selected workspace and direct research (`google_drive.rs`)
@@ -62,6 +63,8 @@ never treated as evidence.
 - `google_drive_append_text(...)` creates/updates transcripts only inside the selected workspace.
 - Shared Ask logs counts for visible/readable/native files without logging names or content. A Drive
   error aborts the turn instead of silently falling back to the mirror.
+- Connection diagnostics distinguish OAuth success from later workspace discovery/selection failure;
+  sanitized milestones and backend errors persist across restarts in the diagnostic log.
 
 The local model sees only the resulting text labels/passages. It never receives an OAuth token or
 an ambient Drive tool.
@@ -102,9 +105,10 @@ collaboration prerequisite.
 ## Headless validation
 
 `npm run test:drive-live` uses the normal stored grant and selected workspace. It requires at least
-one visible native Google file, extracts the canary value from retrieved context rather than
-hard-coding it, sends that exact context to the loaded loopback model, and exits nonzero unless the
-answer contains the canary. Rust tests cover native export decoding and mirror traversal names;
+one visible native Google file, extracts the canary value specifically from native Google-file
+evidence rather than transcripts or a hard-coded value, sends the normal retrieved context to the
+loaded loopback model, and exits nonzero unless the answer contains the canary. Rust tests cover
+native export decoding and mirror traversal names;
 Vitest covers the final evidence-to-system-prompt boundary.
 
 ## Known limitations / next steps
@@ -115,7 +119,8 @@ Vitest covers the final evidence-to-system-prompt boundary.
 - Conflicting simultaneous writes to the same file lose the older write silently.
 - One selected workspace at a time; per-project provider bindings are Phase 4 work.
 - The restricted Google scope requires consent-screen configuration and public verification.
-- Existing v0.1.4 grants must be re-linked once; until then the live harness intentionally fails
-  `app-file-only` and S-01 stays `blocked_external`.
+- Existing v0.1.4 grants must be re-linked once. The reauthorized primary Windows test account
+  passed the native-file Drive→local-model harness on 2026-07-14; S-01 remains
+  `implemented_unverified` pending the planned second-account/second-install reproduction.
 - Refresh-token revocation (user revokes in Google account) surfaces as errors on next
   call → the UI should offer re-link (currently: unlink + link manually).

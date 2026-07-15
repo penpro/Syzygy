@@ -81,6 +81,13 @@ responsible for web access it does not have.
    sees at least one native Google file and the local model returns the canary extracted from the
    same Drive context.
 
+### Validation update — 2026-07-14
+
+The reauthorized primary Windows account passed the live harness against a collaborator-created
+native Google file. The model returned the redacted canary from direct Drive evidence without a
+mirror. Evidence: `docs/audits/runs/DRIVE-LIVE-2026-07-14.json`. S-01 remains
+`implemented_unverified` until the planned second-account/second-install reproduction passes.
+
 ## Falsification tests
 
 - Supply a file ID outside the selected tree: `google_drive_read_file` must reject it.

@@ -17,6 +17,24 @@ fn esc(q: &str) -> String {
     q.replace('\\', "\\\\").replace('\'', "\\'")
 }
 
+fn shared_drive_query<'a>(
+    query: &[(&'a str, &'a str)],
+    include_items: bool,
+) -> Vec<(&'a str, &'a str)> {
+    let mut params = query.to_vec();
+    if !params.iter().any(|(key, _)| *key == "supportsAllDrives") {
+        params.push(("supportsAllDrives", "true"));
+    }
+    if include_items
+        && !params
+            .iter()
+            .any(|(key, _)| *key == "includeItemsFromAllDrives")
+    {
+        params.push(("includeItemsFromAllDrives", "true"));
+    }
+    params
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DriveWorkspace {
@@ -56,19 +74,46 @@ async fn drive_get_json(
     token: &str,
     url: &str,
     query: &[(&str, &str)],
+    operation: &str,
 ) -> Result<serde_json::Value, String> {
+    let query = shared_drive_query(query, url == FILES_ENDPOINT);
     let resp = reqwest::Client::new()
         .get(url)
         .bearer_auth(token)
-        .query(query)
+        .query(&query)
         .send()
         .await
-        .map_err(|e| e.to_string())?;
-    let v: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-    if let Some(msg) = v["error"]["message"].as_str() {
-        return Err(format!("Drive: {msg}"));
+        .map_err(|e| format!("Drive {operation} failed before Google responded: {e}"))?;
+    drive_json_response(resp, operation).await
+}
+
+async fn require_drive_success(
+    resp: reqwest::Response,
+    operation: &str,
+) -> Result<reqwest::Response, String> {
+    if resp.status().is_success() {
+        return Ok(resp);
     }
-    Ok(v)
+    let status = resp.status();
+    let body = resp.text().await.unwrap_or_default();
+    let message = serde_json::from_str::<serde_json::Value>(&body)
+        .ok()
+        .and_then(|value| value["error"]["message"].as_str().map(str::to_string))
+        .unwrap_or_else(|| format!("Google returned HTTP {status}"));
+    Err(format!(
+        "Drive {operation} failed: {message} (HTTP {status})"
+    ))
+}
+
+async fn drive_json_response(
+    resp: reqwest::Response,
+    operation: &str,
+) -> Result<serde_json::Value, String> {
+    require_drive_success(resp, operation)
+        .await?
+        .json()
+        .await
+        .map_err(|e| format!("Drive {operation} returned unreadable JSON: {e}"))
 }
 
 /// Find a folder by name (non-trashed), or create it. Returns the folder id.
@@ -84,7 +129,10 @@ pub(crate) async fn find_or_create_folder(token: &str, name: &str) -> Result<Str
             ("q", q.as_str()),
             ("fields", "files(id)"),
             ("pageSize", "3"),
+            ("supportsAllDrives", "true"),
+            ("includeItemsFromAllDrives", "true"),
         ],
+        "folder lookup",
     )
     .await?;
     if found["files"].as_array().map_or(0, Vec::len) > 1 {
@@ -95,18 +143,17 @@ pub(crate) async fn find_or_create_folder(token: &str, name: &str) -> Result<Str
     if let Some(id) = found["files"].get(0).and_then(|f| f["id"].as_str()) {
         return Ok(id.to_string());
     }
-    let created: serde_json::Value = reqwest::Client::new()
+    let created = reqwest::Client::new()
         .post(FILES_ENDPOINT)
         .bearer_auth(token)
+        .query(&[("supportsAllDrives", "true"), ("fields", "id")])
         .json(
             &serde_json::json!({ "name": name, "mimeType": "application/vnd.google-apps.folder" }),
         )
         .send()
         .await
-        .map_err(|e| e.to_string())?
-        .json()
-        .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("Drive folder creation failed before Google responded: {e}"))?;
+    let created = drive_json_response(created, "folder creation").await?;
     created["id"]
         .as_str()
         .map(str::to_string)
@@ -130,7 +177,10 @@ pub async fn find_folder_by_name(
             ("q", q.as_str()),
             ("fields", "files(id,name)"),
             ("pageSize", "10"),
+            ("supportsAllDrives", "true"),
+            ("includeItemsFromAllDrives", "true"),
         ],
+        "folder lookup",
     )
     .await?;
     Ok(value["files"].get(0).and_then(|file| {
@@ -150,6 +200,7 @@ async fn folder_metadata(token: &str, id: &str) -> Result<DriveWorkspace, String
             ("fields", "id,name,mimeType,trashed"),
             ("supportsAllDrives", "true"),
         ],
+        "workspace validation",
     )
     .await?;
     if value["trashed"].as_bool() == Some(true)
@@ -211,8 +262,10 @@ pub async fn google_drive_list_workspaces(
             ("fields", "files(id,name,modifiedTime)"),
             ("pageSize", "1000"),
             ("spaces", "drive"),
+            ("supportsAllDrives", "true"),
             ("includeItemsFromAllDrives", "true"),
         ],
+        "workspace listing",
     )
     .await?;
     Ok(value["files"]
@@ -255,7 +308,13 @@ async fn find_file(token: &str, folder_id: &str, name: &str) -> Result<Option<St
     let found = drive_get_json(
         token,
         FILES_ENDPOINT,
-        &[("q", q.as_str()), ("fields", "files(id)")],
+        &[
+            ("q", q.as_str()),
+            ("fields", "files(id)"),
+            ("supportsAllDrives", "true"),
+            ("includeItemsFromAllDrives", "true"),
+        ],
+        "transcript lookup",
     )
     .await?;
     Ok(found["files"]
@@ -268,14 +327,15 @@ async fn read_file_content(token: &str, file_id: &str) -> Result<String, String>
     let resp = reqwest::Client::new()
         .get(format!("{FILES_ENDPOINT}/{file_id}"))
         .bearer_auth(token)
-        .query(&[("alt", "media")])
+        .query(&[("alt", "media"), ("supportsAllDrives", "true")])
         .send()
         .await
-        .map_err(|e| e.to_string())?;
-    if !resp.status().is_success() {
-        return Err(format!("Drive read failed: HTTP {}", resp.status()));
-    }
-    resp.text().await.map_err(|e| e.to_string())
+        .map_err(|e| format!("Drive transcript read failed before Google responded: {e}"))?;
+    require_drive_success(resp, "transcript read")
+        .await?
+        .text()
+        .await
+        .map_err(|e| format!("Drive transcript read failed: {e}"))
 }
 
 /// Create a text file in a folder (multipart: metadata + content in one request).
@@ -299,17 +359,19 @@ async fn create_text_file(
                 .mime_str("text/plain")
                 .map_err(|e| e.to_string())?,
         );
-    let v: serde_json::Value = reqwest::Client::new()
+    let v = reqwest::Client::new()
         .post(UPLOAD_ENDPOINT)
         .bearer_auth(token)
-        .query(&[("uploadType", "multipart"), ("fields", "id")])
+        .query(&[
+            ("uploadType", "multipart"),
+            ("fields", "id"),
+            ("supportsAllDrives", "true"),
+        ])
         .multipart(form)
         .send()
         .await
-        .map_err(|e| e.to_string())?
-        .json()
-        .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("Drive transcript creation failed before Google responded: {e}"))?;
+    let v = drive_json_response(v, "transcript creation").await?;
     v["id"]
         .as_str()
         .map(str::to_string)
@@ -321,15 +383,13 @@ async fn update_text_file(token: &str, file_id: &str, content: &str) -> Result<(
     let resp = reqwest::Client::new()
         .patch(format!("{UPLOAD_ENDPOINT}/{file_id}"))
         .bearer_auth(token)
-        .query(&[("uploadType", "media")])
+        .query(&[("uploadType", "media"), ("supportsAllDrives", "true")])
         .header("Content-Type", "text/plain")
         .body(content.to_string())
         .send()
         .await
-        .map_err(|e| e.to_string())?;
-    if !resp.status().is_success() {
-        return Err(format!("Drive update failed: HTTP {}", resp.status()));
-    }
+        .map_err(|e| format!("Drive transcript update failed before Google responded: {e}"))?;
+    require_drive_success(resp, "transcript update").await?;
     Ok(())
 }
 
@@ -395,12 +455,13 @@ async fn drive_file_bytes(
         client
             .get(format!("{FILES_ENDPOINT}/{id}"))
             .bearer_auth(token)
-            .query(&[("alt", "media")])
+            .query(&[("alt", "media"), ("supportsAllDrives", "true")])
     };
-    let resp = request.send().await.map_err(|e| e.to_string())?;
-    if !resp.status().is_success() {
-        return Err(format!("Drive read failed: HTTP {}", resp.status()));
-    }
+    let resp = request
+        .send()
+        .await
+        .map_err(|e| format!("Drive source read failed before Google responded: {e}"))?;
+    let resp = require_drive_success(resp, "source read").await?;
     Ok(Some(
         resp.bytes().await.map_err(|e| e.to_string())?.to_vec(),
     ))
@@ -432,6 +493,10 @@ struct RemoteFile {
 #[serde(rename_all = "camelCase")]
 pub struct DriveContextReport {
     pub context: String,
+    /// Native Google-file evidence used by the headless canary proof. The webview receives the
+    /// normal relevance-ranked context only; this duplicate diagnostic view stays in Rust.
+    #[serde(skip_serializing)]
+    pub native_context: String,
     pub workspace: DriveWorkspace,
     pub visible_files: usize,
     pub supported_files: usize,
@@ -461,12 +526,14 @@ async fn list_folder_tree(
                 ("q", q.as_str()),
                 ("fields", "nextPageToken,files(id,name,mimeType)"),
                 ("pageSize", "1000"),
+                ("supportsAllDrives", "true"),
                 ("includeItemsFromAllDrives", "true"),
             ];
             if let Some(page) = page_token.as_deref() {
                 params.push(("pageToken", page));
             }
-            let value = drive_get_json(token, FILES_ENDPOINT, &params).await?;
+            let value =
+                drive_get_json(token, FILES_ENDPOINT, &params, "workspace traversal").await?;
             for file in value["files"]
                 .as_array()
                 .map(|a| a.as_slice())
@@ -517,11 +584,13 @@ pub async fn retrieve_context_report(
     let files = list_folder_tree(token, &workspace.id, 2_000).await?;
     let client = reqwest::Client::new();
     let mut chunks = Vec::new();
+    let mut native_chunks = Vec::new();
     let mut sources = Vec::new();
     let mut native_files = 0usize;
     let mut supported_files = 0usize;
     for file in &files {
-        if export_mime(&file.mime).is_some() {
+        let is_native = export_mime(&file.mime).is_some();
+        if is_native {
             native_files += 1;
         }
         let Some(bytes) = drive_file_bytes(&client, token, &file.id, &file.mime).await? else {
@@ -532,13 +601,18 @@ pub async fn retrieve_context_report(
             supported_files += 1;
             sources.push(file.path.clone());
             for chunk in crate::knowledge::chunk_text(&text) {
+                if is_native {
+                    native_chunks.push((file.path.clone(), chunk.clone()));
+                }
                 chunks.push((file.path.clone(), chunk));
             }
         }
     }
     let context = crate::knowledge::retrieve_chunks(&chunks, query, max_chars);
+    let native_context = crate::knowledge::retrieve_chunks(&native_chunks, query, max_chars);
     Ok(DriveContextReport {
         context,
+        native_context,
         workspace,
         visible_files: files.len(),
         supported_files,
@@ -581,8 +655,10 @@ pub async fn google_drive_list_folder(
             ("orderBy", "modifiedTime desc"),
             ("fields", "files(id,name,modifiedTime,size)"),
             ("pageSize", "50"),
+            ("supportsAllDrives", "true"),
             ("includeItemsFromAllDrives", "true"),
         ],
+        "workspace file listing",
     )
     .await?;
     let files = v["files"]
@@ -785,8 +861,10 @@ pub async fn google_drive_sync_folder(
             ("q", q.as_str()),
             ("fields", "files(id,name,mimeType,modifiedTime)"),
             ("pageSize", "200"),
+            ("supportsAllDrives", "true"),
             ("includeItemsFromAllDrives", "true"),
         ],
+        "sync inventory",
     )
     .await?;
     let mut remote: std::collections::HashMap<String, (String, i64)> =
@@ -842,16 +920,11 @@ pub async fn google_drive_sync_folder(
             let resp = client
                 .get(format!("{FILES_ENDPOINT}/{id}"))
                 .bearer_auth(&token)
-                .query(&[("alt", "media")])
+                .query(&[("alt", "media"), ("supportsAllDrives", "true")])
                 .send()
                 .await
-                .map_err(|e| e.to_string())?;
-            if !resp.status().is_success() {
-                return Err(format!(
-                    "Drive pull of {name} failed: HTTP {}",
-                    resp.status()
-                ));
-            }
+                .map_err(|e| format!("Drive sync pull failed before Google responded: {e}"))?;
+            let resp = require_drive_success(resp, "sync pull").await?;
             let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
             std::fs::write(&local, &bytes).map_err(|e| e.to_string())?;
             let _ = filetime::set_file_mtime(&local, filetime::FileTime::from_unix_time(*rtime, 0));
@@ -888,13 +961,19 @@ pub async fn google_drive_sync_folder(
                 let resp = client
                     .patch(format!("{UPLOAD_ENDPOINT}/{id}"))
                     .bearer_auth(&token)
-                    .query(&[("uploadType", "media"), ("fields", "modifiedTime")])
+                    .query(&[
+                        ("uploadType", "media"),
+                        ("fields", "modifiedTime"),
+                        ("supportsAllDrives", "true"),
+                    ])
                     .header("Content-Type", mime)
                     .body(bytes)
                     .send()
                     .await
-                    .map_err(|e| e.to_string())?;
-                let v: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+                    .map_err(|e| {
+                        format!("Drive sync update failed before Google responded: {e}")
+                    })?;
+                let v = drive_json_response(resp, "sync update").await?;
                 v["modifiedTime"].as_str().map(str::to_string)
             }
             None => {
@@ -913,17 +992,21 @@ pub async fn google_drive_sync_folder(
                             .mime_str(mime)
                             .map_err(|e| e.to_string())?,
                     );
-                let v: serde_json::Value = client
+                let v = client
                     .post(UPLOAD_ENDPOINT)
                     .bearer_auth(&token)
-                    .query(&[("uploadType", "multipart"), ("fields", "id,modifiedTime")])
+                    .query(&[
+                        ("uploadType", "multipart"),
+                        ("fields", "id,modifiedTime"),
+                        ("supportsAllDrives", "true"),
+                    ])
                     .multipart(form)
                     .send()
                     .await
-                    .map_err(|e| e.to_string())?
-                    .json()
-                    .await
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| {
+                        format!("Drive sync creation failed before Google responded: {e}")
+                    })?;
+                let v = drive_json_response(v, "sync creation").await?;
                 v["modifiedTime"].as_str().map(str::to_string)
             }
         };
@@ -944,6 +1027,35 @@ pub async fn google_drive_sync_folder(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shared_drive_queries_always_set_required_flags_once() {
+        let list = shared_drive_query(&[("q", "trashed = false")], true);
+        assert!(list.contains(&("supportsAllDrives", "true")));
+        assert!(list.contains(&("includeItemsFromAllDrives", "true")));
+
+        let already_flagged = shared_drive_query(
+            &[
+                ("supportsAllDrives", "true"),
+                ("includeItemsFromAllDrives", "true"),
+            ],
+            true,
+        );
+        assert_eq!(
+            already_flagged
+                .iter()
+                .filter(|(key, _)| *key == "supportsAllDrives")
+                .count(),
+            1
+        );
+        assert_eq!(
+            already_flagged
+                .iter()
+                .filter(|(key, _)| *key == "includeItemsFromAllDrives")
+                .count(),
+            1
+        );
+    }
 
     #[test]
     fn native_google_types_have_explicit_text_exports() {

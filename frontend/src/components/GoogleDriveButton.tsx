@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store'
-import { logInfo } from '../log'
+import { logError, logInfo } from '../log'
 import { Modal } from './Modal'
 import {
   googleOauthStart,
@@ -21,6 +21,8 @@ export const DRIVE_FOLDER = 'Syzygy'
 /** Google failures that all mean the same thing: the Drive permission checkbox on the consent
  * screen wasn't ticked, so the token can't touch Drive. */
 const SCOPE_PROBLEM = /insufficient|scope|checkbox|drive access|collaboration access|app-file-only|re-link/i
+
+const errorText = (error: unknown) => (error as { message?: string })?.message ?? String(error)
 
 /**
  * Compact Google Drive control for the Ask top bar (lives next to the folder grant).
@@ -48,8 +50,19 @@ export function GoogleDriveButton() {
         setEmail(connection?.email ?? null)
         setCollaborationAccess(connection?.collaborationAccess ?? false)
         setWorkspace(savedWorkspace)
+        if (connection) {
+          logInfo(
+            'drive',
+            `Connection restored (${connection.collaborationAccess ? 'collaboration access' : 'app-file-only'}); workspace: ${savedWorkspace?.name ?? 'not selected'}`,
+          )
+        } else {
+          logInfo('drive', 'No stored Google Drive connection')
+        }
       })
-      .catch(() => setEmail(null)) // not running under Tauri (browser dev)
+      .catch((error) => {
+        setEmail(null)
+        logError('drive', `Connection status check failed: ${errorText(error)}`)
+      }) // not running under Tauri (browser dev)
     return () => window.clearTimeout(flashTimer.current)
   }, [])
 
@@ -62,28 +75,39 @@ export function GoogleDriveButton() {
   const connect = async () => {
     setBusy(true)
     setLinking(true)
+    logInfo('drive', 'Opening Google sign-in')
     try {
       const who = await googleOauthStart(clientId, clientSecret)
       setEmail(who)
       setCollaborationAccess(true)
       logInfo('drive', `Linked Google Drive as ${who}`)
-      const options = await googleDriveListWorkspaces()
-      const syzygyFolders = options.filter((option) => option.name.toLowerCase() === DRIVE_FOLDER.toLowerCase())
-      if (syzygyFolders.length === 1) {
-        const selected = await googleDriveSelectWorkspace(syzygyFolders[0].id)
-        setWorkspace(selected)
-        showFlash('✅ Linked', `Linked as ${who}; workspace: ${selected.name}`)
-      } else {
-        setWorkspaceOptions(options)
-        setSelectedWorkspaceId(options[0]?.id ?? '')
-        setShowWorkspace(true)
-        showFlash('✅ Linked', `Linked as ${who}; choose a workspace folder`)
+      try {
+        const options = await googleDriveListWorkspaces()
+        logInfo('drive', `Workspace discovery returned ${options.length} folder(s)`)
+        const syzygyFolders = options.filter((option) => option.name.toLowerCase() === DRIVE_FOLDER.toLowerCase())
+        if (syzygyFolders.length === 1) {
+          const selected = await googleDriveSelectWorkspace(syzygyFolders[0].id)
+          setWorkspace(selected)
+          logInfo('drive', `Selected Drive workspace: ${selected.name}`)
+          showFlash('✅ Linked', `Linked as ${who}; workspace: ${selected.name}`)
+        } else {
+          setWorkspaceOptions(options)
+          setSelectedWorkspaceId(options[0]?.id ?? '')
+          setShowWorkspace(true)
+          showFlash('✅ Linked', `Linked as ${who}; choose a workspace folder`)
+        }
+      } catch (workspaceError) {
+        const msg = errorText(workspaceError)
+        logError('drive', `Account linked, but workspace setup failed: ${msg}`)
+        if (SCOPE_PROBLEM.test(msg)) setShowScopeHelp(true)
+        else showFlash('⚠ Linked; folder setup failed', msg, 15000)
       }
     } catch (e) {
-      const msg = (e as { message?: string })?.message ?? String(e)
+      const msg = errorText(e)
+      logError('drive', `Google sign-in failed: ${msg}`)
       if (/canceled/i.test(msg)) showFlash('Sign-in canceled', undefined, 2500)
       else if (SCOPE_PROBLEM.test(msg)) setShowScopeHelp(true)
-      else showFlash('⚠ Link failed', msg, 15000) // already in the diagnostic log via the invoke wrapper
+      else showFlash('⚠ Link failed', msg, 15000)
     } finally {
       setBusy(false)
       setLinking(false)
@@ -102,7 +126,8 @@ export function GoogleDriveButton() {
         `Mirror: ${r.mirror} ↔ Drive/${activeWorkspace?.name ?? DRIVE_FOLDER}`,
       )
     } catch (e) {
-      const msg = (e as { message?: string })?.message ?? String(e)
+      const msg = errorText(e)
+      logError('drive', `Sync failed: ${msg}`)
       if (SCOPE_PROBLEM.test(msg)) setShowScopeHelp(true)
       else showFlash('⚠ Sync failed', msg, 8000)
     } finally {
@@ -114,11 +139,13 @@ export function GoogleDriveButton() {
     setBusy(true)
     try {
       const options = await googleDriveListWorkspaces()
+      logInfo('drive', `Workspace discovery returned ${options.length} folder(s)`)
       setWorkspaceOptions(options)
       setSelectedWorkspaceId(workspace?.id ?? options[0]?.id ?? '')
       setShowWorkspace(true)
     } catch (e) {
-      const msg = (e as { message?: string })?.message ?? String(e)
+      const msg = errorText(e)
+      logError('drive', `Workspace discovery failed: ${msg}`)
       if (SCOPE_PROBLEM.test(msg)) setShowScopeHelp(true)
       else showFlash('⚠ Folder list failed', msg, 10000)
     } finally {
@@ -136,7 +163,9 @@ export function GoogleDriveButton() {
       logInfo('drive', `Selected Drive workspace: ${selected.name}`)
       showFlash('✅ Folder selected', `Direct Drive workspace: ${selected.name}`)
     } catch (e) {
-      showFlash('⚠ Folder selection failed', (e as { message?: string })?.message ?? String(e), 10000)
+      const msg = errorText(e)
+      logError('drive', `Workspace selection failed: ${msg}`)
+      showFlash('⚠ Folder selection failed', msg, 10000)
     } finally {
       setBusy(false)
     }
@@ -149,9 +178,12 @@ export function GoogleDriveButton() {
       setEmail(null)
       setCollaborationAccess(false)
       setWorkspace(null)
+      logInfo('drive', 'Google Drive disconnected')
       showFlash('Unlinked')
     } catch (e) {
-      showFlash('⚠ Unlink failed', (e as { message?: string })?.message ?? String(e), 8000)
+      const msg = errorText(e)
+      logError('drive', `Disconnect failed: ${msg}`)
+      showFlash('⚠ Unlink failed', msg, 8000)
     } finally {
       setBusy(false)
     }

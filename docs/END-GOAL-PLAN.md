@@ -437,6 +437,9 @@ Progress: the deterministic planner and typed run-record validator now pass synt
 fixtures for identity leakage, hidden reasoning, missing audits, unequal calls, wrong judge order,
 silent minority deletion, invalid accounting, and mutation without human acceptance. The actual
 multi-provider runner and benchmark corpus remain `contract-only`; no quality claim is authorized.
+The run-record interchange is now published as strict Draft 2020-12 JSON Schema and embedded in
+MCP. Its typed plan-relative validator remains the authority for cross-record semantics that JSON
+Schema alone cannot establish.
 
 ### Research plugin API
 

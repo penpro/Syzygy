@@ -1,0 +1,288 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syzygy.penumbra.invalid/schemas/adversarial-run-v1.schema.json",
+  "title": "Syzygy Adversarial Research Run Record v1",
+  "description": "Structural interchange contract. Passing this schema does not satisfy Syzygy's plan-relative semantic validator or establish model quality.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "recordVersion",
+    "runId",
+    "protocolVersion",
+    "sourceSnapshotIds",
+    "candidates",
+    "critiques",
+    "evidenceAudit",
+    "judgments",
+    "minorityFindings",
+    "synthesis",
+    "accounting",
+    "humanDecision",
+    "sharedMutation"
+  ],
+  "properties": {
+    "recordVersion": { "const": 1 },
+    "runId": { "$ref": "#/$defs/id" },
+    "protocolVersion": { "const": 1 },
+    "sourceSnapshotIds": {
+      "type": "array",
+      "maxItems": 10000,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/id" }
+    },
+    "candidates": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/candidate" }
+    },
+    "critiques": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/critique" }
+    },
+    "evidenceAudit": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": { "$ref": "#/$defs/evidenceAudit" }
+    },
+    "judgments": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "$ref": "#/$defs/judgment" }
+    },
+    "minorityFindings": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": { "$ref": "#/$defs/minorityFinding" }
+    },
+    "synthesis": { "$ref": "#/$defs/synthesis" },
+    "accounting": { "$ref": "#/$defs/accounting" },
+    "humanDecision": { "$ref": "#/$defs/humanDecision" },
+    "sharedMutation": { "$ref": "#/$defs/sharedMutation" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "humanDecision": {
+            "type": "object",
+            "properties": { "status": { "enum": ["accepted", "rejected"] } },
+            "required": ["status"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "humanDecision": {
+            "type": "object",
+            "properties": { "reviewerId": { "$ref": "#/$defs/id" } }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "sharedMutation": {
+            "type": "object",
+            "properties": { "applied": { "const": true } },
+            "required": ["applied"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "humanDecision": {
+            "type": "object",
+            "properties": { "status": { "const": "accepted" } }
+          },
+          "sharedMutation": {
+            "type": "object",
+            "properties": {
+              "proposalId": { "$ref": "#/$defs/id" },
+              "expectedRevision": { "$ref": "#/$defs/revision" },
+              "appliedRevision": { "$ref": "#/$defs/revision" }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "pattern": "\\S"
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidateId", "proposal", "claims"],
+      "properties": {
+        "candidateId": { "$ref": "#/$defs/id" },
+        "proposal": { "type": "string", "minLength": 1, "maxLength": 4194304, "pattern": "\\S" },
+        "claims": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": { "$ref": "#/$defs/claim" }
+        }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claimId", "text"],
+      "properties": {
+        "claimId": { "$ref": "#/$defs/id" },
+        "text": { "type": "string", "minLength": 1, "maxLength": 500000, "pattern": "\\S" }
+      }
+    },
+    "critique": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["criticCandidateId", "targetCandidateId", "summary"],
+      "properties": {
+        "criticCandidateId": { "$ref": "#/$defs/id" },
+        "targetCandidateId": { "$ref": "#/$defs/id" },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 500000, "pattern": "\\S" }
+      }
+    },
+    "evidenceAudit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidateId", "claimId", "verdict", "sourceIds"],
+      "properties": {
+        "candidateId": { "$ref": "#/$defs/id" },
+        "claimId": { "$ref": "#/$defs/id" },
+        "verdict": { "enum": ["supported", "unsupported", "conflicted"] },
+        "sourceIds": {
+          "type": "array",
+          "maxItems": 10000,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        }
+      }
+    },
+    "judgment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order", "ranking"],
+      "properties": {
+        "order": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "ranking": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        }
+      }
+    },
+    "minorityFinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["findingId", "candidateIds", "evidenceStatus", "disposition", "rationale"],
+      "properties": {
+        "findingId": { "$ref": "#/$defs/id" },
+        "candidateIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "evidenceStatus": { "enum": ["supported", "unsupported", "conflicted"] },
+        "disposition": { "enum": ["retained", "rejected"] },
+        "rationale": { "type": "string", "minLength": 1, "maxLength": 500000, "pattern": "\\S" }
+      }
+    },
+    "synthesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "retainedFindingIds"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1, "maxLength": 4194304, "pattern": "\\S" },
+        "retainedFindingIds": {
+          "type": "array",
+          "maxItems": 10000,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        }
+      }
+    },
+    "accounting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adversarialCalls", "baselineCalls", "inputTokens", "outputTokens", "costUsd"],
+      "properties": {
+        "adversarialCalls": { "type": "integer", "minimum": 0, "maximum": 100000 },
+        "baselineCalls": { "type": "integer", "minimum": 0, "maximum": 100000 },
+        "inputTokens": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "outputTokens": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "costUsd": {
+          "anyOf": [
+            { "type": "number", "minimum": 0, "maximum": 1000000000 },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "humanDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reviewerId", "notes"],
+      "properties": {
+        "status": { "enum": ["pending", "accepted", "rejected"] },
+        "reviewerId": {
+          "anyOf": [
+            { "$ref": "#/$defs/id" },
+            { "type": "null" }
+          ]
+        },
+        "notes": { "type": "string", "maxLength": 500000 }
+      }
+    },
+    "sharedMutation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["applied", "proposalId", "expectedRevision", "appliedRevision"],
+      "properties": {
+        "applied": { "type": "boolean" },
+        "proposalId": {
+          "anyOf": [
+            { "$ref": "#/$defs/id" },
+            { "type": "null" }
+          ]
+        },
+        "expectedRevision": {
+          "anyOf": [
+            { "$ref": "#/$defs/revision" },
+            { "type": "null" }
+          ]
+        },
+        "appliedRevision": {
+          "anyOf": [
+            { "$ref": "#/$defs/revision" },
+            { "type": "null" }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,4 +1,6 @@
+import Ajv2020 from 'ajv/dist/2020'
 import { describe, expect, it } from 'vitest'
+import adversarialRunSchema from '../../../docs/schemas/syzygy-adversarial-run-v1.schema.json'
 import { createAdversarialRunPlan, type AdversarialRunInput } from './adversarialProtocol'
 import {
   adversarialRunMetrics,
@@ -18,6 +20,7 @@ const plan = createAdversarialRunPlan({
 } satisfies AdversarialRunInput)
 
 const [first, second] = plan.blindedCandidates.map(({ candidateId }) => candidateId)
+const validatePublicSchema = new Ajv2020({ allErrors: true, strict: true }).compile(adversarialRunSchema)
 const record = (): AdversarialRunRecord => ({
   recordVersion: 1,
   runId: 'run-fixture-001',
@@ -63,6 +66,32 @@ const record = (): AdversarialRunRecord => ({
 })
 
 describe('adversarial run record', () => {
+  it('keeps the public Draft 2020-12 schema aligned with the typed valid fixture', () => {
+    const fixture = record()
+    expect(validatePublicSchema(fixture), JSON.stringify(validatePublicSchema.errors)).toBe(true)
+  })
+
+  it('public schema rejects identity leaks, hidden reasoning, unsafe accounting, and unguarded mutation', () => {
+    const identityLeak = record() as AdversarialRunRecord & { hiddenReasoning?: string }
+    Object.assign(identityLeak.candidates[0], { providerId: 'openai' })
+    identityLeak.hiddenReasoning = 'not an allowed interchange field'
+    expect(validatePublicSchema(identityLeak)).toBe(false)
+
+    const unsafeAccounting = record()
+    unsafeAccounting.accounting.inputTokens = Number.MAX_SAFE_INTEGER + 1
+    expect(validatePublicSchema(unsafeAccounting)).toBe(false)
+
+    const unguardedMutation = record()
+    unguardedMutation.humanDecision = { status: 'pending', reviewerId: null, notes: '' }
+    unguardedMutation.sharedMutation = {
+      applied: true,
+      proposalId: null,
+      expectedRevision: null,
+      appliedRevision: null,
+    }
+    expect(validatePublicSchema(unguardedMutation)).toBe(false)
+  })
+
   it('validates a blinded, cited, compute-matched, human-accepted synthetic record', () => {
     const fixture = record()
     expect(validateAdversarialRunRecord(plan, fixture)).toEqual([])

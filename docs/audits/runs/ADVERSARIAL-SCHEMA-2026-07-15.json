@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "runId": "ADVERSARIAL-SCHEMA-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": {
+    "recordSchema": "implemented",
+    "semanticValidator": "implemented",
+    "adversarialRunner": "contract-only"
+  },
+  "commands": [
+    "npm run test:adversarial",
+    "npm run test:contracts",
+    "npm run test:mcp",
+    "npm run audit"
+  ],
+  "result": {
+    "passed": true,
+    "adversarialTestsPassed": 10,
+    "extensionContractTestsPassed": 16,
+    "realModelCalls": 0,
+    "qualityClaimAuthorized": false
+  },
+  "regressionGates": {
+    "fullRustTestsPassed": 45,
+    "frontendModulesTransformed": 989,
+    "structuralAuditChecksPassed": 19,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true
+  },
+  "proved": [
+    "the public adversarial record schema compiles in Ajv strict Draft 2020-12 mode",
+    "the typed valid record fixture passes both public structural schema and plan-relative semantic validation",
+    "unknown identity and hidden-reasoning fields are rejected by the public interchange shape",
+    "unsafe integer accounting and structurally unguarded shared mutation are rejected",
+    "the running headless MCP contract embeds schema version 1 with strict top-level unknown-field rejection",
+    "public documentation distinguishes structural schema success from plan-relative and quality claims"
+  ],
+  "notProved": [
+    "multi-model orchestration or provider execution",
+    "the factual quality of any candidate, judgment, or synthesis",
+    "benchmark corpus validity, statistical significance, or superiority",
+    "failure and cancellation accounting across a complete adversarial run",
+    "safe automatic shared mutation; human acceptance and live revision recheck remain required"
+  ]
+}

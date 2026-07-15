@@ -48,7 +48,7 @@ Recommended first instruction to an MCP-capable model:
 | `syzygy_status` | no | Running version/view, active project, editor readiness, honest capability report |
 | `launch_syzygy` | launches app | Starts the GUI from the same installed executable and waits for readiness |
 | `syzygy_installation` | no | Exact executable/install folder, protocol, JSON/TOML configuration, connection prompt, and starter prompt; works without the GUI |
-| `syzygy_platform_contracts` | no | Provider, adversarial-review, and plugin schemas, honest runtime status, and self-check commands; works without the GUI |
+| `syzygy_platform_contracts` | no | Provider, public adversarial-run, and plugin schemas, honest runtime status, and self-check commands; works without the GUI |
 | `workspace_walkthrough` | no | State-aware explanation of the current use case and next step |
 | `list_projects` | no | Stable IDs, titles, archive state, transport, active project |
 | `create_project` | yes | Creates and opens a local project with a non-empty title |
@@ -100,7 +100,7 @@ MCP host
 - `syzygy_installation` discloses the executable and parent-folder paths to the already-connected
   local MCP host. These paths are local machine metadata, contain no OAuth token or research
   content, and are also visible to the user in Settings.
-- `syzygy_platform_contracts` embeds public schemas and implementation-state labels only. It
+- `syzygy_platform_contracts` embeds public plugin and adversarial-run schemas plus implementation-state labels only. It
   reports the unwired OpenAI adapter as `request-and-stream-control-conformance`, and deliberately
   reports the credential vault as `implemented-unverified` and aggregate remote execution,
   the non-executing plugin certifier as `contract-certified-runner`, and adversarial execution and

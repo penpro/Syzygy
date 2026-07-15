@@ -114,6 +114,7 @@ record(
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))
 const pluginCertificationSchema = JSON.parse(text('docs/schemas/syzygy-plugin-certification-v1.schema.json'))
+const adversarialRunSchema = JSON.parse(text('docs/schemas/syzygy-adversarial-run-v1.schema.json'))
 const platformContractsSource = text('frontend/src-tauri/src/platform_contracts.rs')
 const providerRuntimeSource = text('frontend/src-tauri/src/model_provider.rs')
 const providerStreamSource = text('frontend/src-tauri/src/provider_stream.rs')
@@ -155,9 +156,13 @@ record(
     adversarialRecordSource.includes('planned equal compute budget') &&
     adversarialRecordSource.includes('shared mutation requires accepted human review') &&
     adversarialRecordSource.includes('hidden chain-of-thought fields are prohibited') &&
+    adversarialRunSchema.$schema === 'https://json-schema.org/draft/2020-12/schema' &&
+    adversarialRunSchema.additionalProperties === false &&
+    adversarialRunSchema.properties?.recordVersion?.const === 1 &&
+    platformContractsSource.includes('"adversarialRunRecordSchema"') &&
     platformContractsSource.includes('"adversarialRecordValidator": "implemented"') &&
     platformContractsSource.includes('"adversarialRunner": "contract-only"'),
-  'identity blinding, evidence, minority, equal-budget, human-mutation, and no-hidden-reasoning gates present',
+  'public strict schema plus identity blinding, evidence, minority, equal-budget, human-mutation, and no-hidden-reasoning gates present',
 )
 record(
   'remote provider boundary remains gated',

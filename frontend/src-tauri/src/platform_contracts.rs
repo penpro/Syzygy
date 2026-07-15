@@ -10,12 +10,16 @@ const PLUGIN_MANIFEST_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-research-plugin-v1.schema.json");
 const PLUGIN_PROPOSAL_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-plugin-proposal-v1.schema.json");
+const ADVERSARIAL_RUN_SCHEMA: &str =
+    include_str!("../../../docs/schemas/syzygy-adversarial-run-v1.schema.json");
 
 pub fn current() -> Result<Value, String> {
     let manifest_schema: Value = serde_json::from_str(PLUGIN_MANIFEST_SCHEMA)
         .map_err(|error| format!("Embedded research plugin schema is invalid: {error}"))?;
     let proposal_schema: Value = serde_json::from_str(PLUGIN_PROPOSAL_SCHEMA)
         .map_err(|error| format!("Embedded plugin proposal schema is invalid: {error}"))?;
+    let adversarial_run_schema: Value = serde_json::from_str(ADVERSARIAL_RUN_SCHEMA)
+        .map_err(|error| format!("Embedded adversarial run schema is invalid: {error}"))?;
     Ok(json!({
         "contractVersion": 1,
         "implementationStatus": {
@@ -69,6 +73,7 @@ pub fn current() -> Result<Value, String> {
         ],
         "pluginManifestSchema": manifest_schema,
         "pluginProposalSchema": proposal_schema,
+        "adversarialRunRecordSchema": adversarial_run_schema,
         "selfCheck": {
             "command": "npm run test:contracts",
             "providerCommand": "npm run test:providers",
@@ -118,6 +123,14 @@ mod tests {
         assert_eq!(
             contracts["adversarialProtocol"]["automaticSharedMutation"],
             false
+        );
+        assert_eq!(
+            contracts["adversarialRunRecordSchema"]["additionalProperties"],
+            false
+        );
+        assert_eq!(
+            contracts["adversarialRunRecordSchema"]["properties"]["recordVersion"]["const"],
+            1
         );
     }
 }

@@ -41,7 +41,10 @@ retention class, source snapshot identifiers, every raw candidate, every judgmen
 and the human decision. Hidden chain-of-thought is neither requested nor stored; provider-visible
 reasoning summaries may be retained only when the provider explicitly returns them as output.
 
-The typed validator in `frontend/src/extensions/adversarialRunRecord.ts` now makes the core record
+The public interchange shape is `docs/schemas/syzygy-adversarial-run-v1.schema.json` (Draft
+2020-12, strict unknown-field rejection) and is embedded in the headless
+`syzygy_platform_contracts` MCP result. The typed validator in
+`frontend/src/extensions/adversarialRunRecord.ts` makes the core record
 gates executable against synthetic fixtures. It requires exact blinded candidate coverage, one
 cross-critique per candidate, evidence audit coverage for every claim, source-snapshot identity,
 the two planned reversed judge orders, equal actual call budgets, explicit minority disposition,
@@ -49,7 +52,11 @@ retention of supported minority findings, finite token/cost accounting, and revi
 acceptance before shared mutation. It rejects provider/model/slot identity in candidate or judge
 artifacts and rejects hidden-chain-of-thought fields. Metrics report support rate, position
 stability, minority retention, budget matching, and mutation authorization; they do not score
-answer quality. The model-call runner and public benchmark corpus remain unimplemented.
+answer quality. Schema tests prove the typed valid fixture remains portable and reject identity
+fields, hidden-reasoning fields, unsafe numeric accounting, and unguarded mutation. Plan-relative
+coverage, source membership, equal compute, and minority-retention checks remain semantic-validator
+responsibilities and cannot be inferred from schema success. See `ADVERSARIAL-API.md`. The
+model-call runner and public benchmark corpus remain unimplemented.
 
 ## Benchmark before product claims
 

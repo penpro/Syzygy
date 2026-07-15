@@ -115,6 +115,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   finite accounting, prohibited hidden reasoning, and revision-guarded human acceptance before
   mutation. This validates evidence structure, not multi-model quality; model-call orchestration,
   real benchmark fixtures, statistics, and any superiority claim remain open.
+- Adversarial run record v1 is now a public strict Draft 2020-12 schema, embedded in the headless
+  MCP platform contract and checked for drift against the typed valid fixture. Structural schema
+  success is explicitly separate from plan-relative semantic validation and any quality claim.
 
 ## Current completion snapshot
 

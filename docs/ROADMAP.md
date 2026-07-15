@@ -98,11 +98,14 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   terminal order and aggregate size are enforced, and sanitized provider errors remain distinct.
   The adapter is labeled `request-and-stream-control-conformance`; tools, the frontend event bridge,
   product workflow UI, and opt-in live-provider proof remain gates before availability.
-- The provider credential vault is now implemented but has no product settings caller. Its provider-neutral
+- The provider credential vault now has a collapsed product Settings caller. Its provider-neutral
   trait passes an in-memory set/read/delete/error-redaction suite; secret strings zeroize on drop;
   and a Windows Credential Manager harness created, read, deleted, and independently proved absence
   of a random canary without printing it. Native macOS Keychain and persistent Linux backend builds
-  are configured, but their live canaries and the user-facing key/disclosure flow remain open.
+  are configured, but their live canaries and transient DOM/heap leak proof remain open. The UI
+  supports OpenAI, Anthropic, Gemini, and xAI set/replace/remove without persisting a key or gaining
+  generation authority.
+  Evidence: `docs/audits/runs/PROVIDER-SETTINGS-2026-07-15.json`.
 - The open researcher API now has a non-executing package certifier and a complete interface-only
   citation-auditor example. Draft 2020-12 schemas, bounded JSON, real-path containment, valid and
   invalid proposal fixtures, plugin identity, documentation/license/runtime-file presence, and

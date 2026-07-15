@@ -494,8 +494,10 @@ response attestation; its stream/tool paths remain open, so it is not product-av
 
 Credential progress: the cross-platform OS-vault abstraction, zeroizing secret wrapper, memory
 contract tests, and an opt-in Windows Credential Manager create/read/delete/absence canary pass.
-Typed credential and generation/cancellation Tauri commands and wrappers now exist, but no product
-key field or task workflow calls them. The generation request carries no approval boolean; a
+Typed credential and generation/cancellation Tauri commands and wrappers now exist. A collapsed
+Settings surface calls status/set/delete for OpenAI, Anthropic, Gemini, and xAI, keeps keys out of
+React/store persistence, and has no generation import. No task workflow calls generation. The
+generation request carries no approval boolean; a
 Rust-owned native dialog creates one-use approval, and denial is headlessly proven not to read the
 vault or contact the network. macOS/Linux live canaries, transient-entry and end-to-end leak scans,
 and a packaged native-dialog click proof remain open.

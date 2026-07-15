@@ -103,7 +103,7 @@ MCP host
 - `syzygy_platform_contracts` embeds public plugin, custom-adapter, provider-run, and adversarial-run schemas plus implementation-state labels only. It
   reports the OpenAI adapter as `request-and-stream-control-conformance` and Anthropic
   Messages, Gemini Interactions, and xAI Responses as the narrower `request-control-conformance`.
-  It reports credential commands as `tauri-command-ui-open`, the native-disclosure one-shot task
+  It reports the OS-vault Settings surface as `settings-vault-ui`, the native-disclosure one-shot task
   bridge as `native-disclosure-command`, and aggregate remote execution as
   `native-disclosure-command-no-product-ui`. MCP itself has no provider-generation or credential
   tool and therefore cannot bypass the native send boundary. It reports the non-executing

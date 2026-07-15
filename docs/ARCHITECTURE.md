@@ -96,6 +96,9 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   navigation, and revision-guarded editor reads/writes. It does not own persistence.
 - `components/McpSetupModal.tsx` — Settings guide that asks Rust for the exact running executable
   and displays copy-ready MCP configuration and prompts; it never guesses an install path.
+- `components/RemoteProviderSettings.tsx` — collapsed advanced settings for OpenAI, Anthropic,
+  Gemini, and xAI OS-vault credentials. It shows only presence, clears the password field after a
+  write attempt, persists no frontend state, and has no generation authority.
 
 ## Persistence map
 
@@ -123,7 +126,7 @@ execution have shipped.
 | Collaborative project updates | IndexedDB database `syzygy-project-v1:<projectId>` |
 | Sanitized diagnostic history (last 500 entries) | localStorage key `syzygy-diagnostic-log-v1` (webview) |
 | Google refresh token + client info | `<app-data>/google_auth.json` (Rust-only) |
-| Optional remote-model API keys | OS credential store under service `org.penumbra.syzygy.model-provider`; typed set/status/delete commands exist, but no product key field or generation workflow is enabled |
+| Optional remote-model API keys | OS credential store under service `org.penumbra.syzygy.model-provider`; the collapsed Settings UI can set/replace/delete and read only presence; no generation workflow is enabled |
 | Selected Drive workspace ID/name | `<app-data>/drive_workspace.json` |
 | Models (GGUF) | `<app-data>/models/` |
 | Optional Drive mirror folder | `<Documents>/Syzygy` (manual sync with Drive folder "Syzygy") |

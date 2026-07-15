@@ -762,6 +762,65 @@ select {
   font: inherit;
   outline: none;
 }
+
+/* Optional remote-model credentials: advanced, local-first, and visually quiet. */
+.provider-settings-intro {
+  margin: 0;
+}
+.provider-key-row {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+}
+.provider-key-head,
+.provider-key-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.provider-key-head b {
+  flex: 1;
+}
+.provider-key-status {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.provider-key-status.stored {
+  color: var(--accent-2);
+}
+.provider-key-status.error {
+  color: var(--danger);
+}
+.provider-key-actions input[type='password'] {
+  min-width: 0;
+  flex: 1;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  font: inherit;
+  outline: none;
+}
+.provider-key-actions input[type='password']:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+@media (max-width: 620px) {
+  .provider-key-head,
+  .provider-key-actions {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .provider-key-status,
+  .provider-key-actions input[type='password'] {
+    flex-basis: 100%;
+  }
+}
 textarea {
   resize: vertical; /* vertical only — horizontal fights width:100% */
   min-height: 64px; /* never collapse below ~2 lines (kills the unreachable-scrollbar bug) */

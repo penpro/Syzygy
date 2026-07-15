@@ -129,6 +129,15 @@ provider, exact content categories, provider storage/training profile, and estim
 Never collapse this into an unexplained "cloud mode," imply that every zero-retention option is
 available, or place API keys in a web field that persists to app state.
 
+Provider key entry lives in a collapsed advanced Settings section so the local path stays primary.
+Each row names the provider, uses a masked non-autofill field, reports only stored/not-stored, and
+offers explicit replace/remove actions. The field clears immediately after a save attempt. Copy
+must say that saving a key sends no research and that every remote task still gets a native
+**Send once** disclosure. Status and errors use theme tokens and remain legible on paper and dark
+themes.
+Browser-only design previews show a neutral **Available in the installed app** state rather than a
+false credential failure; the installed Tauri webview performs the real vault presence check.
+
 An adversarial review panel shows candidates blinded during judgment, source support, disagreement,
 minority findings, order-swap instability, the compute-matched baseline, latency, and cost. Call it
 "review" or "panel," not consensus or truth. Nothing enters the shared draft until the person sees

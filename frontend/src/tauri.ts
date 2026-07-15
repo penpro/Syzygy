@@ -2,7 +2,7 @@
 // calling `invoke('cmd', {...})` directly, so every command name, argument shape, and return type
 // lives in ONE place instead of being duplicated across ~40 call sites. Add a wrapper here for
 // every new `#[tauri::command]`; components should never import `invoke` themselves.
-import { invoke as rawInvoke } from '@tauri-apps/api/core'
+import { invoke as rawInvoke, isTauri as rawIsTauri } from '@tauri-apps/api/core'
 import { save } from '@tauri-apps/plugin-dialog'
 import { download as downloadBlob } from './util'
 import { logError } from './log'
@@ -47,6 +47,9 @@ export interface McpConnectionInfo {
 }
 
 export type RemoteProviderId = 'openai' | 'anthropic' | 'gemini' | 'xai'
+
+/** True only inside the installed/dev Tauri webview, never in the browser-only UI preview. */
+export const desktopRuntimeAvailable = (): boolean => rawIsTauri()
 
 export type ProviderInputRole = 'developer' | 'user'
 

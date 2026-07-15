@@ -42,7 +42,7 @@ pub fn current() -> Result<Value, String> {
             "providerTaskRuntime": "native-disclosure-command",
             "providerRunRecordValidator": "implemented",
             "modelAdapterCertifier": "contract-certified-runner",
-            "credentialVault": "tauri-command-ui-open",
+            "credentialVault": "settings-vault-ui",
             "adversarialRecordValidator": "implemented",
             "adversarialRunner": "contract-only",
             "pluginCertifier": "contract-certified-runner",
@@ -128,6 +128,10 @@ mod tests {
             "native-disclosure-command"
         );
         assert_eq!(
+            contracts["implementationStatus"]["credentialVault"],
+            "settings-vault-ui"
+        );
+        assert_eq!(
             contracts["providerAdapterStatus"]["openai-responses"],
             "request-and-stream-control-conformance"
         );
@@ -142,10 +146,6 @@ mod tests {
         assert_eq!(
             contracts["providerAdapterStatus"]["xai-responses"],
             "request-control-conformance"
-        );
-        assert_eq!(
-            contracts["implementationStatus"]["credentialVault"],
-            "tauri-command-ui-open"
         );
         assert_eq!(
             contracts["implementationStatus"]["pluginCertifier"],

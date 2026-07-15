@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "runId": "PROVIDER-SETTINGS-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "settings-vault-ui",
+  "commands": [
+    "npm run build",
+    "npm run audit",
+    "cargo test --manifest-path src-tauri/Cargo.toml platform_contracts::tests",
+    "npm run test:mcp"
+  ],
+  "result": {
+    "passed": true,
+    "frontendModulesTransformed": 990,
+    "structuralAuditChecksPassed": 22,
+    "platformContractTestsPassed": 1,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true,
+    "browserPreviewProviderRows": 4,
+    "browserPreviewHorizontalOverflow": false,
+    "narrowViewportWidth": 600,
+    "narrowViewportHorizontalOverflow": false,
+    "paperThemeVisualInspected": true,
+    "liveCredentialUsed": false,
+    "externalNetworkUsed": false
+  },
+  "proved": [
+    "Settings includes a collapsed optional remote-model section for OpenAI, Anthropic, Google Gemini, and xAI.",
+    "Each provider uses a masked uncontrolled input, status/set/delete typed wrappers, explicit replace/remove actions, and presence-only readback.",
+    "The input field is cleared before awaiting the OS-vault write, and the component contains no Zustand, localStorage, console, or generation import.",
+    "Saving a credential has no authority to invoke a model or transmit research.",
+    "The production frontend compiles with theme-token styles and responsive narrow-layout behavior.",
+    "The browser-only visual preview renders a neutral installed-app status and does not misreport the absent desktop vault as four credential failures.",
+    "The rendered paper-theme modal exposes four named password fields, and both the default and 600-pixel browser viewports have no horizontal overflow; narrow rows wrap the input and action cleanly.",
+    "The compiled MCP reports settings-vault-ui while retaining exactly twelve tools and no provider credential or generation tool."
+  ],
+  "notProved": [
+    "A real key can be entered, replaced, and deleted in the packaged GUI on every supported operating system.",
+    "The transient DOM value and JavaScript string are absent from heap snapshots, crash artifacts, browser credential managers, or accessibility tooling.",
+    "A stored key is valid or can complete a live provider call.",
+    "Provider model discovery, default model selection, task routing, streaming, tools, billing, or adversarial orchestration.",
+    "The Settings layout has passed keyboard-only, screen-reader, high-contrast, and all-theme review."
+  ]
+}

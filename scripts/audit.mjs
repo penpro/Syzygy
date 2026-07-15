@@ -123,6 +123,7 @@ const providerRuntimeSource = text('frontend/src-tauri/src/model_provider.rs')
 const providerTaskRuntimeSource = text('frontend/src-tauri/src/provider_runtime.rs')
 const providerStreamSource = text('frontend/src-tauri/src/provider_stream.rs')
 const credentialVaultSource = text('frontend/src-tauri/src/credential_vault.rs')
+const providerSettingsSource = text('frontend/src/components/RemoteProviderSettings.tsx')
 const credentialHarnessSource = text('frontend/src-tauri/src/bin/credential-harness.rs')
 const cargoManifestSource = text('frontend/src-tauri/Cargo.toml')
 const cargoLockSource = text('frontend/src-tauri/Cargo.lock')
@@ -274,13 +275,33 @@ record(
     credentialVaultSource.includes('RemoteProviderId::Xai => "xai"') &&
     credentialVaultSource.includes('keyring::Entry::new') &&
     credentialHarnessSource.includes('cleanupVerified') &&
-    platformContractsSource.includes('"credentialVault": "tauri-command-ui-open"') &&
+    platformContractsSource.includes('"credentialVault": "settings-vault-ui"') &&
     rustWiringSource.includes('provider_runtime::provider_credential_set') &&
     rustWiringSource.includes('provider_runtime::provider_credential_status') &&
     rustWiringSource.includes('provider_runtime::provider_credential_delete') &&
     text('frontend/src/tauri.ts').includes("invoke('provider_credential_set'") &&
     text('frontend/src/tauri.ts').includes("invoke('provider_generate'"),
   'exact keyring backends, zeroization, sanitized vault, cleanup harness, and typed credential plus native-gated generation commands',
+)
+record(
+  'remote provider settings remain vault-only and non-transmitting',
+  text('frontend/src/components/SettingsPanel.tsx').includes('<RemoteProviderSettings />') &&
+    providerSettingsSource.includes("{ id: 'openai'") &&
+    providerSettingsSource.includes("{ id: 'anthropic'") &&
+    providerSettingsSource.includes("{ id: 'gemini'") &&
+    providerSettingsSource.includes("{ id: 'xai'") &&
+    providerSettingsSource.includes('type="password"') &&
+    providerSettingsSource.includes('autoComplete="new-password"') &&
+    providerSettingsSource.includes("input.value = ''") &&
+    providerSettingsSource.includes('providerCredentialStatus') &&
+    providerSettingsSource.includes('providerCredentialSet') &&
+    providerSettingsSource.includes('providerCredentialDelete') &&
+    providerSettingsSource.includes('desktopRuntimeAvailable') &&
+    !providerSettingsSource.includes('providerGenerate') &&
+    !providerSettingsSource.includes('localStorage') &&
+    !providerSettingsSource.includes('useStore') &&
+    !providerSettingsSource.includes('console.'),
+  'collapsed settings UI supports four OS-vault credentials, clears password fields, stores no app state, and has no generation authority',
 )
 const mcpSetupSource = text('frontend/src/components/McpSetupModal.tsx')
 record(

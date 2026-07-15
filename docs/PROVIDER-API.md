@@ -7,8 +7,9 @@ Messages, Gemini Interactions, and xAI Responses one-shot requests are at
 `request-control-conformance`. A Rust one-shot task bridge is fake-network certified and registered
 with typed generation/cancellation commands. Each call obtains one-use approval from a native
 dialog before vault or network access; the request cannot provide its own approval. Credential
-set/status/delete are also typed commands, but no product key field or generation workflow calls
-them yet. Custom remote adapters are contract-only.
+set/status/delete are also typed commands and a collapsed Settings surface calls them without
+persisting keys in app state. No product generation workflow exists yet. Custom remote adapters
+are contract-only.
 
 The canonical TypeScript contract is `frontend/src/extensions/providerContract.ts`. It prevents
 research workflows from depending on a vendor response shape and keeps provider availability
@@ -96,8 +97,10 @@ macOS, and persistent Linux backends. Provider secret strings zeroize on drop. T
 uses an in-memory trait implementation; `npm run test:credentials:live` creates a random canary in
 the current OS credential store, reads it back, deletes it, and verifies absence without printing
 the canary. Credential-only Tauri commands and `tauri.ts` wrappers now set, report presence, or
-delete the default provider key without returning it. No product key field exists; macOS/Linux live
-evidence, transient-entry leak tests, and product workflow UI remain open. Dependency provenance is
+delete the default provider key without returning it. A collapsed Settings surface supports all
+four providers with a password field that is never placed in React/store state and is cleared
+before the asynchronous write completes. Saving does not transmit research. macOS/Linux live
+evidence, transient DOM/heap leak tests, and product generation workflow UI remain open. Dependency provenance is
 recorded in `docs/audits/EXTENSION-PROVENANCE.md`.
 
 The first Anthropic Messages slice is also Rust-owned and fake-server-only. It proves the exact

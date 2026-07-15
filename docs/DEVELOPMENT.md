@@ -115,6 +115,16 @@ caller-supplied approval field. The pure disclosure-copy test is headless, while
 the OS dialog remains a packaged-GUI check. No product component calls generation yet.
 The evidence and explicit limitations are recorded in
 `docs/audits/runs/NATIVE-PROVIDER-DISCLOSURE-2026-07-15.json`.
+
+Settings now has a collapsed remote-provider key section for OpenAI, Anthropic, Gemini, and xAI.
+The component calls only typed status/set/delete wrappers, keeps the key out of React state and all
+persisted stores, clears the password field before awaiting the vault write, and never imports the
+generation command. `npm run audit` locks those structural properties; a transient DOM/heap canary
+and macOS/Linux live-vault checks remain release evidence gaps.
+Browser-only Vite previews intentionally show a neutral installed-app status and do not attempt
+vault commands; this prevents a missing desktop runtime from masquerading as a credential error.
+The structural/build/MCP proof and non-claims are recorded in
+`docs/audits/runs/PROVIDER-SETTINGS-2026-07-15.json`.
 `npm run test:provider-runtime-interop` closes the record check by running the Rust bridge,
 passing its serialized record directly to Vitest, and requiring both public validators to accept
 it. The record names its actual literal-loopback destination with `loopback-conformance`; it does

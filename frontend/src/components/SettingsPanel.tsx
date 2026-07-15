@@ -8,6 +8,7 @@ import { ModelsModal } from './ModelsModal'
 import { LogModal } from './LogModal'
 import { UpdateCheck } from './UpdateCheck'
 import { McpSetupModal } from './McpSetupModal'
+import { RemoteProviderSettings } from './RemoteProviderSettings'
 import { crashReportsAvailable, startCrashReports, stopCrashReports } from '../crashReports'
 import { useConfirm } from './ConfirmDialog'
 import { STORE_KEY, exportData } from '../storage'
@@ -246,6 +247,8 @@ export function SettingsPanel({
             Detect this installation, copy the exact MCP configuration, and generate a starter prompt for an MCP-capable assistant.
           </em>
         </div>
+
+        <RemoteProviderSettings />
 
         <div className="field">
           <span>Your data</span>

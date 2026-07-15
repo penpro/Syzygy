@@ -113,6 +113,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   seven explicit authority allow/deny probes run headlessly. The report says
   `contract-certified`, never runtime-safe; plugin discovery, install, WASI execution, permission
   brokerage, UI, lifecycle, and output-flood/crash tests remain open.
+- The non-executing plugin authority broker now enforces explicit grant subsets in 15-minute
+  sessions, detached bounded project snapshots, pending revision-guarded proposals, selected-Drive
+  identity, granted HTTPS host patterns, and configured model providers. It returns decisions only:
+  no loader, fetch, provider call, Drive call, or mutation is wired. WASI/native hosts, install
+  lifecycle, DNS/redirect enforcement, UI, and runtime failure tests remain open.
+  Evidence: `docs/audits/runs/PLUGIN-AUTHORITY-BROKER-2026-07-15.json`.
 - The adversarial protocol now has an executable run-record validator and synthetic benchmark
   fixture. Eight tests enforce blinded artifacts, complete candidates/critiques, claim-level source
   audits, planned reversed judge order, equal actual call budgets, supported-minority retention,

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "runId": "PLUGIN-AUTHORITY-BROKER-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "implemented-non-executing",
+  "commands": [
+    "npm run test:plugin-host",
+    "npm run test:contracts",
+    "npm run build",
+    "npm run audit",
+    "npm run test:mcp"
+  ],
+  "result": {
+    "passed": true,
+    "pluginHostTestsPassed": 6,
+    "extensionContractTestsPassed": 39,
+    "extensionContractTestsSkipped": 1,
+    "frontendModulesTransformed": 990,
+    "structuralAuditChecksPassed": 26,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true,
+    "pluginCodeExecuted": false,
+    "externalNetworkUsed": false,
+    "realModelCalls": 0,
+    "driveCalls": 0,
+    "sharedMutationApplied": false
+  },
+  "proved": [
+    "A host session opens only from a runtime-valid strict manifest, an explicit unique grant subset, and a bounded project/revision/source snapshot.",
+    "Unknown manifest, runtime, permission, contribution, and proposal fields fail closed in the in-process validator, including malformed untyped proposal fields.",
+    "Sessions expire after 15 minutes, can be explicitly revoked, and return content-free typed failure codes.",
+    "Project reads require project.read and return detached copies that cannot mutate the broker's stored snapshot.",
+    "Project proposals require project.propose, valid bounded content, exact plugin/project identity, and the captured revision, and return only pending-human-review without changing the snapshot.",
+    "Network decisions require network.fetch, an explicitly granted exact/wildcard domain, HTTPS on the default HTTPS port, no URL credentials, no literal IP/local/internal/single-label host, a one-MiB ceiling, and an explicit downstream public-address recheck flag.",
+    "Model decisions require model.invoke and an explicitly granted provider; remote decisions require disclosure and every decision requires a provider-run record.",
+    "Drive decisions require the matching read/propose capability, exact selected-workspace identity, and a downstream target recheck flag.",
+    "The broker imports no Tauri invoke boundary and performs no fetch, provider generation, Drive operation, plugin load, or project mutation.",
+    "The compiled MCP reports the broker as implemented-non-executing while pluginLoader remains contract-only."
+  ],
+  "notProved": [
+    "A WASI component parses, instantiates, runs, traps, times out, or receives only linked host capabilities.",
+    "A native MCP plugin process is installed, warned, hashed, launched, constrained, or terminated.",
+    "A downstream network host resolves DNS, rejects private/link-local results, rechecks redirects, enforces response bytes, or sanitizes content.",
+    "A provider or Drive host consumes a broker decision without target drift or authority expansion.",
+    "A proposal diff is rendered, accepted, rejected, attributed, or applied with a live revision recheck.",
+    "Plugin discovery, install/disable/upgrade/removal, contribution UI, publication, signatures, runtime safety, or usefulness."
+  ]
+}

@@ -1,8 +1,9 @@
 # Adversarial research and extension evidence
 
 **Status:** contract foundation, adversarial run-record validator, injected headless phase runner,
-provider request/stream conformance, credential vault, and plugin certifier implemented; product
-adversarial execution and plugin loading are not yet implemented. **Research date:** 2026-07-14. This document records the
+provider request/stream conformance, credential vault, plugin certifier, and non-executing plugin
+authority broker implemented; product adversarial execution and plugin loading are not yet
+implemented. **Research date:** 2026-07-14. This document records the
 evidence behind the design so another person or model can challenge it.
 
 ## Claim under test

@@ -47,6 +47,7 @@ pub fn current() -> Result<Value, String> {
             "adversarialRecordValidator": "implemented",
             "adversarialRunner": "injected-runner-no-product-executor",
             "pluginCertifier": "contract-certified-runner",
+            "pluginAuthorityBroker": "implemented-non-executing",
             "pluginLoader": "contract-only"
         },
         "providerAdapterStatus": {
@@ -104,6 +105,7 @@ pub fn current() -> Result<Value, String> {
             "credentialCommand": "npm run test:credentials",
             "credentialLiveCommand": "npm run test:credentials:live",
             "pluginCertifierCommand": "npm run test:plugin-sdk",
+            "pluginAuthorityBrokerCommand": "npm run test:plugin-host",
             "modelAdapterCertifierCommand": "npm run test:model-adapter-sdk",
             "adversarialCommand": "npm run test:adversarial",
             "mcpCommand": "npm run test:mcp",
@@ -155,6 +157,10 @@ mod tests {
         assert_eq!(
             contracts["implementationStatus"]["pluginCertifier"],
             "contract-certified-runner"
+        );
+        assert_eq!(
+            contracts["implementationStatus"]["pluginAuthorityBroker"],
+            "implemented-non-executing"
         );
         assert_eq!(
             contracts["implementationStatus"]["adversarialRecordValidator"],

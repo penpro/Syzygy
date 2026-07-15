@@ -50,5 +50,15 @@ describe('research plugin contracts', () => {
     }
     expect(validatePluginChangeProposal(proposal)).toEqual([])
     expect(validatePluginChangeProposal({ ...proposal, expectedRevision: '' })).toContain('expectedRevision is required')
+    expect(validatePluginChangeProposal({ ...proposal, ambientMutation: true })).toContain(
+      'proposal contains unknown fields: ambientMutation',
+    )
+    expect(validatePluginChangeProposal({ ...proposal, content: 42 })).toContain('content is required')
+  })
+
+  it('keeps the runtime validator strict against unknown manifest fields', () => {
+    expect(validateResearchPluginManifest({ ...manifest, ambientAuthority: true })).toContain(
+      'manifest contains unknown fields: ambientAuthority',
+    )
   })
 })

@@ -177,12 +177,17 @@ credential store and is therefore not part of the default headless suite.
 ```powershell
 cd D:\PolicyPad\syzygy\frontend
 npm run test:plugin-sdk
+npm run test:plugin-host
 npm run certify:plugin -- ..\examples\plugins\citation-auditor
 ```
 
 The first command tests schema rejection, real-path containment, wildcard-domain semantics, and
 undeclared-authority denial. The second emits a JSON certification report for the interface-only
 example. Neither command executes plugin code; runtime/WASI certification remains a separate gate.
+The host test exercises the separate in-process authority broker: explicit grant subsets,
+detached bounded snapshots, revision/identity-guarded pending proposals, HTTPS/domain decisions,
+model/Drive target decisions, expiry, revocation, and content-free errors. It performs no network,
+model, Drive, project mutation, or plugin execution.
 
 ## Headless custom model-adapter contract proof
 

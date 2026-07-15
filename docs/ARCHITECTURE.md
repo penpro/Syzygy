@@ -121,6 +121,11 @@ runner accepts an injected executor and has no provider/product binding; its rou
 separate from blinded judge artifacts, and its output cannot mutate shared state. These contracts
 do not imply that remote adapters or plugin execution have shipped.
 
+The non-executing plugin authority broker turns a validated manifest plus explicit grant into a
+short-lived in-memory session. It returns detached project snapshots, pending revision-guarded
+proposals, and narrow Drive/network/model authorization decisions, but contains no loader, fetch,
+provider call, Drive call, or mutation implementation.
+
 | What | Where |
 |---|---|
 | Settings, experts, ask threads | localStorage key `syzygy` (webview) |

@@ -468,9 +468,14 @@ Schema alone cannot establish.
 Manifest/proposal/certification schema v1, TypeScript validators, and a non-executing headless
 package certifier have landed. The runner proves bounded schema/path/fixture/authority metadata and
 deliberately labels results `contract-certified`, not runtime-safe. Next deliver a no-authority
-WASI host/WIT world, declarative contribution rendering, local
+WASI host/WIT world on the implemented non-executing authority broker, declarative contribution rendering, local
 install/disable/upgrade, and the advanced native MCP trust tier. Marketplace control is optional;
 local packages and open documentation are required.
+
+The authority broker now opens 15-minute sessions only from a strict manifest plus explicit grant
+subset, returns detached bounded snapshots, accepts only pending exact-revision proposals, and
+issues non-executing Drive/network/model decisions with target/disclosure/provenance recheck flags.
+It contains no loader or external operation and is reported separately from `pluginLoader`.
 
 Gate: unknown/undeclared authority fails closed; WASI begins with no project, Drive, network,
 model, or filesystem access; native MCP is never described as sandboxed; all mutations are bounded

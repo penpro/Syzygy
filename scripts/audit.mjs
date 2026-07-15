@@ -146,6 +146,8 @@ record(
   'strict v1 schemas, honest runtime status, and proposal-only shared mutation',
 )
 const pluginCertifierSource = text('scripts/plugin-certifier.mjs')
+const pluginAuthorityBrokerSource = text('frontend/src/extensions/pluginAuthorityBroker.ts')
+const pluginAuthorityBrokerTestSource = text('frontend/src/extensions/pluginAuthorityBroker.test.ts')
 record(
   'plugin package certification remains non-executing',
   rootPackage.devDependencies?.ajv === '8.20.0' &&
@@ -157,6 +159,25 @@ record(
     !/child_process|\bspawn\s*\(|\bexec(?:File)?\s*\(/.test(pluginCertifierSource) &&
     text('examples/plugins/citation-auditor/citation-auditor.component').includes('NOT AN EXECUTABLE'),
   'exact Draft 2020 validator, real-path and adversarial-fixture gates, no process execution, interface-only example',
+)
+record(
+  'plugin host authority broker remains least-authority and non-executing',
+  pluginAuthorityBrokerSource.includes('class ResearchPluginAuthorityBroker') &&
+    pluginAuthorityBrokerSource.includes("status: 'pending-human-review'") &&
+    pluginAuthorityBrokerSource.includes("throw new PluginHostError('stale-revision')") &&
+    pluginAuthorityBrokerSource.includes('requiresPublicAddressRecheck: true') &&
+    pluginAuthorityBrokerSource.includes('requiresProviderDisclosure: provider !== \'local\'') &&
+    pluginAuthorityBrokerSource.includes('requiresProviderRunRecord: true') &&
+    pluginAuthorityBrokerSource.includes('requiresTargetRecheck: true') &&
+    pluginAuthorityBrokerSource.includes('SESSION_LIFETIME_MS') &&
+    pluginAuthorityBrokerSource.includes('structuredClone') &&
+    !/\bfetch\s*\(|providerGenerate|rawInvoke|\binvoke\s*\(/.test(pluginAuthorityBrokerSource) &&
+    pluginAuthorityBrokerTestSource.includes('mutated plugin copy') &&
+    pluginAuthorityBrokerTestSource.includes('permission-denied') &&
+    frontendPackage.scripts?.['test:plugin-host']?.includes('pluginAuthorityBroker.test.ts') &&
+    platformContractsSource.includes('"pluginAuthorityBroker": "implemented-non-executing"') &&
+    platformContractsSource.includes('"pluginLoader": "contract-only"'),
+  'short-lived explicit grants, detached snapshots, pending revision-guarded proposals, target-only decisions, sanitized denial, and no runtime/network/model execution',
 )
 const adversarialRecordSource = text('frontend/src/extensions/adversarialRunRecord.ts')
 const adversarialRunnerSource = text('frontend/src/extensions/adversarialRunner.ts')

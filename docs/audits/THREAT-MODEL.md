@@ -70,6 +70,11 @@ versions/evaluation evidence.
 - Any MCP addition that bypasses semantic domain/editor contracts or grants ambient Drive/filesystem/model authority is high severity.
 - Any remote adapter that exposes a key to the webview or transmits before disclosure is high severity.
 - Any plugin path that directly mutates project/Drive state or gains undeclared network/model authority is high severity.
+- The plugin authority broker is an in-process decision layer, not a sandbox or operation host. It
+  copies bounded snapshots, requires explicit grant subsets, returns pending proposals, and marks
+  network/model/Drive decisions for downstream recheck. A future network host must resolve and
+  reject local/private/link-local destinations and revalidate every redirect after the broker's
+  hostname decision; a future loader must not treat a session ID as an OS security boundary.
 - The injected adversarial runner stores provider/model routing only in its separate execution
   ledger and omits it from judge/baseline payloads. A future executor must not copy route identity
   into prompts, outputs, or public records and must preserve native disclosure and provider-run

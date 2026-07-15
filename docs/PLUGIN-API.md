@@ -1,7 +1,8 @@
 # Research plugin API
 
-**Manifest version:** 1. **Runtime status:** schemas, validators, and a non-executing package
-certifier are implemented; discovery, installation, execution, and UI are not yet implemented.
+**Manifest version:** 1. **Runtime status:** strict schemas/validators, a non-executing package
+certifier, and a non-executing host authority broker are implemented; discovery, installation,
+WASI/native execution, and UI are not yet implemented.
 
 The API is deliberately contribution-open and authority-closed. Researchers can add tools,
 evaluators, importers, and exporters without receiving ambient project, Drive, network, model, or
@@ -15,6 +16,7 @@ filesystem access.
 - Provider-run record schema: `docs/schemas/syzygy-provider-run-v1.schema.json`
 - Compatible model-adapter schemas: `docs/schemas/syzygy-model-adapter-*.schema.json`
 - Runtime validator/types: `frontend/src/extensions/pluginManifest.ts`
+- Host authority broker: `frontend/src/extensions/pluginAuthorityBroker.ts`
 - Headless package certifier: `scripts/plugin-certifier.mjs`
 - Complete interface-only example: `examples/plugins/citation-auditor`
 - Machine-readable inspection: MCP tool `syzygy_platform_contracts`
@@ -66,6 +68,33 @@ Plugins never construct authoritative provider-run records: the future host reco
 model call, including denial, timeout, cancellation, usage, retention attestation, and cost.
 Simple compatible endpoints use the separate declarative model-adapter profile and certifier;
 arbitrary model protocols require the future WASI host and the same `model.invoke` authority gate.
+
+## Host authority broker
+
+`ResearchPluginAuthorityBroker` is the executable policy layer that a future WASI or native-MCP
+host must call. Opening a 15-minute session requires a schema-valid manifest, an explicit grant
+that is a strict subset of the manifest request, and one bounded project/revision/source snapshot.
+The broker copies session input so plugin-side mutation cannot alter host state, returns detached
+snapshots only with `project.read`, and returns proposals only as `pending-human-review` after
+checking plugin ID, project ID, content bounds, and the exact revision.
+
+The broker does not fetch, call a model, read Drive, or mutate a project. It returns narrow
+authorizations for a separate host implementation:
+
+- network decisions allow only `GET`, HTTPS on the default HTTPS port, an explicitly granted
+  exact/wildcard hostname, a one-MiB response ceiling, and require DNS/public-address and redirect
+  rechecks at execution time;
+- model decisions allow only an explicitly granted configured provider and require the provider
+  run-record boundary; remote providers additionally require disclosure;
+- Drive decisions require `drive.read` or `drive.propose`, exact selected-workspace identity, and
+  another target check when the operation executes; and
+- session expiry or revocation fails closed with a content-free error code.
+
+This is `implemented-non-executing`, not a loader or sandbox. Run `npm run test:plugin-host` to
+exercise grant escalation, detached snapshots, stale/cross-target proposals, network/SSRF-shaped
+targets, model scope, Drive workspace scope, expiry, revocation, and error redaction.
+Evidence and explicit non-claims:
+`docs/audits/runs/PLUGIN-AUTHORITY-BROKER-2026-07-15.json`.
 
 ## Runtime tiers
 
@@ -124,6 +153,11 @@ plugin identity, plus allow/deny authority probes. Later execution certification
 - no secrets in stdout/stderr/logs/artifacts;
 - WASI no-authority baseline and each granted capability; and
 - install, disable, upgrade, downgrade, and removal without project corruption.
+
+The in-process validator now also rejects unknown manifest/runtime/permission/contribution and
+proposal fields, duplicate authorities, invalid provider IDs, overlong public fields, malformed
+untyped proposals, and the same proposal bounds as the published schema. JSON Schema remains the
+portable interchange gate; the broker repeats semantic identity/revision/authority checks.
 
 A signed marketplace is not required for the API. Local folders and explicit package files remain
 supported. Publication metadata, signatures, and reputation can be layered on later without

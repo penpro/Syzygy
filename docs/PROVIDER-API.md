@@ -11,6 +11,14 @@ set/status/delete are also typed commands and a collapsed Settings surface calls
 persisting keys in app state. No product generation workflow exists yet. Custom remote adapters
 are contract-only.
 
+The callable command takes `ProviderResearchTaskRequest`, not a raw provider request. Its fields are
+run/call/task identity, provider/model/bounds, an optional developer instruction, a research
+question, and zero or more `{ snapshotId, label, excerpt }` sources. Rust JSON-serializes that
+payload into the normalized provider input and derives `task instructions`, `research question`,
+and `selected source excerpts and labels` categories only when the corresponding content exists.
+Source IDs in the run record come only from those source objects and must be unique. The frontend
+cannot attach unrelated provenance or downgrade the native disclosure description.
+
 The canonical TypeScript contract is `frontend/src/extensions/providerContract.ts`. It prevents
 research workflows from depending on a vendor response shape and keeps provider availability
 separate from provider capability.

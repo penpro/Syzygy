@@ -254,13 +254,30 @@ record(
     providerTaskRuntimeSource.includes('spawn_blocking') &&
     !providerTaskRuntimeSource.includes('pub disclosure_accepted') &&
     platformContractsSource.includes('"remoteProviderAdapters": "native-disclosure-command-no-product-ui"') &&
-    platformContractsSource.includes('"providerTaskRuntime": "native-disclosure-command"') &&
+    platformContractsSource.includes('"providerTaskRuntime": "native-disclosure-research-envelope"') &&
     providerTaskRuntimeSource.includes('"executionMode": execution_mode') &&
     text('frontend/src/tauri.ts').includes("invoke('provider_generate'") &&
     text('frontend/src/tauri.ts').includes("invoke('provider_cancel'") &&
     !text('frontend/src/tauri.ts').includes('disclosureAccepted') &&
     text('frontend/src-tauri/src/bin/provider-runtime-harness.rs').includes('interop-secret-canary'),
   'OpenAI request/stream plus Anthropic, Gemini, and xAI request wire contracts, content-free task runtime, native non-forgeable disclosure, cancellation, typed command wiring, and truthful no-product-UI status present',
+)
+record(
+  'provider research task derives disclosure and provenance',
+  providerTaskRuntimeSource.includes('pub struct ProviderResearchTaskRequest') &&
+    providerTaskRuntimeSource.includes('pub struct ProviderResearchSource') &&
+    providerTaskRuntimeSource.includes('fn build_research_task(') &&
+    providerTaskRuntimeSource.includes('"research question".to_owned()') &&
+    providerTaskRuntimeSource.includes('"selected source excerpts and labels".to_owned()') &&
+    providerTaskRuntimeSource.includes('source_snapshot_ids: Vec<_>') &&
+    providerTaskRuntimeSource.includes('source_snapshot_ids.iter().collect::<HashSet<_>>()') &&
+    providerTaskRuntimeSource.includes('let request = build_research_task(request)?') &&
+    text('frontend/src/tauri.ts').includes('export interface ProviderResearchTaskRequest') &&
+    text('frontend/src/tauri.ts').includes('export interface ProviderResearchSource') &&
+    !text('frontend/src/tauri.ts').includes('contentCategories:') &&
+    !text('frontend/src/tauri.ts').includes('sourceSnapshotIds:') &&
+    !text('frontend/src/tauri.ts').includes('disclosureAccepted:'),
+  'public calls provide structured question/source payloads while Rust derives categories and unique provenance IDs before native disclosure',
 )
 record(
   'provider credential vault remains isolated',

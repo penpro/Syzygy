@@ -143,9 +143,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   sanitized normalized output, disclosure denial without network contact, and Rust-authored
   content-free provenance. Credential and generation/cancellation Tauri commands exist. Generation
   always asks through a Rust-owned native **Send once** dialog; approval is absent from the request,
-  and denial is proven to avoid both vault reads and network. No product workflow calls it yet.
+  and denial is proven to avoid both vault reads and network. The public request carries a
+  structured question plus labeled source snapshots; Rust derives disclosure categories and unique
+  provenance IDs from the same serialized payload. No product workflow calls it yet.
   The headless proof and non-claims are recorded in
   `docs/audits/runs/NATIVE-PROVIDER-DISCLOSURE-2026-07-15.json`.
+  Envelope binding evidence: `docs/audits/runs/PROVIDER-RESEARCH-ENVELOPE-2026-07-15.json`.
 - The actual Rust-authored task record now crosses process serialization and passes the public
   TypeScript schema plus semantic validator. Loopback evidence is explicitly marked and cannot be
   mistaken for a production HTTPS call.

@@ -113,6 +113,12 @@ generation/cancellation are registered through typed `tauri.ts` wrappers. The ge
 uses Rust's native dialog with explicit **Send once** / **Cancel** buttons; there is no
 caller-supplied approval field. The pure disclosure-copy test is headless, while actually clicking
 the OS dialog remains a packaged-GUI check. No product component calls generation yet.
+The command also does not accept free-form disclosure categories or a detached source-ID list.
+`ProviderResearchTaskRequest` carries a question, optional task instructions, and labeled source
+snapshots; Rust serializes the actual payload, derives the categories and unique provenance IDs,
+then validates bounds before opening the native dialog.
+Evidence and remaining domain/live-provider gaps are recorded in
+`docs/audits/runs/PROVIDER-RESEARCH-ENVELOPE-2026-07-15.json`.
 The evidence and explicit limitations are recorded in
 `docs/audits/runs/NATIVE-PROVIDER-DISCLOSURE-2026-07-15.json`.
 

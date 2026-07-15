@@ -8,9 +8,9 @@ use crate::credential_vault::{CredentialId, CredentialVault, OsCredentialVault};
 use crate::model_provider::{
     execute_anthropic_response_controlled, execute_gemini_response_controlled,
     execute_openai_response_controlled, execute_xai_response_controlled, provider_execution,
-    GenerationRequest, NormalizedResponse, ProviderCancellation, ProviderError, RemoteProviderId,
-    TransmissionApproval, ANTHROPIC_ADAPTER_STATUS, GEMINI_ADAPTER_STATUS, OPENAI_ADAPTER_STATUS,
-    XAI_ADAPTER_STATUS,
+    GenerationRequest, InputRole, NormalizedResponse, ProviderCancellation, ProviderError,
+    ProviderInput, RemoteProviderId, TransmissionApproval, ANTHROPIC_ADAPTER_STATUS,
+    GEMINI_ADAPTER_STATUS, OPENAI_ADAPTER_STATUS, XAI_ADAPTER_STATUS,
 };
 use chrono::{SecondsFormat, Utc};
 use reqwest::{Client, Url};
@@ -27,8 +27,7 @@ const DEFAULT_PROFILE: &str = "default";
 #[derive(Default)]
 pub struct ProviderRuntimeState(Mutex<HashMap<String, ProviderCancellation>>);
 
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug)]
 pub struct ProviderTaskRequest {
     pub run_id: String,
     pub call_id: String,
@@ -38,6 +37,29 @@ pub struct ProviderTaskRequest {
     pub timeout_ms: u64,
     pub content_categories: Vec<String>,
     pub generation: GenerationRequest,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderResearchSource {
+    pub snapshot_id: String,
+    pub label: String,
+    pub excerpt: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderResearchTaskRequest {
+    pub run_id: String,
+    pub call_id: String,
+    pub task_type: String,
+    pub provider: RemoteProviderId,
+    pub timeout_ms: u64,
+    pub model: String,
+    pub developer_instructions: Option<String>,
+    pub question: String,
+    pub sources: Vec<ProviderResearchSource>,
+    pub max_output_tokens: u32,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -146,6 +168,85 @@ fn validate_task(request: &ProviderTaskRequest) -> Result<(), String> {
         );
     }
     Ok(())
+}
+
+fn build_research_task(
+    request: ProviderResearchTaskRequest,
+) -> Result<ProviderTaskRequest, String> {
+    if !valid_id(&request.run_id)
+        || !valid_id(&request.call_id)
+        || !valid_task_type(&request.task_type)
+        || request.question.trim().is_empty()
+        || request.question.len() > 4 * 1024 * 1024
+        || request.sources.len() > 200
+        || request
+            .developer_instructions
+            .as_ref()
+            .is_some_and(|value| value.trim().is_empty() || value.len() > 4 * 1024 * 1024)
+        || request.sources.iter().any(|source| {
+            !valid_id(&source.snapshot_id)
+                || source.label.trim().is_empty()
+                || source.label.chars().count() > 500
+                || source.label.chars().any(char::is_control)
+                || source.excerpt.trim().is_empty()
+                || source.excerpt.len() > 4 * 1024 * 1024
+        })
+    {
+        return Err("Remote research task content or identity is invalid".to_owned());
+    }
+    let source_snapshot_ids: Vec<_> = request
+        .sources
+        .iter()
+        .map(|source| source.snapshot_id.clone())
+        .collect();
+    if source_snapshot_ids.iter().collect::<HashSet<_>>().len() != source_snapshot_ids.len() {
+        return Err("Remote research task source snapshots must be unique".to_owned());
+    }
+    let user_content = serde_json::to_string(&json!({
+        "question": request.question,
+        "sources": request.sources.iter().map(|source| json!({
+            "snapshotId": source.snapshot_id,
+            "label": source.label,
+            "excerpt": source.excerpt
+        })).collect::<Vec<_>>()
+    }))
+    .map_err(|_| "Remote research task could not be serialized".to_owned())?;
+    if user_content.len() > 4 * 1024 * 1024 {
+        return Err("Remote research task exceeds the bounded input size".to_owned());
+    }
+    let mut input = Vec::with_capacity(2);
+    let mut content_categories = Vec::with_capacity(3);
+    if let Some(instructions) = request.developer_instructions {
+        input.push(ProviderInput {
+            role: InputRole::Developer,
+            content: instructions,
+        });
+        content_categories.push("task instructions".to_owned());
+    }
+    input.push(ProviderInput {
+        role: InputRole::User,
+        content: user_content,
+    });
+    content_categories.push("research question".to_owned());
+    if !source_snapshot_ids.is_empty() {
+        content_categories.push("selected source excerpts and labels".to_owned());
+    }
+    let task = ProviderTaskRequest {
+        run_id: request.run_id,
+        call_id: request.call_id,
+        task_type: request.task_type,
+        provider: request.provider,
+        source_snapshot_ids,
+        timeout_ms: request.timeout_ms,
+        content_categories,
+        generation: GenerationRequest {
+            model: request.model,
+            input,
+            max_output_tokens: request.max_output_tokens,
+        },
+    };
+    validate_task(&task)?;
+    Ok(task)
 }
 
 fn provider_name(provider: RemoteProviderId) -> &'static str {
@@ -420,11 +521,11 @@ pub async fn execute_with<V: CredentialVault>(
 pub async fn provider_generate(
     app: tauri::AppHandle,
     state: tauri::State<'_, ProviderRuntimeState>,
-    request: ProviderTaskRequest,
+    request: ProviderResearchTaskRequest,
 ) -> Result<ProviderTaskOutcome, String> {
-    validate_task(&request)?;
     let endpoint = Url::parse(profile(request.provider).endpoint)
         .map_err(|_| "Built-in provider endpoint is invalid".to_owned())?;
+    let request = build_research_task(request)?;
     let message = disclosure_message(&request, &endpoint);
     let approved = tauri::async_runtime::spawn_blocking(move || {
         app.dialog()
@@ -568,6 +669,25 @@ mod tests {
         }
     }
 
+    fn research_task() -> ProviderResearchTaskRequest {
+        ProviderResearchTaskRequest {
+            run_id: "research-run-001".to_owned(),
+            call_id: "research-call-001".to_owned(),
+            task_type: "adversarial.candidate".to_owned(),
+            provider: RemoteProviderId::OpenAi,
+            timeout_ms: 5_000,
+            model: "fixture-model".to_owned(),
+            developer_instructions: Some("Audit claims against the supplied source.".to_owned()),
+            question: "Which conclusion is supported?".to_owned(),
+            sources: vec![ProviderResearchSource {
+                snapshot_id: "source-snapshot-001".to_owned(),
+                label: "Source A".to_owned(),
+                excerpt: "The bounded fixture evidence.".to_owned(),
+            }],
+            max_output_tokens: 128,
+        }
+    }
+
     #[test]
     fn runtime_uses_vault_executes_transport_and_authors_content_free_record() {
         let listener = TcpListener::bind("127.0.0.1:0").expect("listener");
@@ -674,5 +794,35 @@ mod tests {
         let mut request = task();
         request.generation.model = "fixture\nRequests: 0".to_owned();
         assert!(validate_task(&request).is_err());
+    }
+
+    #[test]
+    fn research_task_derives_disclosure_and_provenance_from_actual_payload() {
+        let task = build_research_task(research_task()).expect("derived task");
+        assert_eq!(task.source_snapshot_ids, ["source-snapshot-001"]);
+        assert_eq!(
+            task.content_categories,
+            [
+                "task instructions",
+                "research question",
+                "selected source excerpts and labels"
+            ]
+        );
+        assert_eq!(task.generation.input.len(), 2);
+        let user = &task.generation.input[1].content;
+        assert!(user.contains("Which conclusion is supported?"));
+        assert!(user.contains("source-snapshot-001"));
+        assert!(user.contains("The bounded fixture evidence."));
+    }
+
+    #[test]
+    fn research_task_rejects_forged_or_misleading_source_metadata() {
+        let mut duplicate = research_task();
+        duplicate.sources.push(duplicate.sources[0].clone());
+        assert!(build_research_task(duplicate).is_err());
+
+        let mut misleading = research_task();
+        misleading.sources[0].label = "Source A\nRequests: 0".to_owned();
+        assert!(build_research_task(misleading).is_err());
     }
 }

@@ -62,7 +62,7 @@ source of project truth.
 | `mcp_setup.rs` | Running-executable discovery plus copy-ready JSON/TOML configuration and connection prompts shared by the UI and MCP. |
 | `platform_contracts.rs` | Machine-readable provider-run, adversarial-review, and researcher-plugin schemas/status exposed to headless MCP clients. |
 | `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses one-shot/SSE plus Anthropic Messages, Gemini Interactions, and xAI Responses one-shot wire contracts have fake-server evidence with bounded controls and sanitized normalization. |
-| `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. Generation and cancellation are typed Tauri commands; every generation call uses a blocking native dialog to create one-use approval before any vault read or network access. Fake-network execution and Rust→TypeScript record validation are proven; no product workflow calls the command yet. |
+| `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. The public command accepts a structured question plus labeled source snapshots; Rust derives disclosure categories and provenance IDs from that exact payload. Every call uses a blocking native dialog to create one-use approval before any vault read or network access. Fake-network execution and Rust→TypeScript record validation are proven; no product workflow calls the command yet. |
 | `provider_stream.rs` | Incremental provider SSE normalization. The OpenAI decoder handles byte-fragmented Unicode, multiline frames, usage/finish events, unknown future events, sanitized provider errors, and bounded malformed/truncated input. |
 | `credential_vault.rs` | Provider-secret abstraction backed by Windows Credential Manager, macOS Keychain, or Linux Secret Service/keyutils. Unit tests use only a memory implementation; a separate live harness creates and deletes a random OS-store canary. |
 
@@ -165,7 +165,8 @@ execution have shipped.
 - **Extensions request narrow authority.** Remote provider secrets and HTTPS stay in Rust. The
   OpenAI request/stream plus Anthropic, Gemini, and xAI one-shot boundaries are fake-server
   certified. Typed vault and generation commands now exist. Generation cannot accept an approval
-  boolean from the webview: Rust shows a native per-send disclosure, and denial returns provenance
+  boolean, arbitrary disclosure categories, or detached source IDs from the webview. Rust derives
+  categories/provenance from the structured research payload, shows a native per-send disclosure, and denial returns provenance
   before vault or network access. The bridge proves normalized execution, cancellation, and
   content-free Rust-to-TypeScript provenance. No product workflow or MCP tool invokes it yet;
   streamed tools, live-provider certification, and other remote adapters remain open.

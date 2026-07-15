@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "runId": "PROVIDER-RESEARCH-ENVELOPE-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "native-disclosure-research-envelope",
+  "commands": [
+    "npm run test:provider-runtime",
+    "npm run test:provider-runtime-interop",
+    "cargo test --manifest-path src-tauri/Cargo.toml",
+    "npm run build",
+    "npm run audit",
+    "npm run test:mcp"
+  ],
+  "result": {
+    "passed": true,
+    "providerRuntimeTestsPassed": 6,
+    "fullRustTestsPassed": 65,
+    "interopTestsPassed": 1,
+    "rustRecordBytes": 1142,
+    "frontendModulesTransformed": 990,
+    "structuralAuditChecksPassed": 23,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false
+  },
+  "proved": [
+    "The public providerGenerate wrapper accepts ProviderResearchTaskRequest rather than a raw provider generation body.",
+    "The public request contains question, optional task instructions, and labeled source excerpts; it contains no approval, disclosure-category, or detached source-ID fields.",
+    "Rust serializes the actual research payload, derives content categories only from present fields, and derives run-record source IDs only from the source objects.",
+    "Duplicate snapshot IDs, control characters in source labels, empty content, excessive field sizes, and invalid identifiers fail before the native dialog, vault, or network.",
+    "The derived provider input contains the same question, snapshot identity, label, and excerpt used to author disclosure/provenance metadata.",
+    "All 65 Rust tests and the Rust-to-TypeScript provider-run record interoperability check pass without external network or real credentials.",
+    "The structural audit rejects reintroduction of caller-authored approval, categories, or detached provenance.",
+    "The compiled MCP publishes native-disclosure-research-envelope status while retaining twelve tools and no provider-generation authority."
+  ],
+  "notProved": [
+    "A product domain workflow selects the correct frozen editor/Drive snapshots for the envelope.",
+    "A live provider receives and interprets the JSON research envelope as intended.",
+    "The native disclosure dialog has been clicked in a packaged app with a real research task.",
+    "Streaming, tools, retries, model discovery, billing, or adversarial multi-provider orchestration.",
+    "Source-label/excerpt privacy is appropriate for a particular research protocol or legal regime."
+  ]
+}

@@ -128,6 +128,9 @@ Remote models are opt-in additions to a local-first product. Before first transm
 provider, exact content categories, provider storage/training profile, and estimated call count.
 Never collapse this into an unexplained "cloud mode," imply that every zero-retention option is
 available, or place API keys in a web field that persists to app state.
+The UI supplies structured question, task-instruction, and labeled-source fields; Rust derives the
+human-readable categories. A component must never author a free-form category list that can
+misdescribe what will be transmitted.
 
 Provider key entry lives in a collapsed advanced Settings section so the local path stays primary.
 Each row names the provider, uses a masked non-autofill field, reports only stored/not-stored, and

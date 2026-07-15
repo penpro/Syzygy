@@ -51,28 +51,23 @@ export type RemoteProviderId = 'openai' | 'anthropic' | 'gemini' | 'xai'
 /** True only inside the installed/dev Tauri webview, never in the browser-only UI preview. */
 export const desktopRuntimeAvailable = (): boolean => rawIsTauri()
 
-export type ProviderInputRole = 'developer' | 'user'
-
-export interface ProviderInput {
-  role: ProviderInputRole
-  content: string
+export interface ProviderResearchSource {
+  snapshotId: string
+  label: string
+  excerpt: string
 }
 
-export interface ProviderGenerationRequest {
-  model: string
-  input: ProviderInput[]
-  maxOutputTokens: number
-}
-
-export interface ProviderTaskRequest {
+export interface ProviderResearchTaskRequest {
   runId: string
   callId: string
   taskType: string
   provider: RemoteProviderId
-  sourceSnapshotIds: string[]
   timeoutMs: number
-  contentCategories: string[]
-  generation: ProviderGenerationRequest
+  model: string
+  developerInstructions: string | null
+  question: string
+  sources: ProviderResearchSource[]
+  maxOutputTokens: number
 }
 
 export interface ProviderNormalizedUsage {
@@ -353,7 +348,7 @@ export const mcpConnectionInfo = (): Promise<McpConnectionInfo> => invoke('mcp_c
  * Run one remote-provider request. Rust shows the native, per-send disclosure before reading the
  * OS-vault key or contacting the network; approval is intentionally absent from this input shape.
  */
-export const providerGenerate = (request: ProviderTaskRequest): Promise<ProviderTaskOutcome> =>
+export const providerGenerate = (request: ProviderResearchTaskRequest): Promise<ProviderTaskOutcome> =>
   invoke('provider_generate', { request })
 
 /** Cancel an active provider call by its caller-generated ID. */

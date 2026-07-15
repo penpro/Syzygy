@@ -39,7 +39,7 @@ pub fn current() -> Result<Value, String> {
         "implementationStatus": {
             "localProvider": "available",
             "remoteProviderAdapters": "native-disclosure-command-no-product-ui",
-            "providerTaskRuntime": "native-disclosure-command",
+            "providerTaskRuntime": "native-disclosure-research-envelope",
             "providerRunRecordValidator": "implemented",
             "modelAdapterCertifier": "contract-certified-runner",
             "credentialVault": "settings-vault-ui",
@@ -125,7 +125,7 @@ mod tests {
         );
         assert_eq!(
             contracts["implementationStatus"]["providerTaskRuntime"],
-            "native-disclosure-command"
+            "native-disclosure-research-envelope"
         );
         assert_eq!(
             contracts["implementationStatus"]["credentialVault"],

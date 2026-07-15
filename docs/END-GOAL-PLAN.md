@@ -469,7 +469,7 @@ model, or filesystem access; native MCP is never described as sandboxed; all mut
 revision-guarded proposals with a human-visible diff and attribution.
 
 Machine-readable inspection is available through `syzygy_platform_contracts`. It must distinguish
-the native-disclosure command with no product caller from product availability, and
+the native-disclosure research envelope with no product caller from product availability, and
 continue returning `contract-only` for adversarial execution, custom-adapter execution, and plugin
 loading.
 
@@ -501,6 +501,9 @@ generation request carries no approval boolean; a
 Rust-owned native dialog creates one-use approval, and denial is headlessly proven not to read the
 vault or contact the network. macOS/Linux live canaries, transient-entry and end-to-end leak scans,
 and a packaged native-dialog click proof remain open.
+The public command also no longer accepts caller-authored categories or a detached snapshot list:
+Rust derives both from the structured question/instructions/labeled-excerpt payload before the
+dialog. Product domain orchestration still must decide which frozen snapshots enter that envelope.
 
 ## 11. Recommended next slice
 

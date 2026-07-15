@@ -1,7 +1,7 @@
 # Model provider API
 
-**Contract version:** 1. **Runtime status:** local adapter available; OpenAI Responses one-shot
-request/normalization is at `request-conformance` and intentionally not product-callable;
+**Contract version:** 1. **Runtime status:** local adapter available; OpenAI Responses request and
+incremental stream normalization are at `request-and-stream-conformance` and intentionally not product-callable;
 Anthropic, Gemini, xAI, and custom remote adapters are contract-only.
 
 The canonical TypeScript contract is `frontend/src/extensions/providerContract.ts`. It prevents
@@ -47,9 +47,16 @@ domain semantic validation both pass.
 The first OpenAI Responses slice lives in Rust and proves the exact `/v1/responses` request against
 a loopback fake server: bearer authentication, `store:false`, bounded response collection,
 disclosure matching, literal-loopback-or-HTTPS endpoint policy, normalized output/usage, malformed
-response rejection, and secret/error-body redaction. It does not yet persist keys, stream events,
-handle tools, expose a frontend command, or contact the live service. `syzygy_platform_contracts`
+response rejection, and secret/error-body redaction. It does not yet wire saved keys into requests,
+handle streamed tools, expose a frontend command, or contact the live service. `syzygy_platform_contracts`
 reports this narrower status without changing the aggregate remote runtime from `contract-only`.
+
+The incremental OpenAI SSE decoder accepts arbitrary byte fragmentation, including split Unicode;
+joins multiline `data:` fields; ignores keepalives; validates optional SSE event labels against
+the JSON event type; emits normalized start, text, usage, finish, error, and end events; preserves
+unknown future types as warnings; strips provider error messages; and bounds pending frames to one
+MiB. Malformed JSON, label mismatch, partial usage, oversized frames, and truncated streams fail
+closed. Function-call events and network cancellation remain open.
 
 The credential-vault boundary uses `keyring` 3.6.3 (MIT/Apache-2.0; MSRV 1.75) with native Windows,
 macOS, and persistent Linux backends. Provider secret strings zeroize on drop. The ordinary suite
@@ -75,3 +82,4 @@ Passing the contract suite establishes protocol behavior for a named adapter ver
 establish model quality or a provider's legal/privacy suitability for a particular study.
 
 Run the currently executable Rust provider slice with `npm run test:providers`.
+Run its incremental streaming parser with `npm run test:provider-streams`.

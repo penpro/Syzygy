@@ -448,9 +448,9 @@ Machine-readable inspection is available through `syzygy_platform_contracts`. Un
 corresponding runtime gates pass it must continue returning `contract-only` for remote providers,
 adversarial execution, and plugin loading.
 
-Progress: OpenAI Responses one-shot request construction and normalization now pass an unwired
-six-case Rust conformance suite and are reported separately as `request-conformance`. Aggregate
-remote execution remains `contract-only` until OS credential storage, streaming/cancellation,
+Progress: OpenAI Responses one-shot request construction plus incremental SSE normalization now
+pass unwired Rust conformance suites and are reported as `request-and-stream-conformance`. Aggregate
+remote execution remains `contract-only` until OS credential integration, network cancellation,
 typed frontend disclosure, and opt-in live evidence pass.
 
 Credential progress: the cross-platform OS-vault abstraction, zeroizing secret wrapper, memory

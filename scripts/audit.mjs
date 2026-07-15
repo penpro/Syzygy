@@ -115,6 +115,7 @@ const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugi
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))
 const platformContractsSource = text('frontend/src-tauri/src/platform_contracts.rs')
 const providerRuntimeSource = text('frontend/src-tauri/src/model_provider.rs')
+const providerStreamSource = text('frontend/src-tauri/src/provider_stream.rs')
 const credentialVaultSource = text('frontend/src-tauri/src/credential_vault.rs')
 const credentialHarnessSource = text('frontend/src-tauri/src/bin/credential-harness.rs')
 const cargoManifestSource = text('frontend/src-tauri/Cargo.toml')
@@ -135,10 +136,14 @@ record(
     providerRuntimeSource.includes('validate_for(RemoteProviderId::OpenAi)') &&
     providerRuntimeSource.includes('MAX_RESPONSE_BYTES') &&
     providerRuntimeSource.includes('endpoint.scheme() == "https"') &&
+    providerStreamSource.includes('MAX_PENDING_BYTES') &&
+    providerStreamSource.includes('ProviderWarning') &&
+    providerStreamSource.includes('provider-error-body-canary') &&
+    platformContractsSource.includes('request-and-stream-conformance') &&
     platformContractsSource.includes('OPENAI_ADAPTER_STATUS') &&
     platformContractsSource.includes('"remoteProviderAdapters": "contract-only"') &&
     !rustWiringSource.includes('model_provider::execute_openai_response'),
-  'storage-off, disclosure, TLS, bounded-response, truthful-status, and unwired-runtime gates present',
+  'storage-off, disclosure, TLS, bounded request/stream responses, unknown-event/error handling, truthful status, and unwired-runtime gates present',
 )
 record(
   'provider credential vault remains isolated',

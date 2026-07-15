@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "runId": "OPENAI-STREAM-CONFORMANCE-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "request-and-stream-conformance",
+  "command": "npm run test:provider-streams",
+  "result": {
+    "passed": true,
+    "testsPassed": 5,
+    "liveNetworkUsed": false,
+    "realCredentialUsed": false
+  },
+  "regressionGates": {
+    "fullRustTestsPassed": 36,
+    "frontendModulesTransformed": 989,
+    "structuralAuditChecksPassed": 17,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true
+  },
+  "proved": [
+    "a Unicode text delta survives input split at every byte boundary",
+    "multiline data fields join according to SSE framing and keepalive comments are ignored",
+    "unknown future event types become visible provider warnings",
+    "usage is normalized before the terminal finish event",
+    "provider error messages are not exposed while sanitized codes remain visible",
+    "malformed JSON, mismatched event labels, oversized pending frames, and truncated streams fail closed"
+  ],
+  "notProved": [
+    "a live or fake-network streamed HTTP response",
+    "request cancellation or timeout",
+    "retry-after, duplicate event IDs, or reconnect semantics",
+    "function/tool call argument streaming",
+    "Anthropic, Gemini, xAI, or custom stream parsing"
+  ],
+  "primarySource": "https://platform.openai.com/docs/api-reference/responses-streaming"
+}

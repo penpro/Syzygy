@@ -61,7 +61,8 @@ source of project truth.
 | `mcp.rs` | Embedded stdio MCP mode, tool schemas, and JSON-RPC protocol routing. |
 | `mcp_setup.rs` | Running-executable discovery plus copy-ready JSON/TOML configuration and connection prompts shared by the UI and MCP. |
 | `platform_contracts.rs` | Machine-readable provider, adversarial-review, and researcher-plugin schemas/status exposed to headless MCP clients. |
-| `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. The OpenAI Responses one-shot wire contract has fake-server evidence but is not product-wired pending credential-vault and streaming gates. |
+| `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. The OpenAI Responses one-shot wire contract has fake-server evidence but is not product-wired pending credential integration, cancellation, and disclosure gates. |
+| `provider_stream.rs` | Incremental provider SSE normalization. The OpenAI decoder handles byte-fragmented Unicode, multiline frames, usage/finish events, unknown future events, sanitized provider errors, and bounded malformed/truncated input. |
 | `credential_vault.rs` | Provider-secret abstraction backed by Windows Credential Manager, macOS Keychain, or Linux Secret Service/keyutils. Unit tests use only a memory implementation; a separate live harness creates and deletes a random OS-store canary. |
 
 **Security posture:** the model only ever sees selected text; the webview never sees OAuth
@@ -155,7 +156,8 @@ shipped.
   `syzygy_installation` tool. See `MCP.md`.
 - **Extensions request narrow authority.** Remote provider secrets and HTTPS stay in Rust. The
   OpenAI one-shot request boundary is fake-server certified but deliberately unwired until the OS
-  credential-vault integration and streaming/cancellation gates pass; the vault abstraction and
+  credential-vault integration and cancellation gates pass; the request and stream-parser
+  boundaries now pass headless conformance, and the vault abstraction and
   Windows live create/read/delete canary now pass but no Tauri command stores a user key. Other remote adapters remain
   contract-only. Plugins declare capabilities and submit revision-guarded proposals. No plugin
   code executes in the webview and no contract-only feature may report itself as available. See

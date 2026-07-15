@@ -12,6 +12,7 @@ pub mod mcp;
 mod mcp_setup;
 pub mod model_provider;
 mod platform_contracts;
+pub mod provider_stream;
 mod state;
 mod updates;
 mod vision;

@@ -14,7 +14,7 @@ use serde_json::{json, Value};
 use std::fmt;
 use zeroize::Zeroize;
 
-pub const OPENAI_ADAPTER_STATUS: &str = "request-conformance";
+pub const OPENAI_ADAPTER_STATUS: &str = "request-and-stream-conformance";
 const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -154,6 +154,26 @@ pub enum ProviderError {
     MalformedResponse,
 }
 
+pub(crate) fn normalized_usage(value: &Value) -> Result<Option<NormalizedUsage>, ProviderError> {
+    match value.get("usage") {
+        None | Some(Value::Null) => Ok(None),
+        Some(usage) => Ok(Some(NormalizedUsage {
+            input_tokens: usage
+                .get("input_tokens")
+                .and_then(Value::as_u64)
+                .ok_or(ProviderError::MalformedResponse)?,
+            output_tokens: usage
+                .get("output_tokens")
+                .and_then(Value::as_u64)
+                .ok_or(ProviderError::MalformedResponse)?,
+            total_tokens: usage
+                .get("total_tokens")
+                .and_then(Value::as_u64)
+                .ok_or(ProviderError::MalformedResponse)?,
+        })),
+    }
+}
+
 impl fmt::Display for ProviderError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -276,23 +296,7 @@ fn normalize_openai(value: Value) -> Result<NormalizedResponse, ProviderError> {
             }
         }
     }
-    let usage = match value.get("usage") {
-        None | Some(Value::Null) => None,
-        Some(usage) => Some(NormalizedUsage {
-            input_tokens: usage
-                .get("input_tokens")
-                .and_then(Value::as_u64)
-                .ok_or(ProviderError::MalformedResponse)?,
-            output_tokens: usage
-                .get("output_tokens")
-                .and_then(Value::as_u64)
-                .ok_or(ProviderError::MalformedResponse)?,
-            total_tokens: usage
-                .get("total_tokens")
-                .and_then(Value::as_u64)
-                .ok_or(ProviderError::MalformedResponse)?,
-        }),
-    };
+    let usage = normalized_usage(&value)?;
     Ok(NormalizedResponse {
         provider: RemoteProviderId::OpenAi,
         id,

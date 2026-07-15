@@ -17,6 +17,7 @@ npx vitest run             # all pass
 cargo check                # in src-tauri (cargo is at C:\Users\penum\.cargo\bin, not on PATH)
 npm run audit              # architecture, identity, provenance, capability-ledger invariants
 npm run test:providers     # fake-server remote-provider boundary; no live key or network required
+npm run test:provider-streams # fragmented/multiline/unknown/malformed SSE conformance
 npm run test:credentials   # memory-backed credential-vault contract; no OS store mutation
 cargo fmt --all -- --check # Rust formatting
 ```
@@ -72,9 +73,13 @@ npm run test:providers
 The fake loopback provider captures the actual Rust HTTP request and fails unless OpenAI Responses
 uses the expected path, bearer header, `store:false`, bounded output, and approved disclosure. It
 also proves malformed output, unsafe non-TLS endpoints, rejected disclosure, and provider error
-bodies fail without echoing the secret canary. Passing this is `request-conformance`, not live
-availability; OS credential persistence, streaming/cancellation, UI disclosure, and an opt-in live
+bodies fail without echoing the secret canary. Passing this is request/stream conformance, not live
+availability; product credential integration, network cancellation, UI disclosure, and an opt-in live
 canary are separate gates.
+
+`npm run test:provider-streams` separately feeds the OpenAI decoder byte-by-byte and with
+multiline, unknown, malformed, mismatched, oversized, and truncated SSE fixtures. It proves parser
+normalization, not network cancellation or a live provider stream.
 
 Run the explicit OS-store canary only when validating a desktop environment:
 

@@ -13,6 +13,7 @@
     "test:workspace": "vitest run src/workspace src/migrations.test.ts --reporter=verbose",
     "test:contracts": "vitest run src/extensions --reporter=verbose",
     "test:providers": "cargo test --manifest-path src-tauri/Cargo.toml model_provider::tests:: -- --nocapture",
+    "test:provider-streams": "cargo test --manifest-path src-tauri/Cargo.toml provider_stream::tests:: -- --nocapture",
     "test:credentials": "cargo test --manifest-path src-tauri/Cargo.toml credential_vault::tests:: -- --nocapture",
     "test:credentials:live": "cargo run --manifest-path src-tauri/Cargo.toml --bin credential-harness",
     "test:mcp": "node ../scripts/mcp-harness.mjs",

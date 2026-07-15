@@ -70,6 +70,7 @@ pub fn current() -> Result<Value, String> {
         "selfCheck": {
             "command": "npm run test:contracts",
             "providerCommand": "npm run test:providers",
+            "providerStreamCommand": "npm run test:provider-streams",
             "credentialCommand": "npm run test:credentials",
             "credentialLiveCommand": "npm run test:credentials:live",
             "mcpCommand": "npm run test:mcp",
@@ -92,7 +93,7 @@ mod tests {
         );
         assert_eq!(
             contracts["providerAdapterStatus"]["openai-responses"],
-            "request-conformance"
+            "request-and-stream-conformance"
         );
         assert_eq!(
             contracts["implementationStatus"]["credentialVault"],

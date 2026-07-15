@@ -91,8 +91,10 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   disclosure, forces `store:false`, accepts only HTTPS or literal loopback test endpoints, bounds
   the response, and sanitizes failures. A fake server captures the real wire request and six tests
   cover secret redaction, unsafe endpoints, disclosure, response parsing, and malformed/error
-  responses. The adapter is labeled `request-conformance`; credential storage, streaming,
-  cancellation, tools, UI disclosure, and live opt-in proof remain gates before availability.
+  responses. Its incremental SSE decoder now passes byte-fragmented Unicode, multiline, unknown
+  future event, usage/finish, sanitized error, malformed, mismatched, oversized, and truncated
+  fixtures. The adapter is labeled `request-and-stream-conformance`; cancellation, tools, UI
+  disclosure, and live opt-in proof remain gates before availability.
 - The provider credential vault is now implemented but not product-wired. Its provider-neutral
   trait passes an in-memory set/read/delete/error-redaction suite; secret strings zeroize on drop;
   and a Windows Credential Manager harness created, read, deleted, and independently proved absence
@@ -124,8 +126,8 @@ collaborators are not required to download large project folders.
    - Design target: the "research editor" panel of the approved mockup (version rail,
      evaluation panel, mono metadata stamps).
 3. **Certify the open research platform boundary** — the first OpenAI fake-server/key-canary
-   request gate and Windows credential-vault canary have landed; next implement
-   streaming/cancellation and explicit disclosure UI before availability. Build the adversarial benchmark before
+   request/stream gates and Windows credential-vault canary have landed; next implement
+   network cancellation and explicit disclosure UI before availability. Build the adversarial benchmark before
    claiming panel quality; implement a no-authority WASI host before loading third-party code.
 4. **Real collaboration on the folder** — Yjs doc persisted in the synced folder;
    merge-on-sync instead of last-write-wins; presence later. Drive is transport #1;

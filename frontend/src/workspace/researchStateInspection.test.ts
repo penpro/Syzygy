@@ -6,13 +6,14 @@ import { inspectResearchState } from './researchStateInspection'
 import { createScenario, deleteScenario } from './scenarioModel'
 import { createScenarioAnnotation } from './scenarioAnnotationModel'
 import { castScenarioVote } from './scenarioVoteModel'
+import { createScenarioLabel, setScenarioLabelAssignment } from './scenarioLabelModel'
 import { createProjectManifest } from './schema'
 
 const manifest = createProjectManifest({ id: 'inspection-project', documentId: 'inspection-document', timestamp: 1 })
 
 async function populatedDocument() {
   const doc = createProjectDocument(manifest)
-  const { heuristics, scenarios, versions, metadata } = getProjectSharedTypes(doc)
+  const { heuristics, scenarios, settings, versions, metadata } = getProjectSharedTypes(doc)
   createHeuristic(heuristics, {
     id: 'evidence-quality', title: 'Evidence quality', guidance: 'Secret guidance is omitted.', priority: 'required',
     authorId: 'researcher-1', timestamp: 10, editId: 'create-evidence-quality',
@@ -21,6 +22,14 @@ async function populatedDocument() {
     id: 'source-challenge', title: 'Source challenge', background: 'Secret scenario background is omitted.',
     authorId: 'researcher-1', timestamp: 10, editId: 'create-source-challenge',
     turns: [{ id: 'challenge-question', role: 'user', content: 'Secret scenario turn is omitted.', editId: 'create-challenge-question' }],
+  })
+  createScenarioLabel(settings, {
+    labelId: 'evidence-context', eventId: 'create-evidence-context', name: 'Evidence context',
+    authorId: 'researcher-1', timestamp: 11,
+  })
+  setScenarioLabelAssignment(settings, scenarios, {
+    scenarioId: 'source-challenge', labelId: 'evidence-context', eventId: 'assign-evidence-context',
+    expectedCurrentEventId: null, assigned: true, authorId: 'researcher-1', timestamp: 12,
   })
   castScenarioVote(getProjectSharedTypes(doc).discussions, scenarios, {
     scenarioId: 'source-challenge', eventId: 'researcher-2-supports', participantId: 'researcher-2',
@@ -59,6 +68,10 @@ describe('research state inspection', () => {
       annotationCount: 1, invalidRecords: 0, orphanScenarioIds: [], orphanTurnTargets: [], openCount: 1, resolvedCount: 0,
       items: [{ id: 'source-warning', scenarioId: 'source-challenge', kind: 'flag', status: 'open', eventCount: 1 }],
     })
+    expect(result.scenarioLabels).toMatchObject({
+      labelCount: 1, assignmentCount: 1, invalidRecords: 0, orphanScenarioIds: [], orphanLabelIds: [],
+      items: [{ id: 'evidence-context', name: 'Evidence context', eventCount: 1, scenarioIds: ['source-challenge'] }],
+    })
     expect(result.versions).toMatchObject({ totalRecords: 1, validRecords: 1, invalidRecords: 0, headVersionId: version.versionId, headLineageDepth: 1 })
     const serialized = JSON.stringify(result)
     expect(serialized).not.toContain('Secret guidance')
@@ -83,6 +96,7 @@ describe('research state inspection', () => {
         'Scenario source-challenge-branch has missing parent source-challenge',
         'Scenario annotations target missing scenario source-challenge',
         'Scenario votes target missing scenario source-challenge',
+        'Scenario label assignments target missing scenario source-challenge',
       ],
     })
   })

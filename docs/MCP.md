@@ -56,7 +56,7 @@ Recommended first instruction to an MCP-capable model:
 | `open_project` | navigation | Opens a non-archived project by stable ID |
 | `rename_project` | yes | Changes project metadata only |
 | `read_active_project` | no | Returns the manifest plus structured blocks, plain text, and a revision |
-| `inspect_research_state` | no | Validates bounded live scenario/vote/flag/note/heuristic/version/head/lineage state and returns metadata summaries without policy, scenario, annotation, voter, guidance, edit-value, or version-note bodies |
+| `inspect_research_state` | no | Validates bounded live scenario/vote/flag/note/label/heuristic/version/head/lineage state and returns metadata summaries without policy, scenario, annotation, voter, label-event, guidance, edit-value, or version-note bodies |
 | `create_scenario` | scenario metadata | Creates one scenario/branch only when `expectedResearchRevision` exactly matches the revision from inspection; no model generation |
 | `add_scenario_turn` | scenario content | Adds one attributed system/user/assistant turn against the exact current research revision; never invokes a model |
 | `revise_scenario_turn` | scenario content | Adds an attributed immutable revision to an existing turn against the exact current research revision |
@@ -108,12 +108,13 @@ MCP host
 - MCP tools do not receive ambient Drive, filesystem, or local-model authority. Future tools for
   those systems need their own typed proposal/confirmation contracts.
 - `inspect_research_state` is read-only and content-minimized. It checks the same live Y.Doc owned
-  by the editor/local provider, caps returned items, and has no scenario/heuristic/version/document mutation
+  by the editor/local provider, caps returned items, and has no scenario/label/heuristic/version/document mutation
   path. Titles, attribution, IDs, counts, and timestamps are metadata and may be returned; policy
-  text, scenario backgrounds/turn content/revision, annotation, and voter bodies, heuristic guidance
-  and edit values, and version notes are deliberately omitted. Scenario branch ancestry plus vote/
-  annotation targets are checked; peer-colliding public identities or events fail closed. Aggregate
-  vote counts and annotation lifecycle/event totals are metadata returned to the connected host.
+  text, scenario backgrounds/turn content/revision, annotation, voter, and label-event bodies,
+  heuristic guidance and edit values, and version notes are deliberately omitted. Scenario branch
+  ancestry plus vote/annotation/label targets are checked; peer-colliding public identities or
+  events fail closed. Aggregate vote counts, annotation lifecycle/event totals, and label names/
+  assignments are metadata returned to the connected host.
 - `create_scenario` requires the exact monotonic Yjs research revision returned by
   `inspect_research_state`. A stale revision fails before mutation; the frontend domain harness and
   packaged live harness assert zero stale writes. Participant identity/time remain caller/process

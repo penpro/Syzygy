@@ -69,7 +69,7 @@ export async function dispatchAutomationRequest(
             'local collaborative rich-text draft',
             'automatic IndexedDB persistence',
             'revision-guarded semantic MCP reads and writes',
-            'read-only MCP integrity inspection for heuristics and immutable version history',
+            'read-only MCP integrity inspection for scenarios, votes, annotations, labels, heuristics, and immutable version history',
             'dual-revision-guarded MCP creation of immutable policy checkpoints',
             'research-revision-guarded MCP scenario creation, turn editing, aggregate voting, and annotation lifecycle',
           ],

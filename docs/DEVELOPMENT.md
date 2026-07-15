@@ -74,6 +74,12 @@ first annotations, concurrent edit-versus-resolve branches, public-ID collision,
 isolation, and missing scenario/turn targets. Eighty seeded duplicate/reordered deliveries must
 converge. This proves the lifecycle ledger, not its UI, authentication, moderation, or transport.
 
+`scenarioLabelModel.test.ts` is the P-21 domain gate. It covers label create/rename, scenario
+add/remove/filter, exact-current event guards, immutable history, disconnected assignments,
+concurrent rename branches, public-ID collisions, and orphan targets. Eighty seeded duplicate/
+reordered deliveries must converge. This proves the context-label domain, not its UI,
+authentication, moderation, MCP mutation, or remote transport.
+
 `policyVersionHistory.test.ts` extends that gate for P-28/P-29. It rejects stale expected heads
 before creating a version, restores an old snapshot only by creating a new child of the current
 head, retains both concurrent restore branches across forty reordered/duplicate deliveries, and

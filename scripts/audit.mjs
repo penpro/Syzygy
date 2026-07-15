@@ -165,6 +165,29 @@ record(
   'separate versioned namespace, immutable parent-linked lifecycle, exact-current guards, 80 delivery orders, collision/orphan gates, and truthful P-20 status are present',
 )
 
+const scenarioLabelSource = text('frontend/src/workspace/scenarioLabelModel.ts')
+const scenarioLabelTestSource = text('frontend/src/workspace/scenarioLabelModel.test.ts')
+record(
+  'collaborative scenario labels remain revision-guarded, attributed, filterable, and convergent',
+  scenarioLabelSource.includes('SCENARIO_LABEL_SCHEMA_VERSION = 1') &&
+    scenarioLabelSource.includes("LABEL_PREFIX = 'scenario-labels:v1:'") &&
+    scenarioLabelSource.includes("ASSIGNMENT_PREFIX = 'scenario-label-assignments:v1:'") &&
+    scenarioLabelSource.includes("collection.doc.transact(operation, 'syzygy-scenario-labels')") &&
+    scenarioLabelSource.includes('Scenario label revision conflict') &&
+    scenarioLabelSource.includes('Scenario label assignment revision conflict') &&
+    scenarioLabelSource.includes('Scenario label event ID was reused') &&
+    scenarioLabelSource.includes('listScenarioIdsForLabel') &&
+    scenarioLabelSource.includes('inspectScenarioLabels') &&
+    scenarioLabelTestSource.includes('retains concurrent renames and selects one deterministic current name') &&
+    scenarioLabelTestSource.includes('converges disconnected assignments and filters every matching scenario') &&
+    scenarioLabelTestSource.includes('length: 40') &&
+    scenarioLabelTestSource.includes('rejects stale rename and assignment events without changing history') &&
+    scenarioLabelTestSource.includes('disconnected label identity collisions and reports orphan assignments') &&
+    scenarioLabelTestSource.includes("scenario-labels:v1:malformed") &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-21", "phase": 6, "status": "implemented_unverified"'),
+  'separate label/assignment namespaces, immutable replay-safe exact-parent events, 80 delivery orders, deterministic filtering, stale/collision/orphan/malformed gates, and truthful P-21 status are present',
+)
+
 const policyVersionSource = text('frontend/src/workspace/policyVersionModel.ts')
 const policyVersionTestSource = text('frontend/src/workspace/policyVersionModel.test.ts')
 record(
@@ -259,6 +282,8 @@ record(
     researchInspectionSource.includes('inspectScenarioGraph') &&
     researchInspectionSource.includes('inspectScenarioAnnotations') &&
     researchInspectionSource.includes('inspectScenarioVotes') &&
+    researchInspectionSource.includes('inspectScenarioLabels') &&
+    researchInspectionSource.includes('listScenarioIdsForLabel') &&
     researchInspectionSource.includes('turnRevisionCount') &&
     researchInspectionSource.includes('scenario background/turn content/revision bodies') &&
     researchInspectionTestSource.includes('Secret guidance is omitted') &&
@@ -267,12 +292,13 @@ record(
     researchInspectionTestSource.includes("not.toContain('Secret annotation body')") &&
     researchInspectionTestSource.includes("not.toContain('Secret annotator display name')") &&
     researchInspectionTestSource.includes("not.toContain('Secret voter display name')") &&
+    researchInspectionTestSource.includes("labelCount: 1, assignmentCount: 1") &&
     researchInspectionTestSource.includes('reports invalid scenario branch ancestry') &&
     researchInspectionTestSource.includes('reports a tampered version and invalid head lineage') &&
     researchInspectionTestSource.includes('content-valid non-head record whose ancestor is missing') &&
     mcpSource.includes('"inspect_research_state" => live("project.readResearchState"') &&
     text('scripts/mcp-live-harness.mjs').includes('researchStateHealthy: true'),
-  'identity-safe live Y.Doc registry, 200-item metadata caps, scenario graph/vote/annotation plus version-lineage self-checks, secret-body canaries, read-only MCP routing, and packaged-live assertion are present',
+  'identity-safe live Y.Doc registry, 200-item metadata caps, scenario graph/vote/annotation/label plus version-lineage self-checks, secret-body canaries, read-only MCP routing, and packaged-live assertion are present',
 )
 const versionAutomationSource = text('frontend/src/workspace/versionAutomation.ts')
 const versionAutomationTestSource = text('frontend/src/workspace/versionAutomation.test.ts')

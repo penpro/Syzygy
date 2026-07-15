@@ -6,6 +6,7 @@ import type { PolicyVersion } from './policyVersionModel'
 import { inspectScenarioGraph, listScenarios } from './scenarioModel'
 import { inspectScenarioAnnotations, listScenarioAnnotationSummaries } from './scenarioAnnotationModel'
 import { inspectScenarioVotes, listScenarioVoteSummaries } from './scenarioVoteModel'
+import { inspectScenarioLabels, listScenarioIdsForLabel, listScenarioLabels } from './scenarioLabelModel'
 
 const MAX_RETURNED_ITEMS = 200
 
@@ -35,7 +36,7 @@ function countInvalidLineages(versions: PolicyVersion[]): number {
 
 export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string) {
   const startingRevision = projectStateFingerprint(doc)
-  const { metadata, discussions, heuristics: heuristicMap, scenarios: scenarioMap, versions: versionMap } = getProjectSharedTypes(doc)
+  const { metadata, discussions, heuristics: heuristicMap, scenarios: scenarioMap, settings, versions: versionMap } = getProjectSharedTypes(doc)
   if (metadata.get('projectId') !== expectedProjectId) throw new Error('Live collaboration document project identity does not match')
 
   const validHeuristics = listHeuristics(heuristicMap)
@@ -45,6 +46,8 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   const annotationInspection = inspectScenarioAnnotations(discussions, scenarioMap)
   const voteSummaries = listScenarioVoteSummaries(discussions)
   const voteInspection = inspectScenarioVotes(discussions, scenarioMap)
+  const scenarioLabels = listScenarioLabels(settings)
+  const labelInspection = inspectScenarioLabels(settings, scenarioMap)
   const allVersions = await listPolicyVersions(versionMap)
   const versions = allVersions.filter((version) => version.projectId === expectedProjectId)
   const foreignProjectVersions = allVersions.length - versions.length
@@ -56,6 +59,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   issues.push(...scenarioGraph.issues)
   issues.push(...annotationInspection.issues)
   issues.push(...voteInspection.issues)
+  issues.push(...labelInspection.issues)
   if (invalidVersionRecords > 0) issues.push(`${invalidVersionRecords} version record(s) failed hash/schema validation`)
   if (foreignProjectVersions > 0) issues.push(`${foreignProjectVersions} version record(s) belong to another project`)
   if (invalidLineageRecords > 0) issues.push(`${invalidLineageRecords} version record(s) have missing, cross-project, or cyclic ancestry`)
@@ -145,6 +149,25 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
         eventCount: annotation.events.length,
       })),
     },
+    scenarioLabels: {
+      labelCount: labelInspection.labelCount,
+      assignmentCount: labelInspection.assignmentCount,
+      invalidRecords: labelInspection.invalidRecords,
+      orphanScenarioIds: labelInspection.orphanScenarioIds,
+      orphanLabelIds: labelInspection.orphanLabelIds,
+      truncated: scenarioLabels.length > MAX_RETURNED_ITEMS,
+      items: scenarioLabels.slice(0, MAX_RETURNED_ITEMS).map((label) => ({
+        id: label.id,
+        name: label.name,
+        currentEventId: label.currentEventId,
+        createdBy: label.createdBy,
+        createdAt: label.createdAt,
+        lastActionBy: label.lastActionBy,
+        lastActionAt: label.lastActionAt,
+        eventCount: label.events.length,
+        scenarioIds: listScenarioIdsForLabel(settings, label.id).slice(0, MAX_RETURNED_ITEMS),
+      })),
+    },
     versions: {
       totalRecords: versionMap.size,
       validRecords: versions.length,
@@ -168,9 +191,9 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
     },
     selfCheck: { healthy: issues.length === 0, issues },
     limitations: [
-      'inspection itself is read-only; separate revision-guarded MCP tools can create scenarios, edit turns, cast votes, manage flag/note lifecycle, and save policy versions, but heuristic, restore, and broader scenario lifecycle mutation remain unavailable',
+      'inspection itself is read-only; separate revision-guarded MCP tools can create scenarios, edit turns, cast votes, manage flag/note lifecycle, and save policy versions, but label, heuristic, restore, and broader scenario lifecycle mutation remain unavailable',
       'local live collaboration document; Drive/WebSocket project transport is not implemented',
-      'counts and integrity are checked; policy text, heuristic guidance, scenario background/turn content/revision bodies, annotation/voter bodies, edit values, and version notes are omitted',
+      'counts and integrity are checked; policy text, heuristic guidance, scenario background/turn content/revision bodies, annotation/voter bodies, label event bodies, edit values, and version notes are omitted',
     ],
   }
 }

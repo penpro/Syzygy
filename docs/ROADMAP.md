@@ -229,6 +229,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   writes reject; disconnected creation and concurrent edit-versus-resolve converge across eighty
   seeded deliveries; collisions and orphan scenario/turn targets surface in MCP integrity metadata.
   This closes P-20 domain evidence, not annotation UI, moderation, or authenticated identity.
+- Collaborative context labels now use immutable create/rename and scenario add/remove events in
+  separate settings namespaces. Exact-current guards reject stale writes; disconnected assignments
+  and concurrent rename branches converge across eighty duplicate/reordered deliveries; filtering,
+  collision, and orphan checks fail closed. This closes P-21 domain evidence, not label UI,
+  authentication, moderation, MCP mutation, or remote transport.
 - MCP now advertises a fifteenth semantic tool, `create_scenario`. Research inspection returns a
   monotonic Yjs revision and rejects a read that changes during validation; scenario creation
   requires that exact revision and live project identity. Pure tests prove stale zero-write and
@@ -248,11 +253,16 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   status changes require both the current research revision and exact annotation event; stale
   project or lifecycle calls add nothing. Bodies remain omitted from MCP readback and no UI,
   moderation, or authenticated-identity claim is made.
+- A clean-room public literature pass now constrains the adversarial-panel roadmap: preserve
+  independent/minority artifacts, blind route identity, reverse judge order, audit frozen sources,
+  compare against an equal-call baseline, and never treat agreement as truth. The source list,
+  derived requirements, and falsification gates are in
+  `docs/audits/LITERATURE-NOTES-2026-07-15.md`; it is requirements evidence, not a quality claim.
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **41 capabilities**: **19 are
-`implemented_unverified`, 22 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **41 capabilities**: **20 are
+`implemented_unverified`, 21 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, portable local lifecycle,
 Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned

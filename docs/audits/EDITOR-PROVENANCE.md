@@ -24,6 +24,7 @@
 | `frontend/src/workspace/scenarioModel.ts` | Penumbra original | Stable lifecycle scenarios, ordered multi-turn CRDT content, attributed immutable revisions/edits, branch inspection, and fail-closed peer-collision handling |
 | `frontend/src/workspace/scenarioVoteModel.ts` | Penumbra original | Namespaced immutable scenario vote events, idempotent replay, attributed re-vote/withdrawal history, deterministic participant projection, and orphan/collision inspection |
 | `frontend/src/workspace/scenarioAnnotationModel.ts` | Penumbra original | Namespaced immutable flag/note lifecycle events, exact-parent revision guards, concurrent branch retention, resolve/reopen attribution, and orphan/collision inspection |
+| `frontend/src/workspace/scenarioLabelModel.ts` | Penumbra original | Namespaced immutable label and scenario-assignment events, exact-parent guards, deterministic concurrent rename projection, filtering, and orphan/collision inspection |
 | `frontend/src/workspace/scenarioAutomation.ts` | Penumbra original | Live-project identity and monotonic research-revision guard for MCP scenario creation |
 | `frontend/src/workspace/policyVersionModel.ts` | Penumbra original | Canonical SHA-256-addressed immutable policy envelopes, parent validation, detached readback, and historical attribution snapshots |
 | `frontend/src/workspace/policyVersionHistory.ts` | Penumbra original | Exact-head commits, restore-as-new-child history, concurrent branch retention, and deterministic engine-free structured diffs |

@@ -134,8 +134,8 @@ P-14/P-15 now have a Penumbra-original collaborative scenario domain service. St
 contain lifecycle state, background, ordered multi-turn content, attributed immutable turn
 revisions, attributed scenario edits, and optional branch parents. Peer-specific internal keys
 preserve disconnected public-ID collisions for fail-closed projection; graph inspection detects
-missing/cyclic ancestry. The gallery, generation, responses, voting, flags, evaluation, and open
-scenario-pack interchange remain open.
+missing/cyclic ancestry. The gallery, generation, response variants, evaluation, and open scenario-
+pack interchange remain open; votes, annotations, and labels are separate domain services below.
 
 P-19 now has a Penumbra-original collaborative vote-event ledger. Exact replay is idempotent;
 re-votes and withdrawals retain attributed history; peer-specific namespaced buckets preserve
@@ -148,10 +148,15 @@ events retain attribution and exact parent links. Stale product writes fail, con
 remain auditable, and missing scenario/turn targets or colliding annotation identities fail closed.
 Visible annotation controls, authenticated identity, moderation, and notifications remain open.
 
+P-21 now has a Penumbra-original context-label ledger. Immutable create/rename and scenario
+add/remove events use exact-parent guards; disconnected assignments merge, concurrent rename
+branches remain auditable, filtering is deterministic, and colliding roots or orphan targets fail
+closed. Visible label controls, authentication, moderation, and remote-provider proof remain open.
+
 P-28/P-29 now have exact-head commit, restore-as-new-child, and deterministic engine-free diff
 services. A stale head fails before creating an orphan; two concurrent restores preserve both
 immutable branches and converge one Yjs head across forty delivery orders. Restore/history UI,
-branch reconciliation, labels, richer human change notes, and archive interchange remain open.
+branch reconciliation, richer human change notes, and archive interchange remain open.
 
 ## 5. Target architecture
 

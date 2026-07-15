@@ -224,7 +224,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "inspect_research_state",
-            "Inspect bounded read-only metadata and integrity checks for the active project's collaborative scenarios, aggregate votes and annotation lifecycle, heuristics, and immutable policy-version history. Omits policy text, scenario/annotation/voter bodies, heuristic guidance/edit values, and version notes; grants no mutation authority.",
+            "Inspect bounded read-only metadata and integrity checks for the active project's collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and immutable policy-version history. Omits policy text, scenario/annotation/voter bodies, label-event bodies, heuristic guidance/edit values, and version notes; grants no mutation authority.",
             object_schema(&[], &[]),
         ),
         tool(

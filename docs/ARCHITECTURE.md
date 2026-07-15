@@ -92,8 +92,9 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   the local IndexedDB collaboration provider, an original Lexical policy editor, and the
   research workspace shell. Reserved Yjs collections hold scenarios, heuristics, immutable
   versions, discussions, and settings; `heuristicsModel.ts` owns nested collaborative records,
-  `scenarioModel.ts` owns stable multi-turn scenario/branch records; `scenarioVoteModel.ts` and
-  `scenarioAnnotationModel.ts` own namespaced participant vote and flag/note lifecycle events;
+  `scenarioModel.ts` owns stable multi-turn scenario/branch records; `scenarioVoteModel.ts`,
+  `scenarioAnnotationModel.ts`, and `scenarioLabelModel.ts` own namespaced participant vote,
+  flag/note lifecycle, and context-label/assignment events;
   while `policyVersionModel.ts`
   stores canonical version envelopes as SHA-256-addressed strings whose hash is rechecked on every
   read. The Lexical/Yjs editor owns the `root` shared type.
@@ -152,6 +153,13 @@ at-the-time metadata. Every non-create event names its exact parent; product wri
 current event, while concurrent children remain as auditable branches and one timestamp/event-ID
 ordering supplies the deterministic projection. Missing scenario/turn targets and colliding public
 annotation identities are integrity failures. No annotations UI or authenticated identity is claimed.
+
+`scenarioLabelModel.ts` stores context-label and scenario-assignment event histories in separate
+versioned namespaces inside the reserved settings collection. Label renames and add/remove
+assignments name their exact parent; disconnected concurrent renames remain in history and one
+timestamp/event-ID ordering produces a deterministic current name. Filtering projects only active
+assignments. Colliding roots and orphan scenario/label targets fail closed or surface in inspection.
+No label UI, moderation, authenticated identity, or remote-provider proof is claimed.
 
 `policyVersionModel.ts` owns immutable policy checkpoints. A version contains a structured policy
 snapshot, parent hash, sorted scenario references, participant ID, display-name snapshot,

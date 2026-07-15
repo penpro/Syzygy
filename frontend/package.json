@@ -15,6 +15,8 @@
     "test:adversarial": "vitest run src/extensions/adversarialProtocol.test.ts src/extensions/adversarialRunRecord.test.ts --reporter=verbose",
     "test:plugin-sdk": "node --test ../scripts/plugin-certifier.test.mjs",
     "certify:plugin": "node ../scripts/plugin-certifier.mjs",
+    "test:model-adapter-sdk": "node --test ../scripts/model-adapter-certifier.test.mjs",
+    "certify:model-adapter": "node ../scripts/model-adapter-certifier.mjs",
     "test:providers": "cargo test --manifest-path src-tauri/Cargo.toml model_provider::tests:: -- --nocapture",
     "test:provider-streams": "cargo test --manifest-path src-tauri/Cargo.toml provider_stream::tests:: -- --nocapture",
     "test:credentials": "cargo test --manifest-path src-tauri/Cargo.toml credential_vault::tests:: -- --nocapture",

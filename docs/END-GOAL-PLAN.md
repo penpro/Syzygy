@@ -424,6 +424,13 @@ typed retention attestation, terminal-state consistency, source identity, token 
 bounds. MCP embeds the same schema. Runtime emission remains open until model execution is product
 wired; a client-authored record is not authoritative evidence.
 
+The constrained custom-adapter profile and non-executing headless certifier now also land. They
+cover OpenAI Responses, Chat Completions, and Anthropic Messages compatibility; pin literal
+loopback or HTTPS remote endpoints to an exact origin/route; require honest data-policy metadata;
+and reject built-in shadowing, traversal, unknown fields, and hostile endpoint probes. Runtime
+transport conformance, arbitrary WASI protocols, credential wiring, and live capability checks
+remain open, so `custom` is still `contract-only`.
+
 Gate: local remains the no-account default; no key appears in webview state, logs, crash reports,
 projects, MCP, or exports; every remote adapter passes the same conformance suite and a sanitized
 network trace before the UI calls it available.

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "documentation": "README.md",
+  "license": "LICENSE",
+  "profileFixtures": [
+    { "id": "valid-local-profile", "profile": "syzygy-model-adapter.json", "expectedValid": true },
+    { "id": "invalid-remote-http", "profile": "fixtures/invalid-remote-http.json", "expectedValid": false }
+  ],
+  "endpointProbes": [
+    { "id": "allow-exact-route", "url": "http://127.0.0.1:8000/v1/responses", "expected": "allow" },
+    { "id": "deny-other-route", "url": "http://127.0.0.1:8000/v1/chat/completions", "expected": "deny" },
+    { "id": "deny-other-port", "url": "http://127.0.0.1:8001/v1/responses", "expected": "deny" },
+    { "id": "deny-query", "url": "http://127.0.0.1:8000/v1/responses?next=https://evil.test", "expected": "deny" }
+  ]
+}

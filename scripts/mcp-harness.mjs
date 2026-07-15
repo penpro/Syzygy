@@ -99,6 +99,8 @@ async function proveStdioContract() {
   if (contracts?.pluginManifestSchema?.additionalProperties !== false) throw new Error('plugin manifest schema is not strict')
   if (contracts?.providerRunRecordSchema?.additionalProperties !== false) throw new Error('provider run schema is not strict')
   if (contracts?.implementationStatus?.providerRunRecordValidator !== 'implemented') throw new Error('provider run validator status is missing')
+  if (contracts?.modelAdapterProfileSchema?.additionalProperties !== false) throw new Error('model adapter schema is not strict')
+  if (contracts?.implementationStatus?.modelAdapterCertifier !== 'contract-certified-runner') throw new Error('model adapter certifier status is overstated')
 
   return {
     executable,

@@ -60,7 +60,7 @@ domain semantic validation both pass.
 | `anthropic-messages` | Anthropic Messages | application-managed history; typed SSE; accumulate partial tool JSON; tolerate new events |
 | `gemini-interactions` | Gemini Interactions | `store=false` default; preserve required thought signatures and function-call IDs; surface incompatible stateful features |
 | `xai-responses` | xAI Responses | explicit storage/ZDR mode; normalize parallel function calls and long-running transport behavior |
-| `custom` | plugin/registered adapter | no assumed capabilities; certification fixture required |
+| `custom` | declarative compatible profile or future sandboxed plugin | no assumed capabilities; certification fixture required |
 
 The first OpenAI Responses slice lives in Rust and proves the exact `/v1/responses` request against
 a loopback fake server: bearer authentication, `store:false`, bounded response collection,
@@ -118,6 +118,33 @@ the provider-neutral Responses normalizer and the common disclosure, endpoint, s
 timeout, and cancellation gates. Streaming/WebSocket mode, tools, encrypted reasoning continuity,
 cost ticks, UI, and opt-in live proof remain open.
 
+## Custom compatible adapters
+
+The first open adapter API is deliberately declarative: a package supplies
+`syzygy-model-adapter.json`, `syzygy-certification.json`, documentation, license, one valid and one
+hostile profile fixture, and exact endpoint allow/deny probes. The profile can target Responses,
+Chat Completions, or Anthropic Messages compatibility. It declares capabilities and limitations;
+it cannot inject raw headers, request templates, JavaScript, secrets, redirects, query strings, or
+arbitrary routes. Built-in provider IDs cannot be shadowed. Local profiles are pinned to literal
+loopback and local-only data handling; remote profiles require HTTPS, authentication, and a dated
+policy reference.
+
+Run `npm run test:model-adapter-sdk` or `npm run certify:model-adapter -- <folder>`. A passing report
+is only `contract-certified`: no code executes, no endpoint is contacted, no credential is stored,
+and no capability claim is live-tested. The interface-only vLLM example is in
+`examples/model-adapters/local-vllm`. Arbitrary protocols remain a future capability-sandboxed
+WASI tier rather than a reason to execute third-party code in the webview.
+
+The initial compatibility use cases are grounded in current primary documentation: vLLM exposes
+OpenAI-compatible Responses/Chat endpoints, llama.cpp exposes compatible Responses, Chat, and
+Anthropic Messages routes while warning that compatibility can be partial, and LiteLLM routes many
+providers through a common OpenAI-shaped proxy. These differences are why profiles must declare
+exact route and limitations instead of claiming generic “OpenAI compatible” behavior:
+
+- <https://docs.vllm.ai/en/stable/serving/openai_compatible_server/>
+- <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md>
+- <https://docs.litellm.ai/>
+
 ## Certification suite
 
 Every adapter runs the same fake-server and live opt-in tests:
@@ -131,6 +158,7 @@ Every adapter runs the same fake-server and live opt-in tests:
 7. usage/cost accounting reconciliation; and
 8. provider policy URL and review date present.
 9. a schema-valid provider-run record passes semantic validation without raw research content.
+10. custom profiles pass hostile package and exact endpoint-probe certification without execution.
 
 Passing the contract suite establishes protocol behavior for a named adapter version; it does not
 establish model quality or a provider's legal/privacy suitability for a particular study.

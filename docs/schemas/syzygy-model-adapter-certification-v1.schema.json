@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syzygy.penumbra.invalid/schemas/model-adapter-certification-v1.schema.json",
+  "title": "Syzygy Model Adapter Contract Certification Plan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "documentation", "license", "profileFixtures", "endpointProbes"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "documentation": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "license": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "profileFixtures": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "profile", "expectedValid"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "profile": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "expectedValid": { "type": "boolean" }
+        }
+      }
+    },
+    "endpointProbes": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "url", "expected"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "url": { "type": "string", "minLength": 1, "maxLength": 2048 },
+          "expected": { "enum": ["allow", "deny"] }
+        }
+      }
+    }
+  }
+}

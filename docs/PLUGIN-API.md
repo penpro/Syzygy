@@ -13,6 +13,7 @@ filesystem access.
 - Change proposal schema: `docs/schemas/syzygy-plugin-proposal-v1.schema.json`
 - Certification plan schema: `docs/schemas/syzygy-plugin-certification-v1.schema.json`
 - Provider-run record schema: `docs/schemas/syzygy-provider-run-v1.schema.json`
+- Compatible model-adapter schemas: `docs/schemas/syzygy-model-adapter-*.schema.json`
 - Runtime validator/types: `frontend/src/extensions/pluginManifest.ts`
 - Headless package certifier: `scripts/plugin-certifier.mjs`
 - Complete interface-only example: `examples/plugins/citation-auditor`
@@ -63,6 +64,8 @@ Permissions are granted per installed plugin and can be revoked. Manifest declar
 requests, not authority. Syzygy revalidates every operation and target at execution time.
 Plugins never construct authoritative provider-run records: the future host records each accepted
 model call, including denial, timeout, cancellation, usage, retention attestation, and cost.
+Simple compatible endpoints use the separate declarative model-adapter profile and certifier;
+arbitrary model protocols require the future WASI host and the same `model.invoke` authority gate.
 
 ## Runtime tiers
 

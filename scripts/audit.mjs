@@ -116,6 +116,8 @@ const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposa
 const pluginCertificationSchema = JSON.parse(text('docs/schemas/syzygy-plugin-certification-v1.schema.json'))
 const adversarialRunSchema = JSON.parse(text('docs/schemas/syzygy-adversarial-run-v1.schema.json'))
 const providerRunSchema = JSON.parse(text('docs/schemas/syzygy-provider-run-v1.schema.json'))
+const modelAdapterSchema = JSON.parse(text('docs/schemas/syzygy-model-adapter-v1.schema.json'))
+const modelAdapterCertificationSchema = JSON.parse(text('docs/schemas/syzygy-model-adapter-certification-v1.schema.json'))
 const platformContractsSource = text('frontend/src-tauri/src/platform_contracts.rs')
 const providerRuntimeSource = text('frontend/src-tauri/src/model_provider.rs')
 const providerStreamSource = text('frontend/src-tauri/src/provider_stream.rs')
@@ -179,6 +181,24 @@ record(
     platformContractsSource.includes('"providerRunRecordSchema"') &&
     platformContractsSource.includes('"providerRunRecordValidator": "implemented"'),
   'strict public schema plus disclosure, endpoint, retention, accounting, content-exclusion, and MCP self-description gates present',
+)
+const modelAdapterProfileSource = text('frontend/src/extensions/modelAdapterProfile.ts')
+const modelAdapterCertifierSource = text('scripts/model-adapter-certifier.mjs')
+record(
+  'custom model adapters remain declarative and endpoint pinned',
+  modelAdapterSchema.$schema === 'https://json-schema.org/draft/2020-12/schema' &&
+    modelAdapterSchema.additionalProperties === false &&
+    modelAdapterCertificationSchema.additionalProperties === false &&
+    modelAdapterProfileSource.includes('custom adapter ID must not shadow a built-in provider') &&
+    modelAdapterProfileSource.includes('endpoint path must match the declared compatibility protocol') &&
+    modelAdapterProfileSource.includes('remote adapter must use HTTPS') &&
+    modelAdapterProfileSource.includes('target.origin === expected.origin') &&
+    modelAdapterCertifierSource.includes('contract certification does not execute the adapter') &&
+    modelAdapterCertifierSource.includes('safePackagePath') &&
+    !/child_process|\bspawn\s*\(|\bexec(?:File)?\s*\(/.test(modelAdapterCertifierSource) &&
+    platformContractsSource.includes('"modelAdapterProfileSchema"') &&
+    platformContractsSource.includes('"modelAdapterCertifier": "contract-certified-runner"'),
+  'strict profile/certification schemas, loopback/TLS/policy semantics, exact origin-route probes, non-executing runner, and truthful MCP status',
 )
 record(
   'remote provider boundary remains gated',

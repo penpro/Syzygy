@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "unsafe-vllm",
+  "name": "Unsafe vLLM",
+  "version": "1.0.0",
+  "description": "Invalid fixture: remote HTTP, no authentication, and false local-only claim.",
+  "protocol": "openai-responses",
+  "endpoint": {
+    "baseUrl": "http://models.example.test",
+    "path": "/v1/responses",
+    "locality": "remote",
+    "authentication": "none"
+  },
+  "capabilities": {
+    "streaming": true,
+    "toolCalls": false,
+    "structuredOutputs": true,
+    "imageInput": false,
+    "usage": true
+  },
+  "dataPolicy": {
+    "storageControl": "local-only",
+    "trainingUse": "unknown",
+    "zeroRetention": "unknown",
+    "policyUrl": null,
+    "policyCheckedAt": null
+  },
+  "limitations": ["Deliberately unsafe certification fixture."]
+}

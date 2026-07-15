@@ -132,6 +132,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - A strict public provider-run record now captures content-free call provenance, disclosure,
   destination, dated policy, storage/ZDR state, terminal outcome, usage, and cost. Its semantic
   validator and MCP embedding are implemented; authoritative runtime emission remains open.
+- Custom compatible model adapters now have strict profile/certification schemas, a non-executing
+  package runner, hostile profile fixtures, exact endpoint probes, and a documented local-vLLM
+  example. Runtime transport and credentials remain `contract-only`.
 
 ## Current completion snapshot
 

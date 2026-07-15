@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "lab-vllm",
+  "name": "Lab vLLM",
+  "version": "1.0.0",
+  "description": "Interface-only profile for a researcher-managed literal-loopback vLLM server.",
+  "protocol": "openai-responses",
+  "endpoint": {
+    "baseUrl": "http://127.0.0.1:8000",
+    "path": "/v1/responses",
+    "locality": "literal-loopback",
+    "authentication": "bearer-api-key"
+  },
+  "capabilities": {
+    "streaming": true,
+    "toolCalls": false,
+    "structuredOutputs": true,
+    "imageInput": false,
+    "usage": true
+  },
+  "dataPolicy": {
+    "storageControl": "local-only",
+    "trainingUse": "never",
+    "zeroRetention": "not-applicable",
+    "policyUrl": null,
+    "policyCheckedAt": null
+  },
+  "limitations": [
+    "Model-specific tool, image, and reasoning behavior has not been certified.",
+    "This package does not start or contact vLLM."
+  ]
+}

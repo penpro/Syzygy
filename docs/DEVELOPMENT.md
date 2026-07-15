@@ -21,6 +21,7 @@ npm run test:contracts     # public provider-run/adversarial/plugin schemas and 
 npm run test:provider-streams # fragmented/multiline/unknown/malformed SSE conformance
 npm run test:credentials   # memory-backed credential-vault contract; no OS store mutation
 npm run test:plugin-sdk    # non-executing package/schema/path/authority certification
+npm run test:model-adapter-sdk # non-executing custom adapter profile/endpoint certification
 cargo fmt --all -- --check # Rust formatting
 ```
 
@@ -134,6 +135,19 @@ npm run certify:plugin -- ..\examples\plugins\citation-auditor
 The first command tests schema rejection, real-path containment, wildcard-domain semantics, and
 undeclared-authority denial. The second emits a JSON certification report for the interface-only
 example. Neither command executes plugin code; runtime/WASI certification remains a separate gate.
+
+## Headless custom model-adapter contract proof
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm run test:model-adapter-sdk
+npm run certify:model-adapter -- ..\examples\model-adapters\local-vllm
+```
+
+This validates strict adapter/certification schemas, package-contained docs/license/fixtures,
+literal-loopback versus HTTPS-remote policy, built-in ID protection, protocol/route agreement, and
+exact origin-plus-route endpoint allow/deny probes. It does not execute an adapter, contact vLLM,
+validate model features, store a credential, or make the custom provider product-available.
 
 After building the current packaged executable, an explicit live-profile proof can
 launch the GUI through MCP, create a visible demonstration project, exercise replace/append and

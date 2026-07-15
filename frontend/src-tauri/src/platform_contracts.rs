@@ -14,6 +14,10 @@ const ADVERSARIAL_RUN_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-adversarial-run-v1.schema.json");
 const PROVIDER_RUN_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-provider-run-v1.schema.json");
+const MODEL_ADAPTER_SCHEMA: &str =
+    include_str!("../../../docs/schemas/syzygy-model-adapter-v1.schema.json");
+const MODEL_ADAPTER_CERTIFICATION_SCHEMA: &str =
+    include_str!("../../../docs/schemas/syzygy-model-adapter-certification-v1.schema.json");
 
 pub fn current() -> Result<Value, String> {
     let manifest_schema: Value = serde_json::from_str(PLUGIN_MANIFEST_SCHEMA)
@@ -24,12 +28,19 @@ pub fn current() -> Result<Value, String> {
         .map_err(|error| format!("Embedded adversarial run schema is invalid: {error}"))?;
     let provider_run_schema: Value = serde_json::from_str(PROVIDER_RUN_SCHEMA)
         .map_err(|error| format!("Embedded provider run schema is invalid: {error}"))?;
+    let model_adapter_schema: Value = serde_json::from_str(MODEL_ADAPTER_SCHEMA)
+        .map_err(|error| format!("Embedded model adapter schema is invalid: {error}"))?;
+    let model_adapter_certification_schema: Value =
+        serde_json::from_str(MODEL_ADAPTER_CERTIFICATION_SCHEMA).map_err(|error| {
+            format!("Embedded model adapter certification schema is invalid: {error}")
+        })?;
     Ok(json!({
         "contractVersion": 1,
         "implementationStatus": {
             "localProvider": "available",
             "remoteProviderAdapters": "contract-only",
             "providerRunRecordValidator": "implemented",
+            "modelAdapterCertifier": "contract-certified-runner",
             "credentialVault": "implemented-unverified",
             "adversarialRecordValidator": "implemented",
             "adversarialRunner": "contract-only",
@@ -80,6 +91,8 @@ pub fn current() -> Result<Value, String> {
         "pluginProposalSchema": proposal_schema,
         "adversarialRunRecordSchema": adversarial_run_schema,
         "providerRunRecordSchema": provider_run_schema,
+        "modelAdapterProfileSchema": model_adapter_schema,
+        "modelAdapterCertificationSchema": model_adapter_certification_schema,
         "selfCheck": {
             "command": "npm run test:contracts",
             "providerCommand": "npm run test:providers",
@@ -87,6 +100,7 @@ pub fn current() -> Result<Value, String> {
             "credentialCommand": "npm run test:credentials",
             "credentialLiveCommand": "npm run test:credentials:live",
             "pluginCertifierCommand": "npm run test:plugin-sdk",
+            "modelAdapterCertifierCommand": "npm run test:model-adapter-sdk",
             "adversarialCommand": "npm run test:adversarial",
             "mcpCommand": "npm run test:mcp",
             "auditCommand": "npm run audit"
@@ -139,6 +153,10 @@ mod tests {
             "implemented"
         );
         assert_eq!(
+            contracts["implementationStatus"]["modelAdapterCertifier"],
+            "contract-certified-runner"
+        );
+        assert_eq!(
             contracts["pluginManifestSchema"]["additionalProperties"],
             false
         );
@@ -161,6 +179,14 @@ mod tests {
         assert_eq!(
             contracts["providerRunRecordSchema"]["properties"]["recordVersion"]["const"],
             1
+        );
+        assert_eq!(
+            contracts["modelAdapterProfileSchema"]["additionalProperties"],
+            false
+        );
+        assert_eq!(
+            contracts["modelAdapterCertificationSchema"]["additionalProperties"],
+            false
         );
     }
 }

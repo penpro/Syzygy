@@ -108,10 +108,11 @@ convergence. Pointer and keyboard interaction gates remain open.
 
 The frontend `extensions/` folder owns provider-neutral model descriptors, a content-free
 provider-run provenance record, deterministic adversarial-run planning plus an evidence-gated
-run-record validator, strict researcher-plugin manifests/proposals, public Draft 2020-12 schemas,
-and their headless contract tests. `scripts/plugin-certifier.mjs` uses the committed schemas to certify
+run-record validator, strict researcher-plugin manifests/proposals, declarative custom model-adapter
+profiles, public Draft 2020-12 schemas, and their headless contract tests. The plugin and adapter
+certifiers use the committed schemas to certify
 package containment, proposal fixtures, documentation/license presence, and declared-authority
-probes without executing plugin code. These contracts do not imply that remote adapters or plugin
+probes without executing plugin/adapter code or contacting a model endpoint. These contracts do not imply that remote adapters or plugin
 execution have shipped.
 
 | What | Where |

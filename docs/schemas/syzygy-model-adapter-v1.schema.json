@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syzygy.penumbra.invalid/schemas/model-adapter-v1.schema.json",
+  "title": "Syzygy Model Adapter Profile v1",
+  "description": "Declarative profile for a constrained compatible model endpoint. It is not executable code and does not grant network or credential authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "version", "description", "protocol", "endpoint", "capabilities", "dataPolicy", "limitations"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$" },
+    "description": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "protocol": { "enum": ["openai-responses", "openai-chat-completions", "anthropic-messages"] },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseUrl", "path", "locality", "authentication"],
+      "properties": {
+        "baseUrl": { "type": "string", "minLength": 1, "maxLength": 2048 },
+        "path": { "enum": ["/v1/responses", "/v1/chat/completions", "/v1/messages"] },
+        "locality": { "enum": ["literal-loopback", "remote"] },
+        "authentication": { "enum": ["none", "bearer-api-key", "x-api-key"] }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["streaming", "toolCalls", "structuredOutputs", "imageInput", "usage"],
+      "properties": {
+        "streaming": { "type": "boolean" },
+        "toolCalls": { "type": "boolean" },
+        "structuredOutputs": { "type": "boolean" },
+        "imageInput": { "type": "boolean" },
+        "usage": { "type": "boolean" }
+      }
+    },
+    "dataPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["storageControl", "trainingUse", "zeroRetention", "policyUrl", "policyCheckedAt"],
+      "properties": {
+        "storageControl": { "enum": ["local-only", "request-disabled", "provider-controlled", "unknown"] },
+        "trainingUse": { "enum": ["never", "account-dependent", "provider-defined", "unknown"] },
+        "zeroRetention": { "enum": ["not-applicable", "optional", "required", "unknown"] },
+        "policyUrl": {
+          "anyOf": [{ "type": "string", "pattern": "^https://", "maxLength": 2048 }, { "type": "null" }]
+        },
+        "policyCheckedAt": {
+          "anyOf": [
+            { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,9})?Z$" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 500, "pattern": "\\S" }
+    }
+  }
+}

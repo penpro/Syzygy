@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "runId": "MODEL-ADAPTER-SDK-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "contract-certified-runner-runtime-open",
+  "commands": [
+    "npm run test:model-adapter-sdk",
+    "npm run certify:model-adapter -- ..\\examples\\model-adapters\\local-vllm",
+    "npm run test:contracts",
+    "npm run test:plugin-sdk",
+    "npm run build",
+    "npm run audit",
+    "cargo test --lib",
+    "node D:\\PolicyPad\\syzygy\\scripts\\mcp-harness.mjs"
+  ],
+  "result": {
+    "passed": true,
+    "modelAdapterCertifierTestsPassed": 3,
+    "extensionContractTestsPassed": 25,
+    "pluginCertifierRegressionTestsPassed": 4,
+    "fullRustTestsPassed": 58,
+    "frontendModulesTransformed": 989,
+    "structuralAuditChecksPassed": 21,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true
+  },
+  "proved": [
+    "Strict public profile and certification schemas reject unknown fields.",
+    "The semantic validator rejects built-in provider shadowing, protocol-route mismatch, non-literal local hosts, remote HTTP, missing authentication, false local-only remote storage, and missing dated remote policy evidence.",
+    "Endpoint probes allow only the declared origin and route and deny alternate routes, ports, queries, fragments, and embedded credentials.",
+    "The package certifier bounds JSON, rejects traversal, requires documentation/license plus expected-valid and expected-invalid profiles, and requires denied endpoint probes.",
+    "The interface-only local-vLLM example passes contract certification without an endpoint call.",
+    "The compiled MCP embeds the same strict schemas and reports the certifier as contract-certified-runner while custom execution remains contract-only."
+  ],
+  "notProved": [
+    "The adapter can contact vLLM or any other endpoint.",
+    "Responses, Chat Completions, or Messages wire compatibility.",
+    "Streaming, tools, images, structured output, usage, or model quality.",
+    "Credential storage or product UI integration.",
+    "Safety of arbitrary adapter code or protocols; no adapter code executes in this certification tier."
+  ],
+  "primarySources": [
+    "https://docs.vllm.ai/en/stable/serving/openai_compatible_server/",
+    "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+    "https://docs.litellm.ai/"
+  ]
+}

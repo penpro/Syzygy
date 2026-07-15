@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "runId": "POLICY-BLOCK-2026-07-14",
+  "date": "2026-07-14",
+  "appVersionAtRun": "0.1.10",
+  "commands": [
+    "npm run test:workspace",
+    "npm run build",
+    "npm run audit",
+    "npm run test:mcp"
+  ],
+  "results": {
+    "workspace": { "passed": true, "files": 7, "testsPassed": 24, "testsTodo": 0 },
+    "frontendProductionBuild": { "passed": true, "modulesTransformed": 989 },
+    "audit": { "passed": true, "checks": 15 },
+    "mcp": { "passed": true, "toolCount": 12 }
+  },
+  "proved": [
+    "policy block add, text edit, review-state edit, local reorder, JSON serialization, and restore",
+    "missing serialized policy identity fails closed",
+    "semantic MCP text and structured blocks preserve policy identity and review state",
+    "two bound Lexical/Yjs editors converge policy identity, status, and text after a partition",
+    "stable-identity policy-block reorder converges in root document order across two bound editors",
+    "policy block visuals use theme tokens and the node is registered in the shipping editor"
+  ],
+  "correctedOracle": {
+    "observation": "The initial probe compared Lexical node-map enumeration, which is not document order after Yjs reconstruction.",
+    "correction": "Order assertions now traverse root children and filter PolicyBlockNode instances.",
+    "result": "The isolated connected reorder test passes on both bound editors."
+  },
+  "remainingGaps": [
+    "P-10 pointer and keyboard reorder controls are not implemented",
+    "randomized delivery and concurrent move-versus-edit partition cases remain open",
+    "two clean-install interaction evidence remains required before verified status"
+  ]
+}

@@ -59,8 +59,9 @@ Recommended first instruction to an MCP-capable model:
 | `append_active_document` | yes | Appends blocks only when `expectedRevision` still matches |
 
 Automation document text has a deliberately small, deterministic format: `# ` for heading 1,
-`## ` for heading 2, `> ` for a quotation, and other lines for paragraphs. It does not pretend
-to round-trip editor features Syzygy has not implemented.
+`## ` for heading 2, `> ` for a quotation, `[policy:stable-id:draft|review|approved] statement`
+for a policy block, and other lines for paragraphs. Structured reads also return the policy ID and
+status. It does not pretend to round-trip editor features Syzygy has not implemented.
 
 Every document write requires the exact revision returned by the latest read. If the user or a
 collaborator changes the live draft between read and write, the tool fails with a revision

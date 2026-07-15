@@ -24,6 +24,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ResearchProjectManifest } from './schema'
 import { createLocalProviderFactory } from './localProvider'
 import { registerAutomationEditor } from './editorAutomation'
+import { $createPolicyBlockNode, PolicyBlockNode } from './nodes/PolicyBlockNode'
 
 const editorTheme = {
   heading: {
@@ -68,6 +69,17 @@ function Toolbar() {
       <button type="button" onClick={() => setBlock('paragraph')}>Body</button>
       <button type="button" onClick={() => setBlock('h1')}>Heading 1</button>
       <button type="button" onClick={() => setBlock('h2')}>Heading 2</button>
+      <button
+        type="button"
+        onClick={() => {
+          const policyId = `policy-${crypto.randomUUID()}`
+          editor.update(() => {
+            $getRoot().append($createPolicyBlockNode(policyId).append($createTextNode('New policy statement')))
+          })
+        }}
+      >
+        Policy block
+      </button>
       <span className="research-toolbar-rule" aria-hidden="true" />
       <button type="button" aria-label="Bold" onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}><b>B</b></button>
       <button type="button" aria-label="Italic" onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}><i>I</i></button>
@@ -91,7 +103,7 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
   const initialConfig = useMemo(
     () => ({
       namespace: `syzygy-project-${project.documentId}`,
-      nodes: [HeadingNode, QuoteNode],
+      nodes: [HeadingNode, QuoteNode, PolicyBlockNode],
       editorState: null,
       theme: editorTheme,
       onError(error: Error) {

@@ -103,6 +103,12 @@ not imply that versioning, Drive CRDT transport, scenarios, or real-time presenc
 The editor uses Plex Serif for document content and Plex Mono metadata stamps, with every surface,
 border, status, and selection derived from theme tokens so retained dark themes remain usable.
 
+The first original research node is a **policy block**: an editable statement with a stable ID and
+`draft`, `review`, or `approved` state. Its paper treatment uses a quiet token-derived tint, ink
+border, colored left rule, and mono status stamp. The status is descriptive, not a truth claim or
+access-control decision. A toolbar action adds a block; later review controls and keyboard/pointer
+reordering must preserve the same node contract.
+
 ## MCP connection guide
 
 Settings includes a **Connect an LLM** guide for people who should not need to understand MCP

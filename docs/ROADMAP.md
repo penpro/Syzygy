@@ -77,11 +77,20 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   partition isolation, offline edits, reconnect merging, awareness cleanup, and identical final
   state. This is evidence for the provider contract, not a claim that Drive or WebSocket
   collaboration has shipped.
+- The first original product node is now implemented but not yet interaction-verified: a Lexical
+  `PolicyBlockNode` with stable
+  identity, editable text, draft/review/approved state, strict JSON import, theme-token UI, and a
+  semantic MCP round-trip that preserves identity/state. The headless fixture covers add, edit,
+  reorder, serialize, restore, malformed identity, partitioned concurrent edits, and connected
+  reorder convergence. The first apparent reorder failure was a harness defect: it compared
+  Lexical node-map enumeration rather than root document order. The corrected oracle passes and
+  is documented in the run evidence. P-03 is `implemented_unverified`; P-10 still requires real
+  pointer and keyboard controls plus interaction testing.
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **41 capabilities**: **9 are
-`implemented_unverified`, 32 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **41 capabilities**: **10 are
+`implemented_unverified`, 31 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, portable local lifecycle,
 Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned

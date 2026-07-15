@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { createEditor, $createParagraphNode, $createTextNode, $getRoot } from 'lexical'
 import { HeadingNode, QuoteNode } from '@lexical/rich-text'
+import { PolicyBlockNode } from './nodes/PolicyBlockNode'
 import {
   appendAutomationDocument,
   readAutomationEditor,
@@ -19,7 +20,7 @@ afterEach(() => {
 function registeredEditor(projectId = 'project-test') {
   const editor = createEditor({
     namespace: `automation-${projectId}`,
-    nodes: [HeadingNode, QuoteNode],
+    nodes: [HeadingNode, QuoteNode, PolicyBlockNode],
     onError(error) {
       throw error
     },
@@ -70,6 +71,24 @@ describe('live editor automation contract', () => {
     expect(updated.revision).not.toBe(firstRead.revision)
     expect(() => replaceAutomationDocument(firstRead.revision, 'Blind overwrite')).toThrow(/Revision conflict/)
     expect(readAutomationEditor().text).toContain('A newer local change.')
+  })
+
+  it('round-trips policy identity and review state through semantic MCP text', () => {
+    registeredEditor()
+    const original = readAutomationEditor()
+    const replaced = replaceAutomationDocument(
+      original.revision,
+      '[policy:policy-access-1:review] Only approved researchers may edit.',
+    )
+    expect(replaced.blocks).toEqual([
+      {
+        kind: 'policy',
+        policyId: 'policy-access-1',
+        status: 'review',
+        text: 'Only approved researchers may edit.',
+      },
+    ])
+    expect(replaced.text).toBe('[policy:policy-access-1:review] Only approved researchers may edit.')
   })
 
   it('rejects an ABA revision even when content later returns to the same text', () => {

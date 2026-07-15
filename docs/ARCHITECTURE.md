@@ -99,6 +99,9 @@ The frontend `workspace/` folder also defines one collaboration-provider lifecyc
 the current product persistence provider; a deterministic Memory provider exists only to prove
 two active documents converge through live edits, partitions, and reconnects. Future Drive and
 WebSocket implementations must pass the same contract before their capability status changes.
+Its `nodes/PolicyBlockNode.ts` is the first original domain editor node: stable identity and
+review state live with editable Lexical content and survive JSON/MCP serialization. This does not
+yet close the custom-node Yjs convergence or interaction gates.
 
 The frontend `extensions/` folder owns provider-neutral model descriptors, deterministic
 adversarial-run planning, strict researcher-plugin manifests/proposals, and their headless

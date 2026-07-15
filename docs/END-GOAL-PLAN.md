@@ -450,7 +450,7 @@ adversarial execution, and plugin loading.
 
 ## 11. Recommended next slice
 
-Status snapshot on 2026-07-14: the 41-row ledger has 9 `implemented_unverified`, 32 `planned`,
+Status snapshot on 2026-07-14: the 41-row ledger has 10 `implemented_unverified`, 31 `planned`,
 and 0 `verified` capabilities. The shipped local editor, Drive research path, local engine, and MCP
 pilot are meaningful foundations, but none substitutes for the decisive two-install, convergence,
 portable-archive, workflow, accessibility, and adversarial gates below. MCP setup/onboarding is
@@ -462,7 +462,8 @@ Do not use the web port or upstream source as an implementation input. First:
    SBOM/license/sample-fixture/reviewer gates;
 2. maintain the now-pinned Lexical/Yjs dependency and source ledger;
 3. add the extension contract harness and truthful MCP self-description (landed; keep it green);
-4. extend the original `WorkspaceView` with the first custom policy block and full formatting fixture;
+4. maintain the policy block's passing root-document-order convergence test, then extend the
+   formatting fixture and add pointer/keyboard controls plus move-vs-edit partition cases;
 5. maintain the now-landed two-editor `MemoryProvider` live/partition/reconnect suite and require
    Drive/WebSocket providers to pass the same contract;
 6. render it in paper and all retained dark themes;

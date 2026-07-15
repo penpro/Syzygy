@@ -213,7 +213,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "replace_active_document",
-            "Replace the active project's document from simple Markdown-like text (# heading, ## heading, > quote, other lines as paragraphs). Requires the exact expectedRevision from read_active_project so concurrent changes cannot be overwritten blindly.",
+            "Replace the active project's document from deterministic semantic text (# heading, ## heading, > quote, [policy:stable-id:draft|review|approved] statement, other lines as paragraphs). Requires the exact expectedRevision from read_active_project so concurrent changes cannot be overwritten blindly.",
             object_schema(
                 &[
                     ("expectedRevision", string_schema("Exact revision from the latest read_active_project result.")),
@@ -224,7 +224,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "append_active_document",
-            "Append simple Markdown-like blocks to the active project. Requires the exact expectedRevision from read_active_project; read again if another collaborator changed the draft.",
+            "Append deterministic semantic blocks to the active project, including [policy:stable-id:draft|review|approved] statement. Requires the exact expectedRevision from read_active_project; read again if another collaborator changed the draft.",
             object_schema(
                 &[
                     ("expectedRevision", string_schema("Exact revision from the latest read_active_project result.")),

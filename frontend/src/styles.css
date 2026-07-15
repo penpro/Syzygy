@@ -2458,6 +2458,31 @@ input.workspace-title-input:focus {
 .research-editor-paragraph {
   margin: 0 0 14px;
 }
+.research-policy-block {
+  margin: 18px 0;
+  padding: 30px 18px 14px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+  position: relative;
+}
+.research-policy-block::before {
+  position: absolute;
+  top: 8px;
+  left: 18px;
+  color: var(--text-2);
+  content: 'POLICY · ' attr(data-policy-status);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.research-policy-block[data-policy-status='approved'] {
+  border-left-color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent-2) 7%, var(--panel));
+}
 .research-editor-quote {
   margin: 18px 0;
   padding-left: 18px;

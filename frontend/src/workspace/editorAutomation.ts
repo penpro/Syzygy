@@ -7,6 +7,7 @@ import {
   type AutomationDocumentBlock,
   type AutomationEditorSnapshot,
 } from './editorAutomationRegistry'
+import { $createPolicyBlockNode, $isPolicyBlockNode } from './nodes/PolicyBlockNode'
 
 export type {
   AutomationBlockKind,
@@ -131,6 +132,14 @@ function snapshot(registration: ActiveEditor): AutomationEditorSnapshot {
 }
 
 function readBlock(node: LexicalNode): AutomationDocumentBlock {
+  if ($isPolicyBlockNode(node)) {
+    return {
+      kind: 'policy',
+      text: node.getTextContent(),
+      policyId: node.getPolicyId(),
+      status: node.getStatus(),
+    }
+  }
   if ($isHeadingNode(node)) {
     return { kind: node.getTag() === 'h1' ? 'heading1' : 'heading2', text: node.getTextContent() }
   }
@@ -139,6 +148,7 @@ function readBlock(node: LexicalNode): AutomationDocumentBlock {
 }
 
 function formatBlock(block: AutomationDocumentBlock): string {
+  if (block.kind === 'policy') return `[policy:${block.policyId}:${block.status}] ${block.text}`
   if (block.kind === 'heading1') return `# ${block.text}`
   if (block.kind === 'heading2') return `## ${block.text}`
   if (block.kind === 'quote') return `> ${block.text}`
@@ -149,6 +159,10 @@ function parseBlocks(content: string): AutomationDocumentBlock[] {
   const normalized = content.replace(/\r\n/g, '\n')
   const lines = normalized.split('\n')
   const blocks = lines.map<AutomationDocumentBlock>((line) => {
+    const policy = /^\[policy:([A-Za-z0-9][A-Za-z0-9._-]{0,199}):(draft|review|approved)\] (.*)$/.exec(line)
+    if (policy) {
+      return { kind: 'policy', policyId: policy[1], status: policy[2] as 'draft' | 'review' | 'approved', text: policy[3] }
+    }
     if (line.startsWith('## ')) return { kind: 'heading2', text: line.slice(3) }
     if (line.startsWith('# ')) return { kind: 'heading1', text: line.slice(2) }
     if (line.startsWith('> ')) return { kind: 'quote', text: line.slice(2) }
@@ -159,6 +173,10 @@ function parseBlocks(content: string): AutomationDocumentBlock[] {
 
 function createNode(block: AutomationDocumentBlock): LexicalNode {
   const text = $createTextNode(block.text)
+  if (block.kind === 'policy') {
+    if (!block.policyId || !block.status) throw new Error('Policy automation block requires identity and status')
+    return $createPolicyBlockNode(block.policyId, block.status).append(text)
+  }
   if (block.kind === 'heading1') return $createHeadingNode('h1').append(text)
   if (block.kind === 'heading2') return $createHeadingNode('h2').append(text)
   if (block.kind === 'quote') return $createQuoteNode().append(text)

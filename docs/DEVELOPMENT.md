@@ -49,6 +49,20 @@ the resulting evidence to the loaded loopback model, and exits nonzero unless th
 contains the canary. Credentials/tokens are never printed. A legacy app-file-only grant also
 exits nonzero with a precise re-link error.
 
+## Headless Drive write/readback proof
+
+After linking Drive, choosing a workspace, and enabling both the Drive and Google Sheets APIs in
+the OAuth client's Cloud project, run:
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm run test:drive-write-live
+```
+
+The harness creates a temporary native Sheet in the selected workspace, writes a deterministic
+20×10 grid, reads all 200 cells back independently, compares them, and trashes the probe. It uses
+the normal Rust-owned grant, prints no token or cell content, and exits nonzero if cleanup fails.
+
 ## Release (the iteration loop)
 
 1. Land the work; checks green.

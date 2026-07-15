@@ -47,3 +47,13 @@ export async function classifyImage(baseUrl: string, dataUrl: string, question: 
 export function runIntentClassifier(baseUrl: string, prompt: string, signal?: AbortSignal): Promise<string> {
   return textShot(baseUrl, 'intent', prompt, 256, signal)
 }
+
+/** Deterministic local-model proposal call for a bounded, human-confirmed Sheet edit. */
+export function runDriveSheetPlanner(
+  baseUrl: string,
+  model: string,
+  prompt: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  return textShot(baseUrl, model, prompt, 4_096, signal)
+}

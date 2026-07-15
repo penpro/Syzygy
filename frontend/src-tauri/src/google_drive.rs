@@ -12,6 +12,7 @@ use tauri::Manager;
 
 const FILES_ENDPOINT: &str = "https://www.googleapis.com/drive/v3/files";
 const UPLOAD_ENDPOINT: &str = "https://www.googleapis.com/upload/drive/v3/files";
+const SHEETS_ENDPOINT: &str = "https://sheets.googleapis.com/v4/spreadsheets";
 
 fn esc(q: &str) -> String {
     q.replace('\\', "\\\\").replace('\'', "\\'")
@@ -404,6 +405,7 @@ pub async fn google_drive_append_text(
     file_name: String,
     content: String,
 ) -> Result<String, String> {
+    require_collaboration_access(&app)?;
     let token = access_token(&app).await?;
     let workspace = resolve_workspace(&app, &token, &folder_name).await?;
     match find_file(&token, &workspace.id, &file_name).await? {
@@ -502,6 +504,15 @@ pub struct DriveContextReport {
     pub supported_files: usize,
     pub native_files: usize,
     pub sources: Vec<String>,
+    pub editable_files: Vec<DriveEditableFile>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DriveEditableFile {
+    pub id: String,
+    pub path: String,
+    pub kind: String,
 }
 
 /// Recursively enumerate the selected workspace with pagination and a hard cap. The cap keeps
@@ -588,10 +599,18 @@ pub async fn retrieve_context_report(
     let mut sources = Vec::new();
     let mut native_files = 0usize;
     let mut supported_files = 0usize;
+    let mut editable_files = Vec::new();
     for file in &files {
         let is_native = export_mime(&file.mime).is_some();
         if is_native {
             native_files += 1;
+        }
+        if file.mime == "application/vnd.google-apps.spreadsheet" {
+            editable_files.push(DriveEditableFile {
+                id: file.id.clone(),
+                path: file.path.clone(),
+                kind: "spreadsheet".into(),
+            });
         }
         let Some(bytes) = drive_file_bytes(&client, token, &file.id, &file.mime).await? else {
             continue;
@@ -618,7 +637,229 @@ pub async fn retrieve_context_report(
         supported_files,
         native_files,
         sources,
+        editable_files,
     })
+}
+
+fn valid_sheet_start_cell(value: &str) -> bool {
+    let value = value.trim();
+    let letter_count = value
+        .chars()
+        .take_while(|ch| ch.is_ascii_alphabetic())
+        .count();
+    if !(1..=3).contains(&letter_count) {
+        return false;
+    }
+    let row = &value[letter_count..];
+    !row.is_empty()
+        && row.len() <= 7
+        && !row.starts_with('0')
+        && row.chars().all(|ch| ch.is_ascii_digit())
+}
+
+fn validate_sheet_values(values: &[Vec<String>]) -> Result<(usize, usize), String> {
+    let rows = values.len();
+    let columns = values.first().map(Vec::len).unwrap_or(0);
+    if rows == 0 || columns == 0 {
+        return Err("A spreadsheet edit needs at least one row and one column.".into());
+    }
+    if rows > 200 || columns > 50 || rows.saturating_mul(columns) > 10_000 {
+        return Err(
+            "A single spreadsheet edit is limited to 200 rows, 50 columns, and 10,000 cells."
+                .into(),
+        );
+    }
+    if values.iter().any(|row| row.len() != columns) {
+        return Err("Spreadsheet rows must all contain the same number of cells.".into());
+    }
+    let characters: usize = values.iter().flatten().map(String::len).sum();
+    if characters > 100_000 {
+        return Err("A single spreadsheet edit is limited to 100,000 characters.".into());
+    }
+    Ok((rows, columns))
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SheetWriteResult {
+    pub updated_range: String,
+    pub updated_rows: usize,
+    pub updated_columns: usize,
+    pub updated_cells: usize,
+}
+
+pub async fn write_sheet_range(
+    token: &str,
+    file_id: &str,
+    start_cell: &str,
+    values: Vec<Vec<String>>,
+) -> Result<SheetWriteResult, String> {
+    let (rows, columns) = validate_sheet_values(&values)?;
+    let start_cell = start_cell.trim().to_ascii_uppercase();
+    if !valid_sheet_start_cell(&start_cell) {
+        return Err(
+            "Spreadsheet writes currently require a starting cell such as A1 or C4.".into(),
+        );
+    }
+    let mut url = reqwest::Url::parse(SHEETS_ENDPOINT).map_err(|e| e.to_string())?;
+    url.path_segments_mut()
+        .map_err(|_| "Could not construct the Google Sheets request URL.".to_string())?
+        .push(file_id)
+        .push("values")
+        .push(&start_cell);
+    let response = reqwest::Client::new()
+        .put(url)
+        .bearer_auth(token)
+        .query(&[("valueInputOption", "RAW")])
+        .json(&serde_json::json!({
+            "range": start_cell,
+            "majorDimension": "ROWS",
+            "values": values,
+        }))
+        .send()
+        .await
+        .map_err(|e| format!("Google Sheets update failed before Google responded: {e}"))?;
+    let status = response.status();
+    let response_value: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Google Sheets update returned unreadable JSON: {e}"))?;
+    if !status.is_success() {
+        let message = response_value["error"]["message"]
+            .as_str()
+            .unwrap_or("Google rejected the spreadsheet update.");
+        return Err(format!(
+            "Google Sheets update failed: {message} (HTTP {status})"
+        ));
+    }
+    Ok(SheetWriteResult {
+        updated_range: response_value["updatedRange"]
+            .as_str()
+            .unwrap_or(&start_cell)
+            .to_string(),
+        updated_rows: response_value["updatedRows"]
+            .as_u64()
+            .unwrap_or(rows as u64) as usize,
+        updated_columns: response_value["updatedColumns"]
+            .as_u64()
+            .unwrap_or(columns as u64) as usize,
+        updated_cells: response_value["updatedCells"]
+            .as_u64()
+            .unwrap_or((rows * columns) as u64) as usize,
+    })
+}
+
+pub async fn read_sheet_range(
+    token: &str,
+    file_id: &str,
+    range: &str,
+) -> Result<Vec<Vec<String>>, String> {
+    let mut url = reqwest::Url::parse(SHEETS_ENDPOINT).map_err(|e| e.to_string())?;
+    url.path_segments_mut()
+        .map_err(|_| "Could not construct the Google Sheets read URL.".to_string())?
+        .push(file_id)
+        .push("values")
+        .push(range);
+    let response = reqwest::Client::new()
+        .get(url)
+        .bearer_auth(token)
+        .query(&[("valueRenderOption", "UNFORMATTED_VALUE")])
+        .send()
+        .await
+        .map_err(|e| format!("Google Sheets readback failed before Google responded: {e}"))?;
+    let status = response.status();
+    let value: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Google Sheets readback returned unreadable JSON: {e}"))?;
+    if !status.is_success() {
+        let message = value["error"]["message"]
+            .as_str()
+            .unwrap_or("Google rejected the spreadsheet readback.");
+        return Err(format!(
+            "Google Sheets readback failed: {message} (HTTP {status})"
+        ));
+    }
+    Ok(value["values"]
+        .as_array()
+        .map(|rows| {
+            rows.iter()
+                .map(|row| {
+                    row.as_array()
+                        .map(|cells| {
+                            cells
+                                .iter()
+                                .map(|cell| match cell {
+                                    serde_json::Value::String(value) => value.clone(),
+                                    other => other.to_string(),
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                })
+                .collect()
+        })
+        .unwrap_or_default())
+}
+
+pub async fn create_native_spreadsheet(
+    token: &str,
+    parent_id: &str,
+    name: &str,
+) -> Result<String, String> {
+    let response = reqwest::Client::new()
+        .post(FILES_ENDPOINT)
+        .bearer_auth(token)
+        .query(&[("supportsAllDrives", "true"), ("fields", "id")])
+        .json(&serde_json::json!({
+            "name": name,
+            "mimeType": "application/vnd.google-apps.spreadsheet",
+            "parents": [parent_id],
+        }))
+        .send()
+        .await
+        .map_err(|e| format!("Drive write-probe creation failed before Google responded: {e}"))?;
+    let value = drive_json_response(response, "write-probe creation").await?;
+    value["id"]
+        .as_str()
+        .map(str::to_string)
+        .ok_or("Google did not return the write-probe file id.".into())
+}
+
+pub async fn trash_file(token: &str, file_id: &str) -> Result<(), String> {
+    let response = reqwest::Client::new()
+        .patch(format!("{FILES_ENDPOINT}/{file_id}"))
+        .bearer_auth(token)
+        .query(&[("supportsAllDrives", "true"), ("fields", "id,trashed")])
+        .json(&serde_json::json!({ "trashed": true }))
+        .send()
+        .await
+        .map_err(|e| format!("Drive write-probe cleanup failed before Google responded: {e}"))?;
+    drive_json_response(response, "write-probe cleanup").await?;
+    Ok(())
+}
+
+/// Write a rectangular block to an existing native Google Sheet. The file id is accepted only
+/// after it is re-proven to be a spreadsheet beneath the selected workspace.
+#[tauri::command]
+pub async fn google_drive_write_sheet_range(
+    app: tauri::AppHandle,
+    file_id: String,
+    start_cell: String,
+    values: Vec<Vec<String>>,
+) -> Result<SheetWriteResult, String> {
+    require_collaboration_access(&app)?;
+    let token = access_token(&app).await?;
+    let workspace = read_workspace(&app).ok_or("Choose a Drive workspace before editing files.")?;
+    let files = list_folder_tree(&token, &workspace.id, 2_000).await?;
+    let file = files
+        .into_iter()
+        .find(|file| file.id == file_id)
+        .ok_or("That file is outside the selected Drive workspace.")?;
+    if file.mime != "application/vnd.google-apps.spreadsheet" {
+        return Err("That Drive file is not a native Google Sheet.".into());
+    }
+    write_sheet_range(&token, &file.id, &start_cell, values).await
 }
 
 /// Retrieve relevant passages directly from the selected Drive workspace. Google Docs, Sheets,
@@ -1072,6 +1313,23 @@ mod tests {
             Some("text/plain")
         );
         assert_eq!(export_mime("application/vnd.google-apps.form"), None);
+    }
+
+    #[test]
+    fn sheet_write_bounds_fail_closed_before_network_access() {
+        assert!(valid_sheet_start_cell("A1"));
+        assert!(valid_sheet_start_cell("zzz9999999"));
+        assert!(!valid_sheet_start_cell("Sheet1!A1"));
+        assert!(!valid_sheet_start_cell("A0"));
+        assert!(!valid_sheet_start_cell("A1:J20"));
+
+        assert_eq!(
+            validate_sheet_values(&[vec!["1".into(), "2".into()]]),
+            Ok((1, 2))
+        );
+        assert!(validate_sheet_values(&[]).is_err());
+        assert!(validate_sheet_values(&[vec!["1".into()], vec!["2".into(), "3".into()]]).is_err());
+        assert!(validate_sheet_values(&vec![vec!["x".into(); 51]]).is_err());
     }
 
     #[test]

@@ -7,7 +7,7 @@ export function buildDriveSystemPrompt(basePrompt: string, report: DriveContextR
     throw new Error(`The selected Drive workspace “${report.workspace.name}” contains no visible files.`)
   }
   if (report.context.trim()) {
-    return `${basePrompt}\n\n# Reference material read directly from the shared Google Drive workspace “${report.workspace.name}”\nUse it to answer accurately and cite file names when relevant; if it doesn't cover the question, say so. Never ask for a public link when this material is present.\n\n${report.context}`
+    return `${basePrompt}\n\n# Reference material read directly from the shared Google Drive workspace “${report.workspace.name}”\nUse it to answer accurately and cite file names when relevant; if it doesn't cover the question, say so. Never ask for a public link when this material is present. This chat context is evidence, not proof that a file was changed: never claim a Drive write succeeded unless Syzygy separately reports Google's confirmed write result.\n\n${report.context}`
   }
-  return `${basePrompt}\n\n# Shared Google Drive check\nSyzygy successfully checked “${report.workspace.name}”: ${report.visibleFiles} files were visible and ${report.supportedFiles} were readable, but no passages matched this question. Say that the connected workspace did not contain matching evidence; do not ask the user to paste a public link.`
+  return `${basePrompt}\n\n# Shared Google Drive check\nSyzygy successfully checked “${report.workspace.name}”: ${report.visibleFiles} files were visible and ${report.supportedFiles} were readable, but no passages matched this question. Say that the connected workspace did not contain matching evidence; do not ask the user to paste a public link. Never claim a Drive write succeeded unless Syzygy separately reports Google's confirmed write result.`
 }

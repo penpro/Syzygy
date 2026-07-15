@@ -11,6 +11,7 @@ export type IntentId =
   | 'find_images_pdf'
   | 'generate_document'
   | 'edit_file'
+  | 'edit_drive_sheet'
   | 'analyze_image'
   | 'answer_from_folder'
   | 'chat'
@@ -62,6 +63,18 @@ export const INTENTS: IntentSpec[] = [
       'take this file and translate the comments to spanish',
     ],
     params: ['path', 'change'],
+  },
+  {
+    id: 'edit_drive_sheet',
+    label: 'Edit shared spreadsheet',
+    emoji: '▦',
+    description: 'Write values into an EXISTING native Google Sheet in the selected shared Drive workspace.',
+    examples: [
+      'write this grid to the shared spreadsheet',
+      'put these values into the sheet with the second secret word',
+      'update the Google Sheet starting at A1',
+    ],
+    params: ['target', 'change'],
   },
   {
     id: 'analyze_image',
@@ -179,7 +192,7 @@ export function isActionable(c: Classification | null): c is Classification {
 
 /** The most descriptive extracted detail for the chip label, if any. */
 export function primaryParam(c: Classification): string {
-  return c.params.criterion || c.params.topic || c.params.change || c.params.question || c.params.path || ''
+  return c.params.criterion || c.params.topic || c.params.change || c.params.question || c.params.target || c.params.path || ''
 }
 
 /** Human label for the suggestion chip, e.g. "🔎 Find images → PDF: cats". */
@@ -253,6 +266,13 @@ export function heuristicIntent(text: string): Classification | null {
   const imageNoun = /\b(images?|photos?|pictures?|pics?|screenshots?)\b/.test(t)
   const findVerb = /\b(find|search|check|scan|look|locate|collect|gather|pull|grab|sort|filter)\b/.test(t)
   const pdf = /\bpdf\b/.test(t)
+
+  // Existing native Google Sheet writes are a confirmed remote action, not document generation.
+  const sheet = /\b(google\s+sheets?|spreadsheets?|shared\s+sheet|the\s+sheet)\b/.test(t)
+  const sheetWrite = /\b(write|put|insert|fill|populate|edit|modify|change|update|append|replace)\b/.test(t)
+  if (sheet && sheetWrite) {
+    return { intent: 'edit_drive_sheet', confidence: 0.95, params: cleanParams({ change: text.trim() }), clarify: '' }
+  }
 
   // 1) Folder image-search → PDF (the headline workflow).
   if ((folder && (imageNoun || pdf || findVerb)) || (imageNoun && (findVerb || pdf))) {

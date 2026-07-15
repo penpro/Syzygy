@@ -45,6 +45,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - The v0.1.6 patch adds the required shared-drive flag to traversal/read/write/sync requests,
   distinguishes OAuth success from workspace setup failures, and persists sanitized diagnostics
   across restarts.
+- The v0.1.7 patch closes the observed Ask-to-native-Sheet gap: Drive evidence no longer lets the
+  model imply an unperformed write; bounded literal cell proposals require exact human
+  confirmation, are scoped again in Rust, and have a temporary-Sheet write/readback/cleanup
+  harness. Its production-grant proof wrote, read back, and cleaned up a 20×10/200-cell native
+  Sheet. Native Docs and Slides remain explicitly read-only until their own typed edit contracts
+  exist, although their Cloud APIs are enabled for that future work.
 
 ## Next (in intended order)
 

@@ -132,6 +132,11 @@ describe('heuristicIntent (deterministic fast-path)', () => {
     expect(e?.intent).toBe('edit_file')
     expect(e?.params.path).toBe('index.html')
   })
+  it('routes existing shared spreadsheet writes before new-document generation', () => {
+    expect(heuristicIntent('write 200 digits into a 20x10 grid in the spreadsheet')?.intent).toBe('edit_drive_sheet')
+    expect(heuristicIntent('write that to the spreadsheet with the second magic word')?.intent).toBe('edit_drive_sheet')
+    expect(heuristicIntent('update the Google Sheet starting at A1')?.intent).toBe('edit_drive_sheet')
+  })
   it('does NOT hijack ordinary chat or creative writing', () => {
     expect(heuristicIntent('what is the capital of France?')).toBeNull()
     expect(heuristicIntent('write me a poem about winter')).toBeNull()

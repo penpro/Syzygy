@@ -1,7 +1,7 @@
 {
   "name": "syzygy",
   "private": true,
-  "version": "0.1.6",
+  "version": "0.1.7",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,6 +12,7 @@
     "test": "vitest run",
     "audit": "node ../scripts/audit.mjs",
     "test:drive-live": "cargo run --manifest-path src-tauri/Cargo.toml --bin drive-harness --",
+    "test:drive-write-live": "cargo run --manifest-path src-tauri/Cargo.toml --bin drive-write-harness --",
     "bump": "node ../scripts/bump.mjs"
   },
   "dependencies": {

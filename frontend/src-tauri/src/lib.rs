@@ -135,6 +135,7 @@ pub fn run() {
             google_drive::google_drive_list_folder,
             google_drive::google_drive_read_file,
             google_drive::google_drive_retrieve_context,
+            google_drive::google_drive_write_sheet_range,
             google_drive::google_drive_workspace,
             google_drive::google_drive_list_workspaces,
             google_drive::google_drive_select_workspace,

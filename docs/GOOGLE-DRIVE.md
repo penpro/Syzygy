@@ -46,6 +46,7 @@ never treated as evidence.
 | Consent screen omits or denies the requested scope | Link fails immediately; the UI explains why collaborator-created files require re-linking. |
 | Consent screen in **Testing** mode | Only listed test users may auth (`403 access_denied`), and refresh tokens expire in **7 days**. Public use of the restricted scope requires Google's verification process; do not describe it as instant. |
 | **Drive API disabled** on the Cloud project | Every Drive call 403s (`Drive API has not been used in project…`). Enable at console.cloud.google.com → APIs & Services → Library. |
+| **Google Sheets API disabled** on the Cloud project | Native Sheet reads still work through Drive export, but confirmed cell writes 403 (`Google Sheets API has not been used in project…`). Enable **Google Sheets API** in the same Cloud project; the existing `drive` grant is accepted by `spreadsheets.values.update`. |
 | Selected folder is inside a shared drive | Every compatible `files.list/get/create/update` and upload request must send `supportsAllDrives=true`; listings also send `includeItemsFromAllDrives=true`. Missing the first flag returns Google's literal `supportsAllDrives parameter was not set to true` error. |
 | `cmd /C start <url>` truncates at `&` | Google errors `Required parameter is missing: response_type`. Use rundll32 (above). |
 
@@ -61,6 +62,10 @@ never treated as evidence.
   report.
 - `google_drive_read_file(id)` first proves the ID is a descendant of the selected workspace.
 - `google_drive_append_text(...)` creates/updates transcripts only inside the selected workspace.
+- `google_drive_write_sheet_range(...)` accepts only a validated rectangular literal-value block,
+  re-enumerates the selected tree, proves the file ID is a native Sheet descendant, then calls
+  `spreadsheets.values.update` with `RAW` values. Ask shows the complete proposal and requires a
+  separate confirmation before this command runs. The model sees numbered paths, never file IDs.
 - Shared Ask logs counts for visible/readable/native files without logging names or content. A Drive
   error aborts the turn instead of silently falling back to the mirror.
 - Connection diagnostics distinguish OAuth success from later workspace discovery/selection failure;
@@ -71,7 +76,8 @@ an ambient Drive tool.
 
 ## The folder mirror (what makes Drive a first-class destination)
 
-> **Current behavior:** Shared-folder Ask reads and writes directly through the Drive API.
+> **Current behavior:** Shared-folder Ask reads directly, logs transcripts through Drive, and can
+> apply confirmed literal-value edits to existing native Google Sheets through the Sheets API.
 > Plain text, Markdown, JSON, and PDFs are read directly; Google Docs, Sheets, and Slides
 > are exported in memory as text or CSV. The mirror below is now an explicit sync option
 > for offline/local workflows rather than a prerequisite for collaboration. Manual sync
@@ -98,6 +104,9 @@ collaboration prerequisite.
 - **📁 Folder** — chooses the persisted Drive workspace; direct research uses it immediately.
 - **☁ Shared folder** — the per-thread mode toggle. Each exchange retrieves directly from Drive
   before the model call and appends the completed prompt/response to the selected workspace.
+- **Confirmed Sheet edits** — requests such as “write this grid to the spreadsheet” become typed
+  proposals. The confirmation names the target, starting cell, dimensions, and every value; only
+  **Write values** performs the remote mutation. Success copy comes from Google's response.
 - **Transcripts**: `ask_<TabName>_001.md` in Drive (name sanitized from the Ask title).
 - **☁ Sync** — manual two-way sync, flashes `✓ ⬇pulled ⬆pushed`.
 - Closing the Document modal auto-syncs when the thread folder is the mirror.
@@ -111,6 +120,17 @@ loaded loopback model, and exits nonzero unless the answer contains the canary. 
 native export decoding and mirror traversal names;
 Vitest covers the final evidence-to-system-prompt boundary.
 
+`npm run test:drive-write-live` creates a temporary native Sheet in the selected workspace, writes
+a deterministic 20×10 literal grid through the same Sheets primitive, reads `A1:J20` back through
+the Sheets API, compares all 200 values, and trashes the probe. It exits nonzero on write, readback,
+comparison, or cleanup failure. Parser tests independently prove malformed, ragged, formula-bearing,
+oversized, and out-of-workspace proposals cannot reach the command.
+The passing 2026-07-14 production-grant run is recorded in
+`audits/runs/DRIVE-WRITE-LIVE-2026-07-14.json`; it confirms all 200 values matched and cleanup
+succeeded without committing cell content, file names, file IDs, OAuth data, or the Cloud project
+identifier. The same Cloud project now has Drive, Sheets, Docs, and Slides APIs enabled; only the
+typed Sheet action is exposed by v0.1.7.
+
 ## Known limitations / next steps
 
 - Sync is manual + event-triggered; no watcher/interval yet.
@@ -118,6 +138,9 @@ Vitest covers the final evidence-to-system-prompt boundary.
   collab needs CRDT state (Yjs) in the folder with merge instead of LWW.
 - Conflicting simultaneous writes to the same file lose the older write silently.
 - One selected workspace at a time; per-project provider bindings are Phase 4 work.
+- Native Google Docs and Slides remain read-only research sources in Ask. Native Sheet support is
+  currently literal rectangular value replacement from one starting cell; formatting, formulas,
+  named-tab selection, structural edits, and conflict-aware revision controls are not yet exposed.
 - The restricted Google scope requires consent-screen configuration and public verification.
 - Existing v0.1.4 grants must be re-linked once. The reauthorized primary Windows test account
   passed the native-file Drive→local-model harness on 2026-07-14; S-01 remains

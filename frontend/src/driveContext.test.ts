@@ -9,6 +9,7 @@ const report = (context: string): DriveContextReport => ({
   supportedFiles: 4,
   nativeFiles: 1,
   sources: ['test file for syzygy'],
+  editableFiles: [],
 })
 
 describe('buildDriveSystemPrompt', () => {
@@ -20,12 +21,14 @@ describe('buildDriveSystemPrompt', () => {
     expect(prompt).toContain('[test file for syzygy]')
     expect(prompt).toContain('The secret word is hippo')
     expect(prompt).toContain('Never ask for a public link')
+    expect(prompt).toContain('never claim a Drive write succeeded')
   })
 
   it('records a successful folder check even when no passage matches', () => {
     const prompt = buildDriveSystemPrompt('Answer directly.', report(''))
     expect(prompt).toContain('4 files were visible')
     expect(prompt).toContain('no passages matched')
+    expect(prompt).toContain('Never claim a Drive write succeeded')
   })
 
   it('refuses to send a silently empty workspace to the model', () => {

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-07-14",
+  "releaseCandidate": "0.1.7",
+  "command": "npm run test:drive-write-live",
+  "environment": "Windows desktop; stored production OAuth grant; selected Drive workspace; Google Drive and Sheets APIs",
+  "result": {
+    "passed": true,
+    "rows": 20,
+    "columns": 10,
+    "cells": 200,
+    "updatedRange": "Sheet1!A1:J20",
+    "readbackMatched": true,
+    "cleanupSucceeded": true
+  },
+  "cloudProject": {
+    "driveApiEnabled": true,
+    "sheetsApiEnabledDuringRun": true,
+    "docsApiEnabledDuringRun": true,
+    "slidesApiEnabledDuringRun": true,
+    "unrelatedApisEnabledByThisRun": false
+  },
+  "privacy": {
+    "cellValuesCommitted": false,
+    "fileIdCommitted": false,
+    "fileNamesCommitted": false,
+    "oauthDataCommitted": false,
+    "cloudProjectIdentifierCommitted": false
+  },
+  "limitations": [
+    "The run proves native Google Sheet literal-value writes and independent readback for one linked account and selected workspace.",
+    "It does not prove Google Docs or Slides mutation support; those APIs were enabled for future typed actions, but those file types remain read-only in release 0.1.7.",
+    "Formatting, formulas, named-tab selection, structural edits, and concurrent-write controls remain outside this probe."
+  ]
+}

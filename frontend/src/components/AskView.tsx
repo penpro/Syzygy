@@ -3,7 +3,7 @@ import { setVisionMode, extractPdf, retrieveContext } from '../tauri'
 import { useStore } from '../store'
 import { useConfirm } from './ConfirmDialog'
 import { streamChatNative, samplerFromSettings, getEngineStatus, type ContentPart } from '../api/ollama'
-import { runIntentClassifier } from '../api/classifiers'
+import { runDriveSheetPlanner, runIntentClassifier } from '../api/classifiers'
 import { friendlyModelName } from '../models'
 import { expertIcon } from '../expertIcons'
 import { ExpertPicker } from './ExpertPicker'
@@ -23,12 +23,13 @@ import { MessageInput } from './MessageInput'
 import { ExpertEditor } from './ExpertEditor'
 import { FolderGrant } from './FolderGrant'
 import { GoogleDriveButton, DRIVE_FOLDER } from './GoogleDriveButton'
-import { googleDriveSyncFolder, googleDriveAppendText, googleDriveRetrieveContext } from '../tauri'
+import { googleDriveSyncFolder, googleDriveAppendText, googleDriveRetrieveContext, googleDriveWriteSheetRange } from '../tauri'
 import { logInfo } from '../log'
 import { DocumentModal } from './DocumentModal'
 import { ImageFinderModal } from './ImageFinderModal'
 import { cx } from '../util'
 import { buildDriveSystemPrompt } from '../driveContext'
+import { buildDriveSheetPlanPrompt, parseDriveSheetPlan } from '../driveEdits'
 
 // A roomy-but-safe context window for Q&A threads (the model/Modelfile default
 // can be as low as 4k, which truncates multi-turn clarifications).
@@ -114,6 +115,15 @@ export function AskView() {
   }
 
   const expert = experts.find((e) => e.id === ask.expertId) ?? experts[0] ?? null
+
+  const appendDriveTranscript = (userText: string, reply: string) => {
+    if (!ask.syncToDrive) return
+    const stamp = new Date().toISOString().replace('T', ' ').slice(0, 16)
+    const block = `\n---\n\n**[${stamp}] You**\n\n${userText}\n\n**[${stamp}] ${modelName}**\n\n${reply}\n`
+    googleDriveAppendText(DRIVE_FOLDER, `${logBase(ask.title)}_001.md`, block)
+      .then(() => logInfo('drive', 'Exchange logged directly to the selected Drive workspace'))
+      .catch(() => {}) // already in the diagnostic log via the invoke wrapper
+  }
 
   const addFiles = async (files: File[]) => {
     const imgs: { name: string; url: string }[] = []
@@ -289,12 +299,7 @@ export function AskView() {
       if (ask.syncToDrive) {
         const done = useStore.getState().asks.find((a) => a.id === ask.id)
         const reply = done?.messages.find((m) => m.id === assistantId)?.content ?? ''
-        const stamp = new Date().toISOString().replace('T', ' ').slice(0, 16)
-        const block = `\n---\n\n**[${stamp}] You**\n\n${userText}\n\n**[${stamp}] ${modelName}**\n\n${reply}\n`
-        const file = `${logBase(ask.title)}_001.md`
-        googleDriveAppendText(DRIVE_FOLDER, file, block)
-          .then(() => logInfo('drive', `Exchange logged directly to ${file}`))
-          .catch(() => {}) // already in the diagnostic log via the invoke wrapper
+        appendDriveTranscript(userText, reply)
       }
     } catch (e) {
       const err = e as { name?: string; message?: string }
@@ -316,6 +321,15 @@ export function AskView() {
   // match we surface a one-click suggestion instead of sending; otherwise it's a normal chat.
   const send = async (text: string) => {
     const t = text.trim()
+    const deterministicHit = t ? heuristicIntent(t) : null
+    // A shared-Sheet mutation remains a confirmed action even when the general intent router is
+    // off. Otherwise a local model can only produce a table-shaped chat answer and may imply a
+    // write occurred when no backend command ran.
+    if (deterministicHit?.intent === 'edit_drive_sheet' && ask.syncToDrive && mode === 'text' && !busy && !swapping) {
+      setError('')
+      setIntent({ c: deterministicHit, text })
+      return
+    }
     const canRoute =
       settings.intentRouter !== 'off' &&
       mode === 'text' &&
@@ -327,7 +341,7 @@ export function AskView() {
     if (!canRoute) return sendChat(text)
     // 1) Deterministic fast-path — reliable for the obvious cases, no model call, never
     //    silently fails. This is what guarantees the one-click action appears.
-    const hit = heuristicIntent(t)
+    const hit = deterministicHit
     if (hit) {
       setError('')
       setIntent({ c: hit, text })
@@ -356,6 +370,93 @@ export function AskView() {
     return sendChat(text)
   }
 
+  const runDriveSheetEdit = async (text: string) => {
+    if (!ask.syncToDrive) {
+      setError('Turn on Shared folder first, then run the spreadsheet edit again.')
+      return
+    }
+    const transcript = ask.messages
+      .slice(-12)
+      .map((message) => `${message.role === 'user' ? 'You' : modelName}: ${message.content}`)
+      .join('\n\n')
+    addAskMessage(ask.id, { role: 'user', content: text })
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    setBusy(true)
+    setError('')
+    try {
+      const report = await googleDriveRetrieveContext(DRIVE_FOLDER, text, 12_000)
+      if (report.editableFiles.length === 0) {
+        throw new Error('The selected Drive workspace contains no native Google Sheets I can edit.')
+      }
+      const raw = await runDriveSheetPlanner(
+        settings.baseUrl,
+        settings.model,
+        buildDriveSheetPlanPrompt(text, transcript, report),
+        ctrl.signal,
+      )
+      const plan = parseDriveSheetPlan(raw, report.editableFiles)
+      if (!plan) {
+        throw new Error('The local model did not produce a safe rectangular spreadsheet edit. No Drive file was changed.')
+      }
+      if (plan.kind === 'clarify') {
+        addAskMessage(ask.id, { role: 'assistant', content: plan.question })
+        appendDriveTranscript(text, plan.question)
+        return
+      }
+      const { proposal } = plan
+      const rows = proposal.values.length
+      const columns = proposal.values[0].length
+      logInfo('drive', `Spreadsheet proposal ready: ${rows} rows, ${columns} columns`)
+      const accepted = await confirm({
+        title: 'Write to shared spreadsheet?',
+        message: (
+          <>
+            <p>{proposal.summary}</p>
+            <p>
+              <strong>{proposal.target.path}</strong><br />
+              Starting at {proposal.startCell} · {rows} rows × {columns} columns
+            </p>
+            <details open>
+              <summary>Exact values</summary>
+              <pre style={{ maxHeight: 240, overflow: 'auto', whiteSpace: 'pre' }}>
+                {proposal.values.map((row) => row.join('\t')).join('\n')}
+              </pre>
+            </details>
+            <p className="muted xs">Google will record this as an edit by the linked account. Cancel leaves the file unchanged.</p>
+          </>
+        ),
+        confirmLabel: 'Write values',
+        danger: false,
+      })
+      if (!accepted) {
+        const reply = 'No changes made — the spreadsheet edit was cancelled.'
+        addAskMessage(ask.id, { role: 'assistant', content: reply })
+        appendDriveTranscript(text, reply)
+        return
+      }
+      const result = await googleDriveWriteSheetRange(
+        proposal.target.id,
+        proposal.startCell,
+        proposal.values,
+      )
+      const reply = `Updated **${proposal.target.path}** at **${result.updatedRange}** (${result.updatedCells} cells). Google confirmed the write.`
+      addAskMessage(ask.id, { role: 'assistant', content: reply })
+      appendDriveTranscript(text, reply)
+      logInfo('drive', `Spreadsheet write confirmed: ${result.updatedRows} rows, ${result.updatedColumns} columns, ${result.updatedCells} cells`)
+    } catch (e) {
+      const err = e as { name?: string; message?: string }
+      if (err.name !== 'AbortError') {
+        const message = err.message ?? 'Spreadsheet edit failed.'
+        setError(message)
+        addAskMessage(ask.id, { role: 'assistant', content: `⚠️ ${message}`, error: true })
+      }
+    } finally {
+      setBusy(false)
+      abortRef.current = null
+    }
+  }
+
   // Map a confirmed suggestion onto the matching workflow (prefilled where we can).
   const runIntent = (sel: { c: Classification; text: string }) => {
     const { c, text } = sel
@@ -372,6 +473,9 @@ export function AskView() {
       case 'edit_file':
         setDocPrefill({ request: c.params.change || text })
         setShowDoc(true)
+        break
+      case 'edit_drive_sheet':
+        void runDriveSheetEdit(text)
         break
       case 'analyze_image':
         switchMode('image')

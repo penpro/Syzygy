@@ -209,6 +209,20 @@ export interface DriveContextReport {
   supportedFiles: number
   nativeFiles: number
   sources: string[]
+  editableFiles: DriveEditableFile[]
+}
+
+export interface DriveEditableFile {
+  id: string
+  path: string
+  kind: 'spreadsheet'
+}
+
+export interface SheetWriteResult {
+  updatedRange: string
+  updatedRows: number
+  updatedColumns: number
+  updatedCells: number
 }
 
 export const googleDriveRetrieveContext = (
@@ -217,6 +231,14 @@ export const googleDriveRetrieveContext = (
   maxChars: number,
 ): Promise<DriveContextReport> =>
   invoke('google_drive_retrieve_context', { folderName, query, maxChars })
+
+/** Write a confirmed rectangular block into an existing native Sheet in the selected workspace. */
+export const googleDriveWriteSheetRange = (
+  fileId: string,
+  startCell: string,
+  values: string[][],
+): Promise<SheetWriteResult> =>
+  invoke('google_drive_write_sheet_range', { fileId, startCell, values })
 
 export const googleDriveWorkspace = (): Promise<DriveWorkspace | null> => invoke('google_drive_workspace')
 

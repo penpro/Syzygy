@@ -47,7 +47,7 @@ and Drive-asynchronous collaboration must not depend on a Penumbra-hosted servic
 | `documents.rs` | Typst compile, document save/read, path granting (`Granted` allowlist). |
 | `knowledge.rs` | Folder knowledge: chunking granted folders, relevance retrieval. |
 | `google_auth.rs` | OAuth loopback + PKCE, collaboration-scope gate, token storage/refresh, cancel. See `GOOGLE-DRIVE.md`. |
-| `google_drive.rs` | Selected-workspace boundary, recursive direct retrieval/native export, and optional mirror sync. See `GOOGLE-DRIVE.md`. |
+| `google_drive.rs` | Selected-workspace boundary, recursive direct retrieval/native export, confirmed native-Sheet value writes, and optional mirror sync. See `GOOGLE-DRIVE.md`. |
 | `downloads.rs` | Resumable model downloads. |
 | `updates.rs` | App version for the in-app updater. |
 | `state.rs` | Shared state types (`Engine`, `Granted`, `KnowledgeCache`, …). |
@@ -99,9 +99,14 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   the selected Drive tree (including recursively exported native Google files); the local mirror
   is an explicit sync/offline option, not a collaboration prerequisite. Legacy `drive.file`
   grants fail closed instead of silently producing an empty context.
+- **AI output never receives ambient write authority.** A local model may propose a bounded Sheet
+  cell block against numbered workspace paths; Syzygy validates it, resolves the file ID outside
+  the model, shows the exact values for human acceptance, and re-proves the target is a native
+  Sheet beneath the selected workspace before calling Google Sheets.
 - **Claims close through executable evidence.** `npm run audit` checks structural invariants;
   `npm run test:drive-live` exercises the real stored grant, Drive export, context retrieval, and
-  local model without a webview. See `docs/audits/`.
+  local model without a webview; `npm run test:drive-write-live` creates a temporary native Sheet,
+  writes and reads back 200 cells, then trashes it. See `docs/audits/`.
 - **The collaborative workspace is Penumbra-original.** No Tiptap or PolicyPad code, packages,
   prompts, schemas, fixtures, assets, or UI enter the shipping tree. The baseline editor
   candidate is exact-version MIT Lexical with Yjs; all product nodes and UI are authored here.

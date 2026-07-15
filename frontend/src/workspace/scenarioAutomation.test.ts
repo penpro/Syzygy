@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { createProjectDocument, getProjectSharedTypes, projectStateFingerprint } from './projectModel'
 import { readScenario } from './scenarioModel'
-import { addAutomationScenarioTurn, createAutomationScenario, reviseAutomationScenarioTurn } from './scenarioAutomation'
+import { addAutomationScenarioTurn, castAutomationScenarioVote, createAutomationScenario, reviseAutomationScenarioTurn } from './scenarioAutomation'
+import { readScenarioVotes } from './scenarioVoteModel'
 import { createProjectManifest } from './schema'
 
 const manifest = createProjectManifest({ id: 'scenario-automation-project', documentId: 'scenario-automation-document', timestamp: 1 })
@@ -82,5 +83,46 @@ describe('automation scenario creation', () => {
       { id: 'question-turn', content: 'Question?', revisions: [{ editId: 'add-question-turn' }] },
     ])
     expect(added.researchRevision).toBe(projectStateFingerprint(doc))
+  })
+
+  it('casts, revises, and withdraws one participant vote through chained revisions', () => {
+    const doc = createProjectDocument(manifest)
+    const created = createAutomationScenario(doc, manifest.id, {
+      expectedResearchRevision: projectStateFingerprint(doc), scenarioId: 'vote-scenario', title: 'Vote', background: '',
+      participantId: 'alice', createdAt: 10, editId: 'create-vote-scenario',
+    })
+    const support = castAutomationScenarioVote(doc, manifest.id, {
+      expectedResearchRevision: created.researchRevision, scenarioId: 'vote-scenario', participantId: 'alice',
+      displayName: 'Alice', choice: 'support', timestamp: 11, eventId: 'alice-support',
+    })
+    const oppose = castAutomationScenarioVote(doc, manifest.id, {
+      expectedResearchRevision: support.researchRevision, scenarioId: 'vote-scenario', participantId: 'alice',
+      displayName: 'Alice Updated', choice: 'oppose', timestamp: 12, eventId: 'alice-oppose',
+    })
+    expect(oppose.summary).toMatchObject({ counts: { support: 0, oppose: 1, abstain: 0 }, activeVotes: [{ displayName: 'Alice Updated' }] })
+    const withdrawn = castAutomationScenarioVote(doc, manifest.id, {
+      expectedResearchRevision: oppose.researchRevision, scenarioId: 'vote-scenario', participantId: 'alice',
+      displayName: 'Alice Updated', choice: 'withdrawn', timestamp: 13, eventId: 'alice-withdraw',
+    })
+    expect(withdrawn.summary.counts).toEqual({ support: 0, oppose: 0, abstain: 0 })
+    expect(withdrawn.summary.history).toHaveLength(3)
+  })
+
+  it('rejects a stale vote without adding a vote event', () => {
+    const doc = createProjectDocument(manifest)
+    const created = createAutomationScenario(doc, manifest.id, {
+      expectedResearchRevision: projectStateFingerprint(doc), scenarioId: 'guarded-vote', title: 'Vote guard', background: '',
+      participantId: 'alice', createdAt: 10, editId: 'create-guarded-vote',
+    })
+    const first = castAutomationScenarioVote(doc, manifest.id, {
+      expectedResearchRevision: created.researchRevision, scenarioId: 'guarded-vote', participantId: 'alice',
+      displayName: 'Alice', choice: 'support', timestamp: 11, eventId: 'alice-first-vote',
+    })
+    expect(() => castAutomationScenarioVote(doc, manifest.id, {
+      expectedResearchRevision: created.researchRevision, scenarioId: 'guarded-vote', participantId: 'bob',
+      displayName: 'Bob', choice: 'oppose', timestamp: 12, eventId: 'bob-stale-vote',
+    })).toThrow('Research state revision conflict')
+    expect(readScenarioVotes(getProjectSharedTypes(doc).discussions, 'guarded-vote')?.history).toHaveLength(1)
+    expect(first.researchRevision).toBe(projectStateFingerprint(doc))
   })
 })

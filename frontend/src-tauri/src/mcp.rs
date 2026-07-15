@@ -92,7 +92,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting and annotations, heuristics, and immutable history. Read a project before editing or checkpointing it. Document writes require the exact revision returned by read_active_project. Scenario create/add-turn/revise-turn tools require the latest exact research revision from inspection or the prior scenario mutation. save_active_policy_version additionally requires the exact non-null head from inspection, or omission when no head exists. On any conflict, read again and reconcile. Never claim unavailable scenario gallery/voting/annotation UI or mutations, model generation, restore UI, Drive project transport, or real-time presence are available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting and annotations, heuristics, and immutable history. Read a project before editing or checkpointing it. Document writes require the exact revision returned by read_active_project. Scenario create/add-turn/revise-turn/vote tools require the latest exact research revision from inspection or the prior scenario mutation. save_active_policy_version additionally requires the exact non-null head from inspection, or omission when no head exists. On any conflict, read again and reconcile. Never claim unavailable scenario gallery/voting/annotation UI, model generation, restore UI, Drive project transport, or real-time presence are available."
             })
         }
         "ping" => json!({}),
@@ -131,6 +131,7 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "create_scenario" => live("project.createScenario", arguments),
         "add_scenario_turn" => live("project.addScenarioTurn", arguments),
         "revise_scenario_turn" => live("project.reviseScenarioTurn", arguments),
+        "cast_scenario_vote" => live("project.castScenarioVote", arguments),
         "save_active_policy_version" => live("project.savePolicyVersion", arguments),
         "replace_active_document" => live("document.replace", arguments),
         "append_active_document" => live("document.append", arguments),
@@ -246,6 +247,20 @@ fn tool_definitions() -> Vec<Value> {
             "revise_scenario_turn",
             "Append an attributed immutable revision to an existing scenario turn against the exact current research revision. Prior turn revisions remain available in domain history.",
             scenario_turn_schema(),
+        ),
+        tool(
+            "cast_scenario_vote",
+            "Cast, revise, abstain, or withdraw one caller-identified participant vote on an existing scenario against the exact current research revision. Immutable vote history is retained, but participant identity is not authenticated across installs.",
+            object_schema(
+                &[
+                    ("expectedResearchRevision", string_schema("Exact research revision from inspect_research_state or the prior scenario mutation.")),
+                    ("scenarioId", string_schema("Existing stable scenario ID.")),
+                    ("participantId", string_schema("Caller-supplied participant ID; one current vote is projected per ID, but identity is not authenticated.")),
+                    ("displayName", string_schema("Display name to retain with this vote event.")),
+                    ("choice", string_schema("Vote choice: support, oppose, abstain, or withdrawn.")),
+                ],
+                &["expectedResearchRevision", "scenarioId", "participantId", "displayName", "choice"],
+            ),
         ),
         tool(
             "save_active_policy_version",
@@ -475,6 +490,7 @@ mod tests {
         assert!(names.contains(&"create_scenario"));
         assert!(names.contains(&"add_scenario_turn"));
         assert!(names.contains(&"revise_scenario_turn"));
+        assert!(names.contains(&"cast_scenario_vote"));
         assert!(names.contains(&"save_active_policy_version"));
         assert!(names.contains(&"replace_active_document"));
     }
@@ -578,6 +594,31 @@ mod tests {
             assert_eq!(response["result"]["structuredContent"]["method"], method);
             assert_eq!(response["result"]["structuredContent"]["params"]["expectedResearchRevision"], "4.5.6");
         }
+    }
+
+    #[test]
+    fn routes_scenario_vote_with_research_revision_guard() {
+        let response = dispatch_message(
+            &json!({
+                "jsonrpc": "2.0",
+                "id": "vote-1",
+                "method": "tools/call",
+                "params": {
+                    "name": "cast_scenario_vote",
+                    "arguments": {
+                        "expectedResearchRevision": "7.8.9",
+                        "scenarioId": "test-scenario",
+                        "participantId": "researcher-1",
+                        "displayName": "Researcher One",
+                        "choice": "support"
+                    }
+                }
+            }),
+            &fake_live,
+        )
+        .unwrap();
+        assert_eq!(response["result"]["structuredContent"]["method"], "project.castScenarioVote");
+        assert_eq!(response["result"]["structuredContent"]["params"]["expectedResearchRevision"], "7.8.9");
     }
 
     #[test]

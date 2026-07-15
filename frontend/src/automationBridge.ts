@@ -6,8 +6,9 @@ import {
   getAutomationEditorController,
 } from './workspace/editorAutomationRegistry'
 import { inspectResearchState } from './workspace/researchStateInspection'
-import { addAutomationScenarioTurn, createAutomationScenario, reviseAutomationScenarioTurn } from './workspace/scenarioAutomation'
+import { addAutomationScenarioTurn, castAutomationScenarioVote, createAutomationScenario, reviseAutomationScenarioTurn } from './workspace/scenarioAutomation'
 import type { ResearchScenario, ScenarioStatus, ScenarioTurn, ScenarioTurnRole } from './workspace/scenarioModel'
+import type { ScenarioVoteChoice } from './workspace/scenarioVoteModel'
 import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
 import { saveAutomationPolicyVersion } from './workspace/versionAutomation'
 
@@ -65,7 +66,7 @@ export async function dispatchAutomationRequest(
             'revision-guarded semantic MCP reads and writes',
             'read-only MCP integrity inspection for heuristics and immutable version history',
             'dual-revision-guarded MCP creation of immutable policy checkpoints',
-            'research-revision-guarded MCP scenario creation',
+            'research-revision-guarded MCP scenario creation, turn editing, and aggregate voting',
           ],
           unavailable: [
             'version save, restore, and diff controls in the product UI; MCP restore remains unavailable',
@@ -225,6 +226,32 @@ export async function dispatchAutomationRequest(
         researchRevision: changed.researchRevision,
       }
     }
+    case 'project.castScenarioVote': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const voted = castAutomationScenarioVote(getAutomationProjectDocument(project.id), project.id, {
+        expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
+        scenarioId: requiredString(params, 'scenarioId'),
+        participantId: requiredString(params, 'participantId'),
+        displayName: requiredString(params, 'displayName'),
+        choice: requiredScenarioVoteChoice(params),
+        timestamp: Date.now(),
+        eventId: `mcp-${crypto.randomUUID()}`,
+      })
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        vote: {
+          scenarioId: voted.summary.scenarioId,
+          counts: voted.summary.counts,
+          activeVoteCount: voted.summary.activeVotes.length,
+          eventCount: voted.summary.history.length,
+        },
+        researchRevision: voted.researchRevision,
+      }
+    }
     case 'document.replace': {
       const expectedRevision = requiredString(params, 'expectedRevision')
       const content = requiredString(params, 'content', true)
@@ -295,7 +322,7 @@ function buildWalkthrough() {
       {
         name: 'Scenarios and evaluation',
         status: project && automationProjectDocumentReady(project.id) ? 'domain-create-ready' : 'needs-open-project',
-        use: 'Scenario records, votes, and flags/notes have tested collaborative foundations; MCP can inspect them and create a guarded scenario, while the gallery, turns, and evaluation UI remain unavailable.',
+        use: 'Scenario records, votes, and flags/notes have tested collaborative foundations; MCP can inspect them, create guarded scenarios, edit turns, and cast attributed votes, while the visible gallery and evaluation UI remain unavailable.',
       },
       {
         name: 'Network collaboration',
@@ -377,4 +404,12 @@ function requiredScenarioTurnRole(params: Record<string, unknown>): ScenarioTurn
   const role = requiredString(params, 'role')
   if (!['system', 'user', 'assistant'].includes(role)) throw new Error('role must be system, user, or assistant')
   return role as ScenarioTurnRole
+}
+
+function requiredScenarioVoteChoice(params: Record<string, unknown>): ScenarioVoteChoice {
+  const choice = requiredString(params, 'choice')
+  if (!['support', 'oppose', 'abstain', 'withdrawn'].includes(choice)) {
+    throw new Error('choice must be support, oppose, abstain, or withdrawn')
+  }
+  return choice as ScenarioVoteChoice
 }

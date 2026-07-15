@@ -8,8 +8,8 @@ window, which remains the owner of project navigation, Lexical editor state, Yjs
 This is an automation and interoperability surface, not a claim that unfinished research
 features exist. `syzygy_status`, `workspace_walkthrough`, and `inspect_research_state` explicitly
 report the difference between usable domain foundations and the still-disabled version controls,
-scenario turn/vote/annotation UI and mutation, evaluation, Drive project transport, and real-time
-presence slices. Guarded scenario/branch creation is the narrow exception.
+scenario UI and annotation mutation, evaluation, Drive project transport, and real-time presence
+slices. Guarded scenario/branch/turn mutation and aggregate voting are narrow automation surfaces.
 
 ## Connect an MCP host
 
@@ -60,6 +60,7 @@ Recommended first instruction to an MCP-capable model:
 | `create_scenario` | scenario metadata | Creates one scenario/branch only when `expectedResearchRevision` exactly matches the revision from inspection; no model generation |
 | `add_scenario_turn` | scenario content | Adds one attributed system/user/assistant turn against the exact current research revision; never invokes a model |
 | `revise_scenario_turn` | scenario content | Adds an attributed immutable revision to an existing turn against the exact current research revision |
+| `cast_scenario_vote` | vote event | Casts support/oppose/abstain/withdrawn against the exact current research revision; retains re-vote history and returns aggregate counts |
 | `save_active_policy_version` | version metadata | Saves the exact active semantic draft as a new immutable head under both document-revision and expected-head guards; does not edit the draft or restore history |
 | `replace_active_document` | yes | Replaces the document only when `expectedRevision` still matches |
 | `append_active_document` | yes | Appends blocks only when `expectedRevision` still matches |
@@ -117,6 +118,10 @@ MCP host
 - `add_scenario_turn` and `revise_scenario_turn` use the same guard. Chain the returned research
   revision into the next mutation. Revision retains earlier turn bodies and attribution; stale
   calls fail before mutation. These tools store explicit caller content and never contact a model.
+- `cast_scenario_vote` uses the same guard and retains each attributed vote/re-vote/withdrawal as
+  an immutable event. Its response and inspection expose only aggregate counts/event totals. A
+  stale call fails before adding an event. Participant IDs, display names, and time are caller/
+  process supplied, so the tool is not an authenticated election or Sybil-resistant consensus.
 - `save_active_policy_version` requires `expectedDocumentRevision` from `read_active_project` and,
   when non-null, `expectedHeadVersionId` from `inspect_research_state`. The live editor revision is
   checked once before hashing and again inside the final Yjs head transaction; the existing head
@@ -163,7 +168,7 @@ It fails unless:
 2. replace/append operations change the same editor and reject a stale revision;
 3. the loopback parser accepts an authenticated request and rejects browser origins;
 4. MCP initialization negotiates the current `2025-11-25` protocol revision;
-5. all fourteen semantic tools are discoverable and route to their intended live operation;
+5. all eighteen semantic tools are discoverable and route to their intended live operation;
 6. self-description returns absolute paths and copy-ready configuration without a GUI;
 7. platform contracts parse, keep provider-run/adversarial/plugin schemas strict, and do not
    overstate unimplemented runtimes; and
@@ -181,9 +186,10 @@ installer size, compile marker, and explicit test limitations.
 
 For an explicit end-to-end proof against the current user's real app profile, build the app and
 run `npm run test:mcp:live`. It launches the GUI if needed, creates a visible `MCP pilot` project,
-replaces and appends its document through MCP, deliberately attempts a stale overwrite, and reads
-the surviving live draft back. Because this is a real mutation, it is deliberately excluded from
-CI and must not be run without intending to keep the demonstration project.
+replaces/appends its document, creates a scenario, adds/revises a turn, support/re-votes, deliberately
+attempts stale document/scenario/vote writes, and reads bounded state back. Because this is a real
+mutation, it is deliberately excluded from CI and must not be run without intending to keep the
+demonstration project.
 
 ## Design sources
 

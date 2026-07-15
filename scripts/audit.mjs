@@ -230,6 +230,7 @@ const advertisedMcpTools = [
   'create_scenario',
   'add_scenario_turn',
   'revise_scenario_turn',
+  'cast_scenario_vote',
   'save_active_policy_version',
   'replace_active_document',
   'append_active_document',
@@ -296,19 +297,26 @@ record(
     scenarioAutomationSource.includes('createScenario(scenarios') &&
     scenarioAutomationSource.includes('addScenarioTurn(scenarios') &&
     scenarioAutomationSource.includes('updateScenarioTurn(scenarios') &&
+    scenarioAutomationSource.includes('castScenarioVote(discussions, scenarios') &&
     scenarioAutomationTestSource.includes('creates one scenario against the exact monotonic research revision') &&
     scenarioAutomationTestSource.includes('rejects a stale revision without mutating scenario state') &&
     scenarioAutomationTestSource.includes('adds and revises a turn through successive exact research revisions') &&
     scenarioAutomationTestSource.includes('rejects stale turn add and revision without changing turn history') &&
+    scenarioAutomationTestSource.includes('casts, revises, and withdraws one participant vote through chained revisions') &&
+    scenarioAutomationTestSource.includes('rejects a stale vote without adding a vote event') &&
     text('frontend/src/automationBridge.ts').includes("case 'project.createScenario'") &&
     text('frontend/src/automationBridge.ts').includes("case 'project.addScenarioTurn'") &&
     text('frontend/src/automationBridge.ts').includes("case 'project.reviseScenarioTurn'") &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.castScenarioVote'") &&
     mcpSource.includes('"create_scenario" => live("project.createScenario"') &&
     mcpSource.includes('"add_scenario_turn" => live("project.addScenarioTurn"') &&
     mcpSource.includes('"revise_scenario_turn" => live("project.reviseScenarioTurn"') &&
+    mcpSource.includes('"cast_scenario_vote" => live("project.castScenarioVote"') &&
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioCreateRejected: true') &&
-    text('scripts/mcp-live-harness.mjs').includes('scenarioTurnAddAndRevisionGuarded: true'),
-  'stable inspection revision, zero-write stale rejection, live Y.Doc create/add/revise routes, seventeenth MCP tool set, and packaged-live assertions are present',
+    text('scripts/mcp-live-harness.mjs').includes('scenarioTurnAddAndRevisionGuarded: true') &&
+    text('scripts/mcp-live-harness.mjs').includes('scenarioVoteRevisionGuarded: true') &&
+    text('scripts/mcp-live-harness.mjs').includes('staleScenarioVoteRejected: true'),
+  'stable inspection revision, zero-write stale rejection, live Y.Doc scenario/turn/vote routes, eighteenth MCP tool set, and packaged-live assertions are present',
 )
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))

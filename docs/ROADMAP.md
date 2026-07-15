@@ -239,6 +239,10 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   Each mutation consumes the exact research revision from inspection or the prior mutation; stale
   add/revise tests leave turn history unchanged. The live harness chains create→add→revise and
   verifies turn/revision counts through inspection without invoking a model.
+- The MCP scenario surface now includes an eighteenth tool, `cast_scenario_vote`. It chains the
+  exact research revision, retains support/re-vote/withdrawal history, returns aggregate counts,
+  and rejects stale calls without adding events. Identity remains unauthenticated and no UI or
+  evaluation claim follows from the automation route.
 
 ## Current completion snapshot
 

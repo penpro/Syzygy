@@ -190,6 +190,35 @@ try {
     if (addedTurn.structuredContent.turn.revisionCount !== 1) throw new Error('Scenario turn add did not create one revision')
     if (revisedTurn.structuredContent.turn.revisionCount !== 2 || revisedTurn.structuredContent.turn.content !== 'Revised harness answer with retained history.') throw new Error('Scenario turn revision did not retain and project history')
     if (inspectedScenario?.turnCount !== 1 || inspectedScenario?.turnRevisionCount !== 2) throw new Error('Scenario turn state was not visible through inspection')
+    const supportVote = await session.tool('cast_scenario_vote', {
+      expectedResearchRevision: revisedTurn.structuredContent.researchRevision,
+      scenarioId,
+      participantId: 'mcp-live-voter',
+      displayName: 'MCP live voter',
+      choice: 'support',
+    })
+    const opposeVote = await session.tool('cast_scenario_vote', {
+      expectedResearchRevision: supportVote.structuredContent.researchRevision,
+      scenarioId,
+      participantId: 'mcp-live-voter',
+      displayName: 'MCP live voter revised',
+      choice: 'oppose',
+    })
+    const staleVote = await session.tool('cast_scenario_vote', {
+      expectedResearchRevision: revisedTurn.structuredContent.researchRevision,
+      scenarioId,
+      participantId: 'mcp-live-stale-voter',
+      displayName: 'This stale voter must not land',
+      choice: 'support',
+    }, true)
+    if (!staleVote.isError || !/Research state revision conflict/.test(staleVote.structuredContent?.error ?? '')) {
+      throw new Error('The live app did not reject the stale MCP scenario vote')
+    }
+    const stateAfterVotes = await session.tool('inspect_research_state')
+    const inspectedVotes = stateAfterVotes.structuredContent.researchState.scenarioVotes.items.find((item) => item.scenarioId === scenarioId)
+    if (supportVote.structuredContent.vote.counts.support !== 1 || supportVote.structuredContent.vote.eventCount !== 1) throw new Error('Initial scenario vote was not projected correctly')
+    if (opposeVote.structuredContent.vote.counts.support !== 0 || opposeVote.structuredContent.vote.counts.oppose !== 1 || opposeVote.structuredContent.vote.eventCount !== 2) throw new Error('Scenario re-vote did not preserve history and update the projection')
+    if (inspectedVotes?.counts.support !== 0 || inspectedVotes?.counts.oppose !== 1 || inspectedVotes?.activeVoteCount !== 1 || inspectedVotes?.eventCount !== 2) throw new Error('Scenario vote state was not visible through bounded inspection')
     const saveArguments = {
       expectedDocumentRevision: readback.structuredContent.document.revision,
       participantId: 'mcp-live-harness',
@@ -217,6 +246,8 @@ try {
       scenarioCreateRevisionGuarded: true,
       staleScenarioCreateRejected: true,
       scenarioTurnAddAndRevisionGuarded: true,
+      scenarioVoteRevisionGuarded: true,
+      staleScenarioVoteRejected: true,
       heuristicRecords: researchState.structuredContent.researchState.heuristics.totalRecords,
       versionRecords: researchState.structuredContent.researchState.versions.totalRecords,
       savedVersionId: savedVersion.structuredContent.version.versionId,

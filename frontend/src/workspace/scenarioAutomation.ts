@@ -1,6 +1,7 @@
 import type * as Y from 'yjs'
 import { getProjectSharedTypes, projectStateFingerprint } from './projectModel'
 import { addScenarioTurn, createScenario, type ScenarioStatus, type ScenarioTurnRole, updateScenarioTurn } from './scenarioModel'
+import { castScenarioVote, type ScenarioVoteChoice } from './scenarioVoteModel'
 
 export interface CreateAutomationScenarioInput {
   expectedResearchRevision: string
@@ -23,6 +24,16 @@ export interface MutateAutomationScenarioTurnInput {
   participantId: string
   timestamp: number
   editId: string
+}
+
+export interface CastAutomationScenarioVoteInput {
+  expectedResearchRevision: string
+  scenarioId: string
+  participantId: string
+  displayName: string
+  choice: ScenarioVoteChoice
+  timestamp: number
+  eventId: string
 }
 
 function guardedScenarios(doc: Y.Doc, expectedProjectId: string, expectedResearchRevision: string) {
@@ -65,4 +76,14 @@ export function reviseAutomationScenarioTurn(doc: Y.Doc, expectedProjectId: stri
   })
   const turn = scenario.turns.find((candidate) => candidate.id === input.turnId)!
   return { scenario, turn, researchRevision: projectStateFingerprint(doc) }
+}
+
+export function castAutomationScenarioVote(doc: Y.Doc, expectedProjectId: string, input: CastAutomationScenarioVoteInput) {
+  const scenarios = guardedScenarios(doc, expectedProjectId, input.expectedResearchRevision)
+  const { discussions } = getProjectSharedTypes(doc)
+  const summary = castScenarioVote(discussions, scenarios, {
+    scenarioId: input.scenarioId, participantId: input.participantId, displayName: input.displayName,
+    choice: input.choice, timestamp: input.timestamp, eventId: input.eventId,
+  })
+  return { summary, researchRevision: projectStateFingerprint(doc) }
 }

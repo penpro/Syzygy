@@ -99,8 +99,9 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   read. The Lexical/Yjs editor owns the `root` shared type.
 - `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
   navigation, revision-guarded editor reads/writes, and bounded read-only research-state integrity
-  inspection. `scenarioAutomation.ts` creates scenarios and adds/revises attributed turns only
-  against the monotonic research revision returned by inspection or the prior mutation.
+  inspection. `scenarioAutomation.ts` creates scenarios, adds/revises attributed turns, and casts
+  immutable participant vote events only against the monotonic research revision returned by
+  inspection or the prior mutation.
   `versionAutomation.ts` maps the exact active semantic editor snapshot into an
   immutable version only after both the document revision and version head pass inside the final
   Yjs transaction. The bridge does not own persistence.

@@ -7,10 +7,10 @@
   "commands": ["npm run test:workspace", "npm run test:mcp", "npm run build", "npm run audit", "git diff --check"],
   "result": {
     "passed": true,
-    "workspaceTestsPassed": 73,
-    "scenarioAutomationTestsPassed": 5,
-    "rustMcpTestsPassed": 8,
-    "mcpToolsAdvertised": 17,
+    "workspaceTestsPassed": 75,
+    "scenarioAutomationTestsPassed": 7,
+    "rustMcpTestsPassed": 9,
+    "mcpToolsAdvertised": 18,
     "frontendModulesTransformed": 1000,
     "structuralAuditChecksPassed": 37,
     "externalNetworkUsed": false,
@@ -22,12 +22,13 @@
     "Scenario creation requires exact research revision and project identity; a stale revision creates zero scenario records.",
     "A valid call creates a bounded scenario and a second guarded call can create a branch only when the parent exists.",
     "Guarded add-turn and revise-turn operations chain returned revisions, retain earlier attributed turn bodies, and reject stale mutations without changing history.",
-    "Rust advertises and routes create_scenario, add_scenario_turn, and revise_scenario_turn as the fifteenth through seventeenth semantic MCP tools; compiled stdio discovery requires all three.",
-    "The packaged live harness chains unique scenario creation, turn add, turn revision, metadata readback, and stale rejection, but this run did not mutate the user profile."
+    "Guarded voting chains support, re-vote, and withdrawal events; aggregate projection updates while history is retained, and a stale revision adds no event.",
+    "Rust advertises and routes create_scenario, add_scenario_turn, revise_scenario_turn, and cast_scenario_vote as the fifteenth through eighteenth semantic MCP tools; compiled stdio discovery requires all four.",
+    "The packaged live harness chains unique scenario creation, turn add/revision, support/re-vote, bounded metadata readback, and stale rejection, but this run did not mutate the user profile."
   ],
   "notProved": [
     "The installed packaged GUI completed the updated live mutation harness.",
-    "Model-driven scenario generation, voting/annotation mutation, gallery UI, or evaluation through MCP.",
+    "Model-driven scenario generation, annotation mutation, gallery UI, authenticated voting, or evaluation through MCP.",
     "Authenticated participant identity, Drive/WebSocket project transport, or multi-install concurrency."
   ]
 }

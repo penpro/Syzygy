@@ -41,8 +41,12 @@ unknown executor failures to `executor-failed`, validates the assembled record, 
 pending human decision with shared mutation disabled. It deliberately imports no provider bridge.
 The future product executor must enforce native disclosure, vault/network isolation, route-policy
 checks, output bounds, cancellation, and content-free provider provenance. The present native
-provider command asks once per call, so a batch disclosure/authorization design is required before
-a multi-call panel can be product-enabled without producing a dialog storm.
+provider command asks once per call. A native non-executing batch authorizer now validates and
+discloses exact remote provider/model routes, per-route and total call ceilings, frozen source
+identity, cross-provider artifact sharing, policy profiles, and a 30-minute lifetime. Denial stores
+nothing; approval returns a random process-memory capability with status/revoke commands. The
+authorized call consumer is deliberately absent, so the capability cannot yet bypass the per-call
+dialog or transmit content.
 
 ## Validation pipeline
 

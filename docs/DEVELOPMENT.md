@@ -146,8 +146,16 @@ proves internal runtime emission, while product execution remains unavailable.
 executors. It proves independent proposal/critique phases, evidence audit, reversed-order
 judgments, exact compute-matched baseline calls, route/payload separation, cancellation, sanitized
 failure, pending human review, and no shared mutation. It does not contact a provider or prove
-answer quality. Product execution still requires a native batch-disclosure executor and live
+answer quality. Product execution still requires an executor that atomically consumes the native
+batch authorization and live
 benchmark evidence.
+
+The Rust provider-runtime suite also proves the non-executing adversarial batch authorizer. It
+rejects mismatched totals, duplicate routes/sources, misleading model labels, and oversized scope;
+its disclosure lists route ceilings and policy handling without research text. Denial stores no
+authority, approval creates a 30-minute random in-memory capability, status reports only the
+bounded scope, and revocation removes it. This is not an authorized model-call test because no
+consumer exists yet.
 
 `npm run test:provider-streams` separately feeds the OpenAI decoder byte-by-byte and with
 multiline, unknown, malformed, mismatched, oversized, and truncated SSE fixtures. It proves parser

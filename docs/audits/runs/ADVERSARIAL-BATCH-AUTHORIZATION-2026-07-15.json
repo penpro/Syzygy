@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "runId": "ADVERSARIAL-BATCH-AUTHORIZATION-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "native-scoped-authorizer-no-product-executor",
+  "commands": [
+    "cargo test --manifest-path src-tauri/Cargo.toml provider_runtime::tests",
+    "cargo test --manifest-path src-tauri/Cargo.toml",
+    "npm run build",
+    "npm run audit",
+    "npm run test:mcp"
+  ],
+  "result": {
+    "passed": true,
+    "providerRuntimeTestsPassed": 9,
+    "fullRustTestsPassed": 68,
+    "frontendModulesTransformed": 990,
+    "structuralAuditChecksPassed": 25,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "The public batch request contains the actual question and frozen source objects plus exact remote provider/model routes, per-route ceilings, and a summed total ceiling.",
+    "Rust rejects a mismatched total, duplicate routes, duplicate sources, misleading control characters, empty content, excessive routes/sources, and per-route or total budgets above 100.",
+    "The native disclosure text lists every route and ceiling, total remote calls, source count, cross-provider model-output sharing, storage/ZDR descriptions, policy dates and URLs, and a 30-minute lifetime without including the question, source label, or source excerpt.",
+    "Denial returns no authorization ID and stores no authority.",
+    "Approval creates a random 256-bit lowercase-hex capability, a SHA-256 scope identity, and an expiring Rust process-memory record; the active registry is bounded to 64 entries.",
+    "The typed status command returns only run/source/route/budget/expiry metadata and the scope digest; explicit revocation removes the capability and is idempotent.",
+    "Authorization does not read the OS credential vault or contact a network endpoint.",
+    "The compiled MCP reports native-scoped-authorizer-no-product-executor while exposing no provider authorization or generation tool."
+  ],
+  "notProved": [
+    "The packaged native authorization dialog has been clicked or visually inspected.",
+    "Any model call consumes the authorization; no authorized executor exists.",
+    "Route and total budgets decrement atomically under concurrent calls, because consumption is intentionally not implemented.",
+    "An authorized call rechecks exact run, question, frozen source content, route, expiry, and revocation before vault or network access.",
+    "A product workflow creates, monitors, revokes, or persists an adversarial run.",
+    "Live provider behavior, quality, cost, latency, retention, or panel superiority."
+  ]
+}

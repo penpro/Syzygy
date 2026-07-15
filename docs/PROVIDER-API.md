@@ -11,6 +11,18 @@ set/status/delete are also typed commands and a collapsed Settings surface calls
 persisting keys in app state. No product generation workflow exists yet. Custom remote adapters
 are contract-only.
 
+The native adversarial batch authorizer is a separate, non-executing boundary. Its request contains
+the actual research question, frozen source snapshots, exact remote provider/model routes,
+per-route ceilings, and a total remote-call ceiling. Rust validates the content and identity,
+derives the disclosure categories (including cross-provider model outputs/review artifacts), and
+shows one native dialog without displaying the research text. Approval creates a random ephemeral
+capability for 30 minutes; denial stores nothing. The content-free scope/status can be inspected
+and explicitly revoked through typed commands. No credential is read and no network request is
+made by authorization. The status is `native-scoped-authorizer-no-product-executor`: an authorized
+call consumer has not been implemented and the capability cannot currently transmit anything.
+The reproducible proof and explicit non-claims are in
+`docs/audits/runs/ADVERSARIAL-BATCH-AUTHORIZATION-2026-07-15.json`.
+
 The callable command takes `ProviderResearchTaskRequest`, not a raw provider request. Its fields are
 run/call/task identity, provider/model/bounds, an optional developer instruction, a research
 question, and zero or more `{ snapshotId, label, excerpt }` sources. Rust JSON-serializes that
@@ -64,6 +76,11 @@ domain semantic validation both pass.
   provider state must say so and request separate acceptance.
 - A task disclosure names provider, content categories, retention/training profile, and estimated
   call count before first transmission. Changing provider or expanding content invalidates it.
+- An adversarial batch authorization names every remote provider/model route, its ceiling, the
+  total ceiling, frozen source count, cross-provider artifact category, retention profile, and a
+  fixed expiration. It is process-memory-only and explicitly revocable. Future consumption must
+  atomically check route/run/source scope and decrement both route and total budgets before vault
+  or network access.
 - Custom endpoints are visibly unverified and require HTTPS unless the user explicitly selects a
   loopback development endpoint.
 

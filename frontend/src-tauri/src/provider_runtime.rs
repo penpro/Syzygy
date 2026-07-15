@@ -19,13 +19,30 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 const DEFAULT_PROFILE: &str = "default";
 
+const BATCH_AUTHORIZATION_LIFETIME: Duration = Duration::from_secs(30 * 60);
+const MAX_BATCH_AUTHORIZATIONS: usize = 64;
+
 #[derive(Default)]
-pub struct ProviderRuntimeState(Mutex<HashMap<String, ProviderCancellation>>);
+pub struct ProviderRuntimeState {
+    calls: Mutex<HashMap<String, ProviderCancellation>>,
+    batch_authorizations: Mutex<HashMap<String, ProviderBatchAuthorization>>,
+}
+
+#[derive(Clone, Debug)]
+struct ProviderBatchAuthorization {
+    run_id: String,
+    scope_sha256: String,
+    source_snapshot_ids: Vec<String>,
+    routes: Vec<ProviderBatchRoute>,
+    remaining_calls: u32,
+    expires_at: Instant,
+    expires_at_text: String,
+}
 
 #[derive(Clone, Debug)]
 pub struct ProviderTaskRequest {
@@ -39,12 +56,51 @@ pub struct ProviderTaskRequest {
     pub generation: GenerationRequest,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderResearchSource {
     pub snapshot_id: String,
     pub label: String,
     pub excerpt: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderBatchRoute {
+    pub provider: RemoteProviderId,
+    pub model: String,
+    pub max_calls: u32,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderAdversarialAuthorizationRequest {
+    pub run_id: String,
+    pub question: String,
+    pub sources: Vec<ProviderResearchSource>,
+    pub routes: Vec<ProviderBatchRoute>,
+    pub total_remote_calls: u32,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderBatchAuthorizationOutcome {
+    pub authorization_id: Option<String>,
+    pub approved: bool,
+    pub expires_at: Option<String>,
+    pub scope_sha256: String,
+    pub total_remote_calls: u32,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderBatchAuthorizationStatus {
+    pub run_id: String,
+    pub scope_sha256: String,
+    pub source_snapshot_ids: Vec<String>,
+    pub routes: Vec<ProviderBatchRoute>,
+    pub remaining_calls: u32,
+    pub expires_at: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -134,6 +190,54 @@ fn valid_task_type(value: &str) -> bool {
         && bytes.all(|byte| {
             byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'.' | b'-')
         })
+}
+
+fn validate_batch_authorization(
+    request: &ProviderAdversarialAuthorizationRequest,
+) -> Result<(), String> {
+    let unique_sources: HashSet<_> = request
+        .sources
+        .iter()
+        .map(|source| source.snapshot_id.as_str())
+        .collect();
+    let unique_routes: HashSet<_> = request
+        .routes
+        .iter()
+        .map(|route| format!("{:?}\0{}", route.provider, route.model))
+        .collect();
+    let summed_calls = request
+        .routes
+        .iter()
+        .try_fold(0_u32, |sum, route| sum.checked_add(route.max_calls));
+    if !valid_id(&request.run_id)
+        || request.question.trim().is_empty()
+        || request.question.len() > 4 * 1024 * 1024
+        || request.sources.is_empty()
+        || request.sources.len() > 200
+        || unique_sources.len() != request.sources.len()
+        || request.sources.iter().any(|source| {
+            !valid_id(&source.snapshot_id)
+                || source.label.trim().is_empty()
+                || source.label.chars().count() > 500
+                || source.label.chars().any(char::is_control)
+                || source.excerpt.trim().is_empty()
+                || source.excerpt.len() > 4 * 1024 * 1024
+        })
+        || request.routes.is_empty()
+        || request.routes.len() > 20
+        || unique_routes.len() != request.routes.len()
+        || request.routes.iter().any(|route| {
+            route.model.trim().is_empty()
+                || route.model.chars().count() > 200
+                || route.model.chars().any(char::is_control)
+                || !(1..=100).contains(&route.max_calls)
+        })
+        || !(1..=100).contains(&request.total_remote_calls)
+        || summed_calls != Some(request.total_remote_calls)
+    {
+        return Err("Remote adversarial authorization scope is invalid".to_owned());
+    }
+    Ok(())
 }
 
 fn validate_task(request: &ProviderTaskRequest) -> Result<(), String> {
@@ -273,8 +377,146 @@ fn disclosure_message(request: &ProviderTaskRequest, endpoint: &Url) -> String {
     )
 }
 
+fn batch_disclosure_message(request: &ProviderAdversarialAuthorizationRequest) -> String {
+    let routes = request
+        .routes
+        .iter()
+        .map(|route| {
+            let provider_profile = profile(route.provider);
+            format!(
+                "- {} / {}: up to {} requests; storage {}; zero retention {}; policy reviewed {}; {}",
+                provider_name(route.provider),
+                route.model,
+                route.max_calls,
+                provider_profile.storage_request,
+                provider_profile.zero_retention,
+                provider_profile.policy_checked_at,
+                provider_profile.policy_url,
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "Authorize this adversarial review batch?\n\nRemote requests: up to {}\nFrozen source snapshots: {}\nAuthorization lifetime: 30 minutes\n\nRoutes:\n{}\n\nContent categories: research question; selected source excerpts and labels; remote model outputs and review artifacts.\n\nEach listed provider receives only calls within this approved scope. Changing a route, increasing the call budget, or changing the frozen source identity requires a new authorization. No credential is read until an authorized call begins.",
+        request.total_remote_calls,
+        request.sources.len(),
+        routes,
+    )
+}
+
 fn sha256(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
+}
+
+fn random_authorization_id() -> Result<String, String> {
+    let mut bytes = [0_u8; 32];
+    getrandom::getrandom(&mut bytes)
+        .map_err(|_| "Remote batch authorization ID could not be created".to_owned())?;
+    Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
+fn authorize_batch_with(
+    state: &ProviderRuntimeState,
+    request: ProviderAdversarialAuthorizationRequest,
+    approved: bool,
+) -> Result<ProviderBatchAuthorizationOutcome, String> {
+    validate_batch_authorization(&request)?;
+    let scope_sha256 = serde_json::to_vec(&request)
+        .map(|bytes| sha256(&bytes))
+        .map_err(|_| "Remote batch authorization scope could not be serialized".to_owned())?;
+    if !approved {
+        return Ok(ProviderBatchAuthorizationOutcome {
+            authorization_id: None,
+            approved: false,
+            expires_at: None,
+            scope_sha256,
+            total_remote_calls: request.total_remote_calls,
+        });
+    }
+    let authorization_id = random_authorization_id()?;
+    let expires_instant = Instant::now() + BATCH_AUTHORIZATION_LIFETIME;
+    let expires_at = (Utc::now()
+        + chrono::Duration::from_std(BATCH_AUTHORIZATION_LIFETIME)
+            .map_err(|_| "Remote batch authorization lifetime is invalid".to_owned())?)
+    .to_rfc3339_opts(SecondsFormat::Millis, true);
+    let authorization = ProviderBatchAuthorization {
+        run_id: request.run_id,
+        scope_sha256: scope_sha256.clone(),
+        source_snapshot_ids: request
+            .sources
+            .into_iter()
+            .map(|source| source.snapshot_id)
+            .collect(),
+        routes: request.routes,
+        remaining_calls: request.total_remote_calls,
+        expires_at: expires_instant,
+        expires_at_text: expires_at.clone(),
+    };
+    let mut authorizations = state
+        .batch_authorizations
+        .lock()
+        .map_err(|_| "Remote batch authorization registry is unavailable".to_owned())?;
+    authorizations.retain(|_, authorization| authorization.expires_at > Instant::now());
+    if authorizations.len() >= MAX_BATCH_AUTHORIZATIONS {
+        return Err("Too many remote batch authorizations are active".to_owned());
+    }
+    authorizations.insert(authorization_id.clone(), authorization);
+    Ok(ProviderBatchAuthorizationOutcome {
+        authorization_id: Some(authorization_id),
+        approved: true,
+        expires_at: Some(expires_at),
+        scope_sha256,
+        total_remote_calls: request.total_remote_calls,
+    })
+}
+
+fn revoke_batch_with(state: &ProviderRuntimeState, authorization_id: &str) -> Result<bool, String> {
+    if authorization_id.len() != 64
+        || !authorization_id
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+    {
+        return Err("Remote batch authorization ID is invalid".to_owned());
+    }
+    let mut authorizations = state
+        .batch_authorizations
+        .lock()
+        .map_err(|_| "Remote batch authorization registry is unavailable".to_owned())?;
+    Ok(authorizations.remove(authorization_id).is_some())
+}
+
+fn batch_status_with(
+    state: &ProviderRuntimeState,
+    authorization_id: &str,
+) -> Result<Option<ProviderBatchAuthorizationStatus>, String> {
+    if authorization_id.len() != 64
+        || !authorization_id
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+    {
+        return Err("Remote batch authorization ID is invalid".to_owned());
+    }
+    let mut authorizations = state
+        .batch_authorizations
+        .lock()
+        .map_err(|_| "Remote batch authorization registry is unavailable".to_owned())?;
+    if authorizations
+        .get(authorization_id)
+        .is_some_and(|authorization| authorization.expires_at <= Instant::now())
+    {
+        authorizations.remove(authorization_id);
+        return Ok(None);
+    }
+    Ok(authorizations
+        .get(authorization_id)
+        .map(|authorization| ProviderBatchAuthorizationStatus {
+            run_id: authorization.run_id.clone(),
+            scope_sha256: authorization.scope_sha256.clone(),
+            source_snapshot_ids: authorization.source_snapshot_ids.clone(),
+            routes: authorization.routes.clone(),
+            remaining_calls: authorization.remaining_calls,
+            expires_at: authorization.expires_at_text.clone(),
+        }))
 }
 
 fn error_code(error: &ProviderError) -> &'static str {
@@ -424,7 +666,7 @@ pub async fn execute_with<V: CredentialVault>(
         .map_err(|error| error.to_string())?;
     {
         let mut calls = state
-            .0
+            .calls
             .lock()
             .map_err(|_| "Provider cancellation registry is unavailable".to_owned())?;
         if calls.contains_key(&request.call_id) {
@@ -479,7 +721,7 @@ pub async fn execute_with<V: CredentialVault>(
         .await
         .map(|value| (value.response, Some(value.zero_data_retention))),
     };
-    if let Ok(mut calls) = state.0.lock() {
+    if let Ok(mut calls) = state.calls.lock() {
         calls.remove(&request.call_id);
     }
     let completed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
@@ -551,6 +793,45 @@ pub async fn provider_generate(
 }
 
 #[tauri::command]
+pub async fn provider_adversarial_authorize(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, ProviderRuntimeState>,
+    request: ProviderAdversarialAuthorizationRequest,
+) -> Result<ProviderBatchAuthorizationOutcome, String> {
+    validate_batch_authorization(&request)?;
+    let message = batch_disclosure_message(&request);
+    let approved = tauri::async_runtime::spawn_blocking(move || {
+        app.dialog()
+            .message(message)
+            .title("Adversarial review disclosure")
+            .buttons(MessageDialogButtons::OkCancelCustom(
+                "Authorize batch".to_owned(),
+                "Cancel".to_owned(),
+            ))
+            .blocking_show()
+    })
+    .await
+    .map_err(|_| "Remote batch disclosure dialog could not be shown".to_owned())?;
+    authorize_batch_with(&state, request, approved)
+}
+
+#[tauri::command]
+pub fn provider_adversarial_revoke(
+    state: tauri::State<'_, ProviderRuntimeState>,
+    authorization_id: String,
+) -> Result<bool, String> {
+    revoke_batch_with(&state, &authorization_id)
+}
+
+#[tauri::command]
+pub fn provider_adversarial_authorization_status(
+    state: tauri::State<'_, ProviderRuntimeState>,
+    authorization_id: String,
+) -> Result<Option<ProviderBatchAuthorizationStatus>, String> {
+    batch_status_with(&state, &authorization_id)
+}
+
+#[tauri::command]
 pub fn provider_cancel(
     state: tauri::State<'_, ProviderRuntimeState>,
     call_id: String,
@@ -559,7 +840,7 @@ pub fn provider_cancel(
         return Err("Provider call ID is invalid".to_owned());
     }
     let calls = state
-        .0
+        .calls
         .lock()
         .map_err(|_| "Provider cancellation registry is unavailable".to_owned())?;
     if let Some(handle) = calls.get(&call_id) {
@@ -685,6 +966,31 @@ mod tests {
                 excerpt: "The bounded fixture evidence.".to_owned(),
             }],
             max_output_tokens: 128,
+        }
+    }
+
+    fn batch_authorization() -> ProviderAdversarialAuthorizationRequest {
+        ProviderAdversarialAuthorizationRequest {
+            run_id: "adversarial-run-001".to_owned(),
+            question: "Which conclusion is supported?".to_owned(),
+            sources: vec![ProviderResearchSource {
+                snapshot_id: "source-snapshot-001".to_owned(),
+                label: "Private fixture label".to_owned(),
+                excerpt: "private-source-content-canary".to_owned(),
+            }],
+            routes: vec![
+                ProviderBatchRoute {
+                    provider: RemoteProviderId::OpenAi,
+                    model: "proposal-model".to_owned(),
+                    max_calls: 4,
+                },
+                ProviderBatchRoute {
+                    provider: RemoteProviderId::Anthropic,
+                    model: "judge-model".to_owned(),
+                    max_calls: 3,
+                },
+            ],
+            total_remote_calls: 7,
         }
     }
 
@@ -824,5 +1130,90 @@ mod tests {
         let mut misleading = research_task();
         misleading.sources[0].label = "Source A\nRequests: 0".to_owned();
         assert!(build_research_task(misleading).is_err());
+    }
+
+    #[test]
+    fn adversarial_batch_disclosure_is_scope_complete_and_content_free() {
+        let request = batch_authorization();
+        let message = batch_disclosure_message(&request);
+        assert!(message.contains("Remote requests: up to 7"));
+        assert!(message.contains("OpenAI / proposal-model: up to 4 requests"));
+        assert!(message.contains("Anthropic / judge-model: up to 3 requests"));
+        assert!(message.contains("remote model outputs and review artifacts"));
+        assert!(message.contains("Storage") || message.contains("storage"));
+        assert!(message.contains("Policy") || message.contains("policy"));
+        assert!(!message.contains("Which conclusion is supported?"));
+        assert!(!message.contains("Private fixture label"));
+        assert!(!message.contains("private-source-content-canary"));
+    }
+
+    #[test]
+    fn adversarial_batch_scope_rejects_budget_route_and_source_forgery() {
+        let mut wrong_budget = batch_authorization();
+        wrong_budget.total_remote_calls = 6;
+        assert!(validate_batch_authorization(&wrong_budget).is_err());
+
+        let mut duplicate_route = batch_authorization();
+        duplicate_route
+            .routes
+            .push(duplicate_route.routes[0].clone());
+        duplicate_route.total_remote_calls = 11;
+        assert!(validate_batch_authorization(&duplicate_route).is_err());
+
+        let mut misleading_model = batch_authorization();
+        misleading_model.routes[0].model = "model\nRemote requests: 0".to_owned();
+        assert!(validate_batch_authorization(&misleading_model).is_err());
+
+        let mut duplicate_source = batch_authorization();
+        duplicate_source
+            .sources
+            .push(duplicate_source.sources[0].clone());
+        assert!(validate_batch_authorization(&duplicate_source).is_err());
+
+        let mut no_sources = batch_authorization();
+        no_sources.sources.clear();
+        assert!(validate_batch_authorization(&no_sources).is_err());
+    }
+
+    #[test]
+    fn adversarial_batch_denial_stores_no_authority_and_acceptance_is_revocable() {
+        let state = ProviderRuntimeState::default();
+        let denied = authorize_batch_with(&state, batch_authorization(), false).unwrap();
+        assert!(!denied.approved);
+        assert!(denied.authorization_id.is_none());
+        assert!(state.batch_authorizations.lock().unwrap().is_empty());
+
+        let approved = authorize_batch_with(&state, batch_authorization(), true).unwrap();
+        let authorization_id = approved.authorization_id.expect("authorization ID");
+        assert!(approved.approved);
+        assert_eq!(authorization_id.len(), 64);
+        assert!(authorization_id
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit()));
+        let authorizations = state.batch_authorizations.lock().unwrap();
+        let stored = authorizations.get(&authorization_id).expect("stored scope");
+        assert_eq!(stored.run_id, "adversarial-run-001");
+        assert_eq!(stored.scope_sha256, approved.scope_sha256);
+        assert_eq!(stored.source_snapshot_ids, ["source-snapshot-001"]);
+        assert_eq!(stored.routes.len(), 2);
+        assert_eq!(stored.remaining_calls, 7);
+        assert!(stored.expires_at > Instant::now());
+        drop(authorizations);
+        let status = batch_status_with(&state, &authorization_id)
+            .unwrap()
+            .expect("active status");
+        assert_eq!(status.run_id, "adversarial-run-001");
+        assert_eq!(status.scope_sha256, approved.scope_sha256);
+        assert_eq!(status.source_snapshot_ids, ["source-snapshot-001"]);
+        assert_eq!(status.routes.len(), 2);
+        assert_eq!(status.remaining_calls, 7);
+        assert_eq!(status.expires_at, approved.expires_at.unwrap());
+        let serialized_status = serde_json::to_string(&status).unwrap();
+        assert!(!serialized_status.contains("Which conclusion is supported?"));
+        assert!(!serialized_status.contains("Private fixture label"));
+        assert!(!serialized_status.contains("private-source-content-canary"));
+        assert!(revoke_batch_with(&state, &authorization_id).unwrap());
+        assert!(!revoke_batch_with(&state, &authorization_id).unwrap());
+        assert!(state.batch_authorizations.lock().unwrap().is_empty());
     }
 }

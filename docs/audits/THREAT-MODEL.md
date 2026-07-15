@@ -75,4 +75,9 @@ versions/evaluation evidence.
   into prompts, outputs, or public records and must preserve native disclosure and provider-run
   provenance per call or authorized batch. The runner itself has no product executor and cannot
   mutate shared state.
+- The native batch authorizer accepts the real question/source scope so Rust, rather than a
+  caller-authored category list, derives what the dialog says. It binds exact remote routes and
+  budgets, expires after 30 minutes, and supports status/revocation. Its random capability currently
+  has no consumer. Before consumption ships, tests must prove atomic route and total decrements,
+  run/source equality, expiry/revocation during concurrency, and no vault/network access on mismatch.
 - Claiming S-01 verified before the live Drive→local-model harness passes is a documentation defect.

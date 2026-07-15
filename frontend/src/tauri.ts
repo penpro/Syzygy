@@ -94,6 +94,37 @@ export interface ProviderTaskOutcome {
   runRecord: ProviderRunRecord
 }
 
+export interface ProviderBatchRoute {
+  provider: RemoteProviderId
+  model: string
+  maxCalls: number
+}
+
+export interface ProviderAdversarialAuthorizationRequest {
+  runId: string
+  question: string
+  sources: ProviderResearchSource[]
+  routes: ProviderBatchRoute[]
+  totalRemoteCalls: number
+}
+
+export interface ProviderBatchAuthorizationOutcome {
+  authorizationId: string | null
+  approved: boolean
+  expiresAt: string | null
+  scopeSha256: string
+  totalRemoteCalls: number
+}
+
+export interface ProviderBatchAuthorizationStatus {
+  runId: string
+  scopeSha256: string
+  sourceSnapshotIds: string[]
+  routes: ProviderBatchRoute[]
+  remainingCalls: number
+  expiresAt: string
+}
+
 // ---------- engine & models ----------
 
 /** GPU VRAM usage in MiB (via `nvidia-smi`). null off-Tauri / on non-NVIDIA. */
@@ -354,6 +385,24 @@ export const providerGenerate = (request: ProviderResearchTaskRequest): Promise<
 /** Cancel an active provider call by its caller-generated ID. */
 export const providerCancel = (callId: string): Promise<boolean> =>
   invoke('provider_cancel', { callId })
+
+/**
+ * Ask once for a bounded adversarial panel scope. This only creates ephemeral authority; no key is
+ * read and no model call is made until a separately implemented authorized executor consumes it.
+ */
+export const providerAdversarialAuthorize = (
+  request: ProviderAdversarialAuthorizationRequest,
+): Promise<ProviderBatchAuthorizationOutcome> => invoke('provider_adversarial_authorize', { request })
+
+/** Revoke an unused or remaining adversarial batch authorization. */
+export const providerAdversarialRevoke = (authorizationId: string): Promise<boolean> =>
+  invoke('provider_adversarial_revoke', { authorizationId })
+
+/** Read the bounded, content-free scope while it remains active; null means missing or expired. */
+export const providerAdversarialAuthorizationStatus = (
+  authorizationId: string,
+): Promise<ProviderBatchAuthorizationStatus | null> =>
+  invoke('provider_adversarial_authorization_status', { authorizationId })
 
 /** Store or replace one provider key in the OS credential vault. The key is never persisted in app state. */
 export const providerCredentialSet = (provider: RemoteProviderId, secret: string): Promise<void> =>

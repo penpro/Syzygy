@@ -452,8 +452,13 @@ fixtures for identity leakage, hidden reasoning, missing audits, unequal calls, 
 silent minority deletion, invalid accounting, and mutation without human acceptance. An injected
 headless runner now executes the full phase graph and equal-call baseline against synthetic
 executors while keeping routing outside judge payloads. The product provider executor, batch
-native disclosure, workflow UI/persistence, live panel evidence, and benchmark corpus remain open;
+authorization consumption, workflow UI/persistence, live panel evidence, and benchmark corpus remain open;
 no quality claim is authorized.
+
+The native batch authorizer now validates exact remote routes, per-route and total ceilings, the
+real question/frozen-source scope, cross-provider artifact sharing, and policy handling before a
+single native decision. Approval is random, process-memory-only, expires after 30 minutes, exposes
+content-free status, and can be revoked; denial stores nothing. It cannot execute a model call.
 The run-record interchange is now published as strict Draft 2020-12 JSON Schema and embedded in
 MCP. Its typed plan-relative validator remains the authority for cross-record semantics that JSON
 Schema alone cannot establish.
@@ -474,6 +479,7 @@ revision-guarded proposals with a human-visible diff and attribution.
 Machine-readable inspection is available through `syzygy_platform_contracts`. It must distinguish
 the native-disclosure research envelope with no product caller from product availability, report
 adversarial execution as `injected-runner-no-product-executor`, and continue returning
+`native-scoped-authorizer-no-product-executor` for provider batch authorization, plus
 `contract-only` for custom-adapter execution and plugin loading.
 
 Progress: OpenAI Responses one-shot request construction, bounded whole-operation timeout,

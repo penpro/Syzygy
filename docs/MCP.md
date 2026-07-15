@@ -106,7 +106,9 @@ MCP host
   It reports the OS-vault Settings surface as `settings-vault-ui`, the native-disclosure one-shot task
   bridge as `native-disclosure-research-envelope`, and aggregate remote execution as
   `native-disclosure-command-no-product-ui`. MCP itself has no provider-generation or credential
-  tool and therefore cannot bypass the native send boundary. It reports the non-executing
+  tool and therefore cannot bypass the native send boundary. It reports adversarial batch
+  authorization as `native-scoped-authorizer-no-product-executor`; the authorizer itself is not an
+  MCP tool and has no call consumer. It reports the non-executing
   plugin certifier as `contract-certified-runner`, adversarial execution as
   `injected-runner-no-product-executor`, and plugin loading and custom-adapter execution as
   `contract-only`; the non-executing adapter

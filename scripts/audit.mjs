@@ -125,6 +125,11 @@ const providerTaskRuntimeSource = text('frontend/src-tauri/src/provider_runtime.
 const providerStreamSource = text('frontend/src-tauri/src/provider_stream.rs')
 const credentialVaultSource = text('frontend/src-tauri/src/credential_vault.rs')
 const providerSettingsSource = text('frontend/src/components/RemoteProviderSettings.tsx')
+const tauriSource = text('frontend/src/tauri.ts')
+const providerResearchRequestSource = tauriSource.slice(
+  tauriSource.indexOf('export interface ProviderResearchTaskRequest'),
+  tauriSource.indexOf('export interface ProviderNormalizedUsage'),
+)
 const credentialHarnessSource = text('frontend/src-tauri/src/bin/credential-harness.rs')
 const cargoManifestSource = text('frontend/src-tauri/Cargo.toml')
 const cargoLockSource = text('frontend/src-tauri/Cargo.lock')
@@ -264,6 +269,9 @@ record(
     !rustWiringSource.includes('model_provider::execute_gemini_response') &&
     rustWiringSource.includes('provider_runtime::provider_generate') &&
     rustWiringSource.includes('provider_runtime::provider_cancel') &&
+    rustWiringSource.includes('provider_runtime::provider_adversarial_authorize') &&
+    rustWiringSource.includes('provider_runtime::provider_adversarial_revoke') &&
+    rustWiringSource.includes('provider_runtime::provider_adversarial_authorization_status') &&
     providerTaskRuntimeSource.includes('execute_openai_response_controlled') &&
     providerTaskRuntimeSource.includes('execute_anthropic_response_controlled') &&
     providerTaskRuntimeSource.includes('execute_gemini_response_controlled') &&
@@ -278,9 +286,26 @@ record(
     providerTaskRuntimeSource.includes('"executionMode": execution_mode') &&
     text('frontend/src/tauri.ts').includes("invoke('provider_generate'") &&
     text('frontend/src/tauri.ts').includes("invoke('provider_cancel'") &&
+    text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_authorize'") &&
+    text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_revoke'") &&
+    text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_authorization_status'") &&
     !text('frontend/src/tauri.ts').includes('disclosureAccepted') &&
     text('frontend/src-tauri/src/bin/provider-runtime-harness.rs').includes('interop-secret-canary'),
   'OpenAI request/stream plus Anthropic, Gemini, and xAI request wire contracts, content-free task runtime, native non-forgeable disclosure, cancellation, typed command wiring, and truthful no-product-UI status present',
+)
+record(
+  'adversarial batch authorization is native, scoped, expiring, and non-executing',
+  providerTaskRuntimeSource.includes('ProviderAdversarialAuthorizationRequest') &&
+    providerTaskRuntimeSource.includes('summed_calls != Some(request.total_remote_calls)') &&
+    providerTaskRuntimeSource.includes('BATCH_AUTHORIZATION_LIFETIME') &&
+    providerTaskRuntimeSource.includes('MAX_BATCH_AUTHORIZATIONS') &&
+    providerTaskRuntimeSource.includes('remote model outputs and review artifacts') &&
+    providerTaskRuntimeSource.includes('No credential is read until an authorized call begins') &&
+    providerTaskRuntimeSource.includes('random_authorization_id()') &&
+    providerTaskRuntimeSource.includes('authorization_id: None') &&
+    providerTaskRuntimeSource.includes('revoke_batch_with(&state, &authorization_id)') &&
+    platformContractsSource.includes('"providerBatchAuthorization": "native-scoped-authorizer-no-product-executor"'),
+  'native dialog derives a bounded route/source/call scope, denial stores nothing, approval expires, explicit revocation exists, and no authorized executor is claimed',
 )
 record(
   'provider research task derives disclosure and provenance',
@@ -292,11 +317,11 @@ record(
     providerTaskRuntimeSource.includes('source_snapshot_ids: Vec<_>') &&
     providerTaskRuntimeSource.includes('source_snapshot_ids.iter().collect::<HashSet<_>>()') &&
     providerTaskRuntimeSource.includes('let request = build_research_task(request)?') &&
-    text('frontend/src/tauri.ts').includes('export interface ProviderResearchTaskRequest') &&
-    text('frontend/src/tauri.ts').includes('export interface ProviderResearchSource') &&
-    !text('frontend/src/tauri.ts').includes('contentCategories:') &&
-    !text('frontend/src/tauri.ts').includes('sourceSnapshotIds:') &&
-    !text('frontend/src/tauri.ts').includes('disclosureAccepted:'),
+    providerResearchRequestSource.includes('export interface ProviderResearchTaskRequest') &&
+    tauriSource.includes('export interface ProviderResearchSource') &&
+    !providerResearchRequestSource.includes('contentCategories:') &&
+    !providerResearchRequestSource.includes('sourceSnapshotIds:') &&
+    !providerResearchRequestSource.includes('disclosureAccepted:'),
   'public calls provide structured question/source payloads while Rust derives categories and unique provenance IDs before native disclosure',
 )
 record(

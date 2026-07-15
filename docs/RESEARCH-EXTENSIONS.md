@@ -59,8 +59,14 @@ responsibilities and cannot be inferred from schema success. See `ADVERSARIAL-AP
 The injected runner now executes this phase graph against a caller-supplied executor, sanitizes
 failures, preserves route identity outside judge payloads, emits a content-free execution ledger,
 and runs the equal-call baseline. Its synthetic tests contact no model. A product executor, batch
-native disclosure, workflow persistence/UI, public benchmark corpus, live-provider evidence, and
+authorization consumption, workflow persistence/UI, public benchmark corpus, live-provider evidence, and
 quality statistics remain unimplemented.
+
+The native batch authorizer now closes the consent-planning half of that boundary. It validates the
+real question/source scope, exact remote provider/model routes, per-route and total ceilings, and
+discloses cross-provider artifact sharing plus dated provider handling profiles. Approval is a
+random 30-minute process-memory capability with content-free status and explicit revocation;
+denial creates none. No consumer exists, so it reads no credential and cannot execute a call.
 
 ## Benchmark before product claims
 

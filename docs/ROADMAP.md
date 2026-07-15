@@ -51,7 +51,7 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   harness. Its production-grant proof wrote, read back, and cleaned up a 20×10/200-cell native
   Sheet. Native Docs and Slides remain explicitly read-only until their own typed edit contracts
   exist, although their Cloud APIs are enabled for that future work.
-- The first post-v0.1.7 workspace slice pins the independently licensed Lexical/Yjs stack and adds
+- The v0.1.8 workspace slice pins the independently licensed Lexical/Yjs stack and adds
   a schema-versioned local project, original research-editor shell, local IndexedDB Yjs provider,
   and a headless project harness. The harness covers malformed schemas, idempotent save migration,
   duplicate/reordered update convergence, concurrent offline domain edits, and close/reopen local

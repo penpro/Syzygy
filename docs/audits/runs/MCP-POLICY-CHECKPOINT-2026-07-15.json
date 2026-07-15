@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "runId": "MCP-POLICY-CHECKPOINT-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "status": "implemented_unverified",
+  "commands": [
+    "npm run test:workspace",
+    "npm run test:mcp",
+    "npm run build",
+    "npm run audit",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "workspaceTestsPassed": 50,
+    "versionAutomationTestsPassed": 4,
+    "rustMcpTestsPassed": 6,
+    "mcpToolsAdvertised": 14,
+    "frontendModulesTransformed": 996,
+    "structuralAuditChecksPassed": 33,
+    "debugExecutableStdioHarnessRun": true,
+    "packagedLiveHarnessRun": false,
+    "externalNetworkUsed": false,
+    "realProjectMutation": false
+  },
+  "proved": [
+    "Semantic heading, paragraph, quotation, and stable policy blocks from one exact live editor snapshot map into the immutable version schema.",
+    "A mismatched expected document revision fails before hashing and inserts no version.",
+    "The live editor revision is re-read after asynchronous hashing inside the final version-head transaction; a simulated mid-hash change fails before version/head writes.",
+    "The same transaction rechecks the exact expected immutable head and parent bytes before inserting the content-addressed record and moving the head.",
+    "The first checkpoint returns no diff note; later checkpoints derive a deterministic engine-free change note from the verified parent.",
+    "The Rust MCP advertises and routes save_active_policy_version with required document revision and attribution, optional head/note, and no restore or document-edit semantics.",
+    "The compiled debug executable advertises 14 clean stdio tools; the packaged live harness now asserts one-record insertion, head identity, document-revision binding, and post-save integrity."
+  ],
+  "notProved": [
+    "The packaged GUI and MCP completed the new checkpoint mutation against a real user profile.",
+    "Participant ID/display name is authenticated, enrolled, or portable across installations.",
+    "A visible version rail, save button, label editor, restore flow, or branch reconciliation UI.",
+    "MCP can restore, delete, rewrite, or directly edit immutable versions; those authorities are intentionally absent.",
+    "Drive/WebSocket-backed project collaboration or a simultaneous real second-client edit during checkpoint hashing.",
+    "Semantic correctness of the policy or usefulness of the deterministic change note."
+  ]
+}

@@ -92,7 +92,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_research_state for bounded read-only integrity metadata about heuristics and immutable history. Read a project before editing it. Document writes require the exact revision returned by read_active_project; if a revision conflict occurs, read again and reconcile. Never claim unavailable UI/mutation capabilities, scenarios, Drive project transport, or real-time presence are available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_research_state for bounded read-only integrity metadata about heuristics and immutable history. Read a project before editing or checkpointing it. Document writes require the exact revision returned by read_active_project. save_active_policy_version additionally requires the exact non-null head from inspection, or omission when no head exists. On any conflict, read again and reconcile. Never claim unavailable UI/restore capabilities, scenarios, Drive project transport, or real-time presence are available."
             })
         }
         "ping" => json!({}),
@@ -128,6 +128,7 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "rename_project" => live("project.rename", arguments),
         "read_active_project" => live("project.readActive", json!({})),
         "inspect_research_state" => live("project.readResearchState", json!({})),
+        "save_active_policy_version" => live("project.savePolicyVersion", arguments),
         "replace_active_document" => live("document.replace", arguments),
         "append_active_document" => live("document.append", arguments),
         "launch_syzygy" => launch_live_app(),
@@ -216,6 +217,20 @@ fn tool_definitions() -> Vec<Value> {
             "inspect_research_state",
             "Inspect bounded read-only metadata and integrity checks for the active project's collaborative heuristics and immutable policy-version history. Omits policy text, heuristic guidance/edit values, and notes; grants no mutation authority.",
             object_schema(&[], &[]),
+        ),
+        tool(
+            "save_active_policy_version",
+            "Save the exact active document revision as a new immutable, attributed policy-version head. Requires expectedDocumentRevision from read_active_project and, when one exists, expectedHeadVersionId from inspect_research_state. This does not edit document text or restore history.",
+            object_schema(
+                &[
+                    ("expectedDocumentRevision", string_schema("Exact revision from the latest read_active_project result.")),
+                    ("expectedHeadVersionId", string_schema("Exact non-null head from inspect_research_state. Omit only when the head is null.")),
+                    ("participantId", string_schema("Stable caller-supplied participant ID; identity is not yet authenticated across installs.")),
+                    ("displayName", string_schema("Display name to freeze into this historical attribution record.")),
+                    ("note", string_schema("Optional human-visible checkpoint note.")),
+                ],
+                &["expectedDocumentRevision", "participantId", "displayName"],
+            ),
         ),
         tool(
             "replace_active_document",
@@ -414,6 +429,7 @@ mod tests {
         assert!(names.contains(&"syzygy_platform_contracts"));
         assert!(names.contains(&"read_active_project"));
         assert!(names.contains(&"inspect_research_state"));
+        assert!(names.contains(&"save_active_policy_version"));
         assert!(names.contains(&"replace_active_document"));
     }
 
@@ -460,6 +476,36 @@ mod tests {
             "project.readResearchState"
         );
         assert_eq!(response["result"]["structuredContent"]["params"], json!({}));
+    }
+
+    #[test]
+    fn routes_policy_version_save_with_both_revision_guards() {
+        let response = dispatch_message(
+            &json!({
+                "jsonrpc": "2.0",
+                "id": "save-version-1",
+                "method": "tools/call",
+                "params": {
+                    "name": "save_active_policy_version",
+                    "arguments": {
+                        "expectedDocumentRevision": "lexical-1",
+                        "expectedHeadVersionId": "a".repeat(64),
+                        "participantId": "participant-1",
+                        "displayName": "Researcher One"
+                    }
+                }
+            }),
+            &fake_live,
+        )
+        .unwrap();
+        assert_eq!(
+            response["result"]["structuredContent"]["method"],
+            "project.savePolicyVersion"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["params"]["expectedDocumentRevision"],
+            "lexical-1"
+        );
     }
 
     #[test]

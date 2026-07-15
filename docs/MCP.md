@@ -56,6 +56,7 @@ Recommended first instruction to an MCP-capable model:
 | `rename_project` | yes | Changes project metadata only |
 | `read_active_project` | no | Returns the manifest plus structured blocks, plain text, and a revision |
 | `inspect_research_state` | no | Validates bounded live heuristic/version/head/lineage state and returns metadata summaries without policy, guidance, edit-value, or note bodies |
+| `save_active_policy_version` | version metadata | Saves the exact active semantic draft as a new immutable head under both document-revision and expected-head guards; does not edit the draft or restore history |
 | `replace_active_document` | yes | Replaces the document only when `expectedRevision` still matches |
 | `append_active_document` | yes | Appends blocks only when `expectedRevision` still matches |
 
@@ -102,6 +103,11 @@ MCP host
   by the editor/local provider, caps returned items, and has no heuristic/version/document mutation
   path. Titles, attribution, IDs, counts, and timestamps are metadata and may be returned; policy
   text, heuristic guidance and edit values, and version notes are deliberately omitted.
+- `save_active_policy_version` requires `expectedDocumentRevision` from `read_active_project` and,
+  when non-null, `expectedHeadVersionId` from `inspect_research_state`. The live editor revision is
+  checked once before hashing and again inside the final Yjs head transaction; the existing head
+  and parent bytes are rechecked there too. A conflict inserts no record in the committed harness.
+  Participant ID/display name are caller-supplied historical attribution, not authenticated identity.
 - `syzygy_installation` discloses the executable and parent-folder paths to the already-connected
   local MCP host. These paths are local machine metadata, contain no OAuth token or research
   content, and are also visible to the user in Settings.
@@ -143,7 +149,7 @@ It fails unless:
 2. replace/append operations change the same editor and reject a stale revision;
 3. the loopback parser accepts an authenticated request and rejects browser origins;
 4. MCP initialization negotiates the current `2025-11-25` protocol revision;
-5. all thirteen semantic tools are discoverable and route to their intended live operation;
+5. all fourteen semantic tools are discoverable and route to their intended live operation;
 6. self-description returns absolute paths and copy-ready configuration without a GUI;
 7. platform contracts parse, keep provider-run/adversarial/plugin schemas strict, and do not
    overstate unimplemented runtimes; and

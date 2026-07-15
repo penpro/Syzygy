@@ -7,6 +7,7 @@ import {
 } from './workspace/editorAutomationRegistry'
 import { inspectResearchState } from './workspace/researchStateInspection'
 import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
+import { saveAutomationPolicyVersion } from './workspace/versionAutomation'
 
 interface AutomationRequest {
   id: string
@@ -61,9 +62,10 @@ export async function dispatchAutomationRequest(
             'automatic IndexedDB persistence',
             'revision-guarded semantic MCP reads and writes',
             'read-only MCP integrity inspection for heuristics and immutable version history',
+            'dual-revision-guarded MCP creation of immutable policy checkpoints',
           ],
           unavailable: [
-            'version save, restore, and diff controls in the product UI or MCP',
+            'version save, restore, and diff controls in the product UI; MCP restore remains unavailable',
             'scenario and evaluation workflows',
             'Drive-backed project CRDT transport',
             'real-time collaborator presence',
@@ -120,6 +122,42 @@ export async function dispatchAutomationRequest(
         getAutomationProjectDocument(project.id),
         project.id,
       ) }
+    }
+    case 'project.savePolicyVersion': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const controller = getAutomationEditorController(project.id)
+      const saved = await saveAutomationPolicyVersion(
+        getAutomationProjectDocument(project.id),
+        project.id,
+        {
+          expectedDocumentRevision: requiredString(params, 'expectedDocumentRevision'),
+          expectedHeadVersionId: optionalString(params, 'expectedHeadVersionId'),
+          participantId: requiredString(params, 'participantId'),
+          displayName: requiredString(params, 'displayName'),
+          createdAt: Date.now(),
+          note: optionalString(params, 'note'),
+        },
+        controller.read,
+      )
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        documentRevision: saved.documentRevision,
+        version: {
+          versionId: saved.version.versionId,
+          parentVersionId: saved.version.parentVersionId,
+          participantId: saved.version.author.participantId,
+          displayName: saved.version.author.displayName,
+          createdAt: saved.version.createdAt,
+          blockCount: saved.version.policy.blocks.length,
+          scenarioCount: saved.version.scenarioIds.length,
+          hasNote: saved.version.note !== null,
+        },
+        deterministicChangeNote: saved.changeNote,
+      }
     }
     case 'document.replace': {
       const expectedRevision = requiredString(params, 'expectedRevision')
@@ -186,7 +224,7 @@ function buildWalkthrough() {
       {
         name: 'Versions and comparisons',
         status: project && automationProjectDocumentReady(project.id) ? 'domain-inspection-ready' : 'needs-open-project',
-        use: 'Immutable history and deterministic diff foundations are headlessly tested; the visible rail and MCP remain read-only.',
+        use: 'Immutable history and deterministic diff foundations are headlessly tested; MCP can inspect and save exact-revision checkpoints, while the visible rail and restore remain unavailable.',
       },
       {
         name: 'Scenarios and evaluation',
@@ -243,5 +281,12 @@ function requiredString(
   if (typeof value !== 'string' || (!allowEmpty && !value.trim())) {
     throw new Error(`${name} must be a ${allowEmpty ? '' : 'non-empty '}string`)
   }
+  return value
+}
+
+function optionalString(params: Record<string, unknown>, name: string): string | null {
+  const value = params[name]
+  if (value === undefined || value === null) return null
+  if (typeof value !== 'string' || !value.trim()) throw new Error(`${name} must be a non-empty string when provided`)
   return value
 }

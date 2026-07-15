@@ -147,6 +147,20 @@ try {
     if (readback.structuredContent.document.text.includes('stale write')) throw new Error('Stale write reached the live draft')
     if (researchState.structuredContent.researchState.projectId !== projectId) throw new Error('Research-state inspection targeted the wrong project')
     if (researchState.structuredContent.researchState.selfCheck.healthy !== true) throw new Error('Live research-state integrity check failed')
+    const saveArguments = {
+      expectedDocumentRevision: readback.structuredContent.document.revision,
+      participantId: 'mcp-live-harness',
+      displayName: 'MCP live harness',
+      note: 'Headless MCP revision checkpoint',
+    }
+    const previousHead = researchState.structuredContent.researchState.versions.headVersionId
+    if (previousHead) saveArguments.expectedHeadVersionId = previousHead
+    const savedVersion = await session.tool('save_active_policy_version', saveArguments)
+    const stateAfterSave = await session.tool('inspect_research_state')
+    if (savedVersion.structuredContent.documentRevision !== readback.structuredContent.document.revision) throw new Error('Saved version was not bound to the read document revision')
+    if (stateAfterSave.structuredContent.researchState.versions.headVersionId !== savedVersion.structuredContent.version.versionId) throw new Error('Saved version did not become the inspected head')
+    if (stateAfterSave.structuredContent.researchState.versions.totalRecords !== researchState.structuredContent.researchState.versions.totalRecords + 1) throw new Error('Version checkpoint did not add exactly one immutable record')
+    if (stateAfterSave.structuredContent.researchState.selfCheck.healthy !== true) throw new Error('Research-state integrity failed after version checkpoint')
     evidence.write = {
       projectId,
       reusedProject: !!existing,
@@ -158,6 +172,8 @@ try {
       researchStateHealthy: true,
       heuristicRecords: researchState.structuredContent.researchState.heuristics.totalRecords,
       versionRecords: researchState.structuredContent.researchState.versions.totalRecords,
+      savedVersionId: savedVersion.structuredContent.version.versionId,
+      dualRevisionCheckpoint: true,
     }
   }
   evidence.passed = true

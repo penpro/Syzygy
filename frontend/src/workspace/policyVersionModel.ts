@@ -214,6 +214,7 @@ export async function commitPolicyVersion(
   collection: Y.Map<unknown>,
   metadata: Y.Map<unknown>,
   input: CommitPolicyVersionInput,
+  assertCurrentState?: () => void,
 ): Promise<PolicyVersion> {
   if (collection.doc !== metadata.doc) throw new Error('Policy versions and metadata must share one document')
   if (input.expectedHeadVersionId !== null && !sha256Pattern.test(input.expectedHeadVersionId)) {
@@ -222,6 +223,7 @@ export async function commitPolicyVersion(
   if (readPolicyVersionHead(metadata) !== input.expectedHeadVersionId) throw new Error('Policy version head conflict')
   const prepared = await preparePolicyVersion(collection, { ...input, parentVersionId: input.expectedHeadVersionId })
   const operation = () => {
+    assertCurrentState?.()
     if (readPolicyVersionHead(metadata) !== input.expectedHeadVersionId) throw new Error('Policy version head conflict')
     if (prepared.payload.parentVersionId !== null && collection.get(prepared.payload.parentVersionId) !== prepared.parentStored) {
       throw new Error('Parent policy version changed during commit')

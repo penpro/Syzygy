@@ -168,6 +168,7 @@ const advertisedMcpTools = [
   'rename_project',
   'read_active_project',
   'inspect_research_state',
+  'save_active_policy_version',
   'replace_active_document',
   'append_active_document',
   'syzygy_installation',
@@ -197,6 +198,22 @@ record(
     mcpSource.includes('"inspect_research_state" => live("project.readResearchState"') &&
     text('scripts/mcp-live-harness.mjs').includes('researchStateHealthy: true'),
   'identity-safe live Y.Doc registry, 200-item metadata caps, secret-body canaries, tamper/head/lineage self-checks, read-only MCP routing, and packaged-live assertion are present',
+)
+const versionAutomationSource = text('frontend/src/workspace/versionAutomation.ts')
+const versionAutomationTestSource = text('frontend/src/workspace/versionAutomation.test.ts')
+record(
+  'MCP policy checkpoints remain dual-revision guarded and append-only',
+  policyVersionSource.includes('assertCurrentState?.()') &&
+    versionAutomationSource.includes("throw new Error('Document revision conflict')") &&
+    versionAutomationSource.includes('expectedHeadVersionId: input.expectedHeadVersionId') &&
+    versionAutomationSource.includes('snapshot.blocks.map(versionBlock)') &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.savePolicyVersion'") &&
+    versionAutomationTestSource.includes('rejects a stale document revision before hashing or mutation') &&
+    versionAutomationTestSource.includes('inside the head transaction after asynchronous hashing') &&
+    versionAutomationTestSource.includes('requires the exact immutable head') &&
+    mcpSource.includes('"save_active_policy_version" => live("project.savePolicyVersion"') &&
+    text('scripts/mcp-live-harness.mjs').includes('dualRevisionCheckpoint: true'),
+  'pre-hash and in-transaction document guards, exact head/parent checks, semantic block mapping, stale/mid-hash zero-write tests, fourteenth MCP route, and packaged-live assertion are present',
 )
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))

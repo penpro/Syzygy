@@ -203,6 +203,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   but returns only bounded metadata summaries and no policy/guidance/edit/note bodies. Pure
   frontend, Rust routing, and compiled debug-executable stdio tests are committed; the mutation-
   capable packaged live harness is updated but was not run by this non-interactive checkpoint.
+- MCP can now save the exact active semantic draft as an immutable attributed checkpoint. The tool
+  requires the document revision from `read_active_project` and the current head from
+  `inspect_research_state`; the document revision is rechecked inside the same final transaction
+  that rechecks the head and inserts the content-addressed version. Four headless tests prove stale
+  and mid-hash document changes create no version, while Rust routes the fourteenth semantic tool.
+  Restore, UI controls, authenticated participant identity, and a packaged live mutation remain open.
 
 ## Current completion snapshot
 

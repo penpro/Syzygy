@@ -88,6 +88,13 @@ and omitting policy text, heuristic guidance/edit values, and notes. Rust tests 
 thirteenth `inspect_research_state` tool to route only to this read operation. The mutation-capable
 live harness checks it when explicitly run; CI does not claim a packaged GUI proof.
 
+`versionAutomation.test.ts` adds the MCP checkpoint mutation gate. It proves semantic editor blocks
+become one immutable head, a stale document revision fails before hashing, a document revision that
+changes during hashing fails inside the final head transaction without inserting a version, and a
+stale version head fails before mutation. The Rust tool route and compiled stdio discovery are
+separate gates. This grants checkpoint creation only—not document editing, restore, or identity
+authentication.
+
 The packaged UI exposes the same Rust-generated values under **Settings → Connect an LLM → MCP
 setup guide**. Do not hard-code an installer location in React or documentation; installed paths
 vary by OS, installer choice, and portable/dev execution.

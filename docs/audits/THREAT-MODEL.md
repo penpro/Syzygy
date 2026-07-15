@@ -68,6 +68,7 @@ versions/evaluation evidence.
 | Native plugin escapes product controls | Native MCP is labeled an advanced unsandboxed process; WASI is preferred | Same-user native code retains OS authority; hashes/signatures do not make it a sandbox |
 | Plugin overwrites newer or unreviewed work | Plugin mutations use bounded revision-guarded proposals plus human acceptance | Drive-specific proposal schemas and runtime acceptance UI remain open |
 | A collaboration test mistakes internal node-map enumeration for visible document order | Policy-block convergence assertions traverse ordered root children; the false-positive failure and corrected oracle are recorded in run evidence | Add pointer/keyboard interaction, randomized ordering, and concurrent move-vs-edit partition cases before claiming P-10 |
+| Concurrent scenario work silently overwrites turns or creates corrupt branch history | Scenarios use nested field/turn/revision CRDTs and explicit ordered keys; peer-specific internal keys retain colliding public IDs so reads fail closed; graph inspection detects invalid records and missing/cyclic parents | Turn winner uses caller-supplied timestamp/edit identity; authenticated identity/clock policy, move/reorder, remote-provider proof, and recovery UI remain open |
 
 ## Release blockers
 

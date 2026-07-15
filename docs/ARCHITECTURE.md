@@ -92,8 +92,9 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   the local IndexedDB collaboration provider, an original Lexical policy editor, and the
   research workspace shell. Reserved Yjs collections hold scenarios, heuristics, immutable
   versions, discussions, and settings; `heuristicsModel.ts` owns nested collaborative records,
-  while `policyVersionModel.ts` stores canonical version envelopes as SHA-256-addressed strings
-  whose hash is rechecked on every read. The Lexical/Yjs editor owns the `root` shared type.
+  `scenarioModel.ts` owns stable multi-turn scenario/branch records, while `policyVersionModel.ts`
+  stores canonical version envelopes as SHA-256-addressed strings whose hash is rechecked on every
+  read. The Lexical/Yjs editor owns the `root` shared type.
 - `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
   navigation, revision-guarded editor reads/writes, and bounded read-only research-state integrity
   inspection. `versionAutomation.ts` maps the exact active semantic editor snapshot into an
@@ -122,6 +123,14 @@ project bounded records, duplicate/reused edit identity fails closed locally and
 and top-level deletion wins
 over a concurrent nested edit in the committed convergence fixture. No heuristics UI or evaluation
 engine is claimed.
+
+`scenarioModel.ts` stores each scenario, ordered turn collection, turn revision collection, and
+scenario edit history as nested Yjs types. Public scenario, turn, and edit identities are stored
+under peer-specific internal keys so disconnected collisions survive merge and make projection
+fail closed. Independent scalar edits and turn insertions converge; turn revisions retain every
+attributed alternative and select a deterministic current value. A graph inspector detects invalid
+records, missing parents, and cycles. No visible gallery, generation, response evaluation, voting,
+or portable scenario-pack export is claimed.
 
 `policyVersionModel.ts` owns immutable policy checkpoints. A version contains a structured policy
 snapshot, parent hash, sorted scenario references, participant ID, display-name snapshot,

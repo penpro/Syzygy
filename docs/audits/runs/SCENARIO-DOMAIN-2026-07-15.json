@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "runId": "SCENARIO-DOMAIN-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "capabilities": ["P-14", "P-15"],
+  "status": "implemented_unverified",
+  "commands": [
+    "npm run test:workspace",
+    "npm run build",
+    "npm run audit",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "workspaceTestsPassed": 57,
+    "scenarioModelTestsPassed": 7,
+    "seededDeliveryOrdersChecked": 80,
+    "frontendModulesTransformed": 996,
+    "structuralAuditChecksPassed": 34,
+    "externalNetworkUsed": false,
+    "realCredentialsUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "A scenario record has exact schema/version, stable identity, title, background, draft/ready/archived state, optional parent, creator attribution, ordered turns, and attributed scenario edits.",
+    "Each turn has stable identity/creator data plus immutable attributed revisions; all concurrent alternatives remain and a deterministic timestamp/edit/author ordering selects the current projection.",
+    "Lifecycle create/read/update/delete, turn add/update/delete, branch creation, and multi-turn role/content round-trip work in the domain harness.",
+    "Independent concurrent scenario field edits and ordered turn additions converge with both attributions across forty duplicate/reordered deliveries.",
+    "Top-level scenario deletion remains authoritative over a concurrent nested turn revision across another forty duplicate/reordered deliveries.",
+    "Peer-specific internal keys preserve disconnected public scenario, turn, and edit identity collisions so merged projection fails closed rather than silently selecting one.",
+    "Exact record/turn/revision schemas, order-to-map consistency, bounds, unknown fields, missing parents, and cyclic ancestry are validated or reported.",
+    "P-14/P-15 are implemented_unverified; no gallery UI, model generation, evaluation, voting, response, or portable-pack claim is made."
+  ],
+  "notProved": [
+    "A visible scenario gallery, editor, status control, keyboard/pointer workflow, accessibility, or themes.",
+    "Scenario generation/regeneration, response variants, examples, votes, flags, notes, labels, evaluation, or policy spotlighting.",
+    "Turn reordering/moving, concurrent move-vs-edit semantics, or large-scenario performance.",
+    "Authenticated participant identity or a trusted distributed clock; winner metadata is caller-supplied.",
+    "Portable scenario-pack/archive export or import; the test round-trip is a Yjs provider update only.",
+    "Two-machine Drive/WebSocket collaboration, presence, authorization, or tamper recovery UI."
+  ]
+}

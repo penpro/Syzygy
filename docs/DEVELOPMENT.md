@@ -54,6 +54,13 @@ projections, parent validation, historical display-name attribution, and forty r
 delivery checks for independently created branches. Direct record tampering must fail closed. This
 proves the P-23/P-27 domain layer, not a version rail, restore workflow, diff UI, or remote transport.
 
+`scenarioModel.test.ts` is the P-14/P-15 domain gate. It covers lifecycle CRUD, ordered multi-turn
+round-trip, attributed immutable turn revisions, branch lineage, independent concurrent field and
+turn additions, delete-versus-nested-edit, peer-colliding public scenario/turn IDs, exact record
+shapes, malformed order, and missing-parent inspection. Eighty seeded duplicate/reordered delivery
+checks must converge. This does not prove gallery UI, generation, voting, evaluation, scenario
+packs, or a remote collaboration provider.
+
 `policyVersionHistory.test.ts` extends that gate for P-28/P-29. It rejects stale expected heads
 before creating a version, restores an old snapshot only by creating a new child of the current
 head, retains both concurrent restore branches across forty reordered/duplicate deliveries, and

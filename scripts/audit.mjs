@@ -106,6 +106,27 @@ record(
   'nested field/edit CRDT maps, detached bounded reads, hostile-input and peer-collision fail-closed attribution, 80 seeded merge orders, delete-without-resurrection, and truthful P-04 status are present',
 )
 
+const scenarioModelSource = text('frontend/src/workspace/scenarioModel.ts')
+const scenarioModelTestSource = text('frontend/src/workspace/scenarioModel.test.ts')
+record(
+  'collaborative scenarios remain ordered, attributed, collision-safe, and convergent',
+  scenarioModelSource.includes('SCENARIO_SCHEMA_VERSION = 1') &&
+    scenarioModelSource.includes('new Y.Array<string>()') &&
+    scenarioModelSource.includes('new Y.Map<ScenarioTurnRevision>()') &&
+    scenarioModelSource.includes('scenarioEntries') &&
+    scenarioModelSource.includes("collection.doc.transact(operation, 'syzygy-scenarios')") &&
+    scenarioModelSource.includes('inspectScenarioGraph') &&
+    scenarioModelTestSource.includes('lifecycle CRUD, attributed multi-turn revisions, and branch lineage') &&
+    (scenarioModelTestSource.match(/seed <= 40/g) ?? []).length === 2 &&
+    scenarioModelTestSource.includes('one public turn identity') &&
+    scenarioModelTestSource.includes('one public scenario identity') &&
+    scenarioModelTestSource.includes('top-level deletion authoritative') &&
+    scenarioModelTestSource.includes('malformed turn order') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-14", "phase": 6, "status": "implemented_unverified"') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-15", "phase": 6, "status": "implemented_unverified"'),
+  'nested ordered turn/revision/edit CRDTs, peer-collision fail-closed IDs, branch inspection, lifecycle/multi-turn CRUD, 80 delivery orders, delete authority, malformed-input tests, and truthful P-14/P-15 statuses are present',
+)
+
 const policyVersionSource = text('frontend/src/workspace/policyVersionModel.ts')
 const policyVersionTestSource = text('frontend/src/workspace/policyVersionModel.test.ts')
 record(

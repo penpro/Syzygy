@@ -130,6 +130,13 @@ tests cover tampering, detached results, idempotent replay, display-name changes
 reordered/duplicate branch deliveries. Save/restore UI, a shared head, deterministic diffs, and
 archive interchange remain open.
 
+P-14/P-15 now have a Penumbra-original collaborative scenario domain service. Stable scenarios
+contain lifecycle state, background, ordered multi-turn content, attributed immutable turn
+revisions, attributed scenario edits, and optional branch parents. Peer-specific internal keys
+preserve disconnected public-ID collisions for fail-closed projection; graph inspection detects
+missing/cyclic ancestry. The gallery, generation, responses, voting, flags, evaluation, and open
+scenario-pack interchange remain open.
+
 P-28/P-29 now have exact-head commit, restore-as-new-child, and deterministic engine-free diff
 services. A stale head fails before creating an orphan; two concurrent restores preserve both
 immutable branches and converge one Yjs head across forty delivery orders. Restore/history UI,

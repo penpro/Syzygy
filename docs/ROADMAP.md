@@ -209,11 +209,17 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   that rechecks the head and inserts the content-addressed version. Four headless tests prove stale
   and mid-hash document changes create no version, while Rust routes the fourteenth semantic tool.
   Restore, UI controls, authenticated participant identity, and a packaged live mutation remain open.
+- Collaborative scenario foundations now cover lifecycle CRUD, ordered multi-turn content,
+  attributed turn revisions, scenario edit history, and branch parents. Forty seeded concurrent
+  field/turn-add deliveries and forty delete-versus-turn-edit deliveries converge; disconnected
+  public scenario/turn ID collisions, malformed order, unknown fields, and missing parents fail
+  closed. This closes P-14/P-15 domain evidence only; gallery UI, generation, response variants,
+  votes/flags, evaluation, and portable scenario packs remain open.
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **41 capabilities**: **15 are
-`implemented_unverified`, 26 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **41 capabilities**: **17 are
+`implemented_unverified`, 24 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, portable local lifecycle,
 Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned

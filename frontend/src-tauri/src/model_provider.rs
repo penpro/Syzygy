@@ -1,8 +1,8 @@
 //! Rust-owned remote model transport and normalization boundary.
 //!
 //! The webview must never construct provider HTTP requests or receive provider credentials.
-//! Executable slices certify OpenAI Responses request/stream plus Anthropic Messages and Gemini
-//! Interactions one-shot contracts against fake loopback servers. Product credential integration, frontend event
+//! Executable slices certify OpenAI Responses request/stream plus Anthropic Messages, Gemini
+//! Interactions, and xAI Responses one-shot contracts against fake loopback servers. Product credential integration, frontend event
 //! delivery, UI invocation, and live-provider calls remain deliberately unavailable until their
 //! separate gates pass.
 
@@ -22,6 +22,7 @@ use zeroize::Zeroize;
 pub const OPENAI_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
 pub const ANTHROPIC_ADAPTER_STATUS: &str = "request-control-conformance";
 pub const GEMINI_ADAPTER_STATUS: &str = "request-control-conformance";
+pub const XAI_ADAPTER_STATUS: &str = "request-control-conformance";
 pub const DEFAULT_PROVIDER_TIMEOUT: Duration = Duration::from_secs(60);
 const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_STREAM_BYTES: usize = 32 * 1024 * 1024;
@@ -33,6 +34,7 @@ pub enum RemoteProviderId {
     OpenAi,
     Anthropic,
     Gemini,
+    Xai,
 }
 
 /// Secret wrapper whose debug representation cannot disclose the credential.
@@ -375,7 +377,10 @@ async fn bounded_body(response: reqwest::Response) -> Result<Vec<u8>, ProviderEr
     Ok(body)
 }
 
-fn normalize_openai(value: Value) -> Result<NormalizedResponse, ProviderError> {
+fn normalize_responses_api(
+    value: Value,
+    provider: RemoteProviderId,
+) -> Result<NormalizedResponse, ProviderError> {
     let id = value
         .get("id")
         .and_then(Value::as_str)
@@ -431,7 +436,7 @@ fn normalize_openai(value: Value) -> Result<NormalizedResponse, ProviderError> {
     }
     let usage = normalized_usage(&value)?;
     Ok(NormalizedResponse {
-        provider: RemoteProviderId::OpenAi,
+        provider,
         id,
         status,
         model: value
@@ -443,6 +448,17 @@ fn normalize_openai(value: Value) -> Result<NormalizedResponse, ProviderError> {
         unknown_output_types,
         usage,
     })
+}
+
+fn normalize_openai(value: Value) -> Result<NormalizedResponse, ProviderError> {
+    normalize_responses_api(value, RemoteProviderId::OpenAi)
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct XaiNormalizedResponse {
+    pub response: NormalizedResponse,
+    pub zero_data_retention: bool,
 }
 
 fn normalize_anthropic(value: Value) -> Result<NormalizedResponse, ProviderError> {
@@ -848,6 +864,62 @@ pub async fn execute_gemini_response_controlled(
         .map_err(|_| ProviderError::Cancelled)?
 }
 
+pub async fn execute_xai_response(
+    client: &Client,
+    endpoint: &Url,
+    secret: &ProviderSecret,
+    request: &GenerationRequest,
+    approval: &TransmissionApproval,
+) -> Result<XaiNormalizedResponse, ProviderError> {
+    let (execution, _cancellation) = provider_execution(DEFAULT_PROVIDER_TIMEOUT)?;
+    execute_xai_response_controlled(client, endpoint, secret, request, approval, execution).await
+}
+
+pub async fn execute_xai_response_controlled(
+    client: &Client,
+    endpoint: &Url,
+    secret: &ProviderSecret,
+    request: &GenerationRequest,
+    approval: &TransmissionApproval,
+    execution: ProviderExecution,
+) -> Result<XaiNormalizedResponse, ProviderError> {
+    validate_endpoint(endpoint, "/v1/responses")?;
+    request.validate()?;
+    approval.validate_for(RemoteProviderId::Xai)?;
+    let operation = async {
+        let response = client
+            .post(endpoint.clone())
+            .timeout(execution.timeout)
+            .bearer_auth(secret.expose())
+            .header("content-type", "application/json")
+            .json(&openai_body(request, false))
+            .send()
+            .await
+            .map_err(|error| classify_transport_error(&error))?;
+        if !response.status().is_success() {
+            return Err(ProviderError::HttpStatus(response.status().as_u16()));
+        }
+        let zero_data_retention = match response
+            .headers()
+            .get("x-zero-data-retention")
+            .and_then(|value| value.to_str().ok())
+        {
+            Some("true") => true,
+            Some("false") => false,
+            _ => return Err(ProviderError::MalformedResponse),
+        };
+        let body = bounded_body(response).await?;
+        let value = serde_json::from_slice(&body).map_err(|_| ProviderError::MalformedResponse)?;
+        Ok(XaiNormalizedResponse {
+            response: normalize_responses_api(value, RemoteProviderId::Xai)?,
+            zero_data_retention,
+        })
+    };
+    Abortable::new(operation, execution.cancellation)
+        .await
+        .map_err(|_| ProviderError::Cancelled)?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -891,6 +963,14 @@ mod tests {
     fn gemini_approval() -> TransmissionApproval {
         TransmissionApproval {
             provider: RemoteProviderId::Gemini,
+            content_categories: vec!["selected research excerpts".to_owned()],
+            accepted: true,
+        }
+    }
+
+    fn xai_approval() -> TransmissionApproval {
+        TransmissionApproval {
+            provider: RemoteProviderId::Xai,
             content_categories: vec!["selected research excerpts".to_owned()],
             accepted: true,
         }
@@ -1030,6 +1110,42 @@ mod tests {
         });
         (
             Url::parse(&format!("http://{address}/v1/responses")).expect("stream fake URL"),
+            receiver,
+        )
+    }
+
+    fn fake_xai_server(
+        zdr_header: Option<&str>,
+        status: &str,
+        body: &str,
+        response_delay: Duration,
+    ) -> (Url, mpsc::Receiver<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback xAI provider");
+        let address = listener.local_addr().expect("xAI provider address");
+        let (sender, receiver) = mpsc::channel();
+        let status = status.to_owned();
+        let body = body.to_owned();
+        let zdr_header = zdr_header.map(str::to_owned);
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept xAI request");
+            sender
+                .send(read_http_request(&mut stream))
+                .expect("send captured xAI request");
+            thread::sleep(response_delay);
+            let zdr = zdr_header
+                .map(|value| format!("X-Zero-Data-Retention: {value}\r\n"))
+                .unwrap_or_default();
+            let result = write!(
+                stream,
+                "HTTP/1.1 {status}\r\nContent-Type: application/json\r\n{zdr}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            if response_delay.is_zero() {
+                result.expect("write xAI response");
+            }
+        });
+        (
+            Url::parse(&format!("http://{address}/v1/responses")).expect("xAI fake URL"),
             receiver,
         )
     }
@@ -1819,6 +1935,141 @@ mod tests {
             &ProviderSecret::new("fixture-key".to_owned()).expect("secret"),
             &request(),
             &gemini_approval(),
+            execution,
+        ));
+        assert_eq!(cancelled, Err(ProviderError::Cancelled));
+    }
+
+    #[test]
+    fn xai_fake_server_proves_storage_off_wire_shape_and_retention_attestation() {
+        let response_body = r#"{"id":"resp_xai","status":"completed","model":"grok-test","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Supported finding."}]}],"usage":{"input_tokens":10,"output_tokens":3,"total_tokens":13}}"#;
+        let (endpoint, captured) =
+            fake_xai_server(Some("false"), "200 OK", response_body, Duration::ZERO);
+        let secret_canary = "xai-wire-canary";
+        let result = tauri::async_runtime::block_on(execute_xai_response(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new(secret_canary.to_owned()).expect("secret"),
+            &request(),
+            &xai_approval(),
+        ))
+        .expect("normalized xAI response");
+        assert_eq!(result.response.provider, RemoteProviderId::Xai);
+        assert_eq!(result.response.text, "Supported finding.");
+        assert!(!result.zero_data_retention);
+
+        let raw = captured.recv().expect("captured xAI request");
+        let (headers, body) = raw.split_once("\r\n\r\n").expect("HTTP request");
+        let headers = headers.to_ascii_lowercase();
+        assert!(headers.starts_with("post /v1/responses http/1.1"));
+        assert!(headers.contains(&format!("authorization: bearer {secret_canary}")));
+        let body: Value = serde_json::from_str(body).expect("xAI request JSON");
+        assert_eq!(body["store"], false);
+        assert_eq!(body["stream"], false);
+        assert!(body.get("previous_response_id").is_none());
+        assert!(body.get("prompt_cache_key").is_none());
+    }
+
+    #[test]
+    fn xai_requires_boolean_retention_header_and_surfaces_zdr_true() {
+        let response_body = r#"{"id":"resp_xai","status":"completed","output":[],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}"#;
+        let (endpoint, _captured) =
+            fake_xai_server(Some("true"), "200 OK", response_body, Duration::ZERO);
+        let result = tauri::async_runtime::block_on(execute_xai_response(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("fixture-key".to_owned()).expect("secret"),
+            &request(),
+            &xai_approval(),
+        ))
+        .expect("ZDR-attested response");
+        assert!(result.zero_data_retention);
+
+        for header in [None, Some("unknown")] {
+            let (endpoint, _captured) =
+                fake_xai_server(header, "200 OK", response_body, Duration::ZERO);
+            let result = tauri::async_runtime::block_on(execute_xai_response(
+                &Client::new(),
+                &endpoint,
+                &ProviderSecret::new("fixture-key".to_owned()).expect("secret"),
+                &request(),
+                &xai_approval(),
+            ));
+            assert_eq!(result, Err(ProviderError::MalformedResponse));
+        }
+    }
+
+    #[test]
+    fn xai_disclosure_and_error_body_fail_closed() {
+        let endpoint = Url::parse("https://api.x.ai/v1/responses").expect("URL");
+        let disclosure = tauri::async_runtime::block_on(execute_xai_response(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("fixture-key".to_owned()).expect("secret"),
+            &request(),
+            &approval(),
+        ));
+        assert_eq!(disclosure, Err(ProviderError::DisclosureRequired));
+
+        let response_canary = "xai-error-body-canary";
+        let (endpoint, _captured) = fake_xai_server(
+            Some("false"),
+            "401 Unauthorized",
+            &format!(r#"{{"error":{{"message":"{response_canary}"}}}}"#),
+            Duration::ZERO,
+        );
+        let error = tauri::async_runtime::block_on(execute_xai_response(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("xai-secret-canary".to_owned()).expect("secret"),
+            &request(),
+            &xai_approval(),
+        ))
+        .expect_err("401 must fail");
+        assert_eq!(error, ProviderError::HttpStatus(401));
+        assert!(!error.to_string().contains(response_canary));
+    }
+
+    #[test]
+    fn xai_controlled_request_times_out_and_cancels_distinctly() {
+        let response = r#"{"id":"resp_late","status":"completed","output":[]}"#;
+        let (endpoint, _captured) = fake_xai_server(
+            Some("false"),
+            "200 OK",
+            response,
+            Duration::from_millis(250),
+        );
+        let (execution, _cancellation) =
+            provider_execution(Duration::from_millis(40)).expect("execution controls");
+        let timeout = tauri::async_runtime::block_on(execute_xai_response_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("fixture-key".to_owned()).expect("secret"),
+            &request(),
+            &xai_approval(),
+            execution,
+        ));
+        assert_eq!(timeout, Err(ProviderError::Timeout));
+
+        let (endpoint, captured) = fake_xai_server(
+            Some("false"),
+            "200 OK",
+            response,
+            Duration::from_millis(250),
+        );
+        let (execution, cancellation) =
+            provider_execution(Duration::from_secs(2)).expect("execution controls");
+        let cancel_from_task = cancellation.clone();
+        thread::spawn(move || {
+            captured.recv().expect("request reached fake server");
+            cancel_from_task.cancel();
+        });
+        let cancelled = tauri::async_runtime::block_on(execute_xai_response_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("fixture-key".to_owned()).expect("secret"),
+            &request(),
+            &xai_approval(),
             execution,
         ));
         assert_eq!(cancelled, Err(ProviderError::Cancelled));

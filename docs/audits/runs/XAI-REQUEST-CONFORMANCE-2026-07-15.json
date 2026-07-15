@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "runId": "XAI-REQUEST-CONFORMANCE-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "request-control-conformance",
+  "command": "npm run test:providers",
+  "result": {
+    "passed": true,
+    "providerBoundaryTestsPassed": 27,
+    "xaiFocusedTestsPassed": 4,
+    "loopbackFakeNetworkUsed": true,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "paidProviderCalls": 0
+  },
+  "regressionGates": {
+    "fullRustTestsPassed": 58,
+    "extensionContractTestsPassed": 16,
+    "frontendModulesTransformed": 989,
+    "structuralAuditChecksPassed": 19,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true
+  },
+  "proved": [
+    "The Rust adapter posts to the exact /v1/responses route with bearer authentication.",
+    "The adapter forces store=false and stream=false and sends neither previous_response_id nor prompt_cache_key.",
+    "A successful response is normalized into the provider-neutral response model and attributed to xAI.",
+    "The response must contain a boolean x-zero-data-retention header and the parsed value is surfaced in the typed result.",
+    "A false retention header is kept distinct from true, so standard response retention is not represented as enterprise zero-data retention.",
+    "Disclosure denial, provider errors, timeout, and cancellation produce distinct sanitized failures.",
+    "xAI credentials use a vault account namespace distinct from every other provider.",
+    "All assertions ran against an in-process loopback fake server without a real key or paid request."
+  ],
+  "notProved": [
+    "xAI SSE or WebSocket streaming.",
+    "Tool calls, encrypted reasoning, usage accounting, or cost accounting.",
+    "The live service's retention behavior, enterprise policy, or zero-data-retention eligibility.",
+    "Product UI, Tauri commands, or credential-entry wiring.",
+    "A live xAI request or model-output quality."
+  ],
+  "primarySources": [
+    "https://docs.x.ai/developers/quickstart",
+    "https://docs.x.ai/developers/model-capabilities/text/comparison",
+    "https://docs.x.ai/developers/faq/security",
+    "https://docs.x.ai/developers/advanced-api-usage/websocket-mode"
+  ]
+}

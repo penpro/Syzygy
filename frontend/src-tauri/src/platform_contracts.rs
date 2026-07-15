@@ -35,7 +35,7 @@ pub fn current() -> Result<Value, String> {
             "openai-responses": crate::model_provider::OPENAI_ADAPTER_STATUS,
             "anthropic-messages": crate::model_provider::ANTHROPIC_ADAPTER_STATUS,
             "gemini-interactions": crate::model_provider::GEMINI_ADAPTER_STATUS,
-            "xai-responses": "contract-only",
+            "xai-responses": crate::model_provider::XAI_ADAPTER_STATUS,
             "custom": "contract-only"
         },
         "providerTransports": [
@@ -110,6 +110,10 @@ mod tests {
         );
         assert_eq!(
             contracts["providerAdapterStatus"]["gemini-interactions"],
+            "request-control-conformance"
+        );
+        assert_eq!(
+            contracts["providerAdapterStatus"]["xai-responses"],
             "request-control-conformance"
         );
         assert_eq!(

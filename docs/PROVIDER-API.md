@@ -3,8 +3,9 @@
 **Contract version:** 1. **Runtime status:** local adapter available; OpenAI Responses request,
 bounded timeout/cancellation, and fake-network incremental stream dispatch are at
 `request-and-stream-control-conformance` and intentionally not product-callable; Anthropic
-Messages and Gemini Interactions one-shot requests are at `request-control-conformance`; xAI and custom remote
-adapters are contract-only.
+Messages, Gemini Interactions, and xAI Responses one-shot requests are at
+`request-control-conformance`; custom remote adapters
+are contract-only.
 
 The canonical TypeScript contract is `frontend/src/extensions/providerContract.ts`. It prevents
 research workflows from depending on a vendor response shape and keeps provider availability
@@ -92,6 +93,15 @@ their contents, and accepts usage only when total tokens cover input plus output
 disclosure, byte bound, redaction, timeout, and cancellation gates match the other remote slices.
 Streaming lifecycle events, tools, thought-signature continuation, structured output, stored state,
 live terms validation, UI, and opt-in live proof remain open.
+
+The xAI slice deliberately reuses only the compatible Responses wire shape, not OpenAI privacy
+assumptions. It sends bearer auth to `/v1/responses`, forces `store:false`, and omits
+`previous_response_id`, `prompt_cache_key`, and conversation-routing headers. Every successful
+response must include xAI's boolean `x-zero-data-retention` header; the typed result exposes whether
+enterprise ZDR was actually active instead of treating `store:false` as ZDR. Output and usage use
+the provider-neutral Responses normalizer and the common disclosure, endpoint, size, redaction,
+timeout, and cancellation gates. Streaming/WebSocket mode, tools, encrypted reasoning continuity,
+cost ticks, UI, and opt-in live proof remain open.
 
 ## Certification suite
 

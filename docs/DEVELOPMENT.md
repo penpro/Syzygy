@@ -95,6 +95,12 @@ usage consistency, sanitized failures, timeout, and cancellation. The test rejec
 instead of silently drifting API versions. Gemini SSE, tools/thought-signature continuation, a live
 credential, frontend disclosure, and product availability remain open.
 
+The xAI Responses one-shot boundary uses the Responses shape without assuming OpenAI's privacy
+semantics. The fake server checks bearer auth, `store:false`, no previous-response/cache identifier,
+bounded normalization, timeout/cancellation, and a mandatory boolean `x-zero-data-retention`
+response header. The result preserves that ZDR attestation for later disclosure. xAI streaming,
+tools/reasoning continuation, UI, and live proof remain open.
+
 `npm run test:provider-streams` separately feeds the OpenAI decoder byte-by-byte and with
 multiline, unknown, malformed, mismatched, oversized, and truncated SSE fixtures. It proves parser
 normalization in isolation. `test:providers` separately proves the parser is fed through fake HTTP

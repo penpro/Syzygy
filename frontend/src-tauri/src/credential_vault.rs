@@ -34,6 +34,7 @@ impl CredentialId {
             RemoteProviderId::OpenAi => "openai",
             RemoteProviderId::Anthropic => "anthropic",
             RemoteProviderId::Gemini => "gemini",
+            RemoteProviderId::Xai => "xai",
         };
         format!("{provider}:{}", self.profile)
     }
@@ -184,12 +185,16 @@ mod tests {
             .expect("Anthropic credential ID");
         let gemini = CredentialId::new(RemoteProviderId::Gemini, "default".to_owned())
             .expect("Gemini credential ID");
+        let xai = CredentialId::new(RemoteProviderId::Xai, "default".to_owned())
+            .expect("xAI credential ID");
         assert_eq!(openai.account(), "openai:default");
         assert_eq!(anthropic.account(), "anthropic:default");
         assert_eq!(gemini.account(), "gemini:default");
+        assert_eq!(xai.account(), "xai:default");
         assert_ne!(openai.account(), anthropic.account());
         assert_ne!(openai.account(), gemini.account());
         assert_ne!(anthropic.account(), gemini.account());
+        assert_ne!(gemini.account(), xai.account());
     }
 
     #[test]

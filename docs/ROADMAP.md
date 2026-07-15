@@ -126,6 +126,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   server proves header auth, storage/background/stream off, thought-summary suppression, system and
   user mapping, output bounds, text-only retention, consistent aggregate usage, sanitized failure,
   timeout, and cancellation. Streaming, tools/thought signatures, UI, and live proof remain open.
+- xAI Responses now has an unwired one-shot `request-control-conformance` slice. Its fake server
+  proves storage-off/no-threading request shape, bearer auth, bounded normalization, controls, and
+  mandatory boolean ZDR attestation without confusing standard retention with enterprise ZDR.
 
 ## Current completion snapshot
 

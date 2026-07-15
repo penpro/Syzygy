@@ -139,6 +139,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   sanitized normalized output, disclosure denial without network contact, and Rust-authored
   content-free provenance. Credential-only Tauri commands exist; generation remains unregistered
   pending the human disclosure surface.
+- The actual Rust-authored task record now crosses process serialization and passes the public
+  TypeScript schema plus semantic validator. Loopback evidence is explicitly marked and cannot be
+  mistaken for a production HTTPS call.
 
 ## Current completion snapshot
 

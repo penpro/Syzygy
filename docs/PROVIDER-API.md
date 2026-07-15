@@ -25,8 +25,11 @@ or inconsistent token total. MCP publishes the exact schema and truthful validat
 This record is an interchange and audit boundary, not proof that a provider honored its policy.
 The transport's fake/live evidence and the dated policy source remain separate artifacts. Product
 The internal Rust task bridge now creates the record for completed, failed, cancelled, and timed-out
-attempts. Generation is not registered with Tauri yet, so this is fake-network runtime evidence,
-not a product-available remote call.
+attempts. Its loopback harness passes the serialized Rust record directly through the public
+TypeScript schema and semantic validator. A `loopback-conformance` marker permits only an actual
+literal-loopback destination; omitted/`product` records still require remote HTTPS. Generation is
+not registered with Tauri yet, so this is cross-language conformance evidence, not a
+product-available remote call.
 
 ## Required adapter behavior
 
@@ -169,4 +172,5 @@ establish model quality or a provider's legal/privacy suitability for a particul
 
 Run the currently executable Rust provider slice with `npm run test:providers`.
 Run the internal vault/task/provenance bridge with `npm run test:provider-runtime`.
+Run its Rust-to-TypeScript record proof with `npm run test:provider-runtime-interop`.
 Run its incremental streaming parser with `npm run test:provider-streams`.

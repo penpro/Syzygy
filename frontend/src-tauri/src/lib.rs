@@ -12,7 +12,8 @@ pub mod mcp;
 mod mcp_setup;
 pub mod model_provider;
 mod platform_contracts;
-mod provider_runtime;
+#[doc(hidden)]
+pub mod provider_runtime;
 pub mod provider_stream;
 mod state;
 mod updates;

@@ -39,7 +39,7 @@ pub fn current() -> Result<Value, String> {
         "implementationStatus": {
             "localProvider": "available",
             "remoteProviderAdapters": "runtime-boundary-unwired",
-            "providerTaskRuntime": "fake-network-certified-unwired",
+            "providerTaskRuntime": "cross-language-certified-unwired",
             "providerRunRecordValidator": "implemented",
             "modelAdapterCertifier": "contract-certified-runner",
             "credentialVault": "tauri-command-ui-open",
@@ -98,6 +98,7 @@ pub fn current() -> Result<Value, String> {
             "command": "npm run test:contracts",
             "providerCommand": "npm run test:providers",
             "providerRuntimeCommand": "npm run test:provider-runtime",
+            "providerRuntimeInteropCommand": "npm run test:provider-runtime-interop",
             "providerStreamCommand": "npm run test:provider-streams",
             "credentialCommand": "npm run test:credentials",
             "credentialLiveCommand": "npm run test:credentials:live",
@@ -124,7 +125,7 @@ mod tests {
         );
         assert_eq!(
             contracts["implementationStatus"]["providerTaskRuntime"],
-            "fake-network-certified-unwired"
+            "cross-language-certified-unwired"
         );
         assert_eq!(
             contracts["providerAdapterStatus"]["openai-responses"],

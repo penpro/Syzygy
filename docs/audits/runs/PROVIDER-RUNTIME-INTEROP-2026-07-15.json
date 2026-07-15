@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "runId": "PROVIDER-RUNTIME-INTEROP-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "cross-language-certified-unwired",
+  "commands": [
+    "npm run test:provider-runtime-interop",
+    "npm run test:contracts",
+    "npm run build",
+    "npm run audit",
+    "cargo test --lib",
+    "node D:\\PolicyPad\\syzygy\\scripts\\mcp-harness.mjs"
+  ],
+  "result": {
+    "passed": true,
+    "interopTestsPassed": 1,
+    "rustRecordBytes": 1142,
+    "extensionContractTestsPassed": 26,
+    "extensionInteropTestsSkippedWithoutFixture": 1,
+    "fullRustTestsPassed": 61,
+    "frontendModulesTransformed": 989,
+    "structuralAuditChecksPassed": 21,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false
+  },
+  "proved": [
+    "The Rust provider task runtime executed against an in-process literal-loopback fake Responses endpoint using an injected credential.",
+    "Rust serialized the actual content-free run record and passed it directly to the TypeScript test process without a hand-authored intermediate fixture.",
+    "The serialized record passed the committed Draft 2020-12 schema and the TypeScript cross-field semantic validator.",
+    "The record identifies its actual test destination with executionMode=loopback-conformance; semantic validation allows only literal loopback in that mode and continues requiring HTTPS for product remote records.",
+    "The serialized record did not contain the credential or prompt canaries.",
+    "MCP embeds the updated schema and reports cross-language-certified-unwired rather than product availability."
+  ],
+  "notProved": [
+    "Generation is callable from the product UI or Tauri handler.",
+    "A real provider endpoint, credential, policy, retention mode, usage, or cost.",
+    "Native human disclosure approval and approval lifetime/content binding.",
+    "Streaming, tools, reasoning continuity, retries, or adversarial multi-provider orchestration."
+  ]
+}

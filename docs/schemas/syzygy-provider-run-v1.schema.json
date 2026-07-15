@@ -49,6 +49,10 @@
         "remote": { "type": "boolean" }
       }
     },
+    "executionMode": {
+      "enum": ["product", "loopback-conformance"],
+      "description": "Optional for backward compatibility; omitted means product. Loopback conformance records must name the actual literal-loopback destination."
+    },
     "request": {
       "type": "object",
       "additionalProperties": false,

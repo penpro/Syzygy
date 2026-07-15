@@ -62,7 +62,7 @@ source of project truth.
 | `mcp_setup.rs` | Running-executable discovery plus copy-ready JSON/TOML configuration and connection prompts shared by the UI and MCP. |
 | `platform_contracts.rs` | Machine-readable provider-run, adversarial-review, and researcher-plugin schemas/status exposed to headless MCP clients. |
 | `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses one-shot/SSE plus Anthropic Messages, Gemini Interactions, and xAI Responses one-shot wire contracts have fake-server evidence with bounded controls and sanitized normalization. |
-| `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. Fake-network execution is proven, credential set/status/delete are typed Tauri commands, and generation remains unregistered until the human disclosure surface exists. |
+| `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. Fake-network execution and Rust→TypeScript record validation are proven, credential set/status/delete are typed Tauri commands, and generation remains unregistered until the human disclosure surface exists. |
 | `provider_stream.rs` | Incremental provider SSE normalization. The OpenAI decoder handles byte-fragmented Unicode, multiline frames, usage/finish events, unknown future events, sanitized provider errors, and bounded malformed/truncated input. |
 | `credential_vault.rs` | Provider-secret abstraction backed by Windows Credential Manager, macOS Keychain, or Linux Secret Service/keyutils. Unit tests use only a memory implementation; a separate live harness creates and deletes a random OS-store canary. |
 
@@ -163,8 +163,8 @@ execution have shipped.
   OpenAI request/stream plus Anthropic, Gemini, and xAI one-shot boundaries are fake-server
   certified. The OS vault now has typed credential-only commands, and an internal one-shot task
   bridge proves vault lookup, normalized execution, cancellation registration, and content-free
-  provenance. Generation is deliberately absent from the Tauri handler until the human disclosure
-  surface and cross-language run-record gate land. Other remote adapters remain contract-only.
+  provenance, including Rust-to-TypeScript validation. Generation is deliberately absent from the
+  Tauri handler until the human disclosure surface lands. Other remote adapters remain contract-only.
   Plugins declare capabilities and submit revision-guarded proposals. No plugin
   code executes in the webview and no contract-only feature may report itself as available. See
   `PROVIDER-API.md`, `PLUGIN-API.md`, and ADR-0002/0003.

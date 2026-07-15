@@ -10,6 +10,7 @@ const remoteRecord = (): ProviderRunRecord => ({
   recordVersion: 1,
   runId: 'adversarial-run-001',
   callId: 'candidate-call-001',
+  executionMode: 'product',
   provider: {
     id: 'xai',
     transport: 'xai-responses',
@@ -86,6 +87,18 @@ describe('provider run record', () => {
         expect.stringContaining('HTTPS'),
         expect.stringContaining('true typed attestation'),
       ]),
+    )
+  })
+
+  it('allows an honestly marked literal-loopback adapter conformance record only', () => {
+    const fixture = remoteRecord()
+    fixture.executionMode = 'loopback-conformance'
+    fixture.disclosure.destination = 'http://127.0.0.1:43123/v1/responses'
+    expect(validatePublicSchema(fixture), JSON.stringify(validatePublicSchema.errors)).toBe(true)
+    expect(validateProviderRunRecord(fixture)).toEqual([])
+    fixture.disclosure.destination = 'http://localhost:43123/v1/responses'
+    expect(validateProviderRunRecord(fixture)).toContain(
+      'loopback conformance destination must use literal loopback',
     )
   })
 

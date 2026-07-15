@@ -13,6 +13,7 @@ export interface ProviderRunRecord {
   recordVersion: typeof PROVIDER_RUN_RECORD_VERSION
   runId: string
   callId: string
+  executionMode?: 'product' | 'loopback-conformance'
   provider: {
     id: string
     transport: ProviderTransport
@@ -103,11 +104,20 @@ export function validateProviderRunRecord(record: ProviderRunRecord): string[] {
     if (!record.disclosure.policyUrl || !record.disclosure.policyCheckedAt) {
       errors.push('remote execution requires a dated provider policy reference')
     }
-    if (destination?.protocol !== 'https:') errors.push('remote execution destination must use HTTPS')
+    if (record.executionMode === 'loopback-conformance') {
+      if (!destination || !exactLoopback(destination.hostname) || !['http:', 'https:'].includes(destination.protocol)) {
+        errors.push('loopback conformance destination must use literal loopback')
+      }
+    } else if (destination?.protocol !== 'https:') {
+      errors.push('remote product execution destination must use HTTPS')
+    }
     if (record.dataHandling.storageRequest === 'local-only') {
       errors.push('remote execution cannot claim local-only storage')
     }
   } else {
+    if (record.executionMode === 'loopback-conformance') {
+      errors.push('local execution must not use the remote-adapter conformance marker')
+    }
     if (record.disclosure.required || record.disclosure.approved || record.disclosure.approvedAt) {
       errors.push('local execution must not fabricate remote disclosure approval')
     }

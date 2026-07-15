@@ -104,7 +104,7 @@ MCP host
   reports the unwired OpenAI adapter as `request-and-stream-control-conformance` and Anthropic
   Messages, Gemini Interactions, and xAI Responses as the narrower `request-control-conformance`.
   It reports credential-only Tauri commands as `tauri-command-ui-open`, the internal one-shot task
-  bridge as `fake-network-certified-unwired`, and aggregate remote execution as
+  bridge as `cross-language-certified-unwired`, and aggregate remote execution as
   `runtime-boundary-unwired` because generation is not registered. It reports the non-executing
   plugin certifier as `contract-certified-runner`, and adversarial execution, plugin loading, and
   custom-adapter execution as `contract-only`; the non-executing adapter

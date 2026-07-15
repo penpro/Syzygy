@@ -468,7 +468,7 @@ model, or filesystem access; native MCP is never described as sandboxed; all mut
 revision-guarded proposals with a human-visible diff and attribution.
 
 Machine-readable inspection is available through `syzygy_platform_contracts`. It must distinguish
-the fake-network-certified but unregistered provider task bridge from product availability, and
+the cross-language-certified but unregistered provider task bridge from product availability, and
 continue returning `contract-only` for adversarial execution, custom-adapter execution, and plugin
 loading.
 
@@ -478,8 +478,10 @@ unwired Rust conformance suites and are reported as `request-and-stream-control-
 Aggregate remote execution is now `runtime-boundary-unwired`: an internal one-shot task bridge
 retrieves an injected vault credential, applies disclosure/timeout/cancellation controls, normalizes
 the response, and authors content-free provenance. Generation remains outside the Tauri handler
-until the human disclosure surface and cross-language record gate land; streamed tools and opt-in
-live evidence are also open.
+until the human disclosure surface lands; streamed tools and opt-in live evidence are also open.
+The cross-language record gate now passes: the Rust loopback execution record is explicitly marked
+as conformance evidence and passes both the public TypeScript schema and semantic validator without
+leaking its secret or prompt canaries.
 
 Anthropic Messages one-shot request/control conformance now passes the same unwired Rust boundary;
 its stream parser/network path and tool blocks remain open, so the adapter is not product-available.

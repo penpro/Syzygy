@@ -169,19 +169,23 @@ record(
   'public strict schema plus identity blinding, evidence, minority, equal-budget, human-mutation, and no-hidden-reasoning gates present',
 )
 const providerRunRecordSource = text('frontend/src/extensions/providerRunRecord.ts')
+const providerRuntimeInteropSource = text('scripts/provider-runtime-interop.mjs')
 record(
   'provider run records remain disclosure and provenance gated',
   providerRunSchema.$schema === 'https://json-schema.org/draft/2020-12/schema' &&
     providerRunSchema.additionalProperties === false &&
     providerRunSchema.properties?.recordVersion?.const === 1 &&
     providerRunRecordSource.includes('remote execution requires recorded human disclosure approval') &&
-    providerRunRecordSource.includes('remote execution destination must use HTTPS') &&
+    providerRunRecordSource.includes('remote product execution destination must use HTTPS') &&
     providerRunRecordSource.includes('attested zero retention requires a true typed attestation') &&
     providerRunRecordSource.includes('totalTokens must equal inputTokens plus outputTokens') &&
     providerRunRecordSource.includes('must not contain prompts, outputs, credentials, or raw payloads') &&
+    providerRunSchema.properties?.executionMode?.enum?.includes('loopback-conformance') &&
+    providerRunRecordSource.includes('loopback conformance destination must use literal loopback') &&
+    providerRuntimeInteropSource.includes('SYZYGY_PROVIDER_RUN_RECORD') &&
     platformContractsSource.includes('"providerRunRecordSchema"') &&
     platformContractsSource.includes('"providerRunRecordValidator": "implemented"'),
-  'strict public schema plus disclosure, endpoint, retention, accounting, content-exclusion, and MCP self-description gates present',
+  'strict public schema plus product/conformance endpoint honesty, disclosure, retention, accounting, content-exclusion, cross-language harness, and MCP gates present',
 )
 const modelAdapterProfileSource = text('frontend/src/extensions/modelAdapterProfile.ts')
 const modelAdapterCertifierSource = text('scripts/model-adapter-certifier.mjs')
@@ -245,7 +249,9 @@ record(
     providerTaskRuntimeSource.includes('run_record(') &&
     providerTaskRuntimeSource.includes('Registered only after the native disclosure UI') &&
     platformContractsSource.includes('"remoteProviderAdapters": "runtime-boundary-unwired"') &&
-    platformContractsSource.includes('"providerTaskRuntime": "fake-network-certified-unwired"'),
+    platformContractsSource.includes('"providerTaskRuntime": "cross-language-certified-unwired"') &&
+    providerTaskRuntimeSource.includes('"executionMode": execution_mode') &&
+    text('frontend/src-tauri/src/bin/provider-runtime-harness.rs').includes('interop-secret-canary'),
   'OpenAI request/stream plus Anthropic, Gemini, and xAI request wire contracts, content-free task runtime, disclosure/storage/ZDR controls, truthful status, and unregistered generation gate present',
 )
 record(

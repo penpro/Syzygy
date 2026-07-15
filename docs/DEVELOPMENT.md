@@ -18,6 +18,7 @@ cargo check                # in src-tauri (cargo is at C:\Users\penum\.cargo\bin
 npm run audit              # architecture, identity, provenance, capability-ledger invariants
 npm run test:providers     # fake-server remote-provider boundary; no live key or network required
 npm run test:provider-runtime # fake-vault task bridge and Rust-authored provenance; no live key/network
+npm run test:provider-runtime-interop # Rust record → public TS schema + semantic validator
 npm run test:contracts     # public provider-run/adversarial/plugin schemas and semantic validators
 npm run test:provider-streams # fragmented/multiline/unknown/malformed SSE conformance
 npm run test:credentials   # memory-backed credential-vault contract; no OS store mutation
@@ -109,14 +110,17 @@ from an injected vault, executes through the existing provider transport, normal
 and authors a content-free provider-run record. The fixture fails if the secret, prompt, or content
 category appears in serialized output. A disclosure denial is recorded without contacting the
 network. Credential set/status/delete are registered through `tauri.ts`; generation/cancellation
-remain intentionally unregistered until the human disclosure UI and cross-language record check
-exist.
+remain intentionally unregistered until the human disclosure UI exists.
+`npm run test:provider-runtime-interop` closes the record check by running the Rust bridge,
+passing its serialized record directly to Vitest, and requiring both public validators to accept
+it. The record names its actual literal-loopback destination with `loopback-conformance`; it does
+not pretend the fixture contacted a production URL.
 
 `npm run test:contracts` also validates the public content-free provider-run record. It rejects
 undisclosed remote transmission, non-HTTPS remote destinations, contradictory retention
 attestation, raw prompts/outputs/credentials, invalid terminal state, inconsistent token totals,
-and duplicate or malformed provenance. This proves the record and validator, not that the unwired
-provider boundary emits one in product execution.
+and duplicate or malformed provenance. This proves the record and validator; the interop harness
+proves internal runtime emission, while product execution remains unavailable.
 
 `npm run test:provider-streams` separately feeds the OpenAI decoder byte-by-byte and with
 multiline, unknown, malformed, mismatched, oversized, and truncated SSE fixtures. It proves parser

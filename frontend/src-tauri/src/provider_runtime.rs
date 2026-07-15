@@ -174,6 +174,11 @@ fn run_record(
         .unwrap_or_else(|_| sha256(b"serialization-failed"));
     let usage = response.and_then(|value| value.usage.as_ref());
     let error_code = error.map(error_code);
+    let execution_mode = if matches!(endpoint.host_str(), Some("127.0.0.1" | "::1")) {
+        "loopback-conformance"
+    } else {
+        "product"
+    };
     let (zero_retention, attestation) = match zero_data_retention {
         Some(true) => (
             "attested",
@@ -189,6 +194,7 @@ fn run_record(
         "recordVersion": 1,
         "runId": request.run_id,
         "callId": request.call_id,
+        "executionMode": execution_mode,
         "provider": {
             "id": request.provider,
             "transport": provider_profile.transport,
@@ -233,7 +239,8 @@ fn run_record(
     })
 }
 
-async fn execute_with<V: CredentialVault>(
+#[doc(hidden)]
+pub async fn execute_with<V: CredentialVault>(
     vault: &V,
     state: &ProviderRuntimeState,
     client: &Client,

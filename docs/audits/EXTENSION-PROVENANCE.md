@@ -12,6 +12,7 @@ boundaries. It is not a substitute for the generated release SBOM.
 | `frontend/src-tauri/src/bin/credential-harness.rs` | repository commit | Penumbra original / repository MIT | Opt-in live canary that verifies create/read/delete/absence and never prints the secret. |
 | `frontend/src-tauri/src/model_provider.rs` | repository commit | Penumbra original / repository MIT | Disclosure-gated OpenAI Responses request construction and provider-neutral output normalization. |
 | `scripts/plugin-certifier.mjs`, its tests, and `examples/plugins/citation-auditor` | repository commit | Penumbra original / repository MIT | Bounded schema validation, real-path containment, proposal fixtures, authority probes, and interface-only example. |
+| `frontend/src/extensions/adversarialRunRecord.ts` and tests | repository commit | Penumbra original / repository MIT | Synthetic evidence-record validation and metrics; no external prompts, schemas, or product fixtures copied. |
 
 Primary dependency sources checked on 2026-07-15:
 

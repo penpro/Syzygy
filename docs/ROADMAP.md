@@ -106,6 +106,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   seven explicit authority allow/deny probes run headlessly. The report says
   `contract-certified`, never runtime-safe; plugin discovery, install, WASI execution, permission
   brokerage, UI, lifecycle, and output-flood/crash tests remain open.
+- The adversarial protocol now has an executable run-record validator and synthetic benchmark
+  fixture. Eight tests enforce blinded artifacts, complete candidates/critiques, claim-level source
+  audits, planned reversed judge order, equal actual call budgets, supported-minority retention,
+  finite accounting, prohibited hidden reasoning, and revision-guarded human acceptance before
+  mutation. This validates evidence structure, not multi-model quality; model-call orchestration,
+  real benchmark fixtures, statistics, and any superiority claim remain open.
 
 ## Current completion snapshot
 

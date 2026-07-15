@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "runId": "ADVERSARIAL-RECORD-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": {
+    "planner": "implemented",
+    "recordValidator": "implemented",
+    "modelCallRunner": "contract-only"
+  },
+  "command": "npm run test:adversarial",
+  "result": {
+    "passed": true,
+    "testsPassed": 8,
+    "realModelCalls": 0,
+    "qualityClaimAuthorized": false,
+    "extensionContractTestsPassed": 14,
+    "fullRustTestsPassed": 36,
+    "frontendModulesTransformed": 989,
+    "structuralAuditChecksPassed": 19,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true
+  },
+  "proved": [
+    "run planning is deterministic, candidate-blinded, order-swapped, and compute-matched",
+    "candidate and judge artifacts containing provider/model/slot identity fail closed",
+    "hidden chain-of-thought fields fail closed",
+    "each blinded candidate output and critique is required exactly once",
+    "every claim requires a unique evidence audit against known source snapshots",
+    "both judgments must use the planned blinded orders and complete rankings",
+    "supported minority findings cannot be silently rejected or omitted from synthesis metadata",
+    "actual adversarial and baseline call counts must equal the same planned budget",
+    "token counts must be non-negative integers and cost finite/non-negative",
+    "shared mutation requires accepted human review plus proposal and revision identity"
+  ],
+  "notProved": [
+    "provider orchestration, cancellation, failure, retry, or per-call provenance",
+    "citation entailment or answer correctness",
+    "benchmark corpus validity or representativeness",
+    "human preference, confidence intervals, cost advantage, or panel superiority",
+    "public JSON-schema validation of untyped run records"
+  ]
+}

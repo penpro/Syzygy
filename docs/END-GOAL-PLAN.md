@@ -433,6 +433,11 @@ position stability, minority retention, human preference, latency, tokens, and c
 ship as experimental even when it loses, but Syzygy cannot claim superiority unless held-out,
 compute-matched results and limitations are published.
 
+Progress: the deterministic planner and typed run-record validator now pass synthetic hostile
+fixtures for identity leakage, hidden reasoning, missing audits, unequal calls, wrong judge order,
+silent minority deletion, invalid accounting, and mutation without human acceptance. The actual
+multi-provider runner and benchmark corpus remain `contract-only`; no quality claim is authorized.
+
 ### Research plugin API
 
 Manifest/proposal/certification schema v1, TypeScript validators, and a non-executing headless

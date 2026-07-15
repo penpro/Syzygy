@@ -104,7 +104,8 @@ MCP host
   reports the unwired OpenAI adapter as `request-and-stream-conformance`, and deliberately
   reports the credential vault as `implemented-unverified` and aggregate remote execution,
   the non-executing plugin certifier as `contract-certified-runner`, and adversarial execution and
-  plugin loading as `contract-only`;
+  plugin loading as `contract-only`; the adversarial record validator is reported separately as
+  `implemented` without implying model calls run;
   it returns no key, provider account, project content, or Drive credential.
 
 ## Executable evidence

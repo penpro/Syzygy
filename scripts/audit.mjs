@@ -146,6 +146,19 @@ record(
     text('examples/plugins/citation-auditor/citation-auditor.component').includes('NOT AN EXECUTABLE'),
   'exact Draft 2020 validator, real-path and adversarial-fixture gates, no process execution, interface-only example',
 )
+const adversarialRecordSource = text('frontend/src/extensions/adversarialRunRecord.ts')
+record(
+  'adversarial records remain evidence-gated',
+  adversarialRecordSource.includes('leaks participant identity') &&
+    adversarialRecordSource.includes('lacks an evidence audit') &&
+    adversarialRecordSource.includes('supported minority finding') &&
+    adversarialRecordSource.includes('planned equal compute budget') &&
+    adversarialRecordSource.includes('shared mutation requires accepted human review') &&
+    adversarialRecordSource.includes('hidden chain-of-thought fields are prohibited') &&
+    platformContractsSource.includes('"adversarialRecordValidator": "implemented"') &&
+    platformContractsSource.includes('"adversarialRunner": "contract-only"'),
+  'identity blinding, evidence, minority, equal-budget, human-mutation, and no-hidden-reasoning gates present',
+)
 record(
   'remote provider boundary remains gated',
   providerRuntimeSource.includes('"store": false') &&

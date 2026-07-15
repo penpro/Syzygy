@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:workspace": "vitest run src/workspace src/migrations.test.ts --reporter=verbose",
     "test:contracts": "vitest run src/extensions --reporter=verbose",
+    "test:adversarial": "vitest run src/extensions/adversarialProtocol.test.ts src/extensions/adversarialRunRecord.test.ts --reporter=verbose",
     "test:plugin-sdk": "node --test ../scripts/plugin-certifier.test.mjs",
     "certify:plugin": "node ../scripts/plugin-certifier.mjs",
     "test:providers": "cargo test --manifest-path src-tauri/Cargo.toml model_provider::tests:: -- --nocapture",

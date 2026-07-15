@@ -1,6 +1,7 @@
 # Adversarial research and extension evidence
 
-**Status:** contract foundation implemented; provider adapters, adversarial execution, and plugin
+**Status:** contract foundation, adversarial run-record validator, provider request/stream
+conformance, credential vault, and plugin certifier implemented; adversarial execution and plugin
 loading are not yet implemented. **Research date:** 2026-07-14. This document records the
 evidence behind the design so another person or model can challenge it.
 
@@ -39,6 +40,16 @@ version, sampler controls, seed where supported, start/end time, token/cost coun
 retention class, source snapshot identifiers, every raw candidate, every judgment, disagreement,
 and the human decision. Hidden chain-of-thought is neither requested nor stored; provider-visible
 reasoning summaries may be retained only when the provider explicitly returns them as output.
+
+The typed validator in `frontend/src/extensions/adversarialRunRecord.ts` now makes the core record
+gates executable against synthetic fixtures. It requires exact blinded candidate coverage, one
+cross-critique per candidate, evidence audit coverage for every claim, source-snapshot identity,
+the two planned reversed judge orders, equal actual call budgets, explicit minority disposition,
+retention of supported minority findings, finite token/cost accounting, and revision-guarded human
+acceptance before shared mutation. It rejects provider/model/slot identity in candidate or judge
+artifacts and rejects hidden-chain-of-thought fields. Metrics report support rate, position
+stability, minority retention, budget matching, and mutation authorization; they do not score
+answer quality. The model-call runner and public benchmark corpus remain unimplemented.
 
 ## Benchmark before product claims
 

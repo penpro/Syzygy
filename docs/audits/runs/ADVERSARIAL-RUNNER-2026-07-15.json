@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "runId": "ADVERSARIAL-RUNNER-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "injected-runner-no-product-executor",
+  "commands": [
+    "npm run test:adversarial",
+    "npm run test:contracts",
+    "npm run build",
+    "npm run audit",
+    "cargo test --manifest-path src-tauri/Cargo.toml platform_contracts::tests",
+    "npm run test:mcp"
+  ],
+  "result": {
+    "passed": true,
+    "adversarialTestsPassed": 16,
+    "extensionContractTestsPassed": 32,
+    "extensionContractTestsSkipped": 1,
+    "platformContractTestsPassed": 1,
+    "frontendModulesTransformed": 990,
+    "structuralAuditChecksPassed": 24,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0,
+    "qualityClaimAuthorized": false
+  },
+  "proved": [
+    "For N participants, the injected runner executes N independent proposals, N cyclic cross-critiques, one evidence audit, and two order-swapped judgments before an equal 2N+3-call baseline.",
+    "Calls within each phase settle before the next phase begins, and a failed phase prevents later phases from starting.",
+    "Provider, model, and slot routing fields remain outside judge and baseline payloads and outside the public adversarial run record.",
+    "The separate execution ledger records only route identity, status, sanitized error code, and usage rather than prompt or output content.",
+    "Unknown executor error messages are not copied into the public error or ledger; only a bounded explicit error code can survive.",
+    "Proposal, critique, evidence-audit, judgment, synthesis, minority, and baseline artifacts are size-checked before later phases or record assembly.",
+    "Duplicate source snapshot IDs and a pre-aborted run fail before executor invocation.",
+    "The assembled record passes the plan-relative validator, requires a pending human decision, and cannot apply a shared mutation.",
+    "The runner imports no product provider bridge and every recorded test used a synthetic injected executor.",
+    "The compiled MCP reports injected-runner-no-product-executor and retains twelve protocol-clean semantic tools."
+  ],
+  "notProved": [
+    "A native batch disclosure safely authorizes the exact providers, models, content categories, source snapshots, call count, and retention policies for a panel.",
+    "A product executor calls local or remote models, records per-call provider provenance, persists run artifacts, or resumes interrupted work.",
+    "The UI configures, displays, compares, accepts, rejects, exports, or revisits an adversarial run.",
+    "Any candidate claim is correct, any citation entails its claim, or an adversarial panel outperforms a compute-matched baseline.",
+    "Live provider behavior, cost, latency, retries, rate limits, streaming, tool calls, or cancellation after a call has begun.",
+    "The synthetic fixture corpus represents real policy research tasks."
+  ]
+}

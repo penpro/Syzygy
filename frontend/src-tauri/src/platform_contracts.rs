@@ -44,7 +44,7 @@ pub fn current() -> Result<Value, String> {
             "modelAdapterCertifier": "contract-certified-runner",
             "credentialVault": "settings-vault-ui",
             "adversarialRecordValidator": "implemented",
-            "adversarialRunner": "contract-only",
+            "adversarialRunner": "injected-runner-no-product-executor",
             "pluginCertifier": "contract-certified-runner",
             "pluginLoader": "contract-only"
         },
@@ -154,6 +154,10 @@ mod tests {
         assert_eq!(
             contracts["implementationStatus"]["adversarialRecordValidator"],
             "implemented"
+        );
+        assert_eq!(
+            contracts["implementationStatus"]["adversarialRunner"],
+            "injected-runner-no-product-executor"
         );
         assert_eq!(
             contracts["implementationStatus"]["providerRunRecordValidator"],

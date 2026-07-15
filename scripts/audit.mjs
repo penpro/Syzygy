@@ -23,6 +23,7 @@ function filesBelow(path, extensions) {
 }
 
 const lock = JSON.parse(text('frontend/package-lock.json'))
+const frontendPackage = JSON.parse(text('frontend/package.json'))
 const packageNames = Object.keys(lock.packages ?? {}).map((key) => key.replace(/^node_modules\//, ''))
 const forbiddenPackages = packageNames.filter((name) => /(^|\/)(@?tiptap|firebase|policy-?pad)(\/|$)/i.test(name))
 record('forbidden dependencies', forbiddenPackages.length === 0, forbiddenPackages.join(', ') || 'none')
@@ -153,6 +154,8 @@ record(
   'exact Draft 2020 validator, real-path and adversarial-fixture gates, no process execution, interface-only example',
 )
 const adversarialRecordSource = text('frontend/src/extensions/adversarialRunRecord.ts')
+const adversarialRunnerSource = text('frontend/src/extensions/adversarialRunner.ts')
+const adversarialRunnerTestSource = text('frontend/src/extensions/adversarialRunner.test.ts')
 record(
   'adversarial records remain evidence-gated',
   adversarialRecordSource.includes('leaks participant identity') &&
@@ -166,8 +169,25 @@ record(
     adversarialRunSchema.properties?.recordVersion?.const === 1 &&
     platformContractsSource.includes('"adversarialRunRecordSchema"') &&
     platformContractsSource.includes('"adversarialRecordValidator": "implemented"') &&
-    platformContractsSource.includes('"adversarialRunner": "contract-only"'),
+    platformContractsSource.includes('"adversarialRunner": "injected-runner-no-product-executor"'),
   'public strict schema plus identity blinding, evidence, minority, equal-budget, human-mutation, and no-hidden-reasoning gates present',
+)
+record(
+  'adversarial runner remains injected, bounded, blinded, and non-mutating',
+    adversarialRunnerSource.includes('Promise.allSettled') &&
+    adversarialRunnerSource.includes('computeMatchedBaselineCallBudget') &&
+    adversarialRunnerSource.includes('result.entries.length > 10_000') &&
+    adversarialRunnerSource.includes('result.synthesis.text.length > 4 * 1024 * 1024') &&
+    adversarialRunnerSource.includes("humanDecision: { status: 'pending'") &&
+    adversarialRunnerSource.includes("sharedMutation: { applied: false") &&
+    adversarialRunnerSource.includes("throw new AdversarialRunnerError('invalid-run-record'") &&
+    adversarialRunnerSource.includes("typeof value === 'string' && /^[a-z][a-z0-9-]{0,63}$/.test(value)") &&
+    !adversarialRunnerSource.includes('providerGenerate') &&
+    adversarialRunnerTestSource.includes('keeps candidate/provider routing outside judge-visible and baseline payloads') &&
+    adversarialRunnerTestSource.includes('provider-body-secret-canary') &&
+    frontendPackage.scripts?.['test:adversarial']?.includes('adversarialRunner.test.ts') &&
+    platformContractsSource.includes('"adversarialRunner": "injected-runner-no-product-executor"'),
+  'injected executor only; phased all-settled calls, bounded intermediates, equal baseline budget, blinded payloads, sanitized failure, semantic record gate, pending human decision, and no product provider import',
 )
 const providerRunRecordSource = text('frontend/src/extensions/providerRunRecord.ts')
 const providerRuntimeInteropSource = text('scripts/provider-runtime-interop.mjs')

@@ -68,8 +68,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   proof is recorded in `docs/audits/runs/MCP-SETUP-2026-07-14.json`.
 - The post-0.1.10 development slice defines provider-neutral descriptors for local, OpenAI,
   Anthropic, Gemini, xAI, and custom adapters; a deterministic adversarial-review planner; strict
-  plugin/proposal schemas; and a twelfth headless MCP inspection tool. Remote adapters,
-  adversarial execution, and plugin loading remain explicitly `contract-only`. The evidence and
+  plugin/proposal schemas; and a twelfth headless MCP inspection tool. Remote adapters and plugin
+  loading remain explicitly unavailable. Adversarial execution now has an injected headless phase
+  runner but no product executor or live-provider panel. The evidence and
   falsification design is in `RESEARCH-EXTENSIONS.md`; APIs are in `PROVIDER-API.md` and
   `PLUGIN-API.md`.
 - The same slice adds a provider-neutral collaboration lifecycle and a deterministic two-editor
@@ -121,6 +122,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - Adversarial run record v1 is now a public strict Draft 2020-12 schema, embedded in the headless
   MCP platform contract and checked for drift against the typed valid fixture. Structural schema
   success is explicitly separate from plan-relative semantic validation and any quality claim.
+- The adversarial protocol also has an injected headless runner. For `N` participants it proves
+  `N` independent proposals, `N` cyclic critiques, one evidence audit, two order-swapped
+  judgments, and a separate `2N + 3` call baseline. Synthetic executors prove phase isolation,
+  route blinding, cancellation, sanitized failure, pending human review, and no shared mutation.
+  Native batch disclosure, a product provider executor, UI/persistence, public fixtures, and live
+  comparative evidence remain open; this is not a quality or superiority claim.
 - Anthropic Messages now has a one-shot `request-control-conformance` slice. A fake server
   proves the current `/v1/messages` path, `x-api-key`, pinned API version, system/user mapping,
   bounds, normalized text/usage, thinking-block non-retention, sanitized failure, timeout, and

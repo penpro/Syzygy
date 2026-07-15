@@ -112,12 +112,14 @@ convergence. Pointer and keyboard interaction gates remain open.
 
 The frontend `extensions/` folder owns provider-neutral model descriptors, a content-free
 provider-run provenance record, deterministic adversarial-run planning plus an evidence-gated
-run-record validator, strict researcher-plugin manifests/proposals, declarative custom model-adapter
+run-record validator and injected headless phase runner, strict researcher-plugin manifests/proposals, declarative custom model-adapter
 profiles, public Draft 2020-12 schemas, and their headless contract tests. The plugin and adapter
 certifiers use the committed schemas to certify
 package containment, proposal fixtures, documentation/license presence, and declared-authority
-probes without executing plugin/adapter code or contacting a model endpoint. These contracts do not imply that remote adapters or plugin
-execution have shipped.
+probes without executing plugin/adapter code or contacting a model endpoint. The adversarial
+runner accepts an injected executor and has no provider/product binding; its routing ledger is
+separate from blinded judge artifacts, and its output cannot mutate shared state. These contracts
+do not imply that remote adapters or plugin execution have shipped.
 
 | What | Where |
 |---|---|

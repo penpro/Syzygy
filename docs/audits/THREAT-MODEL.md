@@ -70,4 +70,9 @@ versions/evaluation evidence.
 - Any MCP addition that bypasses semantic domain/editor contracts or grants ambient Drive/filesystem/model authority is high severity.
 - Any remote adapter that exposes a key to the webview or transmits before disclosure is high severity.
 - Any plugin path that directly mutates project/Drive state or gains undeclared network/model authority is high severity.
+- The injected adversarial runner stores provider/model routing only in its separate execution
+  ledger and omits it from judge/baseline payloads. A future executor must not copy route identity
+  into prompts, outputs, or public records and must preserve native disclosure and provider-run
+  provenance per call or authorized batch. The runner itself has no product executor and cannot
+  mutate shared state.
 - Claiming S-01 verified before the live Drive→local-model harness passes is a documentation defect.

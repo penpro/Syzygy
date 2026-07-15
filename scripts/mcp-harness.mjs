@@ -102,6 +102,7 @@ async function proveStdioContract() {
   if (contracts?.modelAdapterProfileSchema?.additionalProperties !== false) throw new Error('model adapter schema is not strict')
   if (contracts?.implementationStatus?.modelAdapterCertifier !== 'contract-certified-runner') throw new Error('model adapter certifier status is overstated')
   if (contracts?.implementationStatus?.providerTaskRuntime !== 'native-disclosure-research-envelope') throw new Error('provider task runtime status is inaccurate')
+  if (contracts?.implementationStatus?.adversarialRunner !== 'injected-runner-no-product-executor') throw new Error('adversarial runner status is inaccurate')
   if (contracts?.providerRunRecordSchema?.properties?.executionMode?.enum?.includes('loopback-conformance') !== true) throw new Error('provider run schema omits honest conformance mode')
   if (contracts?.implementationStatus?.remoteProviderAdapters !== 'native-disclosure-command-no-product-ui') throw new Error('aggregate provider status is inaccurate')
   if (contracts?.implementationStatus?.credentialVault !== 'settings-vault-ui') throw new Error('credential vault status is inaccurate')

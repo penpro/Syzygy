@@ -142,6 +142,13 @@ attestation, raw prompts/outputs/credentials, invalid terminal state, inconsiste
 and duplicate or malformed provenance. This proves the record and validator; the interop harness
 proves internal runtime emission, while product execution remains unavailable.
 
+`npm run test:adversarial` also exercises the injected adversarial phase runner with synthetic
+executors. It proves independent proposal/critique phases, evidence audit, reversed-order
+judgments, exact compute-matched baseline calls, route/payload separation, cancellation, sanitized
+failure, pending human review, and no shared mutation. It does not contact a provider or prove
+answer quality. Product execution still requires a native batch-disclosure executor and live
+benchmark evidence.
+
 `npm run test:provider-streams` separately feeds the OpenAI decoder byte-by-byte and with
 multiline, unknown, malformed, mismatched, oversized, and truncated SSE fixtures. It proves parser
 normalization in isolation. `test:providers` separately proves the parser is fed through fake HTTP

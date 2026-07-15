@@ -1,8 +1,8 @@
 # Adversarial research and extension evidence
 
-**Status:** contract foundation, adversarial run-record validator, provider request/stream
-conformance, credential vault, and plugin certifier implemented; adversarial execution and plugin
-loading are not yet implemented. **Research date:** 2026-07-14. This document records the
+**Status:** contract foundation, adversarial run-record validator, injected headless phase runner,
+provider request/stream conformance, credential vault, and plugin certifier implemented; product
+adversarial execution and plugin loading are not yet implemented. **Research date:** 2026-07-14. This document records the
 evidence behind the design so another person or model can challenge it.
 
 ## Claim under test
@@ -56,7 +56,11 @@ answer quality. Schema tests prove the typed valid fixture remains portable and 
 fields, hidden-reasoning fields, unsafe numeric accounting, and unguarded mutation. Plan-relative
 coverage, source membership, equal compute, and minority-retention checks remain semantic-validator
 responsibilities and cannot be inferred from schema success. See `ADVERSARIAL-API.md`. The
-model-call runner and public benchmark corpus remain unimplemented.
+The injected runner now executes this phase graph against a caller-supplied executor, sanitizes
+failures, preserves route identity outside judge payloads, emits a content-free execution ledger,
+and runs the equal-call baseline. Its synthetic tests contact no model. A product executor, batch
+native disclosure, workflow persistence/UI, public benchmark corpus, live-provider evidence, and
+quality statistics remain unimplemented.
 
 ## Benchmark before product claims
 

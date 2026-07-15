@@ -449,8 +449,11 @@ compute-matched results and limitations are published.
 
 Progress: the deterministic planner and typed run-record validator now pass synthetic hostile
 fixtures for identity leakage, hidden reasoning, missing audits, unequal calls, wrong judge order,
-silent minority deletion, invalid accounting, and mutation without human acceptance. The actual
-multi-provider runner and benchmark corpus remain `contract-only`; no quality claim is authorized.
+silent minority deletion, invalid accounting, and mutation without human acceptance. An injected
+headless runner now executes the full phase graph and equal-call baseline against synthetic
+executors while keeping routing outside judge payloads. The product provider executor, batch
+native disclosure, workflow UI/persistence, live panel evidence, and benchmark corpus remain open;
+no quality claim is authorized.
 The run-record interchange is now published as strict Draft 2020-12 JSON Schema and embedded in
 MCP. Its typed plan-relative validator remains the authority for cross-record semantics that JSON
 Schema alone cannot establish.
@@ -469,9 +472,9 @@ model, or filesystem access; native MCP is never described as sandboxed; all mut
 revision-guarded proposals with a human-visible diff and attribution.
 
 Machine-readable inspection is available through `syzygy_platform_contracts`. It must distinguish
-the native-disclosure research envelope with no product caller from product availability, and
-continue returning `contract-only` for adversarial execution, custom-adapter execution, and plugin
-loading.
+the native-disclosure research envelope with no product caller from product availability, report
+adversarial execution as `injected-runner-no-product-executor`, and continue returning
+`contract-only` for custom-adapter execution and plugin loading.
 
 Progress: OpenAI Responses one-shot request construction, bounded whole-operation timeout,
 idempotent in-flight/inter-event cancellation, and fake-network incremental SSE dispatch now pass

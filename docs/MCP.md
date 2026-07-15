@@ -107,8 +107,9 @@ MCP host
   bridge as `native-disclosure-research-envelope`, and aggregate remote execution as
   `native-disclosure-command-no-product-ui`. MCP itself has no provider-generation or credential
   tool and therefore cannot bypass the native send boundary. It reports the non-executing
-  plugin certifier as `contract-certified-runner`, and adversarial execution, plugin loading, and
-  custom-adapter execution as `contract-only`; the non-executing adapter
+  plugin certifier as `contract-certified-runner`, adversarial execution as
+  `injected-runner-no-product-executor`, and plugin loading and custom-adapter execution as
+  `contract-only`; the non-executing adapter
   certifier is `contract-certified-runner`, while provider-run and adversarial record validators are
   reported separately as `implemented` without implying product model calls run;
   it returns no key, provider account, project content, or Drive credential.

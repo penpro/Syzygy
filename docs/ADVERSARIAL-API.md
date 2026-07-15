@@ -1,7 +1,8 @@
 # Adversarial run record API
 
-**Contract version:** 1. **Runtime status:** structural schema and plan-relative validator
-implemented; multi-model orchestration and quality benchmarking are contract-only.
+**Contract version:** 1. **Runtime status:** structural schema, plan-relative validator, and an
+injected headless phase runner are implemented. No product executor, live-provider panel, or
+quality benchmark is implemented.
 
 Syzygy publishes its adversarial evidence record so researchers, plugins, headless harnesses, and
 independent reviewers can inspect the same artifact without depending on the React application or a
@@ -12,11 +13,36 @@ particular model provider.
 - JSON interchange: `schemas/syzygy-adversarial-run-v1.schema.json` (JSON Schema Draft 2020-12).
 - TypeScript record and semantic validator: `../frontend/src/extensions/adversarialRunRecord.ts`.
 - Deterministic plan: `../frontend/src/extensions/adversarialProtocol.ts`.
+- Injected orchestration runner: `../frontend/src/extensions/adversarialRunner.ts`.
 - Headless discovery: call MCP tool `syzygy_platform_contracts` and read
   `adversarialRunRecordSchema` plus `adversarialProtocol`.
 
 The repository files are authoritative for a source checkout. The MCP payload is authoritative for
 the installed executable being inspected, which lets an external tool detect version drift.
+
+## Injected runner boundary
+
+`runAdversarialPanel` accepts frozen source snapshots and an injected executor. For `N`
+participants it runs `N` independent proposals, `N` cyclic cross-critiques, one evidence audit,
+and two order-swapped judgments, then runs a separate baseline with the same `2N + 3` call budget.
+Calls within a phase use `Promise.allSettled`; later phases do not start after a failed phase.
+Cancellation is checked before every phase.
+
+Routing identity lives on the executor call beside, never inside, the judge-visible payload. The
+returned public record remains blinded. A separate execution ledger records route identity,
+status, sanitized error code, and usage without prompt or output content. Baseline text is returned
+as separate benchmark material and must receive the same access and retention controls as other
+research output. To remain within the declared call budget, the second judgment also returns the
+minority findings and synthesis; a future protocol that adds calls must bump its protocol and
+baseline budgets together.
+
+The runner rejects malformed or duplicate source identity and bounded output violations, converts
+unknown executor failures to `executor-failed`, validates the assembled record, and always emits a
+pending human decision with shared mutation disabled. It deliberately imports no provider bridge.
+The future product executor must enforce native disclosure, vault/network isolation, route-policy
+checks, output bounds, cancellation, and content-free provider provenance. The present native
+provider command asks once per call, so a batch disclosure/authorization design is required before
+a multi-call panel can be product-enabled without producing a dialog storm.
 
 ## Validation pipeline
 
@@ -59,5 +85,7 @@ npm run audit
 
 The adversarial suite compiles the public schema in strict Draft 2020-12 mode against the typed
 valid fixture and hostile identity, reasoning, accounting, and mutation cases. The semantic suite
-then exercises plan-relative invariants. The MCP harness proves the installed/headless contract
-contains the same schema. None of these commands calls a paid model API.
+then exercises plan-relative invariants and the injected runner's phase ordering, blinding,
+equal-call baseline, cancellation, and error redaction. The MCP harness proves the
+installed/headless contract contains the same schema and reports
+`injected-runner-no-product-executor`. None of these commands calls a paid model API.

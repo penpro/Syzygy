@@ -47,9 +47,7 @@ export interface Settings {
   seed: number
 }
 
-// Syzygy has a single surface today; the union stays a type so future views
-// (e.g. the collaborative document workspace) slot in without a store change.
-export type AppView = 'ask'
+export type AppView = 'ask' | 'workspace'
 
 /** A reference document that sits in context (style/lore/facts) — like a text LoRA. */
 export interface Source {

@@ -15,7 +15,8 @@ versions/evaluation evidence.
 3. Webview ↔ loopback llama.cpp.
 4. Rust core ↔ Google OAuth/Drive over TLS.
 5. Updater ↔ GitHub signed release metadata.
-6. Future collaboration provider ↔ local Yjs/domain state.
+6. Local IndexedDB provider ↔ Yjs/domain state.
+7. Future Drive/WebSocket collaboration provider ↔ local Yjs/domain state.
 
 ## Current threats and controls
 
@@ -29,6 +30,8 @@ versions/evaluation evidence.
 | Oversized/nested Drive workspace exhausts resources | 2,000-file and 12-level direct-read bounds | Measure bytes/API calls and add attachment limits |
 | Transcript leaks a local conversation | Shared toggle is explicit and UI copy names logging | Per-message inclusion controls are future work |
 | Mirror conflict loses edits | Current LWW mirror documented as optional | Never use LWW for CRDT state; Phase 4 convergence tests |
+| Corrupt or future local project state loads as trusted content | Manifest parser rejects malformed/unknown schema versions; migrations are idempotent | Fuzz Yjs payloads, archive bombs, unknown node types, and interrupted IndexedDB writes |
+| Local provider is mistaken for real-time collaboration | UI says local persistence; Drive/presence controls remain disabled | Two-editor and two-install provider-contract gates must pass before collaboration claims |
 | Path traversal through Drive filename | Direct reads are in memory; mirror joins remote names | Sanitize/reject separators before mirror writes |
 | OAuth token stolen from app data | OS user boundary; no webview exposure | OS credential vault/encryption evaluation needed |
 | Malicious update | Tauri updater signature and separate Syzygy key | Protect/back up signing key; clean-machine update tests |

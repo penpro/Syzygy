@@ -1,6 +1,6 @@
 # Editor provenance ledger
 
-**Status:** Phase 0 baseline; no collaborative editor implementation has landed.
+**Status:** First clean-room editor vertical slice landed; dependency and source-file gate active.
 
 ## Rules
 
@@ -18,12 +18,34 @@
 | `frontend/src/components/AskView.tsx` and current shell components | Penumbra original / inherited MIT Syzygy shell | Repository history and MIT license |
 | `frontend/src/driveContext.ts` | Penumbra original | Added with direct Drive evidence tests |
 | `frontend/src-tauri/src/google_*.rs` | Penumbra original | OAuth/Drive implementation and ADR-0001 |
-| Future `frontend/src/workspace/**` | **Not created** | Must be registered before merge |
+| `frontend/src/workspace/schema.ts` | Penumbra original | Versioned project-manifest contract and fail-closed validator |
+| `frontend/src/workspace/projectModel.ts` | Penumbra original | Provider-neutral Yjs shared-type names and update helpers |
+| `frontend/src/workspace/localProvider.ts` | Penumbra original | Local IndexedDB provider implementing the Lexical/Yjs provider boundary |
+| `frontend/src/workspace/ResearchEditor.tsx` | Penumbra original | Original Syzygy editor composition, formatting toolbar, and local provider wiring |
+| `frontend/src/workspace/WorkspaceView.tsx` | Penumbra original | Original three-column research workspace scaffold |
+| `frontend/src/workspace/*.test.ts` and `frontend/src/migrations.test.ts` | Penumbra original | Schema, migration, convergence, duplicate/reorder, and reopen harnesses |
 
-## Candidate dependency gate
+## Approved exact dependencies
 
-Lexical, `@lexical/yjs`, and Yjs remain candidates only. No package is approved until exact
-versions are pinned and this table records package-level MIT evidence and the generated SBOM.
+All product dependencies below are exact-pinned in both `package.json` and `package-lock.json`.
+Integrity values are npm registry `dist.integrity` values captured before installation. The root
+Lexical repository and packages are MIT; Yjs, y-indexeddb, and y-protocols are MIT. The test-only
+fake IndexedDB implementation is Apache-2.0. No example/playground source or UI was copied.
+
+| Package | Version | License/source evidence | npm integrity |
+|---|---:|---|---|
+| `lexical` | 0.47.0 | MIT; <https://github.com/facebook/lexical> | `sha512-ZKsxsk3jUpXsRtG20EBq42z2bq8A20UHtjqvVT/kIxfsaiXwaRFBBcLSFxPa77j+hXkBF5w96C3/imwtmLoRdg==` |
+| `@lexical/react` | 0.47.0 | MIT; same monorepo | `sha512-4y2iEKghKcYcJ8+GoO8pqyvwjJFVDWR71Ezm37lLQGmSTFKY50miTJmgKI12GeL4hLWQjePpB3eVdmSQHG1b7g==` |
+| `@lexical/rich-text` | 0.47.0 | MIT; same monorepo | `sha512-GtRH7KNW7fVJzd3Xftdr/EPXaMqHt2xCIO/eJtf17Yrs7vlVOljM0xMcDoj4QOY2Gp4p3CheLlwBbcO96YYV0A==` |
+| `@lexical/selection` | 0.47.0 | MIT; same monorepo | `sha512-/q+eXnryZxCeqeWAODhTRlJL+jGa6/vIhE/bh+KvHmLbZJM8qfwa0qzt4rb3g+L1/CbjcowS/Xwv2ha1OmjBFQ==` |
+| `@lexical/yjs` | 0.47.0 | MIT; same monorepo | `sha512-EKw1df2cmUTQrfSp1EnXqsHtNjwgxS973CRor0W4GWmIQJyKdmf6cmA7cct3flkyH5tE/xDnpr8sy38U4R2hlQ==` |
+| `yjs` | 13.6.31 | MIT; <https://github.com/yjs/yjs> | `sha512-Eq+5BRfbeGyqGVrTJL3bEcr8gKkxPuyuoHmAwpk52fDb8kOVMrfVSTRPd6yiGgX5Fskb96qCRjzjbRjrL4YEnw==` |
+| `y-indexeddb` | 9.0.12 | MIT; <https://github.com/yjs/y-indexeddb> | `sha512-9oCFRSPPzBK7/w5vOkJBaVCQZKHXB/v6SIT+WYhnJxlEC61juqG0hBrAf+y3gmSMLFLwICNH9nQ53uscuse6Hg==` |
+| `y-protocols` | 1.0.7 | MIT; <https://github.com/yjs/y-protocols> | `sha512-YSVsLoXxO67J6eE/nV4AtFtT3QEotZf5sK5BHxFBXso7VDUT3Tx07IfA6hsu5Q5OmBdMkQVmFZ9QOA7fikWvnw==` |
+| `fake-indexeddb` (test only) | 6.2.5 | Apache-2.0; <https://github.com/dumbmatter/fakeIndexedDB> | `sha512-CGnyrvbhPlWYMngksqrSSUT1BAVP49dZocrHuK0SvtR0D5TMs5wP0o3j7jexDJW01KSadjBp1M/71o/KR3nD1w==` |
+
+The generated full SBOM/license inventory remains an open Phase 0 gate; this ledger approves only
+the dependencies introduced by the first editor slice.
 
 The CI audit currently fails if Tiptap, Firebase, or PolicyPad packages/imports enter the source
 tree. It is a guardrail, not proof of clean-room authorship; human and adversarial review remain

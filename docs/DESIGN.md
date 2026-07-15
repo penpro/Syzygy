@@ -93,3 +93,12 @@ applications) lives in the project chat history; palette + type above are its ca
 extraction. The **research editor** panel of that mockup is the design target for the
 future collaborative workspace view (version rail, scenario/evaluate panels, metadata
 stamps in mono small-caps).
+
+## Research workspace slice
+
+The first workspace implementation follows the approved structure without reproducing another
+product's interface: a narrow version rail, a centered paper document, and a private scenario/
+evaluation panel. Incomplete controls are visibly disabled and described as upcoming; the UI must
+not imply that versioning, Drive CRDT transport, scenarios, or real-time presence already work.
+The editor uses Plex Serif for document content and Plex Mono metadata stamps, with every surface,
+border, status, and selection derived from theme tokens so retained dark themes remain usable.

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-07-14",
+  "platform": "windows-x86_64",
+  "passed": true,
+  "scope": "first local research-workspace vertical slice",
+  "automated": {
+    "workspaceHarness": {
+      "command": "npm run test:workspace",
+      "testFiles": 4,
+      "tests": 12,
+      "checks": [
+        "manifest validation and future-schema rejection",
+        "idempotent persisted-store migration",
+        "duplicate and reversed Yjs update convergence",
+        "concurrent offline domain edits",
+        "IndexedDB close and reopen persistence"
+      ]
+    },
+    "fullFrontendSuite": {
+      "testFiles": 15,
+      "tests": 73
+    },
+    "structuralAudit": true,
+    "typescriptBuild": true,
+    "cargoCheck": true,
+    "cargoFormat": true,
+    "npmVulnerabilities": 0
+  },
+  "packagedApp": {
+    "tauriBuild": true,
+    "frontendReembedded": true,
+    "compilingAppLogObserved": true,
+    "processResponding": true
+  },
+  "browserHarness": {
+    "projectCreated": true,
+    "projectRenamed": true,
+    "editorMutationSurvivedReload": true,
+    "projectTitleSurvivedReload": true,
+    "normalLayoutInspected": true,
+    "narrowViewport": "760x800",
+    "workspaceConsoleErrors": 0
+  },
+  "limitations": [
+    "No Drive-backed Yjs provider is implemented.",
+    "No two-editor rich-text convergence test is implemented.",
+    "Scenarios, heuristics, versions, and presence are reserved contracts and disabled UI only.",
+    "The browser harness is a recorded manual automation run; the repeatable committed gate is npm run test:workspace."
+  ]
+}

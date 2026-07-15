@@ -18,6 +18,12 @@ export function Sidebar({
   onOpenWelcome: () => void
 }) {
   const confirm = useConfirm()
+  const view = useStore((s) => s.view)
+  const setView = useStore((s) => s.setView)
+  const projects = useStore((s) => s.projects)
+  const activeProjectId = useStore((s) => s.activeProjectId)
+  const createProject = useStore((s) => s.createProject)
+  const openProject = useStore((s) => s.openProject)
   const asks = useStore((s) => s.asks)
   const activeAskId = useStore((s) => s.activeAskId)
   const createAsk = useStore((s) => s.createAsk)
@@ -37,6 +43,32 @@ export function Sidebar({
 
   return (
     <aside className={cx('sidebar', collapsed && 'is-docked')}>
+      <div className="side-section project-section">
+        <div className="side-head">
+          <span>Research projects</span>
+          <button className="icon-btn" title="New research project" onClick={() => createProject()}>
+            ＋
+          </button>
+        </div>
+        <div className="project-list">
+          {projects.filter((project) => !project.archivedAt).length === 0 && (
+            <button className="sidebar-empty-action" type="button" onClick={() => createProject()}>
+              Create your first project
+            </button>
+          )}
+          {projects.filter((project) => !project.archivedAt).map((project) => (
+            <button
+              type="button"
+              key={project.id}
+              className={cx('project-row', view === 'workspace' && project.id === activeProjectId && 'active')}
+              onClick={() => openProject(project.id)}
+            >
+              <span className="project-row-mark" aria-hidden="true">§</span>
+              <span>{project.title.trim() || 'Untitled research project'}</span>
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="side-section grow">
         <div className="side-head">
           <span>Asks</span>
@@ -47,7 +79,7 @@ export function Sidebar({
         <div className="chat-list">
           {sortedAsks.length === 0 && <div className="muted sm pad">No asks yet.</div>}
           {sortedAsks.map((a) => (
-            <div key={a.id} className={cx('chat-row', a.id === activeAskId && 'active')} onClick={() => openAsk(a.id)}>
+            <div key={a.id} className={cx('chat-row', view === 'ask' && a.id === activeAskId && 'active')} onClick={() => openAsk(a.id)}>
               <div className="msg-avatar sm" style={{ background: 'var(--accent)' }}>
                 🪄
               </div>
@@ -102,6 +134,10 @@ export function Sidebar({
       <div className="side-foot">
         <DownloadIndicator />
         <div className="foot-row">
+          <button className="foot-icon" title="Open Ask" onClick={() => setView('ask')}>
+            <span className="foot-text-icon" aria-hidden="true">?</span>
+            <span>Ask</span>
+          </button>
           <button className="foot-icon" title="Quick tour — replay the feature tour" onClick={onOpenWelcome}>
             <img src={UI_ICONS.how} alt="" aria-hidden="true" />
             <span>Tour</span>

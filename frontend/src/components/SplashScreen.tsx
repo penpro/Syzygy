@@ -22,6 +22,14 @@ export function SplashScreen() {
   const done = useRef(false)
 
   useEffect(() => {
+    // Browser-only development and headless UI runs have no bundled engine. The OpenAI-compatible
+    // health endpoint can still return a valid "down" response, so waiting for a thrown Tauri call
+    // is not a reliable escape hatch and would leave the test surface covered for 90 seconds.
+    if (!('__TAURI_INTERNALS__' in window)) {
+      done.current = true
+      setHidden(true)
+      return
+    }
     let alive = true
     let timer: ReturnType<typeof setTimeout> | undefined
     const finish = () => {

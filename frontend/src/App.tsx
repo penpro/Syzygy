@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { listModels } from './tauri'
 import { startCrashReports, crashReportsAvailable } from './crashReports'
 import { useStore } from './store'
@@ -12,6 +12,8 @@ import { TitleBar } from './components/TitleBar'
 import { ResizeHandles } from './components/ResizeHandles'
 import { SplashScreen } from './components/SplashScreen'
 import { StorageBanner } from './components/StorageBanner'
+
+const WorkspaceView = lazy(() => import('./workspace/WorkspaceView').then((module) => ({ default: module.WorkspaceView })))
 
 // Syzygy strips the inherited roleplay surface (chat/story/tree views, character +
 // persona editors) but keeps the files in-tree unrouted — restoring one is just
@@ -80,6 +82,11 @@ export default function App() {
 
       <main id="main-view" className="view-region">
         {view === 'ask' && <AskView />}
+        {view === 'workspace' && (
+          <Suspense fallback={<div className="workspace-loading mono">Opening research workspace…</div>}>
+            <WorkspaceView />
+          </Suspense>
+        )}
       </main>
 
       {showSettings && (

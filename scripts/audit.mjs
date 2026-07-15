@@ -27,6 +27,26 @@ const packageNames = Object.keys(lock.packages ?? {}).map((key) => key.replace(/
 const forbiddenPackages = packageNames.filter((name) => /(^|\/)(@?tiptap|firebase|policy-?pad)(\/|$)/i.test(name))
 record('forbidden dependencies', forbiddenPackages.length === 0, forbiddenPackages.join(', ') || 'none')
 
+const expectedEditorDependencies = {
+  lexical: '0.47.0',
+  '@lexical/react': '0.47.0',
+  '@lexical/rich-text': '0.47.0',
+  '@lexical/selection': '0.47.0',
+  '@lexical/yjs': '0.47.0',
+  yjs: '13.6.31',
+  'y-indexeddb': '9.0.12',
+  'y-protocols': '1.0.7',
+}
+const rootPackage = lock.packages?.[''] ?? {}
+const editorDependencyMismatches = Object.entries(expectedEditorDependencies).filter(
+  ([name, version]) => rootPackage.dependencies?.[name] !== version || lock.packages?.[`node_modules/${name}`]?.version !== version,
+)
+record(
+  'editor dependencies exact',
+  editorDependencyMismatches.length === 0,
+  editorDependencyMismatches.map(([name, version]) => `${name} != ${version}`).join(', ') || 'all approved versions pinned',
+)
+
 const sourceFiles = [
   ...filesBelow('frontend/src', ['.ts', '.tsx']),
   ...filesBelow('frontend/src-tauri/src', ['.rs']),
@@ -50,6 +70,17 @@ record('component theme tokens', colorViolations.length === 0, colorViolations.j
 const installerText = `${text('frontend/src-tauri/installer/English.nsh')}\n${text('frontend/src-tauri/installer-hooks.nsh')}`
 record('installer identity', !/Aphelion|com\.localllm\.studio/i.test(installerText), 'Syzygy names and data path')
 record('icon source', existsSync(join(root, 'frontend/src-tauri/syzygy-icon.svg')), 'syzygy-icon.svg exists')
+
+const provenance = text('docs/audits/EDITOR-PROVENANCE.md')
+const workspaceSources = filesBelow('frontend/src/workspace', ['.ts', '.tsx'])
+  .filter((path) => !path.endsWith('.test.ts'))
+  .map((path) => relative(root, path).replaceAll('\\', '/'))
+const missingWorkspaceProvenance = workspaceSources.filter((path) => !provenance.includes(path))
+record(
+  'workspace provenance ledger',
+  missingWorkspaceProvenance.length === 0,
+  missingWorkspaceProvenance.join(', ') || `${workspaceSources.length} source files registered`,
+)
 
 const tauriConfig = JSON.parse(text('frontend/src-tauri/tauri.conf.json'))
 record(

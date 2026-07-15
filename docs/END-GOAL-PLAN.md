@@ -218,6 +218,10 @@ Progress at the 2026-07-14 working baseline: `docs/audits/CAPABILITIES.json`,
 SBOM/license generation, the original sample project/behavior fixtures, and independent reviewer
 reproduction are still open; Phase 0 is not complete.
 
+Post-baseline progress: exact editor dependencies are pinned and their package-level license,
+source, version, and registry-integrity evidence is recorded in `EDITOR-PROVENANCE.md`. The full
+generated SBOM/license inventory and independent reproduction remain open.
+
 ### Phase 1 — domain contracts and migrations (`L`)
 
 Deliver schema-versioned project/scenario/heuristic/evaluation/version/participant types,
@@ -226,6 +230,10 @@ portable archive spec, content hashing, and performance budgets.
 
 Gate: repeat/interruption migration tests pass; fixtures round-trip; property tests preserve
 valid graphs and reject invalid references.
+
+Progress: project-manifest schema v1, persisted-store migration v2, reserved provider-neutral Yjs
+collections, fail-closed manifest validation, and the first duplicate/reorder/round-trip harness
+exist. Archive format, content hashing, full domain schemas, property tests, and scale budgets remain.
 
 ### Phase 2 — clean-room editor vertical slice (`XL`)
 
@@ -236,6 +244,10 @@ undo, paste sanitation, accessibility, Yjs binding, and local persistence.
 
 Gate: P-02–P-10/P-34/P-35 pass; 100-page stress budget passes; bundle contains no Tiptap,
 PolicyPad, Firebase, Next, or copied template code; every theme is reviewed.
+
+Progress: an original Lexical/Yjs policy surface, basic headings/marks/undo, local IndexedDB
+persistence, and the three-panel workspace shell exist. Custom research nodes, formatting fixtures,
+reorder, table of contents, stress tests, cross-theme visual review, and Drive collaboration remain.
 
 ### Phase 3 — local project lifecycle (`L`)
 
@@ -396,10 +408,9 @@ Do not use the web port or upstream source as an implementation input. First:
 
 1. maintain the new provenance and machine-readable capability ledgers and finish their open
    SBOM/license/sample-fixture/reviewer gates;
-2. pin exact MIT Lexical/Yjs packages after license verification;
-3. implement an original `WorkspaceView` with one Yjs policy document, local persistence,
-   basic formatting, and a policy block;
-4. add two-instance `MemoryProvider` convergence tests;
+2. maintain the now-pinned Lexical/Yjs dependency and source ledger;
+3. extend the original `WorkspaceView` with the first custom policy block and full formatting fixture;
+4. add a true two-editor `MemoryProvider` suite on top of the current Yjs update-order harness;
 5. render it in paper and all retained dark themes;
 6. measure bundle/startup/editor latency; and
 7. stop for audit before scenarios or Drive CRDT state.

@@ -51,6 +51,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   harness. Its production-grant proof wrote, read back, and cleaned up a 20×10/200-cell native
   Sheet. Native Docs and Slides remain explicitly read-only until their own typed edit contracts
   exist, although their Cloud APIs are enabled for that future work.
+- The first post-v0.1.7 workspace slice pins the independently licensed Lexical/Yjs stack and adds
+  a schema-versioned local project, original research-editor shell, local IndexedDB Yjs provider,
+  and a headless project harness. The harness covers malformed schemas, idempotent save migration,
+  duplicate/reordered update convergence, concurrent offline domain edits, and close/reopen local
+  persistence. This is scaffolding, not a claim of two-user rich-text or Drive CRDT completion.
 
 ## Next (in intended order)
 
@@ -60,9 +65,9 @@ collaborators are not required to download large project folders.
 
 1. **Close the second-install Drive gate** — run the passing `npm run test:drive-live` proof from a
    second account/install and attach that evidence to S-01.
-2. **Build the Penumbra collaborative editor independently**:
-   - Start with exact-version MIT Lexical and Yjs packages after the provenance gate in
-     `END-GOAL-PLAN.md`; author every node, plugin, command, schema, test, and UI here.
+2. **Continue the Penumbra collaborative editor independently**:
+   - Exact-version Lexical/Yjs packages and the initial provenance gate are now in place; continue
+     authoring every node, plugin, command, schema, test, and UI here.
    - Keep domain and provider interfaces independent from editor, Drive, and AI vendors.
    - Design target: the "research editor" panel of the approved mockup (version rail,
      evaluation panel, mono metadata stamps).

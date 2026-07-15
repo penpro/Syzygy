@@ -61,8 +61,8 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
 
 ## Frontend layout (`frontend/src/`)
 
-- `App.tsx` — state-driven views (no router). Today a single **Ask** surface; the
-  collaborative document workspace will mount as a sibling view.
+- `App.tsx` — state-driven views (no router). **Ask** and the first **Workspace** vertical
+  slice are sibling views.
 - `store.ts` — one zustand store, persisted to localStorage under key **`syzygy`**
   (`storage.ts` wraps quota/corruption; `migrations.ts` is the only place save-shape
   changes are reconciled). Slices: `settings`, engine runtime, `experts`, `asks`.
@@ -75,12 +75,18 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   `DocumentModal`, `FolderGrant`, `ImageFinderModal`), shell (`TitleBar`, `Sidebar`,
   `SettingsPanel`, `SetupWizard`, `SplashScreen`, `UpdateCheck`, `ModelsModal`,
   `LogModal`), Drive (`GoogleDriveButton`), brand (`SyzygyMark`).
+- `workspace/` — schema-versioned project manifests, provider-neutral Yjs shared types,
+  the local IndexedDB collaboration provider, an original Lexical policy editor, and the
+  research workspace shell. Reserved Yjs collections hold scenarios, heuristics,
+  discussions, and settings; the Lexical/Yjs editor owns the `root` shared type.
 
 ## Persistence map
 
 | What | Where |
 |---|---|
 | Settings, experts, ask threads | localStorage key `syzygy` (webview) |
+| Project manifests / active project | localStorage key `syzygy` (webview, migration v2) |
+| Collaborative project updates | IndexedDB database `syzygy-project-v1:<projectId>` |
 | Sanitized diagnostic history (last 500 entries) | localStorage key `syzygy-diagnostic-log-v1` (webview) |
 | Google refresh token + client info | `<app-data>/google_auth.json` (Rust-only) |
 | Selected Drive workspace ID/name | `<app-data>/drive_workspace.json` |
@@ -109,4 +115,7 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   writes and reads back 200 cells, then trashes it. See `docs/audits/`.
 - **The collaborative workspace is Penumbra-original.** No Tiptap or PolicyPad code, packages,
   prompts, schemas, fixtures, assets, or UI enter the shipping tree. The baseline editor
-  candidate is exact-version MIT Lexical with Yjs; all product nodes and UI are authored here.
+  is exact-version MIT Lexical 0.47.0 with Yjs 13.6.31; all product nodes and UI are authored here.
+- **Project metadata and collaborative content have different owners.** Zustand/localStorage holds
+  manifest/navigation identity; Yjs/IndexedDB holds collaborative editor and domain state. No
+  derived plain-text copy is a second mutable source of truth.

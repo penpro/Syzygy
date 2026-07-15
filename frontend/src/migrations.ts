@@ -4,12 +4,15 @@
 // save was written. Every block is idempotent: a fully-migrated save passes through unchanged.
 import type { Settings, Expert, Ask } from './types'
 import { defaultExperts } from './seed'
+import { isResearchProjectManifest, type ResearchProjectManifest } from './workspace/schema'
 
 /** The persisted data slices the migrations touch (the rest of the save passes through as-is). */
 interface PersistedData {
   settings: Settings
   experts: Expert[]
   asks: Ask[]
+  projects: ResearchProjectManifest[]
+  activeProjectId: string | null
 }
 
 /**
@@ -28,6 +31,11 @@ export function mergePersisted<S extends PersistedData>(persisted: unknown, curr
     ? [...persistedExperts, ...defaultExperts.filter((e) => !seenExpertIds.has(e.id))]
     : defaultExperts
   const mergedSettings = { ...current.settings, ...((p.settings ?? {}) as Partial<Settings>) }
+  const projects = Array.isArray(p.projects) ? p.projects.filter(isResearchProjectManifest) : current.projects
+  const requestedActiveProjectId = typeof p.activeProjectId === 'string' ? p.activeProjectId : null
+  const activeProjectId = projects.some((project) => project.id === requestedActiveProjectId && !project.archivedAt)
+    ? requestedActiveProjectId
+    : (projects.find((project) => !project.archivedAt)?.id ?? null)
   // Guard against a save with a missing/relative baseUrl (e.g. an old dev proxy).
   if (!mergedSettings.baseUrl || mergedSettings.baseUrl.startsWith('/')) {
     mergedSettings.baseUrl = current.settings.baseUrl
@@ -48,6 +56,8 @@ export function mergePersisted<S extends PersistedData>(persisted: unknown, curr
     ...current,
     ...p,
     experts,
+    projects,
+    activeProjectId,
     settings: mergedSettings,
   }
 }

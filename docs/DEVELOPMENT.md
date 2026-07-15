@@ -19,6 +19,20 @@ npm run audit              # architecture, identity, provenance, capability-ledg
 cargo fmt --all -- --check # Rust formatting
 ```
 
+## Headless workspace proof
+
+Run the editor/project scaffold without opening a webview:
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm run test:workspace
+```
+
+This fails unless project manifests reject malformed/future schemas, old persisted stores migrate
+idempotently, duplicate/out-of-order Yjs updates converge, concurrent offline collections survive,
+and acknowledged project state reopens from IndexedDB. It does **not** yet prove two-machine rich
+text convergence or Drive transport; those remain separate capability gates.
+
 ## Local installer build
 
 ```powershell

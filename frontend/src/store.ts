@@ -5,6 +5,7 @@ import { uid, now } from './util'
 import { safeStorage } from './storage'
 import { mergePersisted } from './migrations'
 import { defaultSettings, defaultExperts } from './seed'
+import { createProjectManifest, type ResearchProjectManifest } from './workspace/schema'
 
 interface AppState {
   settings: Settings
@@ -19,6 +20,14 @@ interface AppState {
   // view / navigation
   view: AppView
   setView: (v: AppView) => void
+
+  // research projects (manifest here; collaborative document state lives in Yjs/IndexedDB)
+  projects: ResearchProjectManifest[]
+  activeProjectId: string | null
+  createProject: (title?: string) => string
+  renameProject: (id: string, title: string) => void
+  openProject: (id: string) => void
+  archiveProject: (id: string) => void
 
   // experts (rule sets for the Ask view)
   experts: Expert[]
@@ -52,6 +61,39 @@ export const useStore = create<AppState>()(
 
       view: 'ask',
       setView: (v) => set({ view: v }),
+
+      // ---- research projects ----
+      projects: [],
+      activeProjectId: null,
+      createProject: (title) => {
+        const timestamp = now()
+        const project = createProjectManifest({ id: uid(), documentId: uid(), title, timestamp })
+        set((state) => ({
+          projects: [project, ...state.projects],
+          activeProjectId: project.id,
+          view: 'workspace',
+        }))
+        return project.id
+      },
+      renameProject: (id, title) =>
+        set((state) => ({
+          projects: state.projects.map((project) =>
+            project.id === id ? { ...project, title, updatedAt: now() } : project,
+          ),
+        })),
+      openProject: (id) => set({ activeProjectId: id, view: 'workspace' }),
+      archiveProject: (id) =>
+        set((state) => {
+          const archivedAt = now()
+          const projects = state.projects.map((project) =>
+            project.id === id ? { ...project, archivedAt, updatedAt: archivedAt } : project,
+          )
+          const nextProject = projects.find((project) => !project.archivedAt && project.id !== id)
+          return {
+            projects,
+            activeProjectId: state.activeProjectId === id ? (nextProject?.id ?? null) : state.activeProjectId,
+          }
+        }),
 
       // ---- experts (rule sets for the Ask view) ----
       experts: defaultExperts,
@@ -129,10 +171,12 @@ export const useStore = create<AppState>()(
     {
       name: 'syzygy',
       storage: createJSONStorage(() => safeStorage),
-      version: 1,
+      version: 2,
       partialize: (s) => ({
         settings: s.settings,
         view: s.view,
+        projects: s.projects,
+        activeProjectId: s.activeProjectId,
         experts: s.experts,
         asks: s.asks,
         activeAskId: s.activeAskId,

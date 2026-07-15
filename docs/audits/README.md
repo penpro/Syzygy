@@ -7,12 +7,14 @@ These artifacts separate product claims from implementation evidence.
 - `DATA-FLOW.md` — trigger, source, destination, persistence, and guard for each data flow.
 - `THREAT-MODEL.md` — assets, trust boundaries, controls, residual risks, and blockers.
 - `DECISIONS/` — architecture decisions with rejected alternatives and falsification tests.
+- `runs/` — sanitized live/headless run summaries, including Drive and workspace proofs.
 
 ## Reproduce the current automated claims
 
 ```powershell
 cd D:\PolicyPad\syzygy\frontend
 npm run audit
+npm run test:workspace
 npx tsc -b --force
 npx vitest run
 cd src-tauri
@@ -41,5 +43,6 @@ claim | contradictory evidence | file/line or command output | severity | smalle
 
 At minimum, challenge the selected Drive boundary under a broad token, whether Shared Ask can ever
 call the model after Drive failure, whether installer assets are regenerated in release builds,
-whether the live harness reuses production retrieval code, and whether any capability status is
-stronger than its evidence.
+whether the live harness reuses production retrieval code, whether the local provider actually
+survives duplicate/reordered updates, whether project metadata has a second source of truth, and
+whether any capability status is stronger than its evidence.

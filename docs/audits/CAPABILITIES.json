@@ -9,8 +9,8 @@
     "out_of_scope": "Explicitly accepted as outside the product contract."
   },
   "capabilities": [
-    { "id": "P-01", "phase": 3, "status": "planned", "claim": "Stable project entry across clean installs", "evidence": [] },
-    { "id": "P-02", "phase": 2, "status": "planned", "claim": "Rich policy editor fixture round-trip", "evidence": [] },
+    { "id": "P-01", "phase": 3, "status": "implemented_unverified", "claim": "Stable project entry across clean installs", "evidence": ["frontend/src/workspace/schema.ts", "frontend/src/store.ts", "frontend/src/migrations.test.ts", "docs/audits/runs/WORKSPACE-SCAFFOLD-2026-07-14.json"] },
+    { "id": "P-02", "phase": 2, "status": "implemented_unverified", "claim": "Rich policy editor fixture round-trip", "evidence": ["frontend/src/workspace/ResearchEditor.tsx", "frontend/src/workspace/projectModel.test.ts", "docs/audits/runs/WORKSPACE-SCAFFOLD-2026-07-14.json"] },
     { "id": "P-03", "phase": 2, "status": "planned", "claim": "Policy block edit, reorder, serialization, and merge", "evidence": [] },
     { "id": "P-04", "phase": 2, "status": "planned", "claim": "Heuristics block converges under concurrent edits", "evidence": [] },
     { "id": "P-05", "phase": 6, "status": "planned", "claim": "Scenario chips retain stable links", "evidence": [] },
@@ -21,7 +21,7 @@
     { "id": "P-10", "phase": 2, "status": "planned", "claim": "Pointer and keyboard reorder", "evidence": [] },
     { "id": "P-11", "phase": 5, "status": "planned", "claim": "Cursors and presence clean up on disconnect", "evidence": [] },
     { "id": "P-12", "phase": 4, "status": "planned", "claim": "Partitioned simultaneous editing converges", "evidence": [] },
-    { "id": "P-13", "phase": 3, "status": "planned", "claim": "Independent offline edits merge without text loss", "evidence": [] },
+    { "id": "P-13", "phase": 3, "status": "implemented_unverified", "claim": "Independent offline edits merge without text loss", "evidence": ["frontend/src/workspace/projectModel.test.ts", "frontend/src/workspace/localProvider.test.ts"] },
     { "id": "P-14", "phase": 6, "status": "planned", "claim": "Scenario gallery CRUD and states", "evidence": [] },
     { "id": "P-15", "phase": 6, "status": "planned", "claim": "Multi-turn scenario round-trip", "evidence": [] },
     { "id": "P-16", "phase": 6, "status": "planned", "claim": "Local scenario generation provider contract", "evidence": [] },
@@ -48,7 +48,7 @@
     { "id": "S-02", "phase": 4, "status": "implemented_unverified", "claim": "No bulk mirror download before explicit Sync", "evidence": ["frontend/src/components/GoogleDriveButton.tsx", "frontend/src-tauri/src/google_drive.rs"] },
     { "id": "S-03", "phase": 0, "status": "implemented_unverified", "claim": "Clean install reaches local generation without a paid API key", "evidence": ["frontend/src-tauri/src/engine.rs", "scripts/fetch-engine.mjs"] },
     { "id": "S-04", "phase": 3, "status": "planned", "claim": "Portable archive imports on a disconnected machine", "evidence": [] },
-    { "id": "S-05", "phase": 4, "status": "planned", "claim": "Collaboration transport is replaceable", "evidence": [] },
+    { "id": "S-05", "phase": 4, "status": "implemented_unverified", "claim": "Collaboration transport is replaceable", "evidence": ["frontend/src/workspace/localProvider.ts", "frontend/src/workspace/projectModel.test.ts"] },
     { "id": "S-06", "phase": 9, "status": "planned", "claim": "Network trace matches active feature and copy", "evidence": [] }
   ]
 }

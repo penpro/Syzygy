@@ -6,13 +6,14 @@
 |---|---|---|---|---|---|
 | Local generation | User sends Ask | Webview → loopback llama.cpp | Prompt, selected local/Drive passages, history | Thread in localStorage | Loopback endpoint only |
 | Local folder context | User grants folder and asks | Granted path → Rust → model prompt | Relevant text chunks | Knowledge cache in memory | Canonical `Granted` allowlist |
+| Local research project | User creates/edits project | Lexical editor ↔ Yjs document ↔ IndexedDB | Rich editor updates and reserved project collections | `syzygy-project-v1:<projectId>` IndexedDB | Schema-versioned manifest; fail-closed migration; no network provider attached |
 | Drive link | User clicks Link/Re-link and consents | System browser ↔ Google; Rust ↔ token endpoint | OAuth code, refresh/access token, account email | `google_auth.json` in app data | PKCE, state, loopback listener; token never returned to webview |
 | Drive direct research | Shared mode + Ask | Selected Drive tree → Rust exports → model prompt | Supported relevant text; file labels | No mirror; request memory only | Collaboration scope + persisted folder ID + descendant checks |
 | Drive transcript | Shared mode after response | Completed exchange → selected Drive folder | Prompt and model response | Drive file | Explicit per-thread Shared toggle |
 | Drive mirror | User clicks Sync | Selected Drive folder ↔ `Documents/Syzygy` | Supported files; Google-native text/CSV snapshots | Local mirror + Drive | Explicit action; exported snapshots are not re-uploaded |
 | Model download | User selects model | Publisher URL → app model directory | GGUF/model metadata | App data | Explicit UI action and expected hash/size metadata where available |
 | Update check/install | User confirms check/install | GitHub release endpoint → updater | Version metadata, signed installer | Installer/update cache | Explicit disclosure; updater signature |
-| Diagnostic log | Runtime errors/milestones | Frontend/Rust error boundary → in-memory ring | Command/tag/error only | Memory until copied | No prompt, file content, token, or credential logging |
+| Diagnostic log | Runtime errors/milestones | Frontend/Rust error boundary → local ring | Command/tag/error only | localStorage, newest 500 entries | No prompt, file content, token, or credential logging |
 
 ## Drive boundary nuance
 

@@ -16,6 +16,7 @@ npx tsc -b --force         # 0 errors
 npx vitest run             # all pass
 cargo check                # in src-tauri (cargo is at C:\Users\penum\.cargo\bin, not on PATH)
 npm run audit              # architecture, identity, provenance, capability-ledger invariants
+npm run test:providers     # fake-server remote-provider boundary; no live key or network required
 cargo fmt --all -- --check # Rust formatting
 ```
 
@@ -57,6 +58,22 @@ security and tool contract.
 The packaged UI exposes the same Rust-generated values under **Settings → Connect an LLM → MCP
 setup guide**. Do not hard-code an installer location in React or documentation; installed paths
 vary by OS, installer choice, and portable/dev execution.
+
+## Headless remote-provider boundary proof
+
+Run the unwired remote-provider transport checks without a real API key or internet access:
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm run test:providers
+```
+
+The fake loopback provider captures the actual Rust HTTP request and fails unless OpenAI Responses
+uses the expected path, bearer header, `store:false`, bounded output, and approved disclosure. It
+also proves malformed output, unsafe non-TLS endpoints, rejected disclosure, and provider error
+bodies fail without echoing the secret canary. Passing this is `request-conformance`, not live
+availability; OS credential persistence, streaming/cancellation, UI disclosure, and an opt-in live
+canary are separate gates.
 
 After building the current packaged executable, an explicit live-profile proof can
 launch the GUI through MCP, create a visible demonstration project, exercise replace/append and

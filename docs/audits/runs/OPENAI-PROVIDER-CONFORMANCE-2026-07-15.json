@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "runId": "OPENAI-PROVIDER-CONFORMANCE-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "request-conformance",
+  "command": "npm run test:providers",
+  "structuralAudit": "npm run audit",
+  "result": {
+    "passed": true,
+    "testsPassed": 6,
+    "liveNetworkUsed": false,
+    "realCredentialUsed": false
+  },
+  "regressionGates": {
+    "rustTestsPassed": 28,
+    "extensionContractTestsPassed": 8,
+    "frontendModulesTransformed": 989,
+    "structuralAuditChecksPassed": 16,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true
+  },
+  "proved": [
+    "provider secrets have a redacted Debug representation and reject header injection",
+    "non-TLS non-loopback endpoints fail before transport",
+    "provider-matching accepted content disclosure is required before transport",
+    "the real Rust request uses POST /v1/responses, bearer authentication, and store:false",
+    "successful output text and usage normalize into provider-neutral records",
+    "partially malformed usage accounting fails closed instead of disappearing",
+    "provider error bodies and secret canaries are absent from returned errors",
+    "malformed successful responses fail closed",
+    "response bodies are bounded to two MiB"
+  ],
+  "notProved": [
+    "OS credential persistence or memory zeroization",
+    "stream fragmentation, cancellation, timeout, retry-after, or rate limiting",
+    "tool calls or strict structured output",
+    "typed frontend disclosure and invocation",
+    "a live OpenAI account or current model",
+    "Anthropic, Gemini, xAI, or custom adapter behavior",
+    "model quality"
+  ],
+  "primarySources": [
+    "https://platform.openai.com/docs/api-reference/responses",
+    "https://platform.openai.com/docs/models/default-usage-policies-by-endpoint"
+  ]
+}

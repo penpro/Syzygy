@@ -448,6 +448,11 @@ Machine-readable inspection is available through `syzygy_platform_contracts`. Un
 corresponding runtime gates pass it must continue returning `contract-only` for remote providers,
 adversarial execution, and plugin loading.
 
+Progress: OpenAI Responses one-shot request construction and normalization now pass an unwired
+six-case Rust conformance suite and are reported separately as `request-conformance`. Aggregate
+remote execution remains `contract-only` until OS credential storage, streaming/cancellation,
+typed frontend disclosure, and opt-in live evidence pass.
+
 ## 11. Recommended next slice
 
 Status snapshot on 2026-07-14: the 41-row ledger has 10 `implemented_unverified`, 31 `planned`,

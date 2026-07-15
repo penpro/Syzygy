@@ -114,6 +114,8 @@ record(
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))
 const platformContractsSource = text('frontend/src-tauri/src/platform_contracts.rs')
+const providerRuntimeSource = text('frontend/src-tauri/src/model_provider.rs')
+const rustWiringSource = text('frontend/src-tauri/src/lib.rs')
 record(
   'research extension contracts',
   pluginManifestSchema.$schema === 'https://json-schema.org/draft/2020-12/schema' &&
@@ -122,6 +124,17 @@ record(
     platformContractsSource.includes('"pluginLoader": "contract-only"') &&
     platformContractsSource.includes('"automaticSharedMutation": false'),
   'strict v1 schemas, honest runtime status, and proposal-only shared mutation',
+)
+record(
+  'remote provider boundary remains gated',
+  providerRuntimeSource.includes('"store": false') &&
+    providerRuntimeSource.includes('validate_for(RemoteProviderId::OpenAi)') &&
+    providerRuntimeSource.includes('MAX_RESPONSE_BYTES') &&
+    providerRuntimeSource.includes('endpoint.scheme() == "https"') &&
+    platformContractsSource.includes('OPENAI_ADAPTER_STATUS') &&
+    platformContractsSource.includes('"remoteProviderAdapters": "contract-only"') &&
+    !rustWiringSource.includes('model_provider::execute_openai_response'),
+  'storage-off, disclosure, TLS, bounded-response, truthful-status, and unwired-runtime gates present',
 )
 const mcpSetupSource = text('frontend/src/components/McpSetupModal.tsx')
 record(

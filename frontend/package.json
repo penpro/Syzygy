@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:workspace": "vitest run src/workspace src/migrations.test.ts --reporter=verbose",
     "test:contracts": "vitest run src/extensions --reporter=verbose",
+    "test:providers": "cargo test --manifest-path src-tauri/Cargo.toml model_provider::tests:: -- --nocapture",
     "test:mcp": "node ../scripts/mcp-harness.mjs",
     "test:mcp:live": "node ../scripts/mcp-live-harness.mjs --write-proof",
     "audit": "node ../scripts/audit.mjs",

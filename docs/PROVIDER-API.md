@@ -1,7 +1,8 @@
 # Model provider API
 
-**Contract version:** 1. **Runtime status:** local adapter available; OpenAI, Anthropic, Gemini,
-xAI, and custom remote adapters are contract-only.
+**Contract version:** 1. **Runtime status:** local adapter available; OpenAI Responses one-shot
+request/normalization is at `request-conformance` and intentionally not product-callable;
+Anthropic, Gemini, xAI, and custom remote adapters are contract-only.
 
 The canonical TypeScript contract is `frontend/src/extensions/providerContract.ts`. It prevents
 research workflows from depending on a vendor response shape and keeps provider availability
@@ -43,6 +44,13 @@ domain semantic validation both pass.
 | `xai-responses` | xAI Responses | explicit storage/ZDR mode; normalize parallel function calls and long-running transport behavior |
 | `custom` | plugin/registered adapter | no assumed capabilities; certification fixture required |
 
+The first OpenAI Responses slice lives in Rust and proves the exact `/v1/responses` request against
+a loopback fake server: bearer authentication, `store:false`, bounded response collection,
+disclosure matching, literal-loopback-or-HTTPS endpoint policy, normalized output/usage, malformed
+response rejection, and secret/error-body redaction. It does not yet persist keys, stream events,
+handle tools, expose a frontend command, or contact the live service. `syzygy_platform_contracts`
+reports this narrower status without changing the aggregate remote runtime from `contract-only`.
+
 ## Certification suite
 
 Every adapter runs the same fake-server and live opt-in tests:
@@ -58,3 +66,5 @@ Every adapter runs the same fake-server and live opt-in tests:
 
 Passing the contract suite establishes protocol behavior for a named adapter version; it does not
 establish model quality or a provider's legal/privacy suitability for a particular study.
+
+Run the currently executable Rust provider slice with `npm run test:providers`.

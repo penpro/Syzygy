@@ -24,6 +24,13 @@ pub fn current() -> Result<Value, String> {
             "adversarialRunner": "contract-only",
             "pluginLoader": "contract-only"
         },
+        "providerAdapterStatus": {
+            "openai-responses": crate::model_provider::OPENAI_ADAPTER_STATUS,
+            "anthropic-messages": "contract-only",
+            "gemini-interactions": "contract-only",
+            "xai-responses": "contract-only",
+            "custom": "contract-only"
+        },
         "providerTransports": [
             "local-openai-compatible",
             "openai-responses",
@@ -61,6 +68,7 @@ pub fn current() -> Result<Value, String> {
         "pluginProposalSchema": proposal_schema,
         "selfCheck": {
             "command": "npm run test:contracts",
+            "providerCommand": "npm run test:providers",
             "mcpCommand": "npm run test:mcp",
             "auditCommand": "npm run audit"
         }
@@ -78,6 +86,10 @@ mod tests {
         assert_eq!(
             contracts["implementationStatus"]["remoteProviderAdapters"],
             "contract-only"
+        );
+        assert_eq!(
+            contracts["providerAdapterStatus"]["openai-responses"],
+            "request-conformance"
         );
         assert_eq!(
             contracts["pluginManifestSchema"]["additionalProperties"],

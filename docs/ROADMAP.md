@@ -86,6 +86,13 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   Lexical node-map enumeration rather than root document order. The corrected oracle passes and
   is documented in the run evidence. P-03 is `implemented_unverified`; P-10 still requires real
   pointer and keyboard controls plus interaction testing.
+- The first remote-model execution boundary is now headlessly testable but not product-enabled.
+  Rust constructs and normalizes an OpenAI Responses one-shot request, requires matching content
+  disclosure, forces `store:false`, accepts only HTTPS or literal loopback test endpoints, bounds
+  the response, and sanitizes failures. A fake server captures the real wire request and six tests
+  cover secret redaction, unsafe endpoints, disclosure, response parsing, and malformed/error
+  responses. The adapter is labeled `request-conformance`; credential storage, streaming,
+  cancellation, tools, UI disclosure, and live opt-in proof remain gates before availability.
 
 ## Current completion snapshot
 
@@ -111,8 +118,9 @@ collaborators are not required to download large project folders.
    - Keep domain and provider interfaces independent from editor, Drive, and AI vendors.
    - Design target: the "research editor" panel of the approved mockup (version rail,
      evaluation panel, mono metadata stamps).
-3. **Certify the open research platform boundary** — implement the Rust credential vault and one
-   remote adapter only after fake-server/key-canary tests; build the adversarial benchmark before
+3. **Certify the open research platform boundary** — the first OpenAI fake-server/key-canary
+   request gate has landed; next implement the Rust credential vault, streaming/cancellation, and
+   explicit disclosure UI before availability. Build the adversarial benchmark before
    claiming panel quality; implement a no-authority WASI host before loading third-party code.
 4. **Real collaboration on the folder** — Yjs doc persisted in the synced folder;
    merge-on-sync instead of last-write-wins; presence later. Drive is transport #1;

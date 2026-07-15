@@ -61,6 +61,7 @@ source of project truth.
 | `mcp.rs` | Embedded stdio MCP mode, tool schemas, and JSON-RPC protocol routing. |
 | `mcp_setup.rs` | Running-executable discovery plus copy-ready JSON/TOML configuration and connection prompts shared by the UI and MCP. |
 | `platform_contracts.rs` | Machine-readable provider, adversarial-review, and researcher-plugin schemas/status exposed to headless MCP clients. |
+| `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. The OpenAI Responses one-shot wire contract has fake-server evidence but is not product-wired pending credential-vault and streaming gates. |
 
 **Security posture:** the model only ever sees selected text; the webview never sees OAuth
 credentials/tokens (they live in Rust + app-data); local file access is allowlisted via
@@ -100,8 +101,8 @@ the current product persistence provider; a deterministic Memory provider exists
 two active documents converge through live edits, partitions, and reconnects. Future Drive and
 WebSocket implementations must pass the same contract before their capability status changes.
 Its `nodes/PolicyBlockNode.ts` is the first original domain editor node: stable identity and
-review state live with editable Lexical content and survive JSON/MCP serialization. This does not
-yet close the custom-node Yjs convergence or interaction gates.
+review state live with editable Lexical content and survive JSON/MCP serialization and two-editor
+convergence. Pointer and keyboard interaction gates remain open.
 
 The frontend `extensions/` folder owns provider-neutral model descriptors, deterministic
 adversarial-run planning, strict researcher-plugin manifests/proposals, and their headless
@@ -150,7 +151,9 @@ shipped.
   closed on concurrent change; the MCP receives no ambient Drive, filesystem, or model authority.
   Setup data is generated from `current_exe` in Rust and reused by the app and the
   `syzygy_installation` tool. See `MCP.md`.
-- **Extensions request narrow authority.** Remote provider secrets and HTTPS stay in the future
-  Rust boundary; plugins declare capabilities and submit revision-guarded proposals. No plugin
+- **Extensions request narrow authority.** Remote provider secrets and HTTPS stay in Rust. The
+  OpenAI one-shot request boundary is fake-server certified but deliberately unwired until the OS
+  credential vault and streaming/cancellation gates pass; other remote adapters remain
+  contract-only. Plugins declare capabilities and submit revision-guarded proposals. No plugin
   code executes in the webview and no contract-only feature may report itself as available. See
   `PROVIDER-API.md`, `PLUGIN-API.md`, and ADR-0002/0003.

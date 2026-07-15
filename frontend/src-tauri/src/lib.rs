@@ -9,6 +9,7 @@ pub mod google_drive;
 mod knowledge;
 pub mod mcp;
 mod mcp_setup;
+mod model_provider;
 mod platform_contracts;
 mod state;
 mod updates;

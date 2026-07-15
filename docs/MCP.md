@@ -101,8 +101,9 @@ MCP host
   local MCP host. These paths are local machine metadata, contain no OAuth token or research
   content, and are also visible to the user in Settings.
 - `syzygy_platform_contracts` embeds public schemas and implementation-state labels only. It
-  deliberately reports remote adapters, adversarial execution, and plugin loading as
-  `contract-only`; it returns no key, provider account, project content, or Drive credential.
+  reports the unwired OpenAI one-shot wire adapter as `request-conformance`, and deliberately
+  reports aggregate remote execution, adversarial execution, and plugin loading as `contract-only`;
+  it returns no key, provider account, project content, or Drive credential.
 
 ## Executable evidence
 

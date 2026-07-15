@@ -234,6 +234,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   requires that exact revision and live project identity. Pure tests prove stale zero-write and
   branch creation, while Rust/stdio/live harnesses lock the route. Turn mutation, generation, and
   scenario UI remain unavailable.
+- The MCP scenario surface now has seventeenth-tool coverage: `add_scenario_turn` stores one
+  explicit role/content turn and `revise_scenario_turn` retains attributed immutable revisions.
+  Each mutation consumes the exact research revision from inspection or the prior mutation; stale
+  add/revise tests leave turn history unchanged. The live harness chains create→add→revise and
+  verifies turn/revision counts through inspection without invoking a model.
 
 ## Current completion snapshot
 

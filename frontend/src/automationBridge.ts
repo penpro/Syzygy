@@ -6,8 +6,8 @@ import {
   getAutomationEditorController,
 } from './workspace/editorAutomationRegistry'
 import { inspectResearchState } from './workspace/researchStateInspection'
-import { createAutomationScenario } from './workspace/scenarioAutomation'
-import type { ScenarioStatus } from './workspace/scenarioModel'
+import { addAutomationScenarioTurn, createAutomationScenario, reviseAutomationScenarioTurn } from './workspace/scenarioAutomation'
+import type { ResearchScenario, ScenarioStatus, ScenarioTurn, ScenarioTurnRole } from './workspace/scenarioModel'
 import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
 import { saveAutomationPolicyVersion } from './workspace/versionAutomation'
 
@@ -198,6 +198,33 @@ export async function dispatchAutomationRequest(
         researchRevision: created.researchRevision,
       }
     }
+    case 'project.addScenarioTurn':
+    case 'project.reviseScenarioTurn': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const input = {
+        expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
+        scenarioId: requiredString(params, 'scenarioId'),
+        turnId: requiredString(params, 'turnId'),
+        role: requiredScenarioTurnRole(params),
+        content: requiredString(params, 'content', true),
+        participantId: requiredString(params, 'participantId'),
+        timestamp: Date.now(),
+        editId: `mcp-${crypto.randomUUID()}`,
+      }
+      const changed = request.method === 'project.addScenarioTurn'
+        ? addAutomationScenarioTurn(getAutomationProjectDocument(project.id), project.id, input)
+        : reviseAutomationScenarioTurn(getAutomationProjectDocument(project.id), project.id, input)
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        scenario: summarizeScenario(changed.scenario),
+        turn: summarizeScenarioTurn(changed.turn),
+        researchRevision: changed.researchRevision,
+      }
+    }
     case 'document.replace': {
       const expectedRevision = requiredString(params, 'expectedRevision')
       const content = requiredString(params, 'content', true)
@@ -305,6 +332,22 @@ function summarizeProject(
   }
 }
 
+function summarizeScenario(scenario: ResearchScenario) {
+  return {
+    id: scenario.id, title: scenario.title, status: scenario.status,
+    parentScenarioId: scenario.parentScenarioId, createdBy: scenario.createdBy,
+    createdAt: scenario.createdAt, turnCount: scenario.turns.length,
+  }
+}
+
+function summarizeScenarioTurn(turn: ScenarioTurn) {
+  return {
+    id: turn.id, role: turn.role, content: turn.content, createdBy: turn.createdBy,
+    createdAt: turn.createdAt, revisionCount: turn.revisions.length,
+    currentEditId: turn.revisions[turn.revisions.length - 1]?.editId ?? null,
+  }
+}
+
 function asObject(value: unknown): Record<string, unknown> {
   if (value === undefined || value === null) return {}
   if (typeof value !== 'object' || Array.isArray(value)) throw new Error('Automation parameters must be an object')
@@ -328,4 +371,10 @@ function optionalString(params: Record<string, unknown>, name: string): string |
   if (value === undefined || value === null) return null
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${name} must be a non-empty string when provided`)
   return value
+}
+
+function requiredScenarioTurnRole(params: Record<string, unknown>): ScenarioTurnRole {
+  const role = requiredString(params, 'role')
+  if (!['system', 'user', 'assistant'].includes(role)) throw new Error('role must be system, user, or assistant')
+  return role as ScenarioTurnRole
 }

@@ -167,8 +167,29 @@ try {
     }
     const stateAfterScenario = await session.tool('inspect_research_state')
     if (createdScenario.structuredContent.scenario.id !== scenarioId) throw new Error('Scenario creation returned the wrong identity')
+    const addedTurn = await session.tool('add_scenario_turn', {
+      expectedResearchRevision: createdScenario.structuredContent.researchRevision,
+      scenarioId,
+      turnId: 'answer-turn',
+      role: 'assistant',
+      content: 'Initial harness answer.',
+      participantId: 'mcp-live-harness',
+    })
+    const revisedTurn = await session.tool('revise_scenario_turn', {
+      expectedResearchRevision: addedTurn.structuredContent.researchRevision,
+      scenarioId,
+      turnId: 'answer-turn',
+      role: 'assistant',
+      content: 'Revised harness answer with retained history.',
+      participantId: 'mcp-live-harness-reviewer',
+    })
     if (stateAfterScenario.structuredContent.researchState.scenarios.totalRecords !== researchState.structuredContent.researchState.scenarios.totalRecords + 1) throw new Error('Scenario creation did not add exactly one record')
     if (stateAfterScenario.structuredContent.researchState.scenarios.items.some((item) => item.id === `${scenarioId}-stale`)) throw new Error('Stale scenario creation reached live state')
+    const stateAfterTurns = await session.tool('inspect_research_state')
+    const inspectedScenario = stateAfterTurns.structuredContent.researchState.scenarios.items.find((item) => item.id === scenarioId)
+    if (addedTurn.structuredContent.turn.revisionCount !== 1) throw new Error('Scenario turn add did not create one revision')
+    if (revisedTurn.structuredContent.turn.revisionCount !== 2 || revisedTurn.structuredContent.turn.content !== 'Revised harness answer with retained history.') throw new Error('Scenario turn revision did not retain and project history')
+    if (inspectedScenario?.turnCount !== 1 || inspectedScenario?.turnRevisionCount !== 2) throw new Error('Scenario turn state was not visible through inspection')
     const saveArguments = {
       expectedDocumentRevision: readback.structuredContent.document.revision,
       participantId: 'mcp-live-harness',
@@ -195,6 +216,7 @@ try {
       scenarioId,
       scenarioCreateRevisionGuarded: true,
       staleScenarioCreateRejected: true,
+      scenarioTurnAddAndRevisionGuarded: true,
       heuristicRecords: researchState.structuredContent.researchState.heuristics.totalRecords,
       versionRecords: researchState.structuredContent.researchState.versions.totalRecords,
       savedVersionId: savedVersion.structuredContent.version.versionId,

@@ -3,16 +3,26 @@ import { createHeuristic } from './heuristicsModel'
 import { createProjectDocument, getProjectSharedTypes } from './projectModel'
 import { commitPolicyVersion } from './policyVersionModel'
 import { inspectResearchState } from './researchStateInspection'
+import { createScenario, deleteScenario } from './scenarioModel'
 import { createProjectManifest } from './schema'
 
 const manifest = createProjectManifest({ id: 'inspection-project', documentId: 'inspection-document', timestamp: 1 })
 
 async function populatedDocument() {
   const doc = createProjectDocument(manifest)
-  const { heuristics, versions, metadata } = getProjectSharedTypes(doc)
+  const { heuristics, scenarios, versions, metadata } = getProjectSharedTypes(doc)
   createHeuristic(heuristics, {
     id: 'evidence-quality', title: 'Evidence quality', guidance: 'Secret guidance is omitted.', priority: 'required',
     authorId: 'researcher-1', timestamp: 10, editId: 'create-evidence-quality',
+  })
+  createScenario(scenarios, {
+    id: 'source-challenge', title: 'Source challenge', background: 'Secret scenario background is omitted.',
+    authorId: 'researcher-1', timestamp: 10, editId: 'create-source-challenge',
+    turns: [{ id: 'challenge-question', role: 'user', content: 'Secret scenario turn is omitted.', editId: 'create-challenge-question' }],
+  })
+  createScenario(scenarios, {
+    id: 'source-challenge-branch', title: 'Skeptical branch', background: '', parentScenarioId: 'source-challenge',
+    authorId: 'researcher-2', timestamp: 11, editId: 'create-source-challenge-branch',
   })
   const version = await commitPolicyVersion(versions, metadata, {
     projectId: manifest.id, expectedHeadVersionId: null,
@@ -28,11 +38,27 @@ describe('research state inspection', () => {
     const result = await inspectResearchState(doc, manifest.id)
     expect(result.selfCheck).toEqual({ healthy: true, issues: [] })
     expect(result.heuristics).toMatchObject({ totalRecords: 1, validRecords: 1, invalidRecords: 0 })
+    expect(result.scenarios).toMatchObject({ totalRecords: 2, validRecords: 2, invalidRecords: 0, rootCount: 1, branchCount: 1 })
+    expect(result.scenarios.items[0]).toMatchObject({ id: 'source-challenge', turnCount: 1, turnRevisionCount: 1, editCount: 1 })
     expect(result.versions).toMatchObject({ totalRecords: 1, validRecords: 1, invalidRecords: 0, headVersionId: version.versionId, headLineageDepth: 1 })
     const serialized = JSON.stringify(result)
     expect(serialized).not.toContain('Secret guidance')
     expect(serialized).not.toContain('Secret policy text')
     expect(serialized).not.toContain('Secret note')
+    expect(serialized).not.toContain('Secret scenario background')
+    expect(serialized).not.toContain('Secret scenario turn')
+  })
+
+  it('reports invalid scenario branch ancestry without exposing scenario bodies', async () => {
+    const { doc } = await populatedDocument()
+    const { scenarios } = getProjectSharedTypes(doc)
+    deleteScenario(scenarios, 'source-challenge')
+    const result = await inspectResearchState(doc, manifest.id)
+    expect(result.scenarios).toMatchObject({ totalRecords: 1, validRecords: 1, invalidRecords: 0, rootCount: 0, branchCount: 1 })
+    expect(result.selfCheck).toEqual({
+      healthy: false,
+      issues: ['Scenario source-challenge-branch has missing parent source-challenge'],
+    })
   })
 
   it('reports a tampered version and invalid head lineage without throwing', async () => {

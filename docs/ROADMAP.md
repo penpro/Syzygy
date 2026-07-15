@@ -215,6 +215,10 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   public scenario/turn ID collisions, malformed order, unknown fields, and missing parents fail
   closed. This closes P-14/P-15 domain evidence only; gallery UI, generation, response variants,
   votes/flags, evaluation, and portable scenario packs remain open.
+- The existing `inspect_research_state` MCP self-check now reports bounded scenario metadata and
+  validates scenario records plus missing/cyclic branch ancestry alongside heuristics and immutable
+  history. Scenario background, turn content, and revision bodies remain excluded, and the route
+  remains read-only; this improves live harness coverage without claiming scenario UI or mutation.
 
 ## Current completion snapshot
 

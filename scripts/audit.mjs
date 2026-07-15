@@ -211,14 +211,18 @@ record(
     researchInspectionSource.includes('MAX_RETURNED_ITEMS = 200') &&
     researchInspectionSource.includes('readPolicyVersionLineage') &&
     researchInspectionSource.includes('countInvalidLineages') &&
-    researchInspectionSource.includes('policy text, heuristic guidance, edit values, and notes are omitted') &&
+    researchInspectionSource.includes('inspectScenarioGraph') &&
+    researchInspectionSource.includes('turnRevisionCount') &&
+    researchInspectionSource.includes('scenario background/turn content/revision bodies') &&
     researchInspectionTestSource.includes('Secret guidance is omitted') &&
     researchInspectionTestSource.includes("not.toContain('Secret policy text')") &&
+    researchInspectionTestSource.includes("not.toContain('Secret scenario turn')") &&
+    researchInspectionTestSource.includes('reports invalid scenario branch ancestry') &&
     researchInspectionTestSource.includes('reports a tampered version and invalid head lineage') &&
     researchInspectionTestSource.includes('content-valid non-head record whose ancestor is missing') &&
     mcpSource.includes('"inspect_research_state" => live("project.readResearchState"') &&
     text('scripts/mcp-live-harness.mjs').includes('researchStateHealthy: true'),
-  'identity-safe live Y.Doc registry, 200-item metadata caps, secret-body canaries, tamper/head/lineage self-checks, read-only MCP routing, and packaged-live assertion are present',
+  'identity-safe live Y.Doc registry, 200-item metadata caps, scenario graph plus version lineage self-checks, secret-body canaries, read-only MCP routing, and packaged-live assertion are present',
 )
 const versionAutomationSource = text('frontend/src/workspace/versionAutomation.ts')
 const versionAutomationTestSource = text('frontend/src/workspace/versionAutomation.test.ts')

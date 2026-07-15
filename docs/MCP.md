@@ -8,7 +8,7 @@ window, which remains the owner of project navigation, Lexical editor state, Yjs
 This is an automation and interoperability surface, not a claim that unfinished research
 features exist. `syzygy_status`, `workspace_walkthrough`, and `inspect_research_state` explicitly
 report the difference between usable domain foundations and the still-disabled version controls,
-scenarios, evaluation, Drive project transport, and real-time presence slices.
+scenario UI/mutation, evaluation, Drive project transport, and real-time presence slices.
 
 ## Connect an MCP host
 
@@ -55,7 +55,7 @@ Recommended first instruction to an MCP-capable model:
 | `open_project` | navigation | Opens a non-archived project by stable ID |
 | `rename_project` | yes | Changes project metadata only |
 | `read_active_project` | no | Returns the manifest plus structured blocks, plain text, and a revision |
-| `inspect_research_state` | no | Validates bounded live heuristic/version/head/lineage state and returns metadata summaries without policy, guidance, edit-value, or note bodies |
+| `inspect_research_state` | no | Validates bounded live scenario/heuristic/version/head/lineage state and returns metadata summaries without policy, scenario, guidance, edit-value, or note bodies |
 | `save_active_policy_version` | version metadata | Saves the exact active semantic draft as a new immutable head under both document-revision and expected-head guards; does not edit the draft or restore history |
 | `replace_active_document` | yes | Replaces the document only when `expectedRevision` still matches |
 | `append_active_document` | yes | Appends blocks only when `expectedRevision` still matches |
@@ -100,9 +100,11 @@ MCP host
 - MCP tools do not receive ambient Drive, filesystem, or local-model authority. Future tools for
   those systems need their own typed proposal/confirmation contracts.
 - `inspect_research_state` is read-only and content-minimized. It checks the same live Y.Doc owned
-  by the editor/local provider, caps returned items, and has no heuristic/version/document mutation
+  by the editor/local provider, caps returned items, and has no scenario/heuristic/version/document mutation
   path. Titles, attribution, IDs, counts, and timestamps are metadata and may be returned; policy
-  text, heuristic guidance and edit values, and version notes are deliberately omitted.
+  text, scenario backgrounds/turn content/revision bodies, heuristic guidance and edit values, and
+  version notes are deliberately omitted. Scenario branch ancestry is checked for missing or cyclic
+  parents and peer-colliding public identities fail closed.
 - `save_active_policy_version` requires `expectedDocumentRevision` from `read_active_project` and,
   when non-null, `expectedHeadVersionId` from `inspect_research_state`. The live editor revision is
   checked once before hashing and again inside the final Yjs head transaction; the existing head

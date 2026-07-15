@@ -89,9 +89,10 @@ rejection, and correct JSON/TOML generation for executable paths with spaces. Se
 security and tool contract.
 
 The live collaboration document registry and `researchStateInspection.test.ts` add a content-
-minimized MCP self-check. It validates every heuristic record, version hash/schema, project
-identity, head, and full bounded ancestor chain, while returning at most 200 metadata summaries
-and omitting policy text, heuristic guidance/edit values, and notes. Rust tests require the
+minimized MCP self-check. It validates every scenario/heuristic record, scenario branch graph,
+version hash/schema, project identity, head, and full bounded version ancestor chain, while
+returning at most 200 metadata summaries per collection and omitting policy text, scenario
+background/turn/revision bodies, heuristic guidance/edit values, and notes. Rust tests require the
 thirteenth `inspect_research_state` tool to route only to this read operation. The mutation-capable
 live harness checks it when explicitly run; CI does not claim a packaged GUI proof.
 

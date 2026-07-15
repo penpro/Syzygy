@@ -1,10 +1,10 @@
-//! Aphelion Tauri backend. Domain logic lives in the modules below; this file wires up
+//! Syzygy Tauri backend. Domain logic lives in the modules below; this file wires up
 //! state, auto-starts the engine on launch, and registers the command handlers.
 mod documents;
 mod downloads;
 mod engine;
-mod google_auth;
-mod google_drive;
+pub mod google_auth;
+pub mod google_drive;
 mod knowledge;
 mod state;
 mod updates;
@@ -47,7 +47,10 @@ pub fn run() {
                     for e in entries.flatten() {
                         let p = e.path();
                         let is_gguf = p.extension().map_or(false, |x| x == "gguf");
-                        let name = p.file_name().map(|n| n.to_string_lossy().to_lowercase()).unwrap_or_default();
+                        let name = p
+                            .file_name()
+                            .map(|n| n.to_string_lossy().to_lowercase())
+                            .unwrap_or_default();
                         if is_gguf && !name.contains("mmproj") {
                             let sz = e.metadata().map(|m| m.len()).unwrap_or(0);
                             if best.as_ref().map_or(true, |(b, _)| sz > *b) {
@@ -56,11 +59,21 @@ pub fn run() {
                         }
                     }
                     if let Some((_, model)) = best {
-                        if let Some(fname) = model.file_name().map(|n| n.to_string_lossy().to_string()) {
-                            *handle.state::<MainModel>().0.lock().unwrap_or_else(|e| e.into_inner()) = Some(fname);
+                        if let Some(fname) =
+                            model.file_name().map(|n| n.to_string_lossy().to_string())
+                        {
+                            *handle
+                                .state::<MainModel>()
+                                .0
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner()) = Some(fname);
                         }
                         let child = engine::spawn_engine(&handle, &model);
-                        *handle.state::<Engine>().0.lock().unwrap_or_else(|e| e.into_inner()) = child;
+                        *handle
+                            .state::<Engine>()
+                            .0
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner()) = child;
                     }
                 }
             }
@@ -69,7 +82,9 @@ pub fn run() {
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Destroyed = event {
                 if let Some(engine) = window.app_handle().try_state::<Engine>() {
-                    if let Some(mut child) = engine.0.lock().unwrap_or_else(|e| e.into_inner()).take() {
+                    if let Some(mut child) =
+                        engine.0.lock().unwrap_or_else(|e| e.into_inner()).take()
+                    {
                         let _ = child.kill();
                     }
                 }
@@ -112,6 +127,7 @@ pub fn run() {
             downloads::download_status,
             google_auth::google_oauth_start,
             google_auth::google_oauth_status,
+            google_auth::google_oauth_connection,
             google_auth::google_oauth_cancel,
             google_auth::google_oauth_disconnect,
             google_auth::google_drive_create_folder,
@@ -119,6 +135,9 @@ pub fn run() {
             google_drive::google_drive_list_folder,
             google_drive::google_drive_read_file,
             google_drive::google_drive_retrieve_context,
+            google_drive::google_drive_workspace,
+            google_drive::google_drive_list_workspaces,
+            google_drive::google_drive_select_workspace,
             google_drive::google_drive_mirror_dir,
             google_drive::google_drive_sync_folder,
             google_drive::google_drive_mirror_append_log,

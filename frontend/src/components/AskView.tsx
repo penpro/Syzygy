@@ -28,6 +28,7 @@ import { logInfo } from '../log'
 import { DocumentModal } from './DocumentModal'
 import { ImageFinderModal } from './ImageFinderModal'
 import { cx } from '../util'
+import { buildDriveSystemPrompt } from '../driveContext'
 
 // A roomy-but-safe context window for Q&A threads (the model/Modelfile default
 // can be as low as 4k, which truncates multi-turn clarifications).
@@ -227,15 +228,18 @@ export function AskView() {
       let sysFull = sys
       if (ask.syncToDrive) {
         try {
-          const kb = await googleDriveRetrieveContext(DRIVE_FOLDER, userText, 6000)
-          if (kb.trim()) {
-            sysFull = `${sys}\n\n# Reference material read directly from the shared Google Drive folder\nUse it to answer accurately and cite file names when relevant; if it doesn't cover the question, say so. Never ask for a public link when this material is present.\n\n${kb}`
-          }
-        } catch {
-          /* Drive unavailable — fall back to the optional local folder below */
+          const report = await googleDriveRetrieveContext(DRIVE_FOLDER, userText, 6000)
+          logInfo(
+            'drive',
+            `Context: ${report.workspace.name}, ${report.visibleFiles} visible, ${report.supportedFiles} readable, ${report.nativeFiles} Google-native`,
+          )
+          sysFull = buildDriveSystemPrompt(sys, report)
+        } catch (e) {
+          const message = (e as { message?: string })?.message ?? String(e)
+          throw new Error(`Shared Drive context failed: ${message}`)
         }
       }
-      if (ask.knowledgeFolder && sysFull === sys) {
+      if (!ask.syncToDrive && ask.knowledgeFolder && sysFull === sys) {
         try {
           const kb = await retrieveContext(ask.knowledgeFolder, userText, 6000)
           if (kb.trim()) {

@@ -16,6 +16,14 @@
 - **Wordmark**: `SYZYGY` letterspaced (`.brand-word` / `.splash-title`: IBM Plex Mono,
   700, tracking ~0.32–0.42em).
 
+### Shipping identity assets
+
+- `frontend/src-tauri/syzygy-icon.svg` is the single OS icon source. Tauri derives Windows,
+  macOS, Linux, iOS, Android, and Store sizes from it.
+- `scripts/generate-brand-assets.ps1` regenerates the platform icon set plus the NSIS header and
+  sidebar bitmaps. Installer artwork is committed so release builds are reproducible.
+- The audit fails if installer copy returns to Aphelion or the old app-data identifier.
+
 ## Palette
 
 | Token | Hex | Use |

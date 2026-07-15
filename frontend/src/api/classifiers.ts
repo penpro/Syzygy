@@ -2,7 +2,7 @@
 // never generate prose for the user. Split out of ollama.ts (which keeps the streaming/health/
 // sampler plumbing). Every function here is temperature-0 and either returns a safe fallback
 // or throws for callers that handle errors themselves.
-// (Aphelion's emotion/portrait/scene-state classifiers lived here too; Syzygy keeps only the
+// (The inherited emotion/portrait/scene-state classifiers were removed; Syzygy keeps only the
 // Ask-surface pair: the intent router and the folder image-finder.)
 
 /** Shared plumbing: one non-streaming completion; returns the raw content. Throws on HTTP errors. */

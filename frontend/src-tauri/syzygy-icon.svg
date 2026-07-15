@@ -1,0 +1,22 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Syzygy app icon">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FBF8F0"/>
+      <stop offset="1" stop-color="#EDE5D3"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#0B1D2A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect x="28" y="28" width="968" height="968" rx="220" fill="url(#paper)"/>
+  <rect x="42" y="42" width="940" height="940" rx="206" fill="none" stroke="#0B1D2A" stroke-width="16"/>
+  <g filter="url(#shadow)">
+    <line x1="136" y1="512" x2="888" y2="512" stroke="#4C7F7A" stroke-width="18" stroke-linecap="round" opacity="0.7"/>
+    <circle cx="252" cy="512" r="82" fill="#0B1D2A"/>
+    <circle cx="772" cy="512" r="82" fill="#0B1D2A"/>
+    <circle cx="512" cy="512" r="146" fill="#2E5C8A"/>
+    <circle cx="512" cy="512" r="146" fill="none" stroke="#FBF8F0" stroke-width="10" opacity="0.75"/>
+  </g>
+  <path d="M681 286 L691 357 L762 367 L691 377 L681 448 L671 377 L600 367 L671 357 Z" fill="#D6A24C"/>
+  <circle cx="733" cy="315" r="12" fill="#D6A24C" opacity="0.82"/>
+</svg>

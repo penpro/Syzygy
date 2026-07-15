@@ -1,4 +1,4 @@
-<p align="center"><strong>Syzygy — a private, local-AI workspace for real documents. Free. Offline-first. No account required.</strong></p>
+<p align="center"><strong>Syzygy — a private, local-first AI workspace for real documents. Free. No account required.</strong></p>
 
 <p align="center">
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-5EEAD4" />
@@ -15,7 +15,7 @@
 - **Make real documents** — ask for a polished PDF (via Typst), or a code / HTML / Markdown file, saved straight into your folder.
 - **See images (optional)** — add a vision model and it can describe images or search a folder for the ones matching a description.
 - **Private by default** — no account, no telemetry. After the one-time model download it works with the network unplugged.
-- **Google Drive (optional, in progress)** — link a Google account (OAuth in your own browser; minimal `drive.file` scope; tokens never leave your machine) as the foundation for shared-folder collaboration.
+- **Google Drive (optional, in progress)** — choose a Drive workspace for direct shared research. Syzygy exports Docs, Sheets, and Slides into local-model context without requiring a mirror; OAuth tokens remain in the Rust core. Google does not offer a folder-only scope for this desktop flow, so the app discloses its broader collaboration grant and constrains operations to the folder you select.
 
 > *Syzygy (n.) — an alignment of celestial bodies. Sister app to [Aphelion](https://github.com/penpro/Aphelion), Penumbra's local-AI studio: Aphelion is your AI at the farthest point from the cloud; Syzygy is where people and documents come into alignment.*
 
@@ -31,6 +31,7 @@
 | [docs/GOOGLE-DRIVE.md](docs/GOOGLE-DRIVE.md) | Drive auth + folder-mirror sync, Google quirks, limitations |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Lineage, shipped versions, what's next, decision log |
 | [docs/END-GOAL-PLAN.md](docs/END-GOAL-PLAN.md) | Independent end-goal delivery plan, hard gates, tests, and adversarial audit protocol |
+| [docs/audits/](docs/audits/) | Machine-readable capability status, provenance, data flow, threat model, and decision records |
 
 ## Build from source
 

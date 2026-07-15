@@ -184,10 +184,11 @@ Never store one mutable Yjs blob with last-write-wins. Compare:
 Test concurrent upload, duplicates, reordering, interrupted compaction, stale clients, API
 calls, object growth, storage, and latency.
 
-`UNKNOWN-GOOGLE-01`: `drive.file` may not discover/access arbitrary collaborator-created
-folders/files. Compare a minimal isolated Google Picker flow with broader user-approved scopes.
-Record Google verification burden, token exposure, and actual least privilege; never silently
-broaden scope.
+`RESOLVED-GOOGLE-01` (2026-07-14): a live comparison proved `drive.file` omitted a
+collaborator-created Google Doc from the same app-created folder. ADR-0001 records the evidence,
+Picker comparison, restricted-scope/verification burden, explicit re-link requirement, and the
+selected-folder application boundary. S-01 remains `blocked_external` until the reauthorized
+Drive→local-model harness passes; the decision is implemented but the capability is not verified.
 
 ### AI task contract
 
@@ -209,6 +210,11 @@ project, original behavior fixtures, and automated prohibited-dependency/source 
 Gate: every file is Penumbra-original or a recorded permissive dependency; every capability
 row has a phase and verification method;
 a second reviewer reproduces the inventory from documented commands.
+
+Progress at the 2026-07-14 working baseline: `docs/audits/CAPABILITIES.json`,
+`EDITOR-PROVENANCE.md`, `DATA-FLOW.md`, `THREAT-MODEL.md`, ADR-0001, and `npm run audit` exist.
+SBOM/license generation, the original sample project/behavior fixtures, and independent reviewer
+reproduction are still open; Phase 0 is not complete.
 
 ### Phase 1 — domain contracts and migrations (`L`)
 
@@ -386,7 +392,8 @@ compaction time, five/twenty-client sessions, local-model latency, and evaluatio
 
 Do not use the web port or upstream source as an implementation input. First:
 
-1. create provenance and machine-readable capability ledgers;
+1. maintain the new provenance and machine-readable capability ledgers and finish their open
+   SBOM/license/sample-fixture/reviewer gates;
 2. pin exact MIT Lexical/Yjs packages after license verification;
 3. implement an original `WorkspaceView` with one Yjs policy document, local persistence,
    basic formatting, and a policy block;

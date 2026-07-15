@@ -45,16 +45,24 @@ fn ingest_folder(path: &str) -> Vec<(String, String)> {
                 stack.push(p);
                 continue;
             }
-            let name = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-            let ext = p.extension().map(|x| x.to_string_lossy().to_lowercase()).unwrap_or_default();
+            let name = p
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let ext = p
+                .extension()
+                .map(|x| x.to_string_lossy().to_lowercase())
+                .unwrap_or_default();
             let text = match ext.as_str() {
                 "txt" | "md" | "markdown" | "text" | "csv" | "json" | "rs" | "py" | "js" | "ts" => {
                     std::fs::read_to_string(&p).ok()
                 }
                 // pdf-extract can panic on malformed PDFs — contain it so one bad file can't crash ingest.
-                "pdf" => std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| pdf_extract::extract_text(&p).ok()))
-                    .ok()
-                    .flatten(),
+                "pdf" => std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    pdf_extract::extract_text(&p).ok()
+                }))
+                .ok()
+                .flatten(),
                 _ => None,
             };
             if let Some(t) = text {
@@ -68,7 +76,11 @@ fn ingest_folder(path: &str) -> Vec<(String, String)> {
 }
 
 /// Score chunks by query keyword frequency; return the most relevant, up to `max_chars`.
-pub(crate) fn retrieve_chunks(chunks: &[(String, String)], query: &str, max_chars: usize) -> String {
+pub(crate) fn retrieve_chunks(
+    chunks: &[(String, String)],
+    query: &str,
+    max_chars: usize,
+) -> String {
     let terms: Vec<String> = query
         .to_lowercase()
         .split(|c: char| !c.is_alphanumeric())
@@ -83,7 +95,10 @@ pub(crate) fn retrieve_chunks(chunks: &[(String, String)], query: &str, max_char
         .enumerate()
         .map(|(i, (_, text))| {
             let lc = text.to_lowercase();
-            let score = terms.iter().map(|t| lc.matches(t.as_str()).count()).sum::<usize>();
+            let score = terms
+                .iter()
+                .map(|t| lc.matches(t.as_str()).count())
+                .sum::<usize>();
             (score, i)
         })
         .filter(|(s, _)| *s > 0)
@@ -108,7 +123,9 @@ pub(crate) fn retrieve_chunks(chunks: &[(String, String)], query: &str, max_char
 #[tauri::command]
 pub fn folder_info(cache: State<KnowledgeCache>, path: String) -> (usize, usize, Vec<String>) {
     let mut map = cache.0.lock().unwrap_or_else(|e| e.into_inner());
-    let chunks = map.entry(path.clone()).or_insert_with(|| ingest_folder(&path));
+    let chunks = map
+        .entry(path.clone())
+        .or_insert_with(|| ingest_folder(&path));
     let mut names: Vec<String> = chunks.iter().map(|c| c.0.clone()).collect();
     names.sort();
     names.dedup();
@@ -117,9 +134,16 @@ pub fn folder_info(cache: State<KnowledgeCache>, path: String) -> (usize, usize,
 
 /// Retrieve the chunks most relevant to `query` (keyword scoring), up to `max_chars`.
 #[tauri::command]
-pub fn retrieve_context(cache: State<KnowledgeCache>, path: String, query: String, max_chars: usize) -> String {
+pub fn retrieve_context(
+    cache: State<KnowledgeCache>,
+    path: String,
+    query: String,
+    max_chars: usize,
+) -> String {
     let mut map = cache.0.lock().unwrap_or_else(|e| e.into_inner());
-    let chunks = map.entry(path.clone()).or_insert_with(|| ingest_folder(&path));
+    let chunks = map
+        .entry(path.clone())
+        .or_insert_with(|| ingest_folder(&path));
     if chunks.is_empty() {
         return String::new();
     }
@@ -135,19 +159,22 @@ pub fn extract_pdf(data: Vec<u8>) -> Result<String, String> {
 
 pub(crate) fn extract_pdf_bytes(data: &[u8]) -> Result<String, String> {
     let tmp = std::env::temp_dir().join(format!(
-        "aphelion-drop-{}.pdf",
+        "syzygy-drop-{}.pdf",
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0)
     ));
     std::fs::write(&tmp, data).map_err(|e| e.to_string())?;
-    let text = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| pdf_extract::extract_text(&tmp).ok()))
-        .ok()
-        .flatten();
+    let text = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        pdf_extract::extract_text(&tmp).ok()
+    }))
+    .ok()
+    .flatten();
     let _ = std::fs::remove_file(&tmp);
-    text.filter(|t| !t.trim().is_empty())
-        .ok_or_else(|| "Couldn't extract text from that PDF (it may be scanned / image-only).".to_string())
+    text.filter(|t| !t.trim().is_empty()).ok_or_else(|| {
+        "Couldn't extract text from that PDF (it may be scanned / image-only).".to_string()
+    })
 }
 
 #[cfg(test)]
@@ -171,8 +198,14 @@ mod tests {
     #[test]
     fn retrieve_picks_relevant_and_labels() {
         let chunks = vec![
-            ("dragons.txt".to_string(), "The red dragon breathes fire on the keep.".to_string()),
-            ("meadow.txt".to_string(), "A quiet meadow full of spring flowers.".to_string()),
+            (
+                "dragons.txt".to_string(),
+                "The red dragon breathes fire on the keep.".to_string(),
+            ),
+            (
+                "meadow.txt".to_string(),
+                "A quiet meadow full of spring flowers.".to_string(),
+            ),
         ];
         let out = retrieve_chunks(&chunks, "dragon fire", 1000);
         assert!(out.contains("dragon"));
@@ -196,6 +229,9 @@ mod tests {
         let small = retrieve_chunks(&chunks, "alpha", 30);
         let big = retrieve_chunks(&chunks, "alpha", 1000);
         assert!(small.len() <= 40);
-        assert!(big.len() > small.len(), "more budget should keep more chunks");
+        assert!(
+            big.len() > small.len(),
+            "more budget should keep more chunks"
+        );
     }
 }

@@ -1,6 +1,6 @@
-/* Aphelion (by Penumbra) — Design Tokens
- * Motif: corona eclipse + aphelion orbit · dark void + cyan glow
- * Canonical brand tokens (from the Penumbra brand package). The app's
+/* Penumbra dark-theme design tokens.
+ * Motif: corona eclipse · dark void + cyan glow.
+ * The app's
  * styles.css aliases its own --accent/--bg/etc. to these — reference the
  * brand here, not hard-coded hex. */
 
@@ -8,7 +8,7 @@
   /* ── Brand palette ──────────────────────────── */
   --penumbra-corona:  #5EEAD4; /* primary glow / mint-teal */
   --penumbra-flare:   #22D3EE; /* secondary glow / cyan    */
-  --penumbra-magenta: #FF79C6; /* accent / aphelion planet  */
+  --penumbra-magenta: #FF79C6; /* accent / orbital body    */
   --penumbra-violet:  #C084FC; /* accent / secondary pop   */
 
   /* ── Voids (backgrounds, dark → darkest) ─────── */

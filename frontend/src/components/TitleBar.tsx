@@ -5,7 +5,7 @@ import { ModelBar } from './ModelBar'
 // The main menu bar: brand + window controls. The window uses decorations:false, so the bar
 // surface is a Tauri drag region and the controls call the window API. getCurrentWindow() is
 // resolved lazily so a non-Tauri context (browser dev) doesn't fault.
-// (Aphelion's mode tabs lived here; Syzygy has a single Ask surface, so the nav is gone.)
+// (The inherited mode tabs were removed; Syzygy has a single Ask surface, so the nav is gone.)
 export function TitleBar() {
   const win = () => getCurrentWindow()
   return (

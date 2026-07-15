@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { CoronaMark } from './CoronaMark'
+import { SyzygySplashMark } from './SyzygyMark'
 import { cx } from '../util'
 
 // First-run welcome tour: a stepped, on-brand overlay that introduces what Syzygy can do.
@@ -18,9 +18,9 @@ export function WelcomeTour({
 
   const steps: { icon: ReactNode; title: string; body: ReactNode }[] = [
     {
-      icon: <CoronaMark size={76} />,
+      icon: <SyzygySplashMark width={180} />,
       title: 'Welcome to Syzygy',
-      body: 'A local-first AI workspace: the model runs entirely on your own GPU, and your conversations with it never leave this PC. Link Google Drive when you want to collaborate — sharing only what you put in the shared folder, only at your say-so.',
+      body: 'A local-first AI workspace: the model runs entirely on your own GPU. Conversations stay local unless you turn on Shared mode; then Syzygy reads and logs exchanges in the Drive workspace you selected.',
     },
     {
       icon: '🧭',

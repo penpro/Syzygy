@@ -14,7 +14,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('Aphelion crashed:', error, info)
+    console.error('Syzygy crashed:', error, info)
     reportCrash(error) // no-op unless the user opted into crash reports
   }
 
@@ -35,7 +35,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
       <div className="crash-screen" role="alert">
         <div className="crash-box">
           <h2>Something went wrong</h2>
-          <p>Aphelion hit an unexpected error. Your saved data is untouched — export a backup before resetting.</p>
+          <p>Syzygy hit an unexpected error. Your saved data is untouched — export a backup before resetting.</p>
           <pre className="crash-detail">{String(this.state.error?.message || this.state.error)}</pre>
           <div className="crash-actions">
             <button className="btn" onClick={() => window.location.reload()}>
@@ -43,7 +43,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
             </button>
             <button
               className="btn ghost"
-              onClick={() => saveTextFile('aphelion-backup.json', exportData(), 'application/json')}
+              onClick={() => saveTextFile('syzygy-backup.json', exportData(), 'application/json')}
             >
               Export data
             </button>

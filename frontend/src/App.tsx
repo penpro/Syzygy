@@ -13,7 +13,7 @@ import { ResizeHandles } from './components/ResizeHandles'
 import { SplashScreen } from './components/SplashScreen'
 import { StorageBanner } from './components/StorageBanner'
 
-// Syzygy strips Aphelion's roleplay surface (chat/story/tree views, character +
+// Syzygy strips the inherited roleplay surface (chat/story/tree views, character +
 // persona editors) but keeps the files in-tree unrouted — restoring one is just
 // an import + a route here. Ask mode (experts, documents, folder knowledge) stays.
 export default function App() {

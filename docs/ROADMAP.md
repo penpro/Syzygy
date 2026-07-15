@@ -29,6 +29,20 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - **v0.1.2** — **Drive folder mirror** (`Documents/Syzygy` ↔ Drive, two-way LWW sync);
   📂 Use Drive folder (knowledge reads + documents land there, auto-push after
   generation); offline-claims copy audit → local-first voice.
+- **v0.1.4** — initial remote-first Drive retrieval/native Google export, OAuth/file-boundary
+  hardening, paper-theme token repairs, signed updater validation, and the auditable end-goal plan.
+- **v0.1.5** — replaced all shipping Aphelion icon/installer artwork and strings with reproducible
+  Syzygy assets; fixed the stale uninstaller data path; added explicit Drive workspace selection,
+  consented collaboration access, recursive native Google export, fail-closed Shared Ask, and a
+  real Drive→local-model headless harness; began Phase 0 with a 41-item capability ledger,
+  provenance/data-flow/threat-model evidence, ADR-0001, and CI structural audits.
+
+## Current validation tranche
+
+- The v0.1.5 implementation and production package pass local build, runtime, unit, structural,
+  formatting, and packaging checks.
+- S-01 remains externally blocked until the test account re-links once and the live harness proves
+  the collaborator-created native Google Doc canary through the local model.
 
 ## Next (in intended order)
 
@@ -36,9 +50,9 @@ Shared-folder Ask now uses remote-first Drive retrieval, including native Google
 Docs/Sheets/Slides export. The local mirror remains available through explicit Sync so
 collaborators are not required to download large project folders.
 
-1. **Prove the two-machine loop** — same Google account or a shared folder on two
-   installs: document generated on A appears on B after sync; knowledge dropped on B
-   answers questions on A. This validates the transport before any CRDT work.
+1. **Close the Drive authorization gate** — configure/verify the restricted scope, re-link the
+   test account, and make `npm run test:drive-live` pass on the collaborator-created native Doc.
+   Then run the same harness from a second account/install and attach evidence to S-01.
 2. **Build the Penumbra collaborative editor independently**:
    - Start with exact-version MIT Lexical and Yjs packages after the provenance gate in
      `END-GOAL-PLAN.md`; author every node, plugin, command, schema, test, and UI here.

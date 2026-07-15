@@ -156,6 +156,13 @@ export const googleOauthStart = (clientId: string, clientSecret: string): Promis
 /** The connected account's email, or null when not connected. */
 export const googleOauthStatus = (): Promise<string | null> => invoke('google_oauth_status')
 
+export interface GoogleConnection {
+  email: string
+  collaborationAccess: boolean
+}
+
+export const googleOauthConnection = (): Promise<GoogleConnection | null> => invoke('google_oauth_connection')
+
 /** Abort a sign-in that's still waiting on the browser (no-op when none is pending). */
 export const googleOauthCancel = (): Promise<void> => invoke('google_oauth_cancel')
 
@@ -186,8 +193,37 @@ export const googleDriveListFolder = (folderName: string): Promise<DriveFileInfo
 export const googleDriveReadFile = (fileId: string): Promise<string> =>
   invoke('google_drive_read_file', { fileId })
 
-export const googleDriveRetrieveContext = (folderName: string, query: string, maxChars: number): Promise<string> =>
+export interface DriveWorkspace {
+  id: string
+  name: string
+}
+
+export interface DriveWorkspaceOption extends DriveWorkspace {
+  modified: string
+}
+
+export interface DriveContextReport {
+  context: string
+  workspace: DriveWorkspace
+  visibleFiles: number
+  supportedFiles: number
+  nativeFiles: number
+  sources: string[]
+}
+
+export const googleDriveRetrieveContext = (
+  folderName: string,
+  query: string,
+  maxChars: number,
+): Promise<DriveContextReport> =>
   invoke('google_drive_retrieve_context', { folderName, query, maxChars })
+
+export const googleDriveWorkspace = (): Promise<DriveWorkspace | null> => invoke('google_drive_workspace')
+
+export const googleDriveListWorkspaces = (): Promise<DriveWorkspaceOption[]> => invoke('google_drive_list_workspaces')
+
+export const googleDriveSelectWorkspace = (folderId: string): Promise<DriveWorkspace> =>
+  invoke('google_drive_select_workspace', { folderId })
 
 /** The local mirror of the shared Drive folder (Documents/Syzygy), created + granted on demand. */
 export const googleDriveMirrorDir = (): Promise<string> => invoke('google_drive_mirror_dir')

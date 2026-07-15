@@ -33,7 +33,12 @@ pub fn download_status(downloads: tauri::State<Downloads>) -> Vec<DownloadInfo> 
 /// Pause a running download — keeps the partial file so it can resume later.
 #[tauri::command]
 pub fn pause_download(downloads: tauri::State<Downloads>, filename: String) {
-    if let Some(e) = downloads.0.lock().unwrap_or_else(|e| e.into_inner()).get_mut(&filename) {
+    if let Some(e) = downloads
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get_mut(&filename)
+    {
         e.status = "paused".into();
     }
 }
@@ -57,14 +62,24 @@ pub fn start_download(app: tauri::AppHandle, url: String, filename: String) -> R
             DownloadEntry {
                 received: existing,
                 total: 0,
-                status: if existing > 0 { "resuming".into() } else { "downloading".into() },
+                status: if existing > 0 {
+                    "resuming".into()
+                } else {
+                    "downloading".into()
+                },
             },
         );
     }
     let app2 = app.clone();
     tauri::async_runtime::spawn(async move {
         if let Err(e) = run_download(&app2, &url, &filename, &path).await {
-            if let Some(en) = app2.state::<Downloads>().0.lock().unwrap_or_else(|e| e.into_inner()).get_mut(&filename) {
+            if let Some(en) = app2
+                .state::<Downloads>()
+                .0
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .get_mut(&filename)
+            {
                 if en.status != "paused" {
                     en.status = "failed".into();
                 }
@@ -76,7 +91,12 @@ pub fn start_download(app: tauri::AppHandle, url: String, filename: String) -> R
 }
 
 /// Stream a download to disk, resuming from any partial file via an HTTP Range request.
-async fn run_download(app: &tauri::AppHandle, url: &str, filename: &str, path: &Path) -> Result<(), String> {
+async fn run_download(
+    app: &tauri::AppHandle,
+    url: &str,
+    filename: &str,
+    path: &Path,
+) -> Result<(), String> {
     use futures_util::StreamExt;
     use std::io::Write;
 
@@ -90,7 +110,13 @@ async fn run_download(app: &tauri::AppHandle, url: &str, filename: &str, path: &
     let code = resp.status().as_u16();
     if code == 416 {
         // Range not satisfiable → the file is already complete.
-        if let Some(e) = app.state::<Downloads>().0.lock().unwrap_or_else(|e| e.into_inner()).get_mut(filename) {
+        if let Some(e) = app
+            .state::<Downloads>()
+            .0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get_mut(filename)
+        {
             e.total = start;
             e.received = start;
             e.status = "done".into();
@@ -104,12 +130,21 @@ async fn run_download(app: &tauri::AppHandle, url: &str, filename: &str, path: &
     let len = resp.content_length().unwrap_or(0);
     let total = if resumed { start + len } else { len };
     let mut file = if resumed {
-        std::fs::OpenOptions::new().append(true).open(path).map_err(|e| e.to_string())?
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(path)
+            .map_err(|e| e.to_string())?
     } else {
         std::fs::File::create(path).map_err(|e| e.to_string())?
     };
     let mut received = if resumed { start } else { 0 };
-    if let Some(e) = app.state::<Downloads>().0.lock().unwrap_or_else(|e| e.into_inner()).get_mut(filename) {
+    if let Some(e) = app
+        .state::<Downloads>()
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get_mut(filename)
+    {
         e.received = received;
         e.total = total;
         e.status = "downloading".into();
@@ -131,12 +166,24 @@ async fn run_download(app: &tauri::AppHandle, url: &str, filename: &str, path: &
         }
         file.write_all(&chunk).map_err(|e| e.to_string())?;
         received += chunk.len() as u64;
-        if let Some(e) = app.state::<Downloads>().0.lock().unwrap_or_else(|e| e.into_inner()).get_mut(filename) {
+        if let Some(e) = app
+            .state::<Downloads>()
+            .0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get_mut(filename)
+        {
             e.received = received;
         }
     }
     file.flush().ok();
-    if let Some(e) = app.state::<Downloads>().0.lock().unwrap_or_else(|e| e.into_inner()).get_mut(filename) {
+    if let Some(e) = app
+        .state::<Downloads>()
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get_mut(filename)
+    {
         e.status = "done".into();
         if e.total == 0 {
             e.total = received;

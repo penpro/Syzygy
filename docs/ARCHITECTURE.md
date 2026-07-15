@@ -46,16 +46,18 @@ and Drive-asynchronous collaboration must not depend on a Penumbra-hosted servic
 | `engine.rs` | Spawning/stopping llama.cpp (Vulkan), model files, VRAM detection. |
 | `documents.rs` | Typst compile, document save/read, path granting (`Granted` allowlist). |
 | `knowledge.rs` | Folder knowledge: chunking granted folders, relevance retrieval. |
-| `google_auth.rs` | OAuth loopback + PKCE, token storage/refresh, cancel. See `GOOGLE-DRIVE.md`. |
-| `google_drive.rs` | Drive file ops + the **folder mirror sync**. See `GOOGLE-DRIVE.md`. |
+| `google_auth.rs` | OAuth loopback + PKCE, collaboration-scope gate, token storage/refresh, cancel. See `GOOGLE-DRIVE.md`. |
+| `google_drive.rs` | Selected-workspace boundary, recursive direct retrieval/native export, and optional mirror sync. See `GOOGLE-DRIVE.md`. |
 | `downloads.rs` | Resumable model downloads. |
 | `updates.rs` | App version for the in-app updater. |
 | `state.rs` | Shared state types (`Engine`, `Granted`, `KnowledgeCache`, …). |
 | `vision.rs` | Optional vision-model engine swap (image describe/search). |
 
-**Security posture:** the model only ever sees text; the webview never sees OAuth
-credentials/tokens (they live in Rust + app-data); file access is allowlisted via
-`Granted` (folders the user explicitly picked or the app created).
+**Security posture:** the model only ever sees selected text; the webview never sees OAuth
+credentials/tokens (they live in Rust + app-data); local file access is allowlisted via
+`Granted`. Google's collaboration token has Drive-wide technical authority, but every product
+operation is constrained in Rust to a locally selected workspace folder ID and descendants.
+That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/ADR-0001-*`.
 
 ## Frontend layout (`frontend/src/`)
 
@@ -80,6 +82,7 @@ credentials/tokens (they live in Rust + app-data); file access is allowlisted vi
 |---|---|
 | Settings, experts, ask threads | localStorage key `syzygy` (webview) |
 | Google refresh token + client info | `<app-data>/google_auth.json` (Rust-only) |
+| Selected Drive workspace ID/name | `<app-data>/drive_workspace.json` |
 | Models (GGUF) | `<app-data>/models/` |
 | Optional Drive mirror folder | `<Documents>/Syzygy` (manual sync with Drive folder "Syzygy") |
 
@@ -92,7 +95,12 @@ credentials/tokens (they live in Rust + app-data); file access is allowlisted vi
 - **`migrations.ts` is the only save-migration site.**
 - **Removed features come back from Aphelion** (`D:\LocalLLM`), not from git archaeology.
 - **Shared-folder reads are remote-first.** Ask retrieves supported content directly from
-  Drive; the local mirror is an explicit sync/offline option, not a collaboration prerequisite.
+  the selected Drive tree (including recursively exported native Google files); the local mirror
+  is an explicit sync/offline option, not a collaboration prerequisite. Legacy `drive.file`
+  grants fail closed instead of silently producing an empty context.
+- **Claims close through executable evidence.** `npm run audit` checks structural invariants;
+  `npm run test:drive-live` exercises the real stored grant, Drive export, context retrieval, and
+  local model without a webview. See `docs/audits/`.
 - **The collaborative workspace is Penumbra-original.** No Tiptap or PolicyPad code, packages,
   prompts, schemas, fixtures, assets, or UI enter the shipping tree. The baseline editor
   candidate is exact-version MIT Lexical with Yjs; all product nodes and UI are authored here.

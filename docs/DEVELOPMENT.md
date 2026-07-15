@@ -15,6 +15,8 @@ Checks (all must be green before shipping):
 npx tsc -b --force         # 0 errors
 npx vitest run             # all pass
 cargo check                # in src-tauri (cargo is at C:\Users\penum\.cargo\bin, not on PATH)
+npm run audit              # architecture, identity, provenance, capability-ledger invariants
+cargo fmt --all -- --check # Rust formatting
 ```
 
 ## Local installer build
@@ -24,6 +26,28 @@ cd D:\PolicyPad\syzygy\frontend
 npm run tauri build
 # → src-tauri\target\release\bundle\nsis\Syzygy_<version>_x64-setup.exe
 ```
+
+Regenerate the committed Syzygy icon set and installer artwork after changing the canonical
+mark:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\generate-brand-assets.ps1
+```
+
+## Headless Drive-to-model proof
+
+After linking Drive with collaboration access and choosing a workspace, run:
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm run test:drive-live
+```
+
+The harness uses the normal Rust-owned `google_auth.json` and `drive_workspace.json`, exports the
+real native Google file through Drive, retrieves the canary without hard-coding its value, sends
+the resulting evidence to the loaded loopback model, and exits nonzero unless the model answer
+contains the canary. Credentials/tokens are never printed. A legacy app-file-only grant also
+exits nonzero with a precise re-link error.
 
 ## Release (the iteration loop)
 

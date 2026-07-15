@@ -58,7 +58,7 @@ async function fetchTool(label, destName, exe, url) {
     console.log(`${label} already present at ${dest} — skipping.`)
     return
   }
-  const tmp = join(tmpdir(), `aphelion-${destName}-${platform}-${arch}`)
+  const tmp = join(tmpdir(), `syzygy-${destName}-${platform}-${arch}`)
   rmSync(tmp, { recursive: true, force: true })
   mkdirSync(tmp, { recursive: true })
   const archive = join(tmp, url.split('/').pop())

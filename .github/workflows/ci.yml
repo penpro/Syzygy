@@ -19,6 +19,8 @@ jobs:
         run: npm --prefix frontend run build
       - name: Unit tests (vitest)
         run: npm --prefix frontend test
+      - name: Architecture, identity, and provenance audit
+        run: npm --prefix frontend run audit
 
   rust:
     name: Rust (cargo test)
@@ -37,8 +39,12 @@ jobs:
       - name: Fetch bundled engines
         run: node scripts/fetch-engine.mjs
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: frontend/src-tauri
       - name: Unit tests (cargo test)
         run: cargo test --manifest-path frontend/src-tauri/Cargo.toml
+      - name: Rust formatting
+        run: cargo fmt --manifest-path frontend/src-tauri/Cargo.toml --all -- --check

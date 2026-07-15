@@ -1,7 +1,7 @@
 {
   "name": "syzygy",
   "private": true,
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,8 @@
     "tauri": "tauri",
     "fetch-engine": "node ../scripts/fetch-engine.mjs",
     "test": "vitest run",
+    "audit": "node ../scripts/audit.mjs",
+    "test:drive-live": "cargo run --manifest-path src-tauri/Cargo.toml --bin drive-harness --",
     "bump": "node ../scripts/bump.mjs"
   },
   "dependencies": {

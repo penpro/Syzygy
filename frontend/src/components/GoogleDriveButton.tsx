@@ -4,10 +4,15 @@ import { logInfo } from '../log'
 import { Modal } from './Modal'
 import {
   googleOauthStart,
-  googleOauthStatus,
+  googleOauthConnection,
   googleOauthCancel,
   googleOauthDisconnect,
   googleDriveSyncFolder,
+  googleDriveWorkspace,
+  googleDriveListWorkspaces,
+  googleDriveSelectWorkspace,
+  type DriveWorkspace,
+  type DriveWorkspaceOption,
 } from '../tauri'
 
 /** The Drive folder every Syzygy instance shares (mirrored locally at Documents/Syzygy). */
@@ -15,7 +20,7 @@ export const DRIVE_FOLDER = 'Syzygy'
 
 /** Google failures that all mean the same thing: the Drive permission checkbox on the consent
  * screen wasn't ticked, so the token can't touch Drive. */
-const SCOPE_PROBLEM = /insufficient|scope|checkbox|drive access/i
+const SCOPE_PROBLEM = /insufficient|scope|checkbox|drive access|collaboration access|app-file-only|re-link/i
 
 /**
  * Compact Google Drive control for the Ask top bar (lives next to the folder grant).
@@ -26,6 +31,11 @@ export function GoogleDriveButton() {
   const clientId = useStore((s) => s.settings.googleClientId)
   const clientSecret = useStore((s) => s.settings.googleClientSecret)
   const [email, setEmail] = useState<string | null>(null)
+  const [collaborationAccess, setCollaborationAccess] = useState(false)
+  const [workspace, setWorkspace] = useState<DriveWorkspace | null>(null)
+  const [workspaceOptions, setWorkspaceOptions] = useState<DriveWorkspaceOption[]>([])
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('')
+  const [showWorkspace, setShowWorkspace] = useState(false)
   const [busy, setBusy] = useState(false)
   const [linking, setLinking] = useState(false) // a sign-in is waiting on the browser (cancelable)
   const [flash, setFlash] = useState<{ label: string; title?: string } | null>(null)
@@ -33,8 +43,12 @@ export function GoogleDriveButton() {
   const flashTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => {
-    googleOauthStatus()
-      .then(setEmail)
+    Promise.all([googleOauthConnection(), googleDriveWorkspace()])
+      .then(([connection, savedWorkspace]) => {
+        setEmail(connection?.email ?? null)
+        setCollaborationAccess(connection?.collaborationAccess ?? false)
+        setWorkspace(savedWorkspace)
+      })
       .catch(() => setEmail(null)) // not running under Tauri (browser dev)
     return () => window.clearTimeout(flashTimer.current)
   }, [])
@@ -51,8 +65,20 @@ export function GoogleDriveButton() {
     try {
       const who = await googleOauthStart(clientId, clientSecret)
       setEmail(who)
+      setCollaborationAccess(true)
       logInfo('drive', `Linked Google Drive as ${who}`)
-      showFlash('✅ Linked', `Linked as ${who}`)
+      const options = await googleDriveListWorkspaces()
+      const syzygyFolders = options.filter((option) => option.name.toLowerCase() === DRIVE_FOLDER.toLowerCase())
+      if (syzygyFolders.length === 1) {
+        const selected = await googleDriveSelectWorkspace(syzygyFolders[0].id)
+        setWorkspace(selected)
+        showFlash('✅ Linked', `Linked as ${who}; workspace: ${selected.name}`)
+      } else {
+        setWorkspaceOptions(options)
+        setSelectedWorkspaceId(options[0]?.id ?? '')
+        setShowWorkspace(true)
+        showFlash('✅ Linked', `Linked as ${who}; choose a workspace folder`)
+      }
     } catch (e) {
       const msg = (e as { message?: string })?.message ?? String(e)
       if (/canceled/i.test(msg)) showFlash('Sign-in canceled', undefined, 2500)
@@ -68,12 +94,49 @@ export function GoogleDriveButton() {
     setBusy(true)
     try {
       const r = await googleDriveSyncFolder(DRIVE_FOLDER)
+      const activeWorkspace = await googleDriveWorkspace()
+      setWorkspace(activeWorkspace)
       logInfo('drive', `Sync: pulled ${r.pulled}, pushed ${r.pushed} (${r.mirror})`)
-      showFlash(`✅ Synced ⬇${r.pulled} ⬆${r.pushed}`, `Mirror: ${r.mirror} ↔ Drive/"${DRIVE_FOLDER}"`)
+      showFlash(
+        `✅ Synced ⬇${r.pulled} ⬆${r.pushed}`,
+        `Mirror: ${r.mirror} ↔ Drive/${activeWorkspace?.name ?? DRIVE_FOLDER}`,
+      )
     } catch (e) {
       const msg = (e as { message?: string })?.message ?? String(e)
       if (SCOPE_PROBLEM.test(msg)) setShowScopeHelp(true)
       else showFlash('⚠ Sync failed', msg, 8000)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const openWorkspacePicker = async () => {
+    setBusy(true)
+    try {
+      const options = await googleDriveListWorkspaces()
+      setWorkspaceOptions(options)
+      setSelectedWorkspaceId(workspace?.id ?? options[0]?.id ?? '')
+      setShowWorkspace(true)
+    } catch (e) {
+      const msg = (e as { message?: string })?.message ?? String(e)
+      if (SCOPE_PROBLEM.test(msg)) setShowScopeHelp(true)
+      else showFlash('⚠ Folder list failed', msg, 10000)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const chooseWorkspace = async () => {
+    if (!selectedWorkspaceId) return
+    setBusy(true)
+    try {
+      const selected = await googleDriveSelectWorkspace(selectedWorkspaceId)
+      setWorkspace(selected)
+      setShowWorkspace(false)
+      logInfo('drive', `Selected Drive workspace: ${selected.name}`)
+      showFlash('✅ Folder selected', `Direct Drive workspace: ${selected.name}`)
+    } catch (e) {
+      showFlash('⚠ Folder selection failed', (e as { message?: string })?.message ?? String(e), 10000)
     } finally {
       setBusy(false)
     }
@@ -84,6 +147,8 @@ export function GoogleDriveButton() {
     try {
       await googleOauthDisconnect()
       setEmail(null)
+      setCollaborationAccess(false)
+      setWorkspace(null)
       showFlash('Unlinked')
     } catch (e) {
       showFlash('⚠ Unlink failed', (e as { message?: string })?.message ?? String(e), 8000)
@@ -92,11 +157,11 @@ export function GoogleDriveButton() {
     }
   }
 
-  // The one mistake everyone makes: Google's consent screen shows the Drive permission as an
-  // UNTICKED checkbox, and "allowing" without ticking it produces a link that can't touch Drive.
+  // Google does not offer a folder-only OAuth scope for this loopback desktop flow. Syzygy asks
+  // for Drive collaboration access, then constrains every read/write to the selected workspace.
   const scopeHelp = showScopeHelp && (
     <Modal
-      title="One more click on Google's screen"
+      title="Allow collaborator files"
       onClose={() => setShowScopeHelp(false)}
       footer={
         <div className="row full">
@@ -114,6 +179,8 @@ export function GoogleDriveButton() {
                 /* nothing stored — fine */
               }
               setEmail(null)
+              setCollaborationAccess(false)
+              setWorkspace(null)
               connect()
             }}
           >
@@ -123,18 +190,55 @@ export function GoogleDriveButton() {
       }
     >
       <p>
-        Your Google sign-in went through, but the <b>Drive permission checkbox was left unticked</b> — so Syzygy got a
-        link that isn't allowed to touch your Drive.
+        This Drive link can only see files Syzygy created. It cannot see a Google Doc that a collaborator adds to the
+        same folder, so shared-folder answers would be incomplete.
       </p>
       <p>
-        On Google's consent screen, <b>tick the box</b> that says{' '}
-        <em>“See, edit, create and delete only the specific Google Drive files that you use with this app”</em> before
-        clicking Continue. That's the whole fix.
+        Re-link and approve Google Drive collaboration access. Google does not provide a folder-only permission for
+        this desktop sign-in flow; after authorization, Syzygy stores one workspace folder ID locally and constrains
+        its file operations to that folder.
       </p>
       <p className="muted xs">
-        That checkbox is also the only Drive access Syzygy ever asks for — files this app creates or that you pick,
-        nothing else in your Drive.
+        The local model never receives a Drive token. Syzygy's Rust core exports only supported text from the selected
+        workspace into the question context. The optional Sync button is still the only action that creates a mirror.
       </p>
+    </Modal>
+  )
+
+  const workspacePicker = showWorkspace && (
+    <Modal
+      title="Choose the shared Drive folder"
+      onClose={() => setShowWorkspace(false)}
+      footer={
+        <div className="row full">
+          <div className="grow" />
+          <button className="btn ghost" onClick={() => setShowWorkspace(false)}>
+            Cancel
+          </button>
+          <button className="btn" disabled={!selectedWorkspaceId || busy} onClick={chooseWorkspace}>
+            Use this folder
+          </button>
+        </div>
+      }
+    >
+      <p>
+        Syzygy reads supported files directly from this folder for Shared mode. It does not download the folder unless
+        you click Sync.
+      </p>
+      {workspaceOptions.length ? (
+        <label className="field">
+          <span>Drive folder</span>
+          <select value={selectedWorkspaceId} onChange={(event) => setSelectedWorkspaceId(event.target.value)}>
+            {workspaceOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <p className="muted">No Drive folders are available to this account.</p>
+      )}
     </Modal>
   )
 
@@ -145,6 +249,7 @@ export function GoogleDriveButton() {
           {flash.label}
         </button>
         {scopeHelp}
+        {workspacePicker}
       </>
     )
   }
@@ -163,11 +268,30 @@ export function GoogleDriveButton() {
       <>
         <button
           className="btn sm ghost"
-          title="Link your Google Drive (sign-in happens in your own browser; drive.file scope only)"
+          title="Link Google Drive for a selected collaboration workspace (sign-in happens in your browser)"
           disabled={busy || !clientId.trim()}
           onClick={connect}
         >
           🔗 Link Drive
+        </button>
+        {scopeHelp}
+        {workspacePicker}
+      </>
+    )
+  }
+
+  if (!collaborationAccess) {
+    return (
+      <>
+        <button
+          className="btn sm ghost"
+          title="This older Drive link cannot see collaborator-created Google Docs"
+          onClick={() => setShowScopeHelp(true)}
+        >
+          ⚠ Re-link Drive
+        </button>
+        <button className="icon-btn sm" title={`Unlink Google Drive (${email})`} disabled={busy} onClick={unlink}>
+          ✕
         </button>
         {scopeHelp}
       </>
@@ -175,19 +299,30 @@ export function GoogleDriveButton() {
   }
 
   return (
-    <span className="row" style={{ gap: 4, alignItems: 'center' }}>
-      <button
-        className="btn sm ghost"
-        title={`Linked as ${email} — sync Documents\\Syzygy with Drive/"${DRIVE_FOLDER}" now`}
-        disabled={busy}
-        onClick={syncNow}
-      >
-        {busy ? '…' : '☁ Sync'}
-      </button>
-      <button className="icon-btn sm" title={`Unlink Google Drive (${email})`} disabled={busy} onClick={unlink}>
-        ✕
-      </button>
+    <>
+      <span className="row" style={{ gap: 4, alignItems: 'center' }}>
+        <button
+          className="btn sm ghost"
+          title={`Linked as ${email} — choose the Drive folder used for direct collaboration`}
+          disabled={busy}
+          onClick={openWorkspacePicker}
+        >
+          📁 {workspace?.name ?? 'Choose Drive folder'}
+        </button>
+        <button
+          className="btn sm ghost"
+          title={`Create or refresh the optional local mirror for ${workspace?.name ?? DRIVE_FOLDER}`}
+          disabled={busy || !workspace}
+          onClick={syncNow}
+        >
+          {busy ? '…' : '☁ Sync'}
+        </button>
+        <button className="icon-btn sm" title={`Unlink Google Drive (${email})`} disabled={busy} onClick={unlink}>
+          ✕
+        </button>
+      </span>
       {scopeHelp}
-    </span>
+      {workspacePicker}
+    </>
   )
 }

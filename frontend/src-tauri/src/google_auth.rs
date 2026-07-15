@@ -7,8 +7,9 @@
 //! learns the connected account's email (and, on demand, a short-lived access token for
 //! Drive calls made from Rust later).
 //!
-//! Scope is deliberately minimal: `drive.file` (only files/folders this app creates or the
-//! user explicitly picks) + `openid email` for the "Connected as …" display.
+//! Shared-folder collaboration needs to enumerate collaborator-created files inside the selected
+//! workspace. Google has no folder-only scope for this loopback desktop flow, so Syzygy requests
+//! `drive` and enforces the narrower selected-folder boundary in `google_drive.rs`.
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;
@@ -22,7 +23,8 @@ use tauri::Manager;
 const AUTH_ENDPOINT: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_ENDPOINT: &str = "https://oauth2.googleapis.com/token";
 const REVOKE_ENDPOINT: &str = "https://oauth2.googleapis.com/revoke";
-const SCOPE: &str = "openid email https://www.googleapis.com/auth/drive.file";
+const DRIVE_SCOPE: &str = "https://www.googleapis.com/auth/drive";
+const SCOPE: &str = "openid email https://www.googleapis.com/auth/drive";
 /// How long we wait for the user to finish the consent screen in their browser.
 /// (The user can also abort early — google_oauth_cancel pokes the listener.)
 const CONSENT_TIMEOUT_SECS: u64 = 300;
@@ -32,12 +34,16 @@ const CONSENT_TIMEOUT_SECS: u64 = 300;
 static PENDING_PORT: std::sync::Mutex<Option<u16>> = std::sync::Mutex::new(None);
 
 #[derive(Serialize, Deserialize)]
-struct StoredAuth {
+pub struct StoredAuth {
     client_id: String,
     #[serde(default)]
     client_secret: String,
     refresh_token: String,
     email: String,
+    /// Space-separated scopes granted when the refresh token was issued. Older auth files
+    /// lack this field and are deliberately treated as app-file-only until re-linked.
+    #[serde(default)]
+    scope: String,
 }
 
 fn auth_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -49,6 +55,21 @@ fn auth_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 fn read_stored(app: &tauri::AppHandle) -> Option<StoredAuth> {
     let text = std::fs::read_to_string(auth_file(app).ok()?).ok()?;
     serde_json::from_str(&text).ok()
+}
+
+impl StoredAuth {
+    fn collaboration_access(&self) -> bool {
+        self.scope
+            .split_whitespace()
+            .any(|scope| scope == DRIVE_SCOPE)
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GoogleConnection {
+    email: String,
+    collaboration_access: bool,
 }
 
 fn random_urlsafe(bytes: usize) -> Result<String, String> {
@@ -89,13 +110,9 @@ fn open_browser(url: &str) -> Result<(), String> {
 /// Block on the loopback listener until the browser redirects back with ?code=…&state=….
 /// Returns the authorization code after verifying `state`.
 fn wait_for_redirect(listener: TcpListener, expected_state: &str) -> Result<String, String> {
-    listener
-        .set_nonblocking(false)
-        .map_err(|e| e.to_string())?;
+    listener.set_nonblocking(false).map_err(|e| e.to_string())?;
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(CONSENT_TIMEOUT_SECS);
-    listener
-        .set_nonblocking(true)
-        .map_err(|e| e.to_string())?;
+    listener.set_nonblocking(true).map_err(|e| e.to_string())?;
     let (mut stream, _) = loop {
         match listener.accept() {
             Ok(conn) => break conn,
@@ -141,7 +158,10 @@ fn wait_for_redirect(listener: TcpListener, expected_state: &str) -> Result<Stri
         respond(&mut stream, "<html><body style='font-family:sans-serif'><h2>Sign-in was cancelled.</h2><p>You can close this tab and return to Syzygy.</p></body></html>");
         return Err(format!("Google returned: {err}"));
     }
-    let code = query.get("code").cloned().ok_or("No authorization code in redirect")?;
+    let code = query
+        .get("code")
+        .cloned()
+        .ok_or("No authorization code in redirect")?;
     if query.get("state").map(String::as_str) != Some(expected_state) {
         respond(&mut stream, "<html><body style='font-family:sans-serif'><h2>Sign-in failed a security check.</h2><p>Please try connecting again from Syzygy.</p></body></html>");
         return Err("OAuth state mismatch — possible interception; aborted.".into());
@@ -233,9 +253,10 @@ pub async fn google_oauth_start(
 
     // The listener blocks — run it off the async runtime's core threads.
     let expected = state.clone();
-    let waited = tauri::async_runtime::spawn_blocking(move || wait_for_redirect(listener, &expected))
-        .await
-        .map_err(|e| e.to_string());
+    let waited =
+        tauri::async_runtime::spawn_blocking(move || wait_for_redirect(listener, &expected))
+            .await
+            .map_err(|e| e.to_string());
     clear_pending();
     let code = waited??;
 
@@ -256,10 +277,13 @@ pub async fn google_oauth_start(
     }
     // Fail the link NOW if the Drive checkbox was left unticked on the consent screen —
     // otherwise every later Drive call dies with "insufficient authentication scopes".
-    if !tokens.scope.as_deref().unwrap_or("").contains("drive.file") {
+    let granted_scope = tokens.scope.as_deref().unwrap_or("");
+    if !granted_scope
+        .split_whitespace()
+        .any(|scope| scope == DRIVE_SCOPE)
+    {
         return Err(
-            "Linked without Drive access: the Drive checkbox on Google's consent screen wasn't ticked. \
-             Link again and tick “See, edit, create and delete only the specific Google Drive files you use with this app”."
+            "Linked without collaboration access. Link again and approve the Google Drive permission so Syzygy can read collaborator-created files inside your selected workspace."
                 .into(),
         );
     }
@@ -272,10 +296,19 @@ pub async fn google_oauth_start(
         .and_then(email_from_id_token)
         .unwrap_or_else(|| "your Google account".into());
 
-    let stored = StoredAuth { client_id, client_secret, refresh_token, email: email.clone() };
+    let stored = StoredAuth {
+        client_id,
+        client_secret,
+        refresh_token,
+        email: email.clone(),
+        scope: granted_scope.to_string(),
+    };
     let path = auth_file(&app)?;
-    std::fs::write(&path, serde_json::to_string_pretty(&stored).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())?;
+    std::fs::write(
+        &path,
+        serde_json::to_string_pretty(&stored).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(email)
 }
@@ -284,6 +317,16 @@ pub async fn google_oauth_start(
 #[tauri::command]
 pub fn google_oauth_status(app: tauri::AppHandle) -> Option<String> {
     read_stored(&app).map(|s| s.email)
+}
+
+/// Connection details used to distinguish legacy `drive.file` tokens from a grant that can
+/// actually enumerate collaborator-created files in the selected workspace.
+#[tauri::command]
+pub fn google_oauth_connection(app: tauri::AppHandle) -> Option<GoogleConnection> {
+    read_stored(&app).map(|stored| GoogleConnection {
+        email: stored.email.clone(),
+        collaboration_access: stored.collaboration_access(),
+    })
 }
 
 /// Abort a sign-in that's waiting on the browser: poke the loopback listener with a /cancel
@@ -313,13 +356,34 @@ pub async fn google_oauth_disconnect(app: tauri::AppHandle) -> Result<(), String
     if path.exists() {
         std::fs::remove_file(&path).map_err(|e| e.to_string())?;
     }
+    if let Some(dir) = path.parent() {
+        let workspace = dir.join("drive_workspace.json");
+        if workspace.exists() {
+            std::fs::remove_file(workspace).map_err(|e| e.to_string())?;
+        }
+    }
     Ok(())
+}
+
+/// Refuse remote-first collaboration when the stored grant predates the collaboration scope.
+/// Silent empty results are dangerous here because they prompt the model to invent an answer.
+pub(crate) fn require_collaboration_access(app: &tauri::AppHandle) -> Result<(), String> {
+    let stored = read_stored(app).ok_or("Not connected to Google Drive.")?;
+    if stored.collaboration_access() {
+        Ok(())
+    } else {
+        Err("This Drive link can only see files Syzygy created. Re-link Drive and approve collaboration access to read Google Docs and other files added by collaborators.".into())
+    }
 }
 
 /// Exchange the stored refresh token for a fresh access token.
 /// No caching yet — callers are expected to be infrequent until the sync layer lands.
 pub(crate) async fn access_token(app: &tauri::AppHandle) -> Result<String, String> {
     let stored = read_stored(app).ok_or("Not connected to Google Drive.")?;
+    refresh_access_token(&stored).await
+}
+
+async fn refresh_access_token(stored: &StoredAuth) -> Result<String, String> {
     let mut params = vec![
         ("client_id", stored.client_id.as_str()),
         ("refresh_token", stored.refresh_token.as_str()),
@@ -332,14 +396,32 @@ pub(crate) async fn access_token(app: &tauri::AppHandle) -> Result<String, Strin
     if let Some(err) = tokens.error {
         return Err(tokens.error_description.unwrap_or(err));
     }
-    tokens.access_token.ok_or("No access token in refresh response.".into())
+    tokens
+        .access_token
+        .ok_or("No access token in refresh response.".into())
+}
+
+/// Headless validation entrypoint. Credentials are read from the normal Rust-owned auth file;
+/// neither the token nor credential fields are printed by the harness.
+pub async fn access_token_from_file(path: &std::path::Path) -> Result<String, String> {
+    let text =
+        std::fs::read_to_string(path).map_err(|e| format!("Cannot read Google auth file: {e}"))?;
+    let stored: StoredAuth =
+        serde_json::from_str(&text).map_err(|e| format!("Invalid Google auth file: {e}"))?;
+    if !stored.collaboration_access() {
+        return Err("The stored Drive grant is app-file-only. Re-link Drive in Syzygy before running the live collaboration harness.".into());
+    }
+    refresh_access_token(&stored).await
 }
 
 /// Create a folder in the user's Drive (idempotent: returns the existing folder when one with
 /// this name already exists and is owned/visible under the app's `drive.file` scope).
 /// Returns `"created:<id>"` or `"exists:<id>"` so the caller can phrase the result honestly.
 #[tauri::command]
-pub async fn google_drive_create_folder(app: tauri::AppHandle, name: String) -> Result<String, String> {
+pub async fn google_drive_create_folder(
+    app: tauri::AppHandle,
+    name: String,
+) -> Result<String, String> {
     let token = access_token(&app).await?;
     let client = reqwest::Client::new();
 
@@ -365,7 +447,9 @@ pub async fn google_drive_create_folder(app: tauri::AppHandle, name: String) -> 
     let created: serde_json::Value = client
         .post("https://www.googleapis.com/drive/v3/files")
         .bearer_auth(&token)
-        .json(&serde_json::json!({ "name": name, "mimeType": "application/vnd.google-apps.folder" }))
+        .json(
+            &serde_json::json!({ "name": name, "mimeType": "application/vnd.google-apps.folder" }),
+        )
         .send()
         .await
         .map_err(|e| e.to_string())?
@@ -376,7 +460,9 @@ pub async fn google_drive_create_folder(app: tauri::AppHandle, name: String) -> 
         Some(id) => Ok(format!("created:{id}")),
         None => Err(format!(
             "Drive did not return a folder id: {}",
-            created["error"]["message"].as_str().unwrap_or(&created.to_string())
+            created["error"]["message"]
+                .as_str()
+                .unwrap_or(&created.to_string())
         )),
     }
 }

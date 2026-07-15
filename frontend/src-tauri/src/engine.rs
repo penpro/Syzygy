@@ -21,7 +21,9 @@ pub(crate) fn llama_server_path(app: &tauri::AppHandle) -> Option<PathBuf> {
         .resolve(format!("llama/{bin}"), tauri::path::BaseDirectory::Resource)
         .ok()
         .filter(|p| p.exists());
-    let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("bin/llama").join(bin);
+    let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("bin/llama")
+        .join(bin);
     resource.or(Some(dev)).filter(|p| p.exists())
 }
 
@@ -77,10 +79,22 @@ pub(crate) fn spawn_engine(app: &tauri::AppHandle, model: &Path) -> Option<Child
 /// ggml-base.dll locked and the update fails with "error opening file for writing."
 #[tauri::command]
 pub fn shutdown_engine(app: tauri::AppHandle) {
-    if let Some(mut child) = app.state::<Engine>().0.lock().unwrap_or_else(|e| e.into_inner()).take() {
+    if let Some(mut child) = app
+        .state::<Engine>()
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .take()
+    {
         let _ = child.kill();
     }
-    if let Some(mut child) = app.state::<VisionEngine>().0.lock().unwrap_or_else(|e| e.into_inner()).take() {
+    if let Some(mut child) = app
+        .state::<VisionEngine>()
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .take()
+    {
         let _ = child.kill();
     }
 }
@@ -89,7 +103,10 @@ pub fn shutdown_engine(app: tauri::AppHandle) {
 #[tauri::command]
 pub fn gpu_vram() -> Option<(u64, u64)> {
     let mut cmd = Command::new("nvidia-smi");
-    cmd.args(["--query-gpu=memory.used,memory.total", "--format=csv,noheader,nounits"]);
+    cmd.args([
+        "--query-gpu=memory.used,memory.total",
+        "--format=csv,noheader,nounits",
+    ]);
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -129,7 +146,10 @@ fn detect_vram_mb_dxgi() -> Option<u64> {
 /// Apple Silicon shares system RAM with the GPU, so ~70% of total RAM is the model budget.
 #[cfg(target_os = "macos")]
 fn detect_mem_budget_mb_macos() -> Option<u64> {
-    let out = Command::new("sysctl").args(["-n", "hw.memsize"]).output().ok()?;
+    let out = Command::new("sysctl")
+        .args(["-n", "hw.memsize"])
+        .output()
+        .ok()?;
     let bytes: u64 = String::from_utf8_lossy(&out.stdout).trim().parse().ok()?;
     Some((bytes / (1024 * 1024)) * 7 / 10)
 }
@@ -152,7 +172,9 @@ pub fn vram_total_mb() -> Option<u64> {
 /// List downloaded text-model files (*.gguf, excluding vision projectors) in the app model dir.
 #[tauri::command]
 pub fn list_models(app: tauri::AppHandle) -> Vec<String> {
-    let Some(dir) = model_dir(&app) else { return vec![] };
+    let Some(dir) = model_dir(&app) else {
+        return vec![];
+    };
     let mut out = vec![];
     if let Ok(entries) = std::fs::read_dir(&dir) {
         for e in entries.flatten() {
@@ -180,10 +202,19 @@ pub fn start_engine(app: tauri::AppHandle, filename: String) -> Result<(), Strin
     if !model.exists() {
         return Err(format!("model not found: {filename}"));
     }
-    if let Some(mut old) = app.state::<Engine>().0.lock().unwrap_or_else(|e| e.into_inner()).take() {
+    if let Some(mut old) = app
+        .state::<Engine>()
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .take()
+    {
         let _ = old.kill();
     }
-    *app.state::<MainModel>().0.lock().unwrap_or_else(|e| e.into_inner()) = Some(filename.clone());
+    *app.state::<MainModel>()
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = Some(filename.clone());
     let Some(mut child) = spawn_engine(&app, &model) else {
         return Err("engine failed to launch".into());
     };
@@ -196,15 +227,25 @@ pub fn start_engine(app: tauri::AppHandle, filename: String) -> Result<(), Strin
             status.code()
         ));
     }
-    *app.state::<Engine>().0.lock().unwrap_or_else(|e| e.into_inner()) = Some(child);
+    *app.state::<Engine>()
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = Some(child);
     Ok(())
 }
 
 /// List model files: (filename, size_bytes, is_loaded_main). Includes vision files + projectors.
 #[tauri::command]
 pub fn model_files(app: tauri::AppHandle) -> Vec<(String, u64, bool)> {
-    let Some(dir) = model_dir(&app) else { return vec![] };
-    let main = app.state::<MainModel>().0.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let Some(dir) = model_dir(&app) else {
+        return vec![];
+    };
+    let main = app
+        .state::<MainModel>()
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
     let mut out = Vec::new();
     if let Ok(entries) = std::fs::read_dir(&dir) {
         for e in entries.flatten() {
@@ -229,8 +270,18 @@ pub fn delete_model(app: tauri::AppHandle, filename: String) -> Result<(), Strin
     if !path.exists() {
         return Ok(());
     }
-    let main = app.state::<MainModel>().0.lock().unwrap_or_else(|e| e.into_inner()).clone();
-    let main_running = app.state::<Engine>().0.lock().unwrap_or_else(|e| e.into_inner()).is_some();
+    let main = app
+        .state::<MainModel>()
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    let main_running = app
+        .state::<Engine>()
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .is_some();
     if main_running && main.as_deref() == Some(filename.as_str()) {
         return Err("That model is currently loaded. Switch to another model first.".into());
     }
@@ -238,7 +289,13 @@ pub fn delete_model(app: tauri::AppHandle, filename: String) -> Result<(), Strin
         return Ok(());
     }
     // Possibly locked by the vision engine — free it and retry.
-    if let Some(mut v) = app.state::<VisionEngine>().0.lock().unwrap_or_else(|e| e.into_inner()).take() {
+    if let Some(mut v) = app
+        .state::<VisionEngine>()
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .take()
+    {
         let _ = v.kill();
     }
     std::fs::remove_file(&path).map_err(|e| e.to_string())

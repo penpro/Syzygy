@@ -19,7 +19,12 @@ pub fn vision_present(app: tauri::AppHandle, text_file: String, mmproj_file: Str
 /// on=true: stop the main model, load the vision model (with its mmproj).
 /// on=false: stop the vision model, reload the remembered main model.
 #[tauri::command]
-pub fn set_vision_mode(app: tauri::AppHandle, on: bool, text_file: String, mmproj_file: String) -> Result<(), String> {
+pub fn set_vision_mode(
+    app: tauri::AppHandle,
+    on: bool,
+    text_file: String,
+    mmproj_file: String,
+) -> Result<(), String> {
     let dir = model_dir(&app).ok_or("no model dir")?;
     if on {
         let model = dir.join(&text_file);
@@ -27,10 +32,22 @@ pub fn set_vision_mode(app: tauri::AppHandle, on: bool, text_file: String, mmpro
         if !model.exists() || !mmproj.exists() {
             return Err("vision model files not found — download it in Settings".into());
         }
-        if let Some(mut old) = app.state::<Engine>().0.lock().unwrap_or_else(|e| e.into_inner()).take() {
+        if let Some(mut old) = app
+            .state::<Engine>()
+            .0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+        {
             let _ = old.kill();
         }
-        if let Some(mut old) = app.state::<VisionEngine>().0.lock().unwrap_or_else(|e| e.into_inner()).take() {
+        if let Some(mut old) = app
+            .state::<VisionEngine>()
+            .0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+        {
             let _ = old.kill();
         }
         let exe = llama_server_path(&app).ok_or("engine binary not found")?;
@@ -57,27 +74,50 @@ pub fn set_vision_mode(app: tauri::AppHandle, on: bool, text_file: String, mmpro
         }
         match cmd.spawn() {
             Ok(child) => {
-                *app.state::<VisionEngine>().0.lock().unwrap_or_else(|e| e.into_inner()) = Some(child);
+                *app.state::<VisionEngine>()
+                    .0
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = Some(child);
                 Ok(())
             }
             Err(e) => Err(format!("failed to start vision engine: {e}")),
         }
     } else {
-        if let Some(mut old) = app.state::<VisionEngine>().0.lock().unwrap_or_else(|e| e.into_inner()).take() {
+        if let Some(mut old) = app
+            .state::<VisionEngine>()
+            .0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+        {
             let _ = old.kill();
         }
-        let main = app.state::<MainModel>().0.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let main = app
+            .state::<MainModel>()
+            .0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         let main = main.ok_or("no main model on record to reload")?;
         let model = dir.join(&main);
         if !model.exists() {
             return Err(format!("main model not found: {main}"));
         }
-        if let Some(mut old) = app.state::<Engine>().0.lock().unwrap_or_else(|e| e.into_inner()).take() {
+        if let Some(mut old) = app
+            .state::<Engine>()
+            .0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+        {
             let _ = old.kill();
         }
         let child = spawn_engine(&app, &model);
         let ok = child.is_some();
-        *app.state::<Engine>().0.lock().unwrap_or_else(|e| e.into_inner()) = child;
+        *app.state::<Engine>()
+            .0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = child;
         if ok {
             Ok(())
         } else {
@@ -94,8 +134,14 @@ pub fn list_images(folder: String) -> Vec<String> {
         for e in entries.flatten() {
             let p = e.path();
             if p.is_file() {
-                let ext = p.extension().map(|x| x.to_string_lossy().to_lowercase()).unwrap_or_default();
-                if matches!(ext.as_str(), "jpg" | "jpeg" | "png" | "gif" | "webp" | "bmp") {
+                let ext = p
+                    .extension()
+                    .map(|x| x.to_string_lossy().to_lowercase())
+                    .unwrap_or_default();
+                if matches!(
+                    ext.as_str(),
+                    "jpg" | "jpeg" | "png" | "gif" | "webp" | "bmp"
+                ) {
                     if let Some(n) = p.file_name() {
                         out.push(n.to_string_lossy().to_string());
                     }
@@ -113,7 +159,10 @@ pub fn read_image_data(folder: String, name: String) -> Result<String, String> {
     use base64::{engine::general_purpose::STANDARD, Engine};
     let p = PathBuf::from(&folder).join(&name);
     let bytes = std::fs::read(&p).map_err(|e| e.to_string())?;
-    let ext = p.extension().map(|x| x.to_string_lossy().to_lowercase()).unwrap_or_default();
+    let ext = p
+        .extension()
+        .map(|x| x.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
     let mime = match ext.as_str() {
         "png" => "image/png",
         "gif" => "image/gif",

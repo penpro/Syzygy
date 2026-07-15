@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "runId": "GEMINI-REQUEST-CONFORMANCE-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "request-control-conformance",
+  "command": "npm run test:providers",
+  "result": {
+    "passed": true,
+    "providerBoundaryTestsPassed": 23,
+    "geminiFocusedTestsPassed": 4,
+    "loopbackFakeNetworkUsed": true,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "paidProviderCalls": 0
+  },
+  "regressionGates": {
+    "fullRustTestsPassed": 54,
+    "extensionContractTestsPassed": 16,
+    "frontendModulesTransformed": 989,
+    "structuralAuditChecksPassed": 19,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true
+  },
+  "proved": [
+    "the Rust request targets stable POST /v1/interactions and rejects the v1beta path",
+    "the API key travels in x-goog-api-key and the request forces store:false, background:false, and stream:false",
+    "system and user text plus generation_config.max_output_tokens are mapped without provider SDK state",
+    "thinking_summaries is none and thought/non-text output contents are not retained",
+    "Interaction identity, status, text, and usage normalize only when total tokens cover input plus output",
+    "wrong disclosure, missing user input, provider errors, inconsistent usage, timeout, and cancellation fail with sanitized typed errors",
+    "Gemini credentials have a distinct OS-vault account namespace"
+  ],
+  "notProved": [
+    "Gemini streaming lifecycle event normalization or network dispatch",
+    "tools, thought signatures, structured output, multimodal content, or stored interaction state",
+    "retry, resumption, request IDs, or live rate-limit handling",
+    "product credential integration, frontend disclosure, or UI availability",
+    "a live Gemini request or any model-quality property"
+  ],
+  "primarySources": [
+    "https://ai.google.dev/gemini-api/docs/api-versions",
+    "https://ai.google.dev/api/interactions-api-v1",
+    "https://ai.google.dev/gemini-api/docs/interactions-overview",
+    "https://ai.google.dev/gemini-api/docs/interactions-breaking-changes-may-2026"
+  ]
+}

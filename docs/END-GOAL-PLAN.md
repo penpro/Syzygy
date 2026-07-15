@@ -466,6 +466,9 @@ frontend event/disclosure bridge, streamed-tool handling, and opt-in live eviden
 
 Anthropic Messages one-shot request/control conformance now passes the same unwired Rust boundary;
 its stream parser/network path and tool blocks remain open, so the adapter is not product-available.
+Gemini Interactions stable-v1 one-shot request/control conformance now passes with storage,
+background execution, streaming, and thought summaries forced off; its stream/tool paths remain
+open, so it is also not product-available.
 
 Credential progress: the cross-platform OS-vault abstraction, zeroizing secret wrapper, memory
 contract tests, and an opt-in Windows Credential Manager create/read/delete/absence canary pass.

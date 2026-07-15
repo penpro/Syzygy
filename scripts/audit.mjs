@@ -177,6 +177,10 @@ record(
     providerRuntimeSource.includes('anthropic-version') &&
     providerRuntimeSource.includes('2023-06-01') &&
     providerRuntimeSource.includes('"x-api-key"') &&
+    providerRuntimeSource.includes('execute_gemini_response_controlled') &&
+    providerRuntimeSource.includes('"x-goog-api-key"') &&
+    providerRuntimeSource.includes('"thinking_summaries": "none"') &&
+    providerRuntimeSource.includes('"background": false') &&
     providerRuntimeSource.includes('MAX_STREAM_BYTES') &&
     providerRuntimeSource.includes('text/event-stream') &&
     providerRuntimeSource.includes('Abortable::new') &&
@@ -186,12 +190,14 @@ record(
     providerStreamSource.includes('provider-error-body-canary') &&
     platformContractsSource.includes('request-and-stream-control-conformance') &&
     platformContractsSource.includes('ANTHROPIC_ADAPTER_STATUS') &&
+    platformContractsSource.includes('GEMINI_ADAPTER_STATUS') &&
     platformContractsSource.includes('OPENAI_ADAPTER_STATUS') &&
     platformContractsSource.includes('"remoteProviderAdapters": "contract-only"') &&
     !rustWiringSource.includes('model_provider::execute_openai_response') &&
     !rustWiringSource.includes('model_provider::execute_openai_stream_controlled') &&
-    !rustWiringSource.includes('model_provider::execute_anthropic_response'),
-  'OpenAI request/stream and Anthropic request wire contracts, disclosure, TLS, bounds, controls, truthful status, and unwired-runtime gates present',
+    !rustWiringSource.includes('model_provider::execute_anthropic_response') &&
+    !rustWiringSource.includes('model_provider::execute_gemini_response'),
+  'OpenAI request/stream plus Anthropic and Gemini request wire contracts, disclosure, storage policy, bounds, controls, truthful status, and unwired-runtime gates present',
 )
 record(
   'provider credential vault remains isolated',
@@ -202,6 +208,7 @@ record(
     providerRuntimeSource.includes('self.0.zeroize()') &&
     credentialVaultSource.includes('org.penumbra.syzygy.model-provider') &&
     credentialVaultSource.includes('RemoteProviderId::Anthropic => "anthropic"') &&
+    credentialVaultSource.includes('RemoteProviderId::Gemini => "gemini"') &&
     credentialVaultSource.includes('keyring::Entry::new') &&
     credentialHarnessSource.includes('cleanupVerified') &&
     platformContractsSource.includes('"credentialVault": "implemented-unverified"') &&

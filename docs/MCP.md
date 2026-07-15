@@ -102,7 +102,7 @@ MCP host
   content, and are also visible to the user in Settings.
 - `syzygy_platform_contracts` embeds public plugin and adversarial-run schemas plus implementation-state labels only. It
   reports the unwired OpenAI adapter as `request-and-stream-control-conformance` and Anthropic
-  Messages as the narrower `request-control-conformance`. It deliberately reports the credential
+  Messages and Gemini Interactions as the narrower `request-control-conformance`. It deliberately reports the credential
   vault as `implemented-unverified` and aggregate remote execution,
   the non-executing plugin certifier as `contract-certified-runner`, and adversarial execution and
   plugin loading as `contract-only`; the adversarial record validator is reported separately as

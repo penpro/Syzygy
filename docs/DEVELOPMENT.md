@@ -88,6 +88,13 @@ message mapping, `max_tokens`, `stream:false`, normalized text/usage, unknown th
 non-retention, error-body redaction, timeout, and cancellation. This does not prove Anthropic SSE,
 tools, a live credential, or product availability.
 
+It also certifies the stable-v1 Gemini Interactions one-shot boundary. The fake server checks
+`POST /v1/interactions`, `x-goog-api-key`, `store:false`, `background:false`, `stream:false`,
+`thinking_summaries:none`, system/user mapping, output bounds, text-only normalization, aggregate
+usage consistency, sanitized failures, timeout, and cancellation. The test rejects `/v1beta`
+instead of silently drifting API versions. Gemini SSE, tools/thought-signature continuation, a live
+credential, frontend disclosure, and product availability remain open.
+
 `npm run test:provider-streams` separately feeds the OpenAI decoder byte-by-byte and with
 multiline, unknown, malformed, mismatched, oversized, and truncated SSE fixtures. It proves parser
 normalization in isolation. `test:providers` separately proves the parser is fed through fake HTTP

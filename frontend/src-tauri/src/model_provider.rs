@@ -1,8 +1,8 @@
 //! Rust-owned remote model transport and normalization boundary.
 //!
 //! The webview must never construct provider HTTP requests or receive provider credentials.
-//! Executable slices certify OpenAI Responses request/stream and Anthropic Messages one-shot
-//! contracts against fake loopback servers. Product credential integration, frontend event
+//! Executable slices certify OpenAI Responses request/stream plus Anthropic Messages and Gemini
+//! Interactions one-shot contracts against fake loopback servers. Product credential integration, frontend event
 //! delivery, UI invocation, and live-provider calls remain deliberately unavailable until their
 //! separate gates pass.
 
@@ -21,6 +21,7 @@ use zeroize::Zeroize;
 
 pub const OPENAI_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
 pub const ANTHROPIC_ADAPTER_STATUS: &str = "request-control-conformance";
+pub const GEMINI_ADAPTER_STATUS: &str = "request-control-conformance";
 pub const DEFAULT_PROVIDER_TIMEOUT: Duration = Duration::from_secs(60);
 const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_STREAM_BYTES: usize = 32 * 1024 * 1024;
@@ -31,6 +32,7 @@ const MAX_PROVIDER_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 pub enum RemoteProviderId {
     OpenAi,
     Anthropic,
+    Gemini,
 }
 
 /// Secret wrapper whose debug representation cannot disclose the credential.
@@ -319,6 +321,41 @@ fn anthropic_body(request: &GenerationRequest) -> Result<Value, ProviderError> {
     Ok(body)
 }
 
+fn gemini_body(request: &GenerationRequest) -> Result<Value, ProviderError> {
+    let input = request
+        .input
+        .iter()
+        .filter(|item| item.role == InputRole::User)
+        .map(|item| item.content.as_str())
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    if input.is_empty() {
+        return Err(ProviderError::InvalidRequest);
+    }
+    let system_instruction = request
+        .input
+        .iter()
+        .filter(|item| item.role == InputRole::Developer)
+        .map(|item| item.content.as_str())
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    let mut body = json!({
+        "model": request.model,
+        "input": input,
+        "generation_config": {
+            "max_output_tokens": request.max_output_tokens,
+            "thinking_summaries": "none",
+        },
+        "stream": false,
+        "store": false,
+        "background": false,
+    });
+    if !system_instruction.is_empty() {
+        body["system_instruction"] = Value::String(system_instruction);
+    }
+    Ok(body)
+}
+
 async fn bounded_body(response: reqwest::Response) -> Result<Vec<u8>, ProviderError> {
     if response
         .content_length()
@@ -475,6 +512,96 @@ fn normalize_anthropic(value: Value) -> Result<NormalizedResponse, ProviderError
             output_tokens,
             total_tokens,
         }),
+    })
+}
+
+fn normalize_gemini(value: Value) -> Result<NormalizedResponse, ProviderError> {
+    if value.get("object").and_then(Value::as_str) != Some("interaction") {
+        return Err(ProviderError::MalformedResponse);
+    }
+    let id = value
+        .get("id")
+        .and_then(Value::as_str)
+        .filter(|id| !id.is_empty())
+        .ok_or(ProviderError::MalformedResponse)?
+        .to_owned();
+    let status = value
+        .get("status")
+        .and_then(Value::as_str)
+        .filter(|status| !status.is_empty())
+        .ok_or(ProviderError::MalformedResponse)?
+        .to_owned();
+    let steps = value
+        .get("steps")
+        .and_then(Value::as_array)
+        .ok_or(ProviderError::MalformedResponse)?;
+    let mut text = String::new();
+    let mut unknown_output_types = Vec::new();
+    for step in steps {
+        match step.get("type").and_then(Value::as_str) {
+            Some("model_output") => {
+                let content = step
+                    .get("content")
+                    .and_then(Value::as_array)
+                    .ok_or(ProviderError::MalformedResponse)?;
+                for block in content {
+                    match block.get("type").and_then(Value::as_str) {
+                        Some("text") => text.push_str(
+                            block
+                                .get("text")
+                                .and_then(Value::as_str)
+                                .ok_or(ProviderError::MalformedResponse)?,
+                        ),
+                        Some(other) => unknown_output_types.push(format!("model_output:{other}")),
+                        None => unknown_output_types.push("model_output:missing".to_owned()),
+                    }
+                }
+            }
+            Some(other) => unknown_output_types.push(other.to_owned()),
+            None => unknown_output_types.push("missing".to_owned()),
+        }
+    }
+    let usage = match value.get("usage") {
+        None | Some(Value::Null) => None,
+        Some(usage) => {
+            let input_tokens = usage
+                .get("total_input_tokens")
+                .and_then(Value::as_u64)
+                .ok_or(ProviderError::MalformedResponse)?;
+            let output_tokens = usage
+                .get("total_output_tokens")
+                .and_then(Value::as_u64)
+                .ok_or(ProviderError::MalformedResponse)?;
+            let total_tokens = usage
+                .get("total_tokens")
+                .and_then(Value::as_u64)
+                .ok_or(ProviderError::MalformedResponse)?;
+            if total_tokens
+                < input_tokens
+                    .checked_add(output_tokens)
+                    .ok_or(ProviderError::MalformedResponse)?
+            {
+                return Err(ProviderError::MalformedResponse);
+            }
+            Some(NormalizedUsage {
+                input_tokens,
+                output_tokens,
+                total_tokens,
+            })
+        }
+    };
+    Ok(NormalizedResponse {
+        provider: RemoteProviderId::Gemini,
+        id,
+        status,
+        model: value
+            .get("model")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        text,
+        refusals: Vec::new(),
+        unknown_output_types,
+        usage,
     })
 }
 
@@ -676,6 +803,51 @@ pub async fn execute_anthropic_response_controlled(
         .map_err(|_| ProviderError::Cancelled)?
 }
 
+pub async fn execute_gemini_response(
+    client: &Client,
+    endpoint: &Url,
+    secret: &ProviderSecret,
+    request: &GenerationRequest,
+    approval: &TransmissionApproval,
+) -> Result<NormalizedResponse, ProviderError> {
+    let (execution, _cancellation) = provider_execution(DEFAULT_PROVIDER_TIMEOUT)?;
+    execute_gemini_response_controlled(client, endpoint, secret, request, approval, execution).await
+}
+
+pub async fn execute_gemini_response_controlled(
+    client: &Client,
+    endpoint: &Url,
+    secret: &ProviderSecret,
+    request: &GenerationRequest,
+    approval: &TransmissionApproval,
+    execution: ProviderExecution,
+) -> Result<NormalizedResponse, ProviderError> {
+    validate_endpoint(endpoint, "/v1/interactions")?;
+    request.validate()?;
+    approval.validate_for(RemoteProviderId::Gemini)?;
+    let body = gemini_body(request)?;
+    let operation = async {
+        let response = client
+            .post(endpoint.clone())
+            .timeout(execution.timeout)
+            .header("x-goog-api-key", secret.expose())
+            .header("content-type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|error| classify_transport_error(&error))?;
+        if !response.status().is_success() {
+            return Err(ProviderError::HttpStatus(response.status().as_u16()));
+        }
+        let body = bounded_body(response).await?;
+        let value = serde_json::from_slice(&body).map_err(|_| ProviderError::MalformedResponse)?;
+        normalize_gemini(value)
+    };
+    Abortable::new(operation, execution.cancellation)
+        .await
+        .map_err(|_| ProviderError::Cancelled)?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -711,6 +883,14 @@ mod tests {
     fn anthropic_approval() -> TransmissionApproval {
         TransmissionApproval {
             provider: RemoteProviderId::Anthropic,
+            content_categories: vec!["selected research excerpts".to_owned()],
+            accepted: true,
+        }
+    }
+
+    fn gemini_approval() -> TransmissionApproval {
+        TransmissionApproval {
+            provider: RemoteProviderId::Gemini,
             content_categories: vec!["selected research excerpts".to_owned()],
             accepted: true,
         }
@@ -1452,6 +1632,193 @@ mod tests {
             &ProviderSecret::new("fixture-key".to_owned()).expect("secret"),
             &request(),
             &anthropic_approval(),
+            execution,
+        ));
+        assert_eq!(cancelled, Err(ProviderError::Cancelled));
+    }
+
+    #[test]
+    fn gemini_fake_server_proves_stable_storage_off_shape_and_normalization() {
+        let (endpoint, captured) = fake_server_with_plan(
+            "/v1/interactions",
+            "200 OK",
+            r#"{"id":"int_test","object":"interaction","model":"gemini-test","status":"completed","steps":[{"type":"thought","content":"not retained"},{"type":"model_output","content":[{"type":"text","text":"Supported finding."},{"type":"image","data":"not retained"}]}],"usage":{"total_input_tokens":10,"total_output_tokens":3,"total_thought_tokens":2,"total_tokens":15}}"#,
+            FakeResponsePlan::CompleteAfter(Duration::ZERO),
+        );
+        let gemini_request = GenerationRequest {
+            model: "gemini-test".to_owned(),
+            input: vec![
+                ProviderInput {
+                    role: InputRole::Developer,
+                    content: "Use only the supplied evidence.".to_owned(),
+                },
+                ProviderInput {
+                    role: InputRole::User,
+                    content: "Compare the cited claims.".to_owned(),
+                },
+            ],
+            max_output_tokens: 700,
+        };
+        let secret_canary = "gemini-wire-canary";
+        let response = tauri::async_runtime::block_on(execute_gemini_response(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new(secret_canary.to_owned()).expect("secret"),
+            &gemini_request,
+            &gemini_approval(),
+        ))
+        .expect("normalized Gemini response");
+        assert_eq!(response.provider, RemoteProviderId::Gemini);
+        assert_eq!(response.text, "Supported finding.");
+        assert_eq!(response.status, "completed");
+        assert_eq!(
+            response.unknown_output_types,
+            vec!["thought", "model_output:image"]
+        );
+        assert_eq!(response.usage.expect("usage").total_tokens, 15);
+
+        let raw = captured.recv().expect("captured Gemini request");
+        let (headers, body) = raw.split_once("\r\n\r\n").expect("HTTP request");
+        let headers = headers.to_ascii_lowercase();
+        assert!(headers.starts_with("post /v1/interactions http/1.1"));
+        assert!(headers.contains(&format!("x-goog-api-key: {secret_canary}")));
+        assert!(!headers.contains("authorization:"));
+        let body: Value = serde_json::from_str(body).expect("Gemini request JSON");
+        assert_eq!(body["model"], "gemini-test");
+        assert_eq!(body["input"], "Compare the cited claims.");
+        assert_eq!(
+            body["system_instruction"],
+            "Use only the supplied evidence."
+        );
+        assert_eq!(body["generation_config"]["max_output_tokens"], 700);
+        assert_eq!(body["generation_config"]["thinking_summaries"], "none");
+        assert_eq!(body["stream"], false);
+        assert_eq!(body["store"], false);
+        assert_eq!(body["background"], false);
+    }
+
+    #[test]
+    fn gemini_fails_beta_path_disclosure_and_missing_user_input_before_transport() {
+        let client = Client::new();
+        let secret = ProviderSecret::new("fixture-key".to_owned()).expect("secret");
+        let beta = Url::parse("https://generativelanguage.googleapis.com/v1beta/interactions")
+            .expect("URL");
+        let wrong_version = tauri::async_runtime::block_on(execute_gemini_response(
+            &client,
+            &beta,
+            &secret,
+            &request(),
+            &gemini_approval(),
+        ));
+        assert_eq!(wrong_version, Err(ProviderError::UnsafeEndpoint));
+
+        let endpoint =
+            Url::parse("https://generativelanguage.googleapis.com/v1/interactions").expect("URL");
+        let wrong_disclosure = tauri::async_runtime::block_on(execute_gemini_response(
+            &client,
+            &endpoint,
+            &secret,
+            &request(),
+            &approval(),
+        ));
+        assert_eq!(wrong_disclosure, Err(ProviderError::DisclosureRequired));
+
+        let developer_only = GenerationRequest {
+            model: "gemini-test".to_owned(),
+            input: vec![ProviderInput {
+                role: InputRole::Developer,
+                content: "No user turn.".to_owned(),
+            }],
+            max_output_tokens: 10,
+        };
+        let missing_user = tauri::async_runtime::block_on(execute_gemini_response(
+            &client,
+            &endpoint,
+            &secret,
+            &developer_only,
+            &gemini_approval(),
+        ));
+        assert_eq!(missing_user, Err(ProviderError::InvalidRequest));
+    }
+
+    #[test]
+    fn gemini_errors_and_inconsistent_usage_fail_closed_without_body_leakage() {
+        let response_canary = "gemini-error-body-canary";
+        let (endpoint, _captured) = fake_server_with_plan(
+            "/v1/interactions",
+            "403 Forbidden",
+            &format!(r#"{{"error":{{"message":"{response_canary}"}}}}"#),
+            FakeResponsePlan::CompleteAfter(Duration::ZERO),
+        );
+        let error = tauri::async_runtime::block_on(execute_gemini_response(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("gemini-secret-canary".to_owned()).expect("secret"),
+            &request(),
+            &gemini_approval(),
+        ))
+        .expect_err("403 must fail");
+        assert_eq!(error, ProviderError::HttpStatus(403));
+        assert!(!error.to_string().contains(response_canary));
+
+        let inconsistent = json!({
+            "id": "int_bad_usage",
+            "object": "interaction",
+            "model": "gemini-test",
+            "status": "completed",
+            "steps": [],
+            "usage": {
+                "total_input_tokens": 10,
+                "total_output_tokens": 3,
+                "total_tokens": 12
+            }
+        });
+        assert_eq!(
+            normalize_gemini(inconsistent),
+            Err(ProviderError::MalformedResponse)
+        );
+    }
+
+    #[test]
+    fn gemini_controlled_request_times_out_and_cancels_distinctly() {
+        let response = r#"{"id":"int_late","object":"interaction","model":"gemini-test","status":"completed","steps":[]}"#;
+        let (endpoint, _captured) = fake_server_with_plan(
+            "/v1/interactions",
+            "200 OK",
+            response,
+            FakeResponsePlan::CompleteAfter(Duration::from_millis(250)),
+        );
+        let (execution, _cancellation) =
+            provider_execution(Duration::from_millis(40)).expect("execution controls");
+        let timeout = tauri::async_runtime::block_on(execute_gemini_response_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("fixture-key".to_owned()).expect("secret"),
+            &request(),
+            &gemini_approval(),
+            execution,
+        ));
+        assert_eq!(timeout, Err(ProviderError::Timeout));
+
+        let (endpoint, captured) = fake_server_with_plan(
+            "/v1/interactions",
+            "200 OK",
+            response,
+            FakeResponsePlan::CompleteAfter(Duration::from_millis(250)),
+        );
+        let (execution, cancellation) =
+            provider_execution(Duration::from_secs(2)).expect("execution controls");
+        let cancel_from_task = cancellation.clone();
+        thread::spawn(move || {
+            captured.recv().expect("request reached fake server");
+            cancel_from_task.cancel();
+        });
+        let cancelled = tauri::async_runtime::block_on(execute_gemini_response_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("fixture-key".to_owned()).expect("secret"),
+            &request(),
+            &gemini_approval(),
             execution,
         ));
         assert_eq!(cancelled, Err(ProviderError::Cancelled));

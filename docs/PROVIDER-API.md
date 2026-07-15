@@ -3,7 +3,7 @@
 **Contract version:** 1. **Runtime status:** local adapter available; OpenAI Responses request,
 bounded timeout/cancellation, and fake-network incremental stream dispatch are at
 `request-and-stream-control-conformance` and intentionally not product-callable; Anthropic
-Messages one-shot requests are at `request-control-conformance`; Gemini, xAI, and custom remote
+Messages and Gemini Interactions one-shot requests are at `request-control-conformance`; xAI and custom remote
 adapters are contract-only.
 
 The canonical TypeScript contract is `frontend/src/extensions/providerContract.ts`. It prevents
@@ -82,6 +82,16 @@ computes overflow-safe total usage, maps refusal to a sanitized marker, bounds r
 shares the disclosure, timeout, cancellation, TLS/loopback, and error-redaction gates. Anthropic
 streaming, tool blocks, beta headers, request IDs, live policy validation, UI, and opt-in live proof
 remain open.
+
+The Gemini slice targets the stable `/v1/interactions` API rather than silently following an SDK's
+preview default. Its Rust fake server proves `x-goog-api-key`, content type, model, joined local
+system/user text, `generation_config.max_output_tokens`, `thinking_summaries:none`, `stream:false`,
+`background:false`, and `store:false`. The normalizer requires an Interaction identity/status,
+retains only text in `model_output` steps, reports thought and non-text types without retaining
+their contents, and accepts usage only when total tokens cover input plus output. The endpoint,
+disclosure, byte bound, redaction, timeout, and cancellation gates match the other remote slices.
+Streaming lifecycle events, tools, thought-signature continuation, structured output, stored state,
+live terms validation, UI, and opt-in live proof remain open.
 
 ## Certification suite
 

@@ -21,6 +21,7 @@ pub fn current() -> Result<Value, String> {
         "implementationStatus": {
             "localProvider": "available",
             "remoteProviderAdapters": "contract-only",
+            "credentialVault": "implemented-unverified",
             "adversarialRunner": "contract-only",
             "pluginLoader": "contract-only"
         },
@@ -69,6 +70,8 @@ pub fn current() -> Result<Value, String> {
         "selfCheck": {
             "command": "npm run test:contracts",
             "providerCommand": "npm run test:providers",
+            "credentialCommand": "npm run test:credentials",
+            "credentialLiveCommand": "npm run test:credentials:live",
             "mcpCommand": "npm run test:mcp",
             "auditCommand": "npm run audit"
         }
@@ -90,6 +93,10 @@ mod tests {
         assert_eq!(
             contracts["providerAdapterStatus"]["openai-responses"],
             "request-conformance"
+        );
+        assert_eq!(
+            contracts["implementationStatus"]["credentialVault"],
+            "implemented-unverified"
         );
         assert_eq!(
             contracts["pluginManifestSchema"]["additionalProperties"],

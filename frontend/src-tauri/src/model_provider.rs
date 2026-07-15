@@ -12,6 +12,7 @@ use reqwest::{Client, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::fmt;
+use zeroize::Zeroize;
 
 pub const OPENAI_ADAPTER_STATUS: &str = "request-conformance";
 const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
@@ -33,14 +34,24 @@ impl ProviderSecret {
         Ok(Self(value))
     }
 
-    fn expose(&self) -> &str {
+    pub(crate) fn expose(&self) -> &str {
         &self.0
+    }
+
+    pub fn matches(&self, expected: &str) -> bool {
+        self.0 == expected
     }
 }
 
 impl fmt::Debug for ProviderSecret {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("ProviderSecret([REDACTED])")
+    }
+}
+
+impl Drop for ProviderSecret {
+    fn drop(&mut self) {
+        self.0.zeroize();
     }
 }
 

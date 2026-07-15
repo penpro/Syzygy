@@ -17,6 +17,7 @@ npx vitest run             # all pass
 cargo check                # in src-tauri (cargo is at C:\Users\penum\.cargo\bin, not on PATH)
 npm run audit              # architecture, identity, provenance, capability-ledger invariants
 npm run test:providers     # fake-server remote-provider boundary; no live key or network required
+npm run test:credentials   # memory-backed credential-vault contract; no OS store mutation
 cargo fmt --all -- --check # Rust formatting
 ```
 
@@ -74,6 +75,16 @@ also proves malformed output, unsafe non-TLS endpoints, rejected disclosure, and
 bodies fail without echoing the secret canary. Passing this is `request-conformance`, not live
 availability; OS credential persistence, streaming/cancellation, UI disclosure, and an opt-in live
 canary are separate gates.
+
+Run the explicit OS-store canary only when validating a desktop environment:
+
+```powershell
+npm run test:credentials:live
+```
+
+It creates a process-unique random credential, proves exact readback, deletes it, and independently
+proves it is absent. The value is never printed. This intentionally touches the current user's OS
+credential store and is therefore not part of the default headless suite.
 
 After building the current packaged executable, an explicit live-profile proof can
 launch the GUI through MCP, create a visible demonstration project, exercise replace/append and

@@ -453,6 +453,11 @@ six-case Rust conformance suite and are reported separately as `request-conforma
 remote execution remains `contract-only` until OS credential storage, streaming/cancellation,
 typed frontend disclosure, and opt-in live evidence pass.
 
+Credential progress: the cross-platform OS-vault abstraction, zeroizing secret wrapper, memory
+contract tests, and an opt-in Windows Credential Manager create/read/delete/absence canary pass.
+macOS/Linux live canaries, UI setup, and end-to-end leak scans remain open, so this boundary is
+`implemented-unverified` and remote execution remains unavailable.
+
 ## 11. Recommended next slice
 
 Status snapshot on 2026-07-14: the 41-row ledger has 10 `implemented_unverified`, 31 `planned`,

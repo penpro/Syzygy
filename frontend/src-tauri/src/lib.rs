@@ -1,6 +1,7 @@
 //! Syzygy Tauri backend. Domain logic lives in the modules below; this file wires up
 //! state, auto-starts the engine on launch, and registers the command handlers.
 mod automation;
+pub mod credential_vault;
 mod documents;
 mod downloads;
 mod engine;
@@ -9,7 +10,7 @@ pub mod google_drive;
 mod knowledge;
 pub mod mcp;
 mod mcp_setup;
-mod model_provider;
+pub mod model_provider;
 mod platform_contracts;
 mod state;
 mod updates;

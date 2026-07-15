@@ -1,0 +1,22 @@
+# Research extension dependency provenance
+
+**Baseline:** 2026-07-15. This ledger covers dependencies introduced for remote model and plugin
+boundaries. It is not a substitute for the generated release SBOM.
+
+| Dependency / source | Version | License | Purpose and review note |
+|---|---:|---|---|
+| `keyring` | 3.6.3 exact | MIT OR Apache-2.0 | Cross-platform OS credential API. This is the newest reviewed line compatible with Syzygy's Rust 1.77.2 floor; upstream declares MSRV 1.75. Platform features are selected explicitly: Windows native, Apple native, and Linux keyutils plus persistent Secret Service with Rust crypto. |
+| `zeroize` | 1.9.0 locked (`^1.8.1`) | MIT OR Apache-2.0 | Clears provider secret string storage on drop. It was already compatible with the dependency graph; Syzygy declares it directly because memory cleanup is a product invariant. |
+| `frontend/src-tauri/src/credential_vault.rs` | repository commit | Penumbra original / repository MIT | Narrow identifiers, sanitized error mapping, provider-neutral trait, native OS implementation, and memory contract tests. |
+| `frontend/src-tauri/src/bin/credential-harness.rs` | repository commit | Penumbra original / repository MIT | Opt-in live canary that verifies create/read/delete/absence and never prints the secret. |
+| `frontend/src-tauri/src/model_provider.rs` | repository commit | Penumbra original / repository MIT | Disclosure-gated OpenAI Responses request construction and provider-neutral output normalization. |
+
+Primary dependency sources checked on 2026-07-15:
+
+- <https://docs.rs/crate/keyring/3.6.3/source/Cargo.toml>
+- <https://docs.rs/crate/keyring/3.6.3/source/README.md>
+- <https://docs.rs/zeroize/>
+
+Adversarial checks still required: release SBOM/license scan on all targets, macOS/Linux native
+build and live-store canaries, Linux locked/unavailable Secret Service behavior, Windows credential
+length limits, crash-dump/memory inspection, and proof that no frontend command can return a key.

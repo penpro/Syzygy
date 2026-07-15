@@ -38,10 +38,18 @@ url = "2"
 # Drive folder sync: RFC3339 timestamps + setting local file mtimes to match Drive
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 filetime = "0.2"
+zeroize = "1.8.1"
 
 # Windows-only — DXGI VRAM detection (used under #[cfg(windows)]); not built on macOS/Linux.
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = ["Win32_Graphics_Dxgi", "Win32_Foundation"] }
+keyring = { version = "=3.6.3", default-features = false, features = ["windows-native"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "=3.6.3", default-features = false, features = ["apple-native"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "=3.6.3", default-features = false, features = ["linux-native-sync-persistent", "crypto-rust"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

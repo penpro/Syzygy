@@ -62,6 +62,7 @@ source of project truth.
 | `mcp_setup.rs` | Running-executable discovery plus copy-ready JSON/TOML configuration and connection prompts shared by the UI and MCP. |
 | `platform_contracts.rs` | Machine-readable provider, adversarial-review, and researcher-plugin schemas/status exposed to headless MCP clients. |
 | `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. The OpenAI Responses one-shot wire contract has fake-server evidence but is not product-wired pending credential-vault and streaming gates. |
+| `credential_vault.rs` | Provider-secret abstraction backed by Windows Credential Manager, macOS Keychain, or Linux Secret Service/keyutils. Unit tests use only a memory implementation; a separate live harness creates and deletes a random OS-store canary. |
 
 **Security posture:** the model only ever sees selected text; the webview never sees OAuth
 credentials/tokens (they live in Rust + app-data); local file access is allowlisted via
@@ -116,6 +117,7 @@ shipped.
 | Collaborative project updates | IndexedDB database `syzygy-project-v1:<projectId>` |
 | Sanitized diagnostic history (last 500 entries) | localStorage key `syzygy-diagnostic-log-v1` (webview) |
 | Google refresh token + client info | `<app-data>/google_auth.json` (Rust-only) |
+| Future remote-model API keys | OS credential store under service `org.penumbra.syzygy.model-provider`; no key is stored until remote-provider UI is enabled |
 | Selected Drive workspace ID/name | `<app-data>/drive_workspace.json` |
 | Models (GGUF) | `<app-data>/models/` |
 | Optional Drive mirror folder | `<Documents>/Syzygy` (manual sync with Drive folder "Syzygy") |
@@ -153,7 +155,8 @@ shipped.
   `syzygy_installation` tool. See `MCP.md`.
 - **Extensions request narrow authority.** Remote provider secrets and HTTPS stay in Rust. The
   OpenAI one-shot request boundary is fake-server certified but deliberately unwired until the OS
-  credential vault and streaming/cancellation gates pass; other remote adapters remain
+  credential-vault integration and streaming/cancellation gates pass; the vault abstraction and
+  Windows live create/read/delete canary now pass but no Tauri command stores a user key. Other remote adapters remain
   contract-only. Plugins declare capabilities and submit revision-guarded proposals. No plugin
   code executes in the webview and no contract-only feature may report itself as available. See
   `PROVIDER-API.md`, `PLUGIN-API.md`, and ADR-0002/0003.

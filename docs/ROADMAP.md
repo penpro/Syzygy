@@ -93,6 +93,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   cover secret redaction, unsafe endpoints, disclosure, response parsing, and malformed/error
   responses. The adapter is labeled `request-conformance`; credential storage, streaming,
   cancellation, tools, UI disclosure, and live opt-in proof remain gates before availability.
+- The provider credential vault is now implemented but not product-wired. Its provider-neutral
+  trait passes an in-memory set/read/delete/error-redaction suite; secret strings zeroize on drop;
+  and a Windows Credential Manager harness created, read, deleted, and independently proved absence
+  of a random canary without printing it. Native macOS Keychain and persistent Linux backend builds
+  are configured, but their live canaries and the user-facing key/disclosure flow remain open.
 
 ## Current completion snapshot
 
@@ -119,8 +124,8 @@ collaborators are not required to download large project folders.
    - Design target: the "research editor" panel of the approved mockup (version rail,
      evaluation panel, mono metadata stamps).
 3. **Certify the open research platform boundary** — the first OpenAI fake-server/key-canary
-   request gate has landed; next implement the Rust credential vault, streaming/cancellation, and
-   explicit disclosure UI before availability. Build the adversarial benchmark before
+   request gate and Windows credential-vault canary have landed; next implement
+   streaming/cancellation and explicit disclosure UI before availability. Build the adversarial benchmark before
    claiming panel quality; implement a no-authority WASI host before loading third-party code.
 4. **Real collaboration on the folder** — Yjs doc persisted in the synced folder;
    merge-on-sync instead of last-write-wins; presence later. Drive is transport #1;

@@ -51,6 +51,13 @@ response rejection, and secret/error-body redaction. It does not yet persist key
 handle tools, expose a frontend command, or contact the live service. `syzygy_platform_contracts`
 reports this narrower status without changing the aggregate remote runtime from `contract-only`.
 
+The credential-vault boundary uses `keyring` 3.6.3 (MIT/Apache-2.0; MSRV 1.75) with native Windows,
+macOS, and persistent Linux backends. Provider secret strings zeroize on drop. The ordinary suite
+uses an in-memory trait implementation; `npm run test:credentials:live` creates a random canary in
+the current OS credential store, reads it back, deletes it, and verifies absence without printing
+the canary. The Windows proof passes, but macOS/Linux live evidence and product-facing key setup are
+still open. Dependency provenance is recorded in `docs/audits/EXTENSION-PROVENANCE.md`.
+
 ## Certification suite
 
 Every adapter runs the same fake-server and live opt-in tests:

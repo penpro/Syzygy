@@ -101,7 +101,7 @@ MCP host
   local MCP host. These paths are local machine metadata, contain no OAuth token or research
   content, and are also visible to the user in Settings.
 - `syzygy_platform_contracts` embeds public schemas and implementation-state labels only. It
-  reports the unwired OpenAI adapter as `request-and-stream-conformance`, and deliberately
+  reports the unwired OpenAI adapter as `request-stream-parser-control-conformance`, and deliberately
   reports the credential vault as `implemented-unverified` and aggregate remote execution,
   the non-executing plugin certifier as `contract-certified-runner`, and adversarial execution and
   plugin loading as `contract-only`; the adversarial record validator is reported separately as

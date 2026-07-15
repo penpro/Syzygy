@@ -2,20 +2,25 @@
 //!
 //! The webview must never construct provider HTTP requests or receive provider credentials.
 //! This first executable slice certifies one-shot OpenAI Responses requests against a fake
-//! loopback server. Credential persistence, streaming, UI invocation, and live-provider calls
-//! remain deliberately unavailable until their separate gates pass.
+//! loopback server. Credential persistence, network-stream event dispatch, UI invocation, and
+//! live-provider calls remain deliberately unavailable until their separate gates pass.
 
 #![allow(dead_code)] // The runtime remains intentionally unwired until credential-vault review.
 
-use futures_util::StreamExt;
+use futures_util::{
+    future::{AbortHandle, AbortRegistration, Abortable},
+    StreamExt,
+};
 use reqwest::{Client, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::fmt;
+use std::{fmt, time::Duration};
 use zeroize::Zeroize;
 
-pub const OPENAI_ADAPTER_STATUS: &str = "request-and-stream-conformance";
+pub const OPENAI_ADAPTER_STATUS: &str = "request-stream-parser-control-conformance";
+pub const DEFAULT_PROVIDER_TIMEOUT: Duration = Duration::from_secs(60);
 const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
+const MAX_PROVIDER_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -53,6 +58,38 @@ impl Drop for ProviderSecret {
     fn drop(&mut self) {
         self.0.zeroize();
     }
+}
+
+/// One-use execution controls. The cancellation half can be held by the caller without exposing
+/// the request, response, or credential to the webview.
+pub struct ProviderExecution {
+    timeout: Duration,
+    cancellation: AbortRegistration,
+}
+
+#[derive(Clone)]
+pub struct ProviderCancellation(AbortHandle);
+
+impl ProviderCancellation {
+    pub fn cancel(&self) {
+        self.0.abort();
+    }
+}
+
+pub fn provider_execution(
+    timeout: Duration,
+) -> Result<(ProviderExecution, ProviderCancellation), ProviderError> {
+    if timeout.is_zero() || timeout > MAX_PROVIDER_TIMEOUT {
+        return Err(ProviderError::InvalidExecution);
+    }
+    let (handle, registration) = AbortHandle::new_pair();
+    Ok((
+        ProviderExecution {
+            timeout,
+            cancellation: registration,
+        },
+        ProviderCancellation(handle),
+    ))
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -148,6 +185,9 @@ pub enum ProviderError {
     DisclosureRequired,
     InvalidDisclosure,
     UnsafeEndpoint,
+    InvalidExecution,
+    Timeout,
+    Cancelled,
     Transport,
     HttpStatus(u16),
     ResponseTooLarge,
@@ -185,6 +225,11 @@ impl fmt::Display for ProviderError {
             Self::InvalidDisclosure => formatter.write_str("Disclosure categories are invalid"),
             Self::UnsafeEndpoint => formatter
                 .write_str("Remote providers require HTTPS; tests may use literal loopback HTTP"),
+            Self::InvalidExecution => {
+                formatter.write_str("Provider execution controls are invalid")
+            }
+            Self::Timeout => formatter.write_str("Provider request timed out"),
+            Self::Cancelled => formatter.write_str("Provider request was cancelled"),
             Self::Transport => formatter.write_str("Provider transport failed"),
             Self::HttpStatus(status) => write!(formatter, "Provider returned HTTP status {status}"),
             Self::ResponseTooLarge => {
@@ -192,6 +237,14 @@ impl fmt::Display for ProviderError {
             }
             Self::MalformedResponse => formatter.write_str("Provider response was malformed"),
         }
+    }
+}
+
+fn classify_transport_error(error: &reqwest::Error) -> ProviderError {
+    if error.is_timeout() {
+        ProviderError::Timeout
+    } else {
+        ProviderError::Transport
     }
 }
 
@@ -233,7 +286,7 @@ async fn bounded_body(response: reqwest::Response) -> Result<Vec<u8>, ProviderEr
     let mut body = Vec::new();
     let mut stream = response.bytes_stream();
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|_| ProviderError::Transport)?;
+        let chunk = chunk.map_err(|error| classify_transport_error(&error))?;
         if body.len() + chunk.len() > MAX_RESPONSE_BYTES {
             return Err(ProviderError::ResponseTooLarge);
         }
@@ -319,23 +372,41 @@ pub async fn execute_openai_response(
     request: &GenerationRequest,
     approval: &TransmissionApproval,
 ) -> Result<NormalizedResponse, ProviderError> {
+    let (execution, _cancellation) = provider_execution(DEFAULT_PROVIDER_TIMEOUT)?;
+    execute_openai_response_controlled(client, endpoint, secret, request, approval, execution).await
+}
+
+pub async fn execute_openai_response_controlled(
+    client: &Client,
+    endpoint: &Url,
+    secret: &ProviderSecret,
+    request: &GenerationRequest,
+    approval: &TransmissionApproval,
+    execution: ProviderExecution,
+) -> Result<NormalizedResponse, ProviderError> {
     validate_endpoint(endpoint)?;
     request.validate()?;
     approval.validate_for(RemoteProviderId::OpenAi)?;
-    let response = client
-        .post(endpoint.clone())
-        .bearer_auth(secret.expose())
-        .header("content-type", "application/json")
-        .json(&openai_body(request))
-        .send()
+    let operation = async {
+        let response = client
+            .post(endpoint.clone())
+            .timeout(execution.timeout)
+            .bearer_auth(secret.expose())
+            .header("content-type", "application/json")
+            .json(&openai_body(request))
+            .send()
+            .await
+            .map_err(|error| classify_transport_error(&error))?;
+        if !response.status().is_success() {
+            return Err(ProviderError::HttpStatus(response.status().as_u16()));
+        }
+        let body = bounded_body(response).await?;
+        let value = serde_json::from_slice(&body).map_err(|_| ProviderError::MalformedResponse)?;
+        normalize_openai(value)
+    };
+    Abortable::new(operation, execution.cancellation)
         .await
-        .map_err(|_| ProviderError::Transport)?;
-    if !response.status().is_success() {
-        return Err(ProviderError::HttpStatus(response.status().as_u16()));
-    }
-    let body = bounded_body(response).await?;
-    let value = serde_json::from_slice(&body).map_err(|_| ProviderError::MalformedResponse)?;
-    normalize_openai(value)
+        .map_err(|_| ProviderError::Cancelled)?
 }
 
 #[cfg(test)]
@@ -345,6 +416,11 @@ mod tests {
     use std::net::TcpListener;
     use std::sync::mpsc;
     use std::thread;
+
+    enum FakeResponsePlan {
+        CompleteAfter(Duration),
+        StallBody(Duration),
+    }
 
     fn request() -> GenerationRequest {
         GenerationRequest {
@@ -366,6 +442,30 @@ mod tests {
     }
 
     fn fake_server(status: &str, body: &str) -> (Url, mpsc::Receiver<String>) {
+        fake_server_with_plan(
+            status,
+            body,
+            FakeResponsePlan::CompleteAfter(Duration::ZERO),
+        )
+    }
+
+    fn fake_server_delayed(
+        status: &str,
+        body: &str,
+        response_delay: Duration,
+    ) -> (Url, mpsc::Receiver<String>) {
+        fake_server_with_plan(
+            status,
+            body,
+            FakeResponsePlan::CompleteAfter(response_delay),
+        )
+    }
+
+    fn fake_server_with_plan(
+        status: &str,
+        body: &str,
+        response_plan: FakeResponsePlan,
+    ) -> (Url, mpsc::Receiver<String>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback fake provider");
         let address = listener.local_addr().expect("fake provider address");
         let (sender, receiver) = mpsc::channel();
@@ -402,12 +502,32 @@ mod tests {
             sender
                 .send(String::from_utf8(bytes).expect("UTF-8 request fixture"))
                 .expect("send captured request");
-            write!(
-                stream,
-                "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-                body.len()
-            )
-            .expect("write fake response");
+            match response_plan {
+                FakeResponsePlan::CompleteAfter(response_delay) => {
+                    thread::sleep(response_delay);
+                    let result = write!(
+                        stream,
+                        "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                        body.len()
+                    );
+                    if response_delay.is_zero() {
+                        result.expect("write fake response");
+                    }
+                }
+                FakeResponsePlan::StallBody(response_delay) => {
+                    let split = body.len() / 2;
+                    write!(
+                        stream,
+                        "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                        body.len(),
+                        &body[..split]
+                    )
+                    .expect("write fake response prefix");
+                    stream.flush().expect("flush fake response prefix");
+                    thread::sleep(response_delay);
+                    let _ = stream.write_all(body[split..].as_bytes());
+                }
+            }
         });
         (
             Url::parse(&format!("http://{address}/v1/responses")).expect("fake URL"),
@@ -534,5 +654,95 @@ mod tests {
             normalize_openai(value),
             Err(ProviderError::MalformedResponse)
         );
+    }
+
+    #[test]
+    fn invalid_timeout_fails_before_transport() {
+        assert!(matches!(
+            provider_execution(Duration::ZERO),
+            Err(ProviderError::InvalidExecution)
+        ));
+        assert!(matches!(
+            provider_execution(MAX_PROVIDER_TIMEOUT + Duration::from_millis(1)),
+            Err(ProviderError::InvalidExecution)
+        ));
+    }
+
+    #[test]
+    fn fake_server_proves_request_timeout_is_distinct_and_sanitized() {
+        let (endpoint, _captured) = fake_server_delayed(
+            "200 OK",
+            r#"{"id":"too_late","status":"completed","output":[]}"#,
+            Duration::from_millis(250),
+        );
+        let (execution, _cancellation) =
+            provider_execution(Duration::from_millis(40)).expect("execution controls");
+        let result = tauri::async_runtime::block_on(execute_openai_response_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("timeout-secret-canary".to_owned()).expect("secret"),
+            &request(),
+            &approval(),
+            execution,
+        ));
+        assert_eq!(result, Err(ProviderError::Timeout));
+        assert!(!result
+            .unwrap_err()
+            .to_string()
+            .contains("timeout-secret-canary"));
+    }
+
+    #[test]
+    fn fake_server_proves_timeout_covers_a_stalled_response_body() {
+        let (endpoint, _captured) = fake_server_with_plan(
+            "200 OK",
+            r#"{"id":"body_too_late","status":"completed","output":[]}"#,
+            FakeResponsePlan::StallBody(Duration::from_millis(250)),
+        );
+        let (execution, _cancellation) =
+            provider_execution(Duration::from_millis(40)).expect("execution controls");
+        let result = tauri::async_runtime::block_on(execute_openai_response_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("body-timeout-secret-canary".to_owned()).expect("secret"),
+            &request(),
+            &approval(),
+            execution,
+        ));
+        assert_eq!(result, Err(ProviderError::Timeout));
+        assert!(!result
+            .unwrap_err()
+            .to_string()
+            .contains("body-timeout-secret-canary"));
+    }
+
+    #[test]
+    fn fake_server_proves_in_flight_cancellation_is_distinct_and_idempotent() {
+        let (endpoint, captured) = fake_server_delayed(
+            "200 OK",
+            r#"{"id":"cancelled","status":"completed","output":[]}"#,
+            Duration::from_millis(250),
+        );
+        let (execution, cancellation) =
+            provider_execution(Duration::from_secs(2)).expect("execution controls");
+        let cancel_from_task = cancellation.clone();
+        thread::spawn(move || {
+            captured.recv().expect("request reached fake server");
+            cancel_from_task.cancel();
+            cancel_from_task.cancel();
+        });
+        let result = tauri::async_runtime::block_on(execute_openai_response_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("cancel-secret-canary".to_owned()).expect("secret"),
+            &request(),
+            &approval(),
+            execution,
+        ));
+        assert_eq!(result, Err(ProviderError::Cancelled));
+        assert!(!result
+            .unwrap_err()
+            .to_string()
+            .contains("cancel-secret-canary"));
     }
 }

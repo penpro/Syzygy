@@ -165,14 +165,18 @@ record(
     providerRuntimeSource.includes('validate_for(RemoteProviderId::OpenAi)') &&
     providerRuntimeSource.includes('MAX_RESPONSE_BYTES') &&
     providerRuntimeSource.includes('endpoint.scheme() == "https"') &&
+    providerRuntimeSource.includes('ProviderError::Timeout') &&
+    providerRuntimeSource.includes('ProviderError::Cancelled') &&
+    providerRuntimeSource.includes('Abortable::new') &&
+    providerRuntimeSource.includes('.timeout(execution.timeout)') &&
     providerStreamSource.includes('MAX_PENDING_BYTES') &&
     providerStreamSource.includes('ProviderWarning') &&
     providerStreamSource.includes('provider-error-body-canary') &&
-    platformContractsSource.includes('request-and-stream-conformance') &&
+    platformContractsSource.includes('request-stream-parser-control-conformance') &&
     platformContractsSource.includes('OPENAI_ADAPTER_STATUS') &&
     platformContractsSource.includes('"remoteProviderAdapters": "contract-only"') &&
     !rustWiringSource.includes('model_provider::execute_openai_response'),
-  'storage-off, disclosure, TLS, bounded request/stream responses, unknown-event/error handling, truthful status, and unwired-runtime gates present',
+  'storage-off, disclosure, TLS, bounded responses, timeout/cancellation, stream parsing, truthful status, and unwired-runtime gates present',
 )
 record(
   'provider credential vault remains isolated',

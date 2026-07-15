@@ -73,14 +73,16 @@ npm run test:providers
 
 The fake loopback provider captures the actual Rust HTTP request and fails unless OpenAI Responses
 uses the expected path, bearer header, `store:false`, bounded output, and approved disclosure. It
-also proves malformed output, unsafe non-TLS endpoints, rejected disclosure, and provider error
-bodies fail without echoing the secret canary. Passing this is request/stream conformance, not live
-availability; product credential integration, network cancellation, UI disclosure, and an opt-in live
-canary are separate gates.
+also proves malformed output, unsafe non-TLS endpoints, rejected disclosure, provider error-body
+redaction, a bounded whole-request deadline (including a body stalled after headers), and idempotent
+in-flight cancellation. Passing this is request/control and stream-parser conformance, not live
+availability; product credential integration, network SSE dispatch, UI disclosure, and an opt-in
+live canary are separate gates.
 
 `npm run test:provider-streams` separately feeds the OpenAI decoder byte-by-byte and with
 multiline, unknown, malformed, mismatched, oversized, and truncated SSE fixtures. It proves parser
-normalization, not network cancellation or a live provider stream.
+normalization, not live network event dispatch; the cancellation proof wraps the one-shot transport
+and bounded body collection.
 
 Run the explicit OS-store canary only when validating a desktop environment:
 

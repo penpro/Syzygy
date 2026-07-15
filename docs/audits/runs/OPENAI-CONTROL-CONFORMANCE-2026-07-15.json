@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "runId": "OPENAI-CONTROL-CONFORMANCE-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "request-stream-parser-control-conformance",
+  "command": "npm run test:providers",
+  "result": {
+    "passed": true,
+    "focusedTestsPassed": 10,
+    "liveNetworkUsed": false,
+    "realCredentialUsed": false,
+    "paidProviderCalls": 0
+  },
+  "regressionGates": {
+    "fullRustTestsPassed": 40,
+    "extensionContractTestsPassed": 14,
+    "frontendModulesTransformed": 989,
+    "structuralAuditChecksPassed": 19,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true
+  },
+  "proved": [
+    "zero or greater-than-ten-minute timeout controls fail before transport",
+    "a fake provider delayed before response headers produces a distinct sanitized timeout",
+    "a fake provider stalled after headers and a partial body produces a distinct sanitized timeout",
+    "a caller can cancel an in-flight request after the fake provider receives it",
+    "repeated cancellation is idempotent and produces a distinct sanitized cancelled result",
+    "the request remains disclosure-gated, HTTPS-or-literal-loopback only, storage-off, size-bounded, normalized, and secret-redacted"
+  ],
+  "notProved": [
+    "live network SSE event dispatch, backpressure, or cancellation between normalized events",
+    "retry-after, reconnect, or duplicate event semantics",
+    "function/tool call streaming",
+    "product credential integration or typed frontend disclosure acceptance",
+    "a live OpenAI request or any model-quality property",
+    "Anthropic, Gemini, xAI, or custom provider controls"
+  ]
+}

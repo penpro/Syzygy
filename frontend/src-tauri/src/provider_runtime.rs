@@ -20,6 +20,7 @@ use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use std::time::Duration;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 const DEFAULT_PROFILE: &str = "default";
 
@@ -35,7 +36,6 @@ pub struct ProviderTaskRequest {
     pub provider: RemoteProviderId,
     pub source_snapshot_ids: Vec<String>,
     pub timeout_ms: u64,
-    pub disclosure_accepted: bool,
     pub content_categories: Vec<String>,
     pub generation: GenerationRequest,
 }
@@ -102,7 +102,7 @@ fn profile(provider: RemoteProviderId) -> ProviderProfile {
 }
 
 fn valid_id(value: &str) -> bool {
-    !value.trim().is_empty() && value.chars().count() <= 200
+    !value.trim().is_empty() && value.chars().count() <= 200 && !value.chars().any(char::is_control)
 }
 
 fn valid_task_type(value: &str) -> bool {
@@ -122,10 +122,54 @@ fn validate_task(request: &ProviderTaskRequest) -> Result<(), String> {
         || request.source_snapshot_ids.len() > 10_000
         || unique_sources.len() != request.source_snapshot_ids.len()
         || request.source_snapshot_ids.iter().any(|id| !valid_id(id))
+        || request.generation.model.trim().is_empty()
+        || request.generation.model.chars().count() > 200
+        || request.generation.model.chars().any(char::is_control)
+        || request.generation.input.is_empty()
+        || request.generation.input.len() > 200
+        || request
+            .generation
+            .input
+            .iter()
+            .any(|item| item.content.is_empty() || item.content.len() > 4 * 1024 * 1024)
+        || !(1..=1_000_000).contains(&request.generation.max_output_tokens)
+        || request.content_categories.is_empty()
+        || request.content_categories.len() > 20
+        || request.content_categories.iter().any(|category| {
+            category.trim().is_empty()
+                || category.chars().count() > 100
+                || category.chars().any(char::is_control)
+        })
     {
-        return Err("Provider task identity or source provenance is invalid".to_owned());
+        return Err(
+            "Provider task identity, model, disclosure, or source provenance is invalid".to_owned(),
+        );
     }
     Ok(())
+}
+
+fn provider_name(provider: RemoteProviderId) -> &'static str {
+    match provider {
+        RemoteProviderId::OpenAi => "OpenAI",
+        RemoteProviderId::Anthropic => "Anthropic",
+        RemoteProviderId::Gemini => "Google Gemini",
+        RemoteProviderId::Xai => "xAI",
+    }
+}
+
+fn disclosure_message(request: &ProviderTaskRequest, endpoint: &Url) -> String {
+    let provider_profile = profile(request.provider);
+    format!(
+        "Send this research request to a remote model?\n\nProvider: {}\nModel: {}\nDestination: {}\nContent categories: {}\nRequests: 1\nStorage request: {}\nZero-retention status: {}\nPolicy reviewed: {}\nPolicy: {}\n\nThe selected research content leaves this device only if you choose Send once.",
+        provider_name(request.provider),
+        request.generation.model,
+        endpoint,
+        request.content_categories.join(", "),
+        provider_profile.storage_request,
+        provider_profile.zero_retention,
+        provider_profile.policy_checked_at,
+        provider_profile.policy_url,
+    )
 }
 
 fn sha256(bytes: &[u8]) -> String {
@@ -162,6 +206,7 @@ fn terminal_status(error: Option<&ProviderError>) -> &'static str {
 fn run_record(
     request: &ProviderTaskRequest,
     endpoint: &Url,
+    disclosure_accepted: bool,
     started_at: &str,
     completed_at: &str,
     response: Option<&NormalizedResponse>,
@@ -214,8 +259,8 @@ fn run_record(
         },
         "disclosure": {
             "required": true,
-            "approved": request.disclosure_accepted,
-            "approvedAt": if request.disclosure_accepted { Some(started_at) } else { None },
+            "approved": disclosure_accepted,
+            "approvedAt": if disclosure_accepted { Some(started_at) } else { None },
             "destination": endpoint.as_str(),
             "policyUrl": provider_profile.policy_url,
             "policyCheckedAt": provider_profile.policy_checked_at
@@ -246,14 +291,35 @@ pub async fn execute_with<V: CredentialVault>(
     client: &Client,
     endpoint: Url,
     request: ProviderTaskRequest,
+    disclosure_accepted: bool,
 ) -> Result<ProviderTaskOutcome, String> {
     validate_task(&request)?;
+    let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    if !disclosure_accepted {
+        let error = ProviderError::DisclosureRequired;
+        let completed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+        return Ok(ProviderTaskOutcome {
+            run_record: run_record(
+                &request,
+                &endpoint,
+                false,
+                &started_at,
+                &completed_at,
+                None,
+                None,
+                Some(&error),
+            ),
+            response: None,
+            zero_data_retention: None,
+            error_code: Some(error_code(&error).to_owned()),
+        });
+    }
+    let (execution, cancellation) = provider_execution(Duration::from_millis(request.timeout_ms))
+        .map_err(|error| error.to_string())?;
     let credential_id = CredentialId::new(request.provider, DEFAULT_PROFILE.to_owned())
         .map_err(|error| error.to_string())?;
     let secret = vault
         .get(&credential_id)
-        .map_err(|error| error.to_string())?;
-    let (execution, cancellation) = provider_execution(Duration::from_millis(request.timeout_ms))
         .map_err(|error| error.to_string())?;
     {
         let mut calls = state
@@ -265,11 +331,10 @@ pub async fn execute_with<V: CredentialVault>(
         }
         calls.insert(request.call_id.clone(), cancellation);
     }
-    let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     let approval = TransmissionApproval {
         provider: request.provider,
         content_categories: request.content_categories.clone(),
-        accepted: request.disclosure_accepted,
+        accepted: true,
     };
     let result = match request.provider {
         RemoteProviderId::OpenAi => execute_openai_response_controlled(
@@ -322,6 +387,7 @@ pub async fn execute_with<V: CredentialVault>(
             run_record: run_record(
                 &request,
                 &endpoint,
+                true,
                 &started_at,
                 &completed_at,
                 Some(&response),
@@ -336,6 +402,7 @@ pub async fn execute_with<V: CredentialVault>(
             run_record: run_record(
                 &request,
                 &endpoint,
+                true,
                 &started_at,
                 &completed_at,
                 None,
@@ -349,28 +416,47 @@ pub async fn execute_with<V: CredentialVault>(
     }
 }
 
-#[allow(dead_code)] // Registered only after the native disclosure UI can authorize each call.
+#[tauri::command]
 pub async fn provider_generate(
+    app: tauri::AppHandle,
     state: tauri::State<'_, ProviderRuntimeState>,
     request: ProviderTaskRequest,
 ) -> Result<ProviderTaskOutcome, String> {
+    validate_task(&request)?;
     let endpoint = Url::parse(profile(request.provider).endpoint)
         .map_err(|_| "Built-in provider endpoint is invalid".to_owned())?;
+    let message = disclosure_message(&request, &endpoint);
+    let approved = tauri::async_runtime::spawn_blocking(move || {
+        app.dialog()
+            .message(message)
+            .title("Remote model disclosure")
+            .buttons(MessageDialogButtons::OkCancelCustom(
+                "Send once".to_owned(),
+                "Cancel".to_owned(),
+            ))
+            .blocking_show()
+    })
+    .await
+    .map_err(|_| "Remote model disclosure dialog could not be shown".to_owned())?;
     execute_with(
         &OsCredentialVault,
         &state,
         &Client::new(),
         endpoint,
         request,
+        approved,
     )
     .await
 }
 
-#[allow(dead_code)] // Registered with provider_generate after the disclosure UI lands.
+#[tauri::command]
 pub fn provider_cancel(
     state: tauri::State<'_, ProviderRuntimeState>,
     call_id: String,
 ) -> Result<bool, String> {
+    if !valid_id(&call_id) {
+        return Err("Provider call ID is invalid".to_owned());
+    }
     let calls = state
         .0
         .lock()
@@ -470,7 +556,6 @@ mod tests {
             provider: RemoteProviderId::OpenAi,
             source_snapshot_ids: vec!["source-a".to_owned()],
             timeout_ms: 5_000,
-            disclosure_accepted: true,
             content_categories: vec!["selected research excerpts".to_owned()],
             generation: GenerationRequest {
                 model: "fixture-model".to_owned(),
@@ -516,6 +601,7 @@ mod tests {
             &Client::new(),
             endpoint,
             task(),
+            true,
         ))
         .expect("runtime outcome");
         server.join().unwrap();
@@ -533,24 +619,60 @@ mod tests {
 
     #[test]
     fn runtime_records_disclosure_denial_without_contacting_network() {
-        let vault = MemoryVault::default();
-        let id = CredentialId::new(RemoteProviderId::OpenAi, DEFAULT_PROFILE.to_owned()).unwrap();
-        vault
-            .set(&id, &ProviderSecret::new("fixture-key".to_owned()).unwrap())
-            .unwrap();
-        let mut denied = task();
-        denied.disclosure_accepted = false;
+        struct VaultMustNotBeRead;
+        impl CredentialVault for VaultMustNotBeRead {
+            fn set(
+                &self,
+                _: &CredentialId,
+                _: &ProviderSecret,
+            ) -> Result<(), CredentialVaultError> {
+                panic!("denied task must not write credentials")
+            }
+            fn get(&self, _: &CredentialId) -> Result<ProviderSecret, CredentialVaultError> {
+                panic!("denied task must not read credentials")
+            }
+            fn delete(&self, _: &CredentialId) -> Result<(), CredentialVaultError> {
+                panic!("denied task must not delete credentials")
+            }
+        }
         let endpoint = Url::parse("http://127.0.0.1:9/v1/responses").unwrap();
         let outcome = tauri::async_runtime::block_on(execute_with(
-            &vault,
+            &VaultMustNotBeRead,
             &ProviderRuntimeState::default(),
             &Client::new(),
             endpoint,
-            denied,
+            task(),
+            false,
         ))
         .expect("typed denial");
         assert_eq!(outcome.error_code.as_deref(), Some("disclosure-required"));
         assert_eq!(outcome.run_record["result"]["status"], "failed");
         assert_eq!(outcome.run_record["disclosure"]["approved"], false);
+    }
+
+    #[test]
+    fn disclosure_is_bounded_informative_and_content_free() {
+        let request = task();
+        let endpoint = Url::parse(profile(request.provider).endpoint).unwrap();
+        let message = disclosure_message(&request, &endpoint);
+        assert!(message.contains("Provider: OpenAI"));
+        assert!(message.contains("Model: fixture-model"));
+        assert!(message.contains("Content categories: selected research excerpts"));
+        assert!(message.contains("Requests: 1"));
+        assert!(message.contains("Storage request: disabled"));
+        assert!(message.contains("Policy reviewed:"));
+        assert!(message.contains("https://platform.openai.com/"));
+        assert!(!message.contains("fixture question"));
+    }
+
+    #[test]
+    fn disclosure_fields_reject_control_characters_before_dialog_or_transport() {
+        let mut request = task();
+        request.content_categories = vec!["selected excerpts\nDestination: attacker".to_owned()];
+        assert!(validate_task(&request).is_err());
+
+        let mut request = task();
+        request.generation.model = "fixture\nRequests: 0".to_owned();
+        assert!(validate_task(&request).is_err());
     }
 }

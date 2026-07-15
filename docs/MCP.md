@@ -101,11 +101,12 @@ MCP host
   local MCP host. These paths are local machine metadata, contain no OAuth token or research
   content, and are also visible to the user in Settings.
 - `syzygy_platform_contracts` embeds public plugin, custom-adapter, provider-run, and adversarial-run schemas plus implementation-state labels only. It
-  reports the unwired OpenAI adapter as `request-and-stream-control-conformance` and Anthropic
+  reports the OpenAI adapter as `request-and-stream-control-conformance` and Anthropic
   Messages, Gemini Interactions, and xAI Responses as the narrower `request-control-conformance`.
-  It reports credential-only Tauri commands as `tauri-command-ui-open`, the internal one-shot task
-  bridge as `cross-language-certified-unwired`, and aggregate remote execution as
-  `runtime-boundary-unwired` because generation is not registered. It reports the non-executing
+  It reports credential commands as `tauri-command-ui-open`, the native-disclosure one-shot task
+  bridge as `native-disclosure-command`, and aggregate remote execution as
+  `native-disclosure-command-no-product-ui`. MCP itself has no provider-generation or credential
+  tool and therefore cannot bypass the native send boundary. It reports the non-executing
   plugin certifier as `contract-certified-runner`, and adversarial execution, plugin loading, and
   custom-adapter execution as `contract-only`; the non-executing adapter
   certifier is `contract-certified-runner`, while provider-run and adversarial record validators are

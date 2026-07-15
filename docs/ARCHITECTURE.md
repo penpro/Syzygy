@@ -62,7 +62,7 @@ source of project truth.
 | `mcp_setup.rs` | Running-executable discovery plus copy-ready JSON/TOML configuration and connection prompts shared by the UI and MCP. |
 | `platform_contracts.rs` | Machine-readable provider-run, adversarial-review, and researcher-plugin schemas/status exposed to headless MCP clients. |
 | `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses one-shot/SSE plus Anthropic Messages, Gemini Interactions, and xAI Responses one-shot wire contracts have fake-server evidence with bounded controls and sanitized normalization. |
-| `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. Fake-network execution and Rust→TypeScript record validation are proven, credential set/status/delete are typed Tauri commands, and generation remains unregistered until the human disclosure surface exists. |
+| `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. Generation and cancellation are typed Tauri commands; every generation call uses a blocking native dialog to create one-use approval before any vault read or network access. Fake-network execution and Rust→TypeScript record validation are proven; no product workflow calls the command yet. |
 | `provider_stream.rs` | Incremental provider SSE normalization. The OpenAI decoder handles byte-fragmented Unicode, multiline frames, usage/finish events, unknown future events, sanitized provider errors, and bounded malformed/truncated input. |
 | `credential_vault.rs` | Provider-secret abstraction backed by Windows Credential Manager, macOS Keychain, or Linux Secret Service/keyutils. Unit tests use only a memory implementation; a separate live harness creates and deletes a random OS-store canary. |
 
@@ -123,7 +123,7 @@ execution have shipped.
 | Collaborative project updates | IndexedDB database `syzygy-project-v1:<projectId>` |
 | Sanitized diagnostic history (last 500 entries) | localStorage key `syzygy-diagnostic-log-v1` (webview) |
 | Google refresh token + client info | `<app-data>/google_auth.json` (Rust-only) |
-| Optional remote-model API keys | OS credential store under service `org.penumbra.syzygy.model-provider`; typed set/status/delete commands exist, but no key field or generation UI is enabled |
+| Optional remote-model API keys | OS credential store under service `org.penumbra.syzygy.model-provider`; typed set/status/delete commands exist, but no product key field or generation workflow is enabled |
 | Selected Drive workspace ID/name | `<app-data>/drive_workspace.json` |
 | Models (GGUF) | `<app-data>/models/` |
 | Optional Drive mirror folder | `<Documents>/Syzygy` (manual sync with Drive folder "Syzygy") |
@@ -161,10 +161,11 @@ execution have shipped.
   `syzygy_installation` tool. See `MCP.md`.
 - **Extensions request narrow authority.** Remote provider secrets and HTTPS stay in Rust. The
   OpenAI request/stream plus Anthropic, Gemini, and xAI one-shot boundaries are fake-server
-  certified. The OS vault now has typed credential-only commands, and an internal one-shot task
-  bridge proves vault lookup, normalized execution, cancellation registration, and content-free
-  provenance, including Rust-to-TypeScript validation. Generation is deliberately absent from the
-  Tauri handler until the human disclosure surface lands. Other remote adapters remain contract-only.
+  certified. Typed vault and generation commands now exist. Generation cannot accept an approval
+  boolean from the webview: Rust shows a native per-send disclosure, and denial returns provenance
+  before vault or network access. The bridge proves normalized execution, cancellation, and
+  content-free Rust-to-TypeScript provenance. No product workflow or MCP tool invokes it yet;
+  streamed tools, live-provider certification, and other remote adapters remain open.
   Plugins declare capabilities and submit revision-guarded proposals. No plugin
   code executes in the webview and no contract-only feature may report itself as available. See
   `PROVIDER-API.md`, `PLUGIN-API.md`, and ADR-0002/0003.

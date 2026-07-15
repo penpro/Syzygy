@@ -241,18 +241,25 @@ record(
     !rustWiringSource.includes('model_provider::execute_openai_stream_controlled') &&
     !rustWiringSource.includes('model_provider::execute_anthropic_response') &&
     !rustWiringSource.includes('model_provider::execute_gemini_response') &&
-    !rustWiringSource.includes('provider_runtime::provider_generate') &&
+    rustWiringSource.includes('provider_runtime::provider_generate') &&
+    rustWiringSource.includes('provider_runtime::provider_cancel') &&
     providerTaskRuntimeSource.includes('execute_openai_response_controlled') &&
     providerTaskRuntimeSource.includes('execute_anthropic_response_controlled') &&
     providerTaskRuntimeSource.includes('execute_gemini_response_controlled') &&
     providerTaskRuntimeSource.includes('execute_xai_response_controlled') &&
     providerTaskRuntimeSource.includes('run_record(') &&
-    providerTaskRuntimeSource.includes('Registered only after the native disclosure UI') &&
-    platformContractsSource.includes('"remoteProviderAdapters": "runtime-boundary-unwired"') &&
-    platformContractsSource.includes('"providerTaskRuntime": "cross-language-certified-unwired"') &&
+    providerTaskRuntimeSource.includes('MessageDialogButtons::OkCancelCustom') &&
+    providerTaskRuntimeSource.includes('.blocking_show()') &&
+    providerTaskRuntimeSource.includes('spawn_blocking') &&
+    !providerTaskRuntimeSource.includes('pub disclosure_accepted') &&
+    platformContractsSource.includes('"remoteProviderAdapters": "native-disclosure-command-no-product-ui"') &&
+    platformContractsSource.includes('"providerTaskRuntime": "native-disclosure-command"') &&
     providerTaskRuntimeSource.includes('"executionMode": execution_mode') &&
+    text('frontend/src/tauri.ts').includes("invoke('provider_generate'") &&
+    text('frontend/src/tauri.ts').includes("invoke('provider_cancel'") &&
+    !text('frontend/src/tauri.ts').includes('disclosureAccepted') &&
     text('frontend/src-tauri/src/bin/provider-runtime-harness.rs').includes('interop-secret-canary'),
-  'OpenAI request/stream plus Anthropic, Gemini, and xAI request wire contracts, content-free task runtime, disclosure/storage/ZDR controls, truthful status, and unregistered generation gate present',
+  'OpenAI request/stream plus Anthropic, Gemini, and xAI request wire contracts, content-free task runtime, native non-forgeable disclosure, cancellation, typed command wiring, and truthful no-product-UI status present',
 )
 record(
   'provider credential vault remains isolated',
@@ -272,8 +279,8 @@ record(
     rustWiringSource.includes('provider_runtime::provider_credential_status') &&
     rustWiringSource.includes('provider_runtime::provider_credential_delete') &&
     text('frontend/src/tauri.ts').includes("invoke('provider_credential_set'") &&
-    !text('frontend/src/tauri.ts').includes("invoke('provider_generate'"),
-  'exact keyring backends, zeroization, sanitized vault, cleanup harness, typed credential-only Tauri commands, no generation command',
+    text('frontend/src/tauri.ts').includes("invoke('provider_generate'"),
+  'exact keyring backends, zeroization, sanitized vault, cleanup harness, and typed credential plus native-gated generation commands',
 )
 const mcpSetupSource = text('frontend/src/components/McpSetupModal.tsx')
 record(

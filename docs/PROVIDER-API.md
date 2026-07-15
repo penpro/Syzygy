@@ -2,11 +2,13 @@
 
 **Contract version:** 1. **Runtime status:** local adapter available; OpenAI Responses request,
 bounded timeout/cancellation, and fake-network incremental stream dispatch are at
-`request-and-stream-control-conformance` and intentionally not product-callable; Anthropic
+`request-and-stream-control-conformance`; Anthropic
 Messages, Gemini Interactions, and xAI Responses one-shot requests are at
-`request-control-conformance`. A Rust one-shot task bridge is fake-network certified but remains
-unregistered pending human disclosure UI; credential set/status/delete are typed Tauri commands
-without a product key field. Custom remote adapters are contract-only.
+`request-control-conformance`. A Rust one-shot task bridge is fake-network certified and registered
+with typed generation/cancellation commands. Each call obtains one-use approval from a native
+dialog before vault or network access; the request cannot provide its own approval. Credential
+set/status/delete are also typed commands, but no product key field or generation workflow calls
+them yet. Custom remote adapters are contract-only.
 
 The canonical TypeScript contract is `frontend/src/extensions/providerContract.ts`. It prevents
 research workflows from depending on a vendor response shape and keeps provider availability
@@ -23,13 +25,13 @@ undisclosed remote call, HTTP remote endpoint, false ZDR claim, output attached 
 or inconsistent token total. MCP publishes the exact schema and truthful validator status.
 
 This record is an interchange and audit boundary, not proof that a provider honored its policy.
-The transport's fake/live evidence and the dated policy source remain separate artifacts. Product
+The transport's fake/live evidence and the dated policy source remain separate artifacts.
 The internal Rust task bridge now creates the record for completed, failed, cancelled, and timed-out
 attempts. Its loopback harness passes the serialized Rust record directly through the public
 TypeScript schema and semantic validator. A `loopback-conformance` marker permits only an actual
-literal-loopback destination; omitted/`product` records still require remote HTTPS. Generation is
-not registered with Tauri yet, so this is cross-language conformance evidence, not a
-product-available remote call.
+literal-loopback destination; omitted/`product` records still require remote HTTPS. The registered
+command and native disclosure are an internal product boundary, not proof of a live provider or a
+user-accessible remote-model workflow.
 
 ## Required adapter behavior
 
@@ -75,9 +77,10 @@ in-flight cancellation. Invalid or overlong timeout controls fail before transpo
 stream path verifies the SSE media type, feeds real HTTP byte chunks through the same decoder,
 enforces start/finish/end order and a 32 MiB aggregate ceiling, serially dispatches normalized
 events, distinguishes sanitized provider failure, and cancels between events. The internal one-shot
-task bridge now retrieves saved keys and authors provenance, but it does not handle streamed tools,
-expose generation to the frontend, or contact the live service. `syzygy_platform_contracts` reports
-aggregate status as `runtime-boundary-unwired`.
+task bridge now retrieves saved keys and authors provenance behind a typed native-disclosure
+command, but no product workflow calls it and no live service has been contacted. It does not
+handle streamed tools. `syzygy_platform_contracts` reports aggregate status as
+`native-disclosure-command-no-product-ui`.
 
 The incremental OpenAI SSE decoder accepts arbitrary byte fragmentation, including split Unicode;
 joins multiline `data:` fields; ignores keepalives; validates optional SSE event labels against
@@ -94,7 +97,7 @@ uses an in-memory trait implementation; `npm run test:credentials:live` creates 
 the current OS credential store, reads it back, deletes it, and verifies absence without printing
 the canary. Credential-only Tauri commands and `tauri.ts` wrappers now set, report presence, or
 delete the default provider key without returning it. No product key field exists; macOS/Linux live
-evidence, transient-entry leak tests, and disclosure UI remain open. Dependency provenance is
+evidence, transient-entry leak tests, and product workflow UI remain open. Dependency provenance is
 recorded in `docs/audits/EXTENSION-PROVENANCE.md`.
 
 The first Anthropic Messages slice is also Rust-owned and fake-server-only. It proves the exact

@@ -421,8 +421,9 @@ making a paid provider mandatory.
 Progress: the strict Draft 2020-12 provider-run schema and plan-independent semantic validator now
 land. Synthetic fixtures prove content exclusion, remote disclosure/HTTPS, dated policy metadata,
 typed retention attestation, terminal-state consistency, source identity, token totals, and cost
-bounds. MCP embeds the same schema. Runtime emission remains open until model execution is product
-wired; a client-authored record is not authoritative evidence.
+bounds. MCP embeds the same schema. The registered Rust one-shot command now authors the record;
+workflow persistence and live-provider evidence remain open, and client-authored records are not
+authoritative evidence.
 
 The constrained custom-adapter profile and non-executing headless certifier now also land. They
 cover OpenAI Responses, Chat Completions, and Anthropic Messages compatibility; pin literal
@@ -468,17 +469,17 @@ model, or filesystem access; native MCP is never described as sandboxed; all mut
 revision-guarded proposals with a human-visible diff and attribution.
 
 Machine-readable inspection is available through `syzygy_platform_contracts`. It must distinguish
-the cross-language-certified but unregistered provider task bridge from product availability, and
+the native-disclosure command with no product caller from product availability, and
 continue returning `contract-only` for adversarial execution, custom-adapter execution, and plugin
 loading.
 
 Progress: OpenAI Responses one-shot request construction, bounded whole-operation timeout,
 idempotent in-flight/inter-event cancellation, and fake-network incremental SSE dispatch now pass
 unwired Rust conformance suites and are reported as `request-and-stream-control-conformance`.
-Aggregate remote execution is now `runtime-boundary-unwired`: an internal one-shot task bridge
-retrieves an injected vault credential, applies disclosure/timeout/cancellation controls, normalizes
-the response, and authors content-free provenance. Generation remains outside the Tauri handler
-until the human disclosure surface lands; streamed tools and opt-in live evidence are also open.
+Aggregate remote execution is now `native-disclosure-command-no-product-ui`: the registered
+one-shot task bridge retrieves an OS-vault credential, applies native one-use
+disclosure/timeout/cancellation controls, normalizes the response, and authors content-free
+provenance. No product component calls it; streamed tools and opt-in live evidence are also open.
 The cross-language record gate now passes: the Rust loopback execution record is explicitly marked
 as conformance evidence and passes both the public TypeScript schema and semantic validator without
 leaking its secret or prompt canaries.
@@ -493,9 +494,11 @@ response attestation; its stream/tool paths remain open, so it is not product-av
 
 Credential progress: the cross-platform OS-vault abstraction, zeroizing secret wrapper, memory
 contract tests, and an opt-in Windows Credential Manager create/read/delete/absence canary pass.
-Typed credential-only Tauri commands and wrappers now exist, but no product key field calls them.
-macOS/Linux live canaries, transient-entry and end-to-end leak scans remain open; generation is
-still unavailable.
+Typed credential and generation/cancellation Tauri commands and wrappers now exist, but no product
+key field or task workflow calls them. The generation request carries no approval boolean; a
+Rust-owned native dialog creates one-use approval, and denial is headlessly proven not to read the
+vault or contact the network. macOS/Linux live canaries, transient-entry and end-to-end leak scans,
+and a packaged native-dialog click proof remain open.
 
 ## 11. Recommended next slice
 

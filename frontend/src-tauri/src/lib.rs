@@ -39,6 +39,7 @@ pub fn run() {
         .manage(Downloads(Mutex::new(HashMap::new())))
         .manage(Granted(Mutex::new(HashSet::new())))
         .manage(automation::AutomationState::default())
+        .manage(provider_runtime::ProviderRuntimeState::default())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -161,6 +162,8 @@ pub fn run() {
             automation::automation_ready,
             automation::automation_respond,
             mcp_setup::mcp_connection_info,
+            provider_runtime::provider_generate,
+            provider_runtime::provider_cancel,
             provider_runtime::provider_credential_set,
             provider_runtime::provider_credential_status,
             provider_runtime::provider_credential_delete,

@@ -62,7 +62,6 @@ fn main() {
         provider: RemoteProviderId::OpenAi,
         source_snapshot_ids: vec!["interop-source-001".to_owned()],
         timeout_ms: 5_000,
-        disclosure_accepted: true,
         content_categories: vec!["synthetic interoperability fixture".to_owned()],
         generation: GenerationRequest {
             model: "interop-model".to_owned(),
@@ -79,6 +78,7 @@ fn main() {
         &Client::new(),
         endpoint,
         request,
+        true,
     ))
     .expect("provider runtime fixture");
     server.join().expect("fixture server");

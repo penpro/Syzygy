@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "runId": "NATIVE-PROVIDER-DISCLOSURE-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "native-disclosure-command-no-product-ui",
+  "commands": [
+    "npm run test:provider-runtime",
+    "npm run test:provider-runtime-interop",
+    "npm run test:contracts",
+    "cargo test --manifest-path src-tauri/Cargo.toml",
+    "npm run build",
+    "npm run audit",
+    "npm run test:mcp"
+  ],
+  "result": {
+    "passed": true,
+    "providerRuntimeTestsPassed": 4,
+    "interopTestsPassed": 1,
+    "rustRecordBytes": 1142,
+    "extensionContractTestsPassed": 26,
+    "extensionInteropTestsSkippedWithoutFixture": 1,
+    "fullRustTestsPassed": 63,
+    "frontendModulesTransformed": 989,
+    "structuralAuditChecksPassed": 21,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false
+  },
+  "proved": [
+    "ProviderTaskRequest has no disclosure-accepted field, so a webview caller cannot assert its own human approval.",
+    "The registered provider_generate command validates bounded model/category disclosure data and uses a Rust-owned native dialog with explicit Send once and Cancel buttons.",
+    "The dialog call runs off the main thread, and only its boolean result becomes the one-use transport approval.",
+    "A denied call returns a content-free failed provider-run record before credential lookup, cancellation registration, or network transport; the denial test uses a vault that panics if read.",
+    "The disclosure copy names provider, model, exact destination, content categories, one request, storage request, zero-retention status, and dated policy source without embedding raw prompt content.",
+    "Model names, content categories, task identifiers, generation bounds, and cancellation identifiers fail closed before they can mislead the dialog or enter runtime state.",
+    "Generation, cancellation, and credential operations are registered only through typed tauri.ts wrappers.",
+    "The compiled MCP remains at twelve tools, has no provider-generation or credential authority, reports the new limited status, and keeps stdout protocol-clean.",
+    "The Rust-authored conformance record still passes the public JSON schema and TypeScript semantic validator without credential or prompt canaries."
+  ],
+  "notProved": [
+    "A human clicked the real packaged OS dialog; that requires a GUI smoke check.",
+    "A product settings or research workflow UI can configure and start the call; no product component calls the typed commands yet.",
+    "Caller-described categories match a frozen domain task; category derivation and input-hash binding remain a workflow gate.",
+    "A live OpenAI, Anthropic, Gemini, or xAI request, current policy behavior, billing, or retention attestation.",
+    "Streaming, tools, retries, reasoning continuity, or adversarial multi-provider orchestration.",
+    "Transient key-entry DOM/memory, macOS/Linux credential stores, logs, exports, or crash artifacts are leak-free."
+  ]
+}

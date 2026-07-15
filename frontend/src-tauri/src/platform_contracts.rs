@@ -1,8 +1,8 @@
 //! Self-describing research extension contracts shared with headless MCP clients.
 //!
 //! These are capability contracts and truthful implementation states, not a plugin loader or a
-//! claim that the internal provider task runtime is product-callable. Keeping them callable
-//! without the GUI lets CI and external reviewers inspect the same boundary future UI must honor.
+//! claim that every contract has a product UI. Keeping them callable without the GUI lets CI and
+//! external reviewers inspect the same boundaries the typed Tauri commands must honor.
 
 use serde_json::{json, Value};
 
@@ -38,8 +38,8 @@ pub fn current() -> Result<Value, String> {
         "contractVersion": 1,
         "implementationStatus": {
             "localProvider": "available",
-            "remoteProviderAdapters": "runtime-boundary-unwired",
-            "providerTaskRuntime": "cross-language-certified-unwired",
+            "remoteProviderAdapters": "native-disclosure-command-no-product-ui",
+            "providerTaskRuntime": "native-disclosure-command",
             "providerRunRecordValidator": "implemented",
             "modelAdapterCertifier": "contract-certified-runner",
             "credentialVault": "tauri-command-ui-open",
@@ -121,11 +121,11 @@ mod tests {
         assert_eq!(contracts["contractVersion"], 1);
         assert_eq!(
             contracts["implementationStatus"]["remoteProviderAdapters"],
-            "runtime-boundary-unwired"
+            "native-disclosure-command-no-product-ui"
         );
         assert_eq!(
             contracts["implementationStatus"]["providerTaskRuntime"],
-            "cross-language-certified-unwired"
+            "native-disclosure-command"
         );
         assert_eq!(
             contracts["providerAdapterStatus"]["openai-responses"],

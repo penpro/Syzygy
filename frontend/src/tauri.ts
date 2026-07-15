@@ -6,6 +6,7 @@ import { invoke as rawInvoke } from '@tauri-apps/api/core'
 import { save } from '@tauri-apps/plugin-dialog'
 import { download as downloadBlob } from './util'
 import { logError } from './log'
+import type { ProviderRunRecord } from './extensions/providerRunRecord'
 
 /** Every backend call goes through here, so every backend FAILURE lands in the diagnostic log
  * automatically (command name + error text only — never arguments or file contents). */
@@ -46,6 +47,54 @@ export interface McpConnectionInfo {
 }
 
 export type RemoteProviderId = 'openai' | 'anthropic' | 'gemini' | 'xai'
+
+export type ProviderInputRole = 'developer' | 'user'
+
+export interface ProviderInput {
+  role: ProviderInputRole
+  content: string
+}
+
+export interface ProviderGenerationRequest {
+  model: string
+  input: ProviderInput[]
+  maxOutputTokens: number
+}
+
+export interface ProviderTaskRequest {
+  runId: string
+  callId: string
+  taskType: string
+  provider: RemoteProviderId
+  sourceSnapshotIds: string[]
+  timeoutMs: number
+  contentCategories: string[]
+  generation: ProviderGenerationRequest
+}
+
+export interface ProviderNormalizedUsage {
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+}
+
+export interface ProviderNormalizedResponse {
+  provider: RemoteProviderId
+  id: string
+  status: string
+  model: string | null
+  text: string
+  refusals: string[]
+  unknownOutputTypes: string[]
+  usage: ProviderNormalizedUsage | null
+}
+
+export interface ProviderTaskOutcome {
+  response: ProviderNormalizedResponse | null
+  zeroDataRetention: boolean | null
+  errorCode: string | null
+  runRecord: ProviderRunRecord
+}
 
 // ---------- engine & models ----------
 
@@ -296,6 +345,17 @@ export const automationReady = (): Promise<void> => invoke('automation_ready')
 export const mcpConnectionInfo = (): Promise<McpConnectionInfo> => invoke('mcp_connection_info')
 
 // ---------- optional remote-provider credentials ----------
+
+/**
+ * Run one remote-provider request. Rust shows the native, per-send disclosure before reading the
+ * OS-vault key or contacting the network; approval is intentionally absent from this input shape.
+ */
+export const providerGenerate = (request: ProviderTaskRequest): Promise<ProviderTaskOutcome> =>
+  invoke('provider_generate', { request })
+
+/** Cancel an active provider call by its caller-generated ID. */
+export const providerCancel = (callId: string): Promise<boolean> =>
+  invoke('provider_cancel', { callId })
 
 /** Store or replace one provider key in the OS credential vault. The key is never persisted in app state. */
 export const providerCredentialSet = (provider: RemoteProviderId, secret: string): Promise<void> =>

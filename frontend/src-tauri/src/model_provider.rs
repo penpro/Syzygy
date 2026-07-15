@@ -2,11 +2,11 @@
 //!
 //! The webview must never construct provider HTTP requests or receive provider credentials.
 //! Executable slices certify OpenAI Responses request/stream plus Anthropic Messages, Gemini
-//! Interactions, and xAI Responses one-shot contracts against fake loopback servers. Product credential integration, frontend event
-//! delivery, UI invocation, and live-provider calls remain deliberately unavailable until their
-//! separate gates pass.
+//! Interactions, and xAI Responses one-shot contracts against fake loopback servers. The native
+//! task command now owns credentials, disclosure, cancellation, and one-shot delivery; product UI,
+//! streaming event delivery, and live-provider certification remain separate gates.
 
-#![allow(dead_code)] // The runtime remains intentionally unwired until product-boundary review.
+#![allow(dead_code)] // Conformance-only helpers remain alongside the product task boundary.
 
 use crate::provider_stream::{NormalizedStreamEvent, OpenAiSseDecoder};
 use futures_util::{

@@ -97,8 +97,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   cancellation now have fake-server evidence. Real HTTP SSE chunks are incrementally normalized,
   terminal order and aggregate size are enforced, and sanitized provider errors remain distinct.
   The adapter is labeled `request-and-stream-control-conformance`; tools, the frontend event bridge,
-  UI disclosure, and opt-in live-provider proof remain gates before availability.
-- The provider credential vault is now implemented but not product-wired. Its provider-neutral
+  product workflow UI, and opt-in live-provider proof remain gates before availability.
+- The provider credential vault is now implemented but has no product settings caller. Its provider-neutral
   trait passes an in-memory set/read/delete/error-redaction suite; secret strings zeroize on drop;
   and a Windows Credential Manager harness created, read, deleted, and independently proved absence
   of a random canary without printing it. Native macOS Keychain and persistent Linux backend builds
@@ -118,11 +118,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - Adversarial run record v1 is now a public strict Draft 2020-12 schema, embedded in the headless
   MCP platform contract and checked for drift against the typed valid fixture. Structural schema
   success is explicitly separate from plan-relative semantic validation and any quality claim.
-- Anthropic Messages now has an unwired one-shot `request-control-conformance` slice. A fake server
+- Anthropic Messages now has a one-shot `request-control-conformance` slice. A fake server
   proves the current `/v1/messages` path, `x-api-key`, pinned API version, system/user mapping,
   bounds, normalized text/usage, thinking-block non-retention, sanitized failure, timeout, and
-  cancellation. Anthropic streaming, tools, frontend disclosure, and live proof remain open.
-- Gemini Interactions now has an unwired stable-v1 `request-control-conformance` slice. Its fake
+  cancellation. Anthropic streaming, tools, product workflow UI, and live proof remain open.
+- Gemini Interactions now has a stable-v1 `request-control-conformance` slice. Its fake
   server proves header auth, storage/background/stream off, thought-summary suppression, system and
   user mapping, output bounds, text-only retention, consistent aggregate usage, sanitized failure,
   timeout, and cancellation. Streaming, tools/thought signatures, UI, and live proof remain open.
@@ -131,14 +131,18 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   mandatory boolean ZDR attestation without confusing standard retention with enterprise ZDR.
 - A strict public provider-run record now captures content-free call provenance, disclosure,
   destination, dated policy, storage/ZDR state, terminal outcome, usage, and cost. Its semantic
-  validator and MCP embedding are implemented; authoritative runtime emission remains open.
+  validator and MCP embedding are implemented; the Rust task command now emits authoritative
+  records, while workflow persistence and live-provider evidence remain open.
 - Custom compatible model adapters now have strict profile/certification schemas, a non-executing
   package runner, hostile profile fixtures, exact endpoint probes, and a documented local-vLLM
   example. Runtime transport and credentials remain `contract-only`.
 - The built-in one-shot provider task bridge now proves vault lookup, fixed-endpoint dispatch,
   sanitized normalized output, disclosure denial without network contact, and Rust-authored
-  content-free provenance. Credential-only Tauri commands exist; generation remains unregistered
-  pending the human disclosure surface.
+  content-free provenance. Credential and generation/cancellation Tauri commands exist. Generation
+  always asks through a Rust-owned native **Send once** dialog; approval is absent from the request,
+  and denial is proven to avoid both vault reads and network. No product workflow calls it yet.
+  The headless proof and non-claims are recorded in
+  `docs/audits/runs/NATIVE-PROVIDER-DISCLOSURE-2026-07-15.json`.
 - The actual Rust-authored task record now crosses process serialization and passes the public
   TypeScript schema plus semantic validator. Loopback evidence is explicitly marked and cannot be
   mistaken for a production HTTPS call.
@@ -168,8 +172,9 @@ collaborators are not required to download large project folders.
    - Design target: the "research editor" panel of the approved mockup (version rail,
      evaluation panel, mono metadata stamps).
 3. **Certify the open research platform boundary** — the first OpenAI fake-server/key-canary
-   request/stream/control gates and Windows credential-vault canary have landed; next implement
-   the typed frontend event/disclosure bridge before availability. Build the adversarial benchmark before
+   request/stream/control gates, Windows credential-vault canary, and native one-shot disclosure
+   command have landed; next build the provider settings/task workflow and streaming event bridge.
+   Build the adversarial benchmark before
    claiming panel quality; implement a no-authority WASI host before loading third-party code.
 4. **Real collaboration on the folder** — Yjs doc persisted in the synced folder;
    merge-on-sync instead of last-write-wins; presence later. Drive is transport #1;

@@ -68,7 +68,7 @@ vary by OS, installer choice, and portable/dev execution.
 
 ## Headless remote-provider boundary proof
 
-Run the unwired remote-provider transport checks without a real API key or internet access:
+Run the remote-provider transport checks without a real API key or internet access:
 
 ```powershell
 cd D:\PolicyPad\syzygy\frontend
@@ -83,8 +83,7 @@ in-flight cancellation. The same fake server sends a real `text/event-stream` re
 TCP writes; the transport checks `stream:true`/`store:false`, normalizes events incrementally,
 enforces terminal order and a total-byte ceiling, distinguishes sanitized provider failure, and
 cancels between dispatched events. Passing this is request/stream/control conformance, not live
-availability; product credential integration, the frontend event bridge, UI disclosure, and an
-opt-in live canary are separate gates.
+availability; streamed product delivery and an opt-in live canary are separate gates.
 
 The same command certifies the unwired Anthropic Messages one-shot boundary. Its fake server checks
 `POST /v1/messages`, `x-api-key`, `anthropic-version: 2023-06-01`, developer-to-system and user-to-
@@ -97,7 +96,7 @@ It also certifies the stable-v1 Gemini Interactions one-shot boundary. The fake 
 `thinking_summaries:none`, system/user mapping, output bounds, text-only normalization, aggregate
 usage consistency, sanitized failures, timeout, and cancellation. The test rejects `/v1beta`
 instead of silently drifting API versions. Gemini SSE, tools/thought-signature continuation, a live
-credential, frontend disclosure, and product availability remain open.
+credential, product workflow UI, and product availability remain open.
 
 The xAI Responses one-shot boundary uses the Responses shape without assuming OpenAI's privacy
 semantics. The fake server checks bearer auth, `store:false`, no previous-response/cache identifier,
@@ -109,8 +108,13 @@ tools/reasoning continuation, UI, and live proof remain open.
 from an injected vault, executes through the existing provider transport, normalizes the result,
 and authors a content-free provider-run record. The fixture fails if the secret, prompt, or content
 category appears in serialized output. A disclosure denial is recorded without contacting the
-network. Credential set/status/delete are registered through `tauri.ts`; generation/cancellation
-remain intentionally unregistered until the human disclosure UI exists.
+network or reading the credential vault. Credential set/status/delete and one-shot
+generation/cancellation are registered through typed `tauri.ts` wrappers. The generation command
+uses Rust's native dialog with explicit **Send once** / **Cancel** buttons; there is no
+caller-supplied approval field. The pure disclosure-copy test is headless, while actually clicking
+the OS dialog remains a packaged-GUI check. No product component calls generation yet.
+The evidence and explicit limitations are recorded in
+`docs/audits/runs/NATIVE-PROVIDER-DISCLOSURE-2026-07-15.json`.
 `npm run test:provider-runtime-interop` closes the record check by running the Rust bridge,
 passing its serialized record directly to Vitest, and requiring both public validators to accept
 it. The record names its actual literal-loopback destination with `loopback-conformance`; it does

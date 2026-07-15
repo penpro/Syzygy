@@ -418,6 +418,12 @@ making a paid provider mandatory.
    Messages, Gemini Interactions, xAI Responses, and documented custom adapters.
 5. Task-level content/provider disclosure and per-run provenance/cost/retention record.
 
+Progress: the strict Draft 2020-12 provider-run schema and plan-independent semantic validator now
+land. Synthetic fixtures prove content exclusion, remote disclosure/HTTPS, dated policy metadata,
+typed retention attestation, terminal-state consistency, source identity, token totals, and cost
+bounds. MCP embeds the same schema. Runtime emission remains open until model execution is product
+wired; a client-authored record is not authoritative evidence.
+
 Gate: local remains the no-account default; no key appears in webview state, logs, crash reports,
 projects, MCP, or exports; every remote adapter passes the same conformance suite and a sanitized
 network trace before the UI calls it available.

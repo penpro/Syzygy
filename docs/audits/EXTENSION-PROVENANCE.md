@@ -14,6 +14,7 @@ boundaries. It is not a substitute for the generated release SBOM.
 | `scripts/plugin-certifier.mjs`, its tests, and `examples/plugins/citation-auditor` | repository commit | Penumbra original / repository MIT | Bounded schema validation, real-path containment, proposal fixtures, authority probes, and interface-only example. |
 | `frontend/src/extensions/adversarialRunRecord.ts` and tests | repository commit | Penumbra original / repository MIT | Synthetic evidence-record validation and metrics; no external prompts, schemas, or product fixtures copied. |
 | `docs/schemas/syzygy-adversarial-run-v1.schema.json` | repository commit | Penumbra original / repository MIT | Public strict interchange shape derived from Syzygy's original typed record; structural validation only. |
+| `frontend/src/extensions/providerRunRecord.ts`, tests, and `docs/schemas/syzygy-provider-run-v1.schema.json` | repository commit | Penumbra original / repository MIT | Content-free model-call provenance, strict public shape, and cross-field disclosure/retention/accounting validation; no external product schema or fixture copied. |
 
 Primary dependency sources checked on 2026-07-15:
 

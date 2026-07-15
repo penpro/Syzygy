@@ -97,6 +97,8 @@ async function proveStdioContract() {
   if (contracts?.contractVersion !== 1) throw new Error('platform contract version is missing')
   if (contracts?.implementationStatus?.pluginLoader !== 'contract-only') throw new Error('plugin loader status is overstated')
   if (contracts?.pluginManifestSchema?.additionalProperties !== false) throw new Error('plugin manifest schema is not strict')
+  if (contracts?.providerRunRecordSchema?.additionalProperties !== false) throw new Error('provider run schema is not strict')
+  if (contracts?.implementationStatus?.providerRunRecordValidator !== 'implemented') throw new Error('provider run validator status is missing')
 
   return {
     executable,

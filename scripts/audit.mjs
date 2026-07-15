@@ -115,6 +115,7 @@ const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugi
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))
 const pluginCertificationSchema = JSON.parse(text('docs/schemas/syzygy-plugin-certification-v1.schema.json'))
 const adversarialRunSchema = JSON.parse(text('docs/schemas/syzygy-adversarial-run-v1.schema.json'))
+const providerRunSchema = JSON.parse(text('docs/schemas/syzygy-provider-run-v1.schema.json'))
 const platformContractsSource = text('frontend/src-tauri/src/platform_contracts.rs')
 const providerRuntimeSource = text('frontend/src-tauri/src/model_provider.rs')
 const providerStreamSource = text('frontend/src-tauri/src/provider_stream.rs')
@@ -163,6 +164,21 @@ record(
     platformContractsSource.includes('"adversarialRecordValidator": "implemented"') &&
     platformContractsSource.includes('"adversarialRunner": "contract-only"'),
   'public strict schema plus identity blinding, evidence, minority, equal-budget, human-mutation, and no-hidden-reasoning gates present',
+)
+const providerRunRecordSource = text('frontend/src/extensions/providerRunRecord.ts')
+record(
+  'provider run records remain disclosure and provenance gated',
+  providerRunSchema.$schema === 'https://json-schema.org/draft/2020-12/schema' &&
+    providerRunSchema.additionalProperties === false &&
+    providerRunSchema.properties?.recordVersion?.const === 1 &&
+    providerRunRecordSource.includes('remote execution requires recorded human disclosure approval') &&
+    providerRunRecordSource.includes('remote execution destination must use HTTPS') &&
+    providerRunRecordSource.includes('attested zero retention requires a true typed attestation') &&
+    providerRunRecordSource.includes('totalTokens must equal inputTokens plus outputTokens') &&
+    providerRunRecordSource.includes('must not contain prompts, outputs, credentials, or raw payloads') &&
+    platformContractsSource.includes('"providerRunRecordSchema"') &&
+    platformContractsSource.includes('"providerRunRecordValidator": "implemented"'),
+  'strict public schema plus disclosure, endpoint, retention, accounting, content-exclusion, and MCP self-description gates present',
 )
 record(
   'remote provider boundary remains gated',

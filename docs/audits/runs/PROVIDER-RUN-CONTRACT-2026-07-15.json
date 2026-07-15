@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "runId": "PROVIDER-RUN-CONTRACT-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "record-validator-implemented-runtime-emission-open",
+  "commands": [
+    "npm run test:contracts",
+    "npm run build",
+    "npm run audit",
+    "cargo test --lib",
+    "node D:\\PolicyPad\\syzygy\\scripts\\mcp-harness.mjs"
+  ],
+  "result": {
+    "passed": true,
+    "extensionContractTestsPassed": 21,
+    "providerRunFocusedTestsPassed": 5,
+    "fullRustTestsPassed": 58,
+    "frontendModulesTransformed": 989,
+    "structuralAuditChecksPassed": 20,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true
+  },
+  "proved": [
+    "The public Draft 2020-12 schema is strict and aligned with valid remote and local typed fixtures.",
+    "The semantic validator rejects undisclosed remote transmission and non-HTTPS remote destinations.",
+    "Storage-disabled and zero-retention states are separate, and positive or negative attestation must carry a matching typed boolean.",
+    "The validator rejects raw prompts, outputs, credentials, and raw provider payloads anywhere in a record.",
+    "Terminal state, chronological timestamps, unique source snapshots, token totals, and finite cost are cross-checked.",
+    "The compiled Syzygy MCP embeds the same strict provider-run schema and reports its validator implemented.",
+    "The production frontend bundle and the full Rust unit suite pass with the embedded contract."
+  ],
+  "notProved": [
+    "Product model execution emits an authoritative record.",
+    "A provider honored a storage, training, or zero-retention policy.",
+    "Remote provider credentials or disclosure UI are product-wired.",
+    "Provider usage and cost are accurate against a live invoice.",
+    "Adversarial multi-provider execution consumes and reconciles these records."
+  ]
+}

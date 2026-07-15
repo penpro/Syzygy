@@ -12,6 +12,7 @@ filesystem access.
 - Manifest schema: `docs/schemas/syzygy-research-plugin-v1.schema.json`
 - Change proposal schema: `docs/schemas/syzygy-plugin-proposal-v1.schema.json`
 - Certification plan schema: `docs/schemas/syzygy-plugin-certification-v1.schema.json`
+- Provider-run record schema: `docs/schemas/syzygy-provider-run-v1.schema.json`
 - Runtime validator/types: `frontend/src/extensions/pluginManifest.ts`
 - Headless package certifier: `scripts/plugin-certifier.mjs`
 - Complete interface-only example: `examples/plugins/citation-auditor`
@@ -56,10 +57,12 @@ Example:
 | `drive.read` | request a selected-workspace read through Syzygy | raw OAuth token or arbitrary Drive access |
 | `drive.propose` | propose a typed Drive operation for confirmation | direct Google mutation |
 | `network.fetch` | request HTTPS fetches for declared host patterns | arbitrary hosts, credentials, local/LAN access |
-| `model.invoke` | request named configured providers | API keys, undeclared providers, automatic remote transmission |
+| `model.invoke` | request named configured providers through Syzygy's disclosure and provider-run-record boundary | API keys, undeclared providers, automatic remote transmission |
 
 Permissions are granted per installed plugin and can be revoked. Manifest declarations are
 requests, not authority. Syzygy revalidates every operation and target at execution time.
+Plugins never construct authoritative provider-run records: the future host records each accepted
+model call, including denial, timeout, cancellation, usage, retention attestation, and cost.
 
 ## Runtime tiers
 

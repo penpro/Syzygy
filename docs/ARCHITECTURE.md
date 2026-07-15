@@ -60,7 +60,7 @@ source of project truth.
 | `automation.rs` | Ephemeral authenticated loopback bridge into semantic live-webview actions. |
 | `mcp.rs` | Embedded stdio MCP mode, tool schemas, and JSON-RPC protocol routing. |
 | `mcp_setup.rs` | Running-executable discovery plus copy-ready JSON/TOML configuration and connection prompts shared by the UI and MCP. |
-| `platform_contracts.rs` | Machine-readable provider, adversarial-review, and researcher-plugin schemas/status exposed to headless MCP clients. |
+| `platform_contracts.rs` | Machine-readable provider-run, adversarial-review, and researcher-plugin schemas/status exposed to headless MCP clients. |
 | `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses one-shot/SSE plus Anthropic Messages, Gemini Interactions, and xAI Responses one-shot wire contracts have fake-server evidence with bounded controls and sanitized normalization, but are not product-wired pending credential integration and disclosure gates. |
 | `provider_stream.rs` | Incremental provider SSE normalization. The OpenAI decoder handles byte-fragmented Unicode, multiline frames, usage/finish events, unknown future events, sanitized provider errors, and bounded malformed/truncated input. |
 | `credential_vault.rs` | Provider-secret abstraction backed by Windows Credential Manager, macOS Keychain, or Linux Secret Service/keyutils. Unit tests use only a memory implementation; a separate live harness creates and deletes a random OS-store canary. |
@@ -106,9 +106,10 @@ Its `nodes/PolicyBlockNode.ts` is the first original domain editor node: stable 
 review state live with editable Lexical content and survive JSON/MCP serialization and two-editor
 convergence. Pointer and keyboard interaction gates remain open.
 
-The frontend `extensions/` folder owns provider-neutral model descriptors, deterministic
-adversarial-run planning plus an evidence-gated run-record validator and public Draft 2020-12 interchange schema, strict researcher-plugin manifests/proposals, and their headless
-contract tests. `scripts/plugin-certifier.mjs` uses the committed Draft 2020-12 schemas to certify
+The frontend `extensions/` folder owns provider-neutral model descriptors, a content-free
+provider-run provenance record, deterministic adversarial-run planning plus an evidence-gated
+run-record validator, strict researcher-plugin manifests/proposals, public Draft 2020-12 schemas,
+and their headless contract tests. `scripts/plugin-certifier.mjs` uses the committed schemas to certify
 package containment, proposal fixtures, documentation/license presence, and declared-authority
 probes without executing plugin code. These contracts do not imply that remote adapters or plugin
 execution have shipped.

@@ -129,6 +129,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - xAI Responses now has an unwired one-shot `request-control-conformance` slice. Its fake server
   proves storage-off/no-threading request shape, bearer auth, bounded normalization, controls, and
   mandatory boolean ZDR attestation without confusing standard retention with enterprise ZDR.
+- A strict public provider-run record now captures content-free call provenance, disclosure,
+  destination, dated policy, storage/ZDR state, terminal outcome, usage, and cost. Its semantic
+  validator and MCP embedding are implemented; authoritative runtime emission remains open.
 
 ## Current completion snapshot
 

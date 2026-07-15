@@ -11,6 +11,21 @@ The canonical TypeScript contract is `frontend/src/extensions/providerContract.t
 research workflows from depending on a vendor response shape and keeps provider availability
 separate from provider capability.
 
+Every eventual invocation must also produce the content-free public record defined by
+`docs/schemas/syzygy-provider-run-v1.schema.json` and
+`frontend/src/extensions/providerRunRecord.ts`. The record links a call to frozen source snapshot
+IDs and input/output hashes without embedding prompts, outputs, provider errors, or credentials.
+It records adapter status, task type, bounds, destination, disclosure approval, policy review,
+storage request, typed zero-retention attestation, terminal state, token usage, and cost. The
+semantic validator rejects cross-field lies that JSON Schema cannot express, including an
+undisclosed remote call, HTTP remote endpoint, false ZDR claim, output attached to a failed call,
+or inconsistent token total. MCP publishes the exact schema and truthful validator status.
+
+This record is an interchange and audit boundary, not proof that a provider honored its policy.
+The transport's fake/live evidence and the dated policy source remain separate artifacts. Product
+wiring must create records inside the Rust-owned execution path so a caller cannot omit a failed,
+cancelled, or timed-out call.
+
 ## Required adapter behavior
 
 An adapter eventually implements model discovery, one-shot and streaming generation, cancellation,
@@ -115,6 +130,7 @@ Every adapter runs the same fake-server and live opt-in tests:
 6. key canaries across webview state, logs, crash artifacts, MCP, and exports;
 7. usage/cost accounting reconciliation; and
 8. provider policy URL and review date present.
+9. a schema-valid provider-run record passes semantic validation without raw research content.
 
 Passing the contract suite establishes protocol behavior for a named adapter version; it does not
 establish model quality or a provider's legal/privacy suitability for a particular study.

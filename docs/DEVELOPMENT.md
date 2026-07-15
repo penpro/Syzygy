@@ -17,6 +17,7 @@ npx vitest run             # all pass
 cargo check                # in src-tauri (cargo is at C:\Users\penum\.cargo\bin, not on PATH)
 npm run audit              # architecture, identity, provenance, capability-ledger invariants
 npm run test:providers     # fake-server remote-provider boundary; no live key or network required
+npm run test:contracts     # public provider-run/adversarial/plugin schemas and semantic validators
 npm run test:provider-streams # fragmented/multiline/unknown/malformed SSE conformance
 npm run test:credentials   # memory-backed credential-vault contract; no OS store mutation
 npm run test:plugin-sdk    # non-executing package/schema/path/authority certification
@@ -50,7 +51,7 @@ node ..\scripts\mcp-harness.mjs --executable <absolute-Syzygy.exe>
 ```
 
 The harness compiles the real application binary, starts `app --mcp` over stdio, negotiates MCP
-`2025-11-25`, discovers its eleven tools, checks notification framing and ping, calls a typed live
+`2025-11-25`, discovers its twelve tools, checks notification framing and ping, calls a typed live
 status result, then calls `syzygy_installation` without a GUI. That self-description must contain
 absolute executable/install-folder paths plus configuration and a connection prompt derived from
 the executable. Separate frontend tests prove structured Lexical reads, replace/append behavior,
@@ -100,6 +101,12 @@ semantics. The fake server checks bearer auth, `store:false`, no previous-respon
 bounded normalization, timeout/cancellation, and a mandatory boolean `x-zero-data-retention`
 response header. The result preserves that ZDR attestation for later disclosure. xAI streaming,
 tools/reasoning continuation, UI, and live proof remain open.
+
+`npm run test:contracts` also validates the public content-free provider-run record. It rejects
+undisclosed remote transmission, non-HTTPS remote destinations, contradictory retention
+attestation, raw prompts/outputs/credentials, invalid terminal state, inconsistent token totals,
+and duplicate or malformed provenance. This proves the record and validator, not that the unwired
+provider boundary emits one in product execution.
 
 `npm run test:provider-streams` separately feeds the OpenAI decoder byte-by-byte and with
 multiline, unknown, malformed, mismatched, oversized, and truncated SSE fixtures. It proves parser

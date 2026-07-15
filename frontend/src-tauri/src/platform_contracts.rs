@@ -12,6 +12,8 @@ const PLUGIN_PROPOSAL_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-plugin-proposal-v1.schema.json");
 const ADVERSARIAL_RUN_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-adversarial-run-v1.schema.json");
+const PROVIDER_RUN_SCHEMA: &str =
+    include_str!("../../../docs/schemas/syzygy-provider-run-v1.schema.json");
 
 pub fn current() -> Result<Value, String> {
     let manifest_schema: Value = serde_json::from_str(PLUGIN_MANIFEST_SCHEMA)
@@ -20,11 +22,14 @@ pub fn current() -> Result<Value, String> {
         .map_err(|error| format!("Embedded plugin proposal schema is invalid: {error}"))?;
     let adversarial_run_schema: Value = serde_json::from_str(ADVERSARIAL_RUN_SCHEMA)
         .map_err(|error| format!("Embedded adversarial run schema is invalid: {error}"))?;
+    let provider_run_schema: Value = serde_json::from_str(PROVIDER_RUN_SCHEMA)
+        .map_err(|error| format!("Embedded provider run schema is invalid: {error}"))?;
     Ok(json!({
         "contractVersion": 1,
         "implementationStatus": {
             "localProvider": "available",
             "remoteProviderAdapters": "contract-only",
+            "providerRunRecordValidator": "implemented",
             "credentialVault": "implemented-unverified",
             "adversarialRecordValidator": "implemented",
             "adversarialRunner": "contract-only",
@@ -74,6 +79,7 @@ pub fn current() -> Result<Value, String> {
         "pluginManifestSchema": manifest_schema,
         "pluginProposalSchema": proposal_schema,
         "adversarialRunRecordSchema": adversarial_run_schema,
+        "providerRunRecordSchema": provider_run_schema,
         "selfCheck": {
             "command": "npm run test:contracts",
             "providerCommand": "npm run test:providers",
@@ -129,6 +135,10 @@ mod tests {
             "implemented"
         );
         assert_eq!(
+            contracts["implementationStatus"]["providerRunRecordValidator"],
+            "implemented"
+        );
+        assert_eq!(
             contracts["pluginManifestSchema"]["additionalProperties"],
             false
         );
@@ -142,6 +152,14 @@ mod tests {
         );
         assert_eq!(
             contracts["adversarialRunRecordSchema"]["properties"]["recordVersion"]["const"],
+            1
+        );
+        assert_eq!(
+            contracts["providerRunRecordSchema"]["additionalProperties"],
+            false
+        );
+        assert_eq!(
+            contracts["providerRunRecordSchema"]["properties"]["recordVersion"]["const"],
             1
         );
     }

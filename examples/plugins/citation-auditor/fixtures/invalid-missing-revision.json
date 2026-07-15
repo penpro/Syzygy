@@ -1,0 +1,9 @@
+{
+  "proposalVersion": 1,
+  "proposalId": "proposal-example-invalid",
+  "pluginId": "org.example.citation-auditor",
+  "projectId": "project-example",
+  "summary": "This fixture must be rejected because it has no revision guard.",
+  "content": "Unsafe unguarded replacement.",
+  "operation": "replace"
+}

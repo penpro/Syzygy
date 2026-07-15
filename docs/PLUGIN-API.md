@@ -1,7 +1,7 @@
 # Research plugin API
 
-**Manifest version:** 1. **Runtime status:** schemas and validators implemented; discovery,
-installation, execution, and UI are not yet implemented.
+**Manifest version:** 1. **Runtime status:** schemas, validators, and a non-executing package
+certifier are implemented; discovery, installation, execution, and UI are not yet implemented.
 
 The API is deliberately contribution-open and authority-closed. Researchers can add tools,
 evaluators, importers, and exporters without receiving ambient project, Drive, network, model, or
@@ -11,7 +11,10 @@ filesystem access.
 
 - Manifest schema: `docs/schemas/syzygy-research-plugin-v1.schema.json`
 - Change proposal schema: `docs/schemas/syzygy-plugin-proposal-v1.schema.json`
+- Certification plan schema: `docs/schemas/syzygy-plugin-certification-v1.schema.json`
 - Runtime validator/types: `frontend/src/extensions/pluginManifest.ts`
+- Headless package certifier: `scripts/plugin-certifier.mjs`
+- Complete interface-only example: `examples/plugins/citation-auditor`
 - Machine-readable inspection: MCP tool `syzygy_platform_contracts`
 
 Example:
@@ -84,10 +87,31 @@ grant Drive writes.
 
 ## Certification and publication
 
-The planned headless certification runner will validate:
+Run the contract certifier from `frontend`:
 
-- schema validity, unknown fields, duplicate IDs, Unicode, and maximum sizes;
-- denied permissions and undeclared domain/provider attempts;
+```powershell
+npm run certify:plugin -- ..\path\to\plugin-package
+npm run test:plugin-sdk
+```
+
+A package contains `syzygy-plugin.json`, `syzygy-certification.json`, package-contained
+documentation/license/runtime paths, proposal fixtures, and authority probes. The runner uses Ajv
+against the committed Draft 2020-12 schemas, resolves real paths to reject traversal and
+symlink/junction escape, requires expected-valid and expected-invalid proposal fixtures, verifies
+valid proposals target the manifest plugin ID, and evaluates declared capabilities, exact/wildcard
+network hosts, and model providers. At least one denied-authority probe is mandatory. Its JSON
+report contains identifiers/counts/errors, never proposal content.
+
+`contract-certified` means package/schema/fixture/authority metadata passed. It explicitly does
+not mean the runtime artifact is valid, safe, deterministic, useful, or executed. The example's
+runtime artifact is intentionally a non-executable marker to make that distinction testable.
+
+The landed contract runner validates schema shape, unknown fields, duplicate fixture/probe IDs,
+bounded JSON, path containment, documentation/license/runtime presence, proposal validity and
+plugin identity, plus allow/deny authority probes. Later execution certification must still validate:
+
+- full Unicode/maximum-size boundary corpus beyond the current one-MiB file bounds;
+- denied runtime operations, not only declared authority resolution;
 - stale revision, malformed proposal, timeout, cancellation, crash, and output flood;
 - prompt injection in project/Drive content;
 - determinism declaration and fixture output where applicable;

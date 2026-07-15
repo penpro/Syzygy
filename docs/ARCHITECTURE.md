@@ -108,8 +108,10 @@ convergence. Pointer and keyboard interaction gates remain open.
 
 The frontend `extensions/` folder owns provider-neutral model descriptors, deterministic
 adversarial-run planning, strict researcher-plugin manifests/proposals, and their headless
-contract tests. These contracts do not imply that remote adapters or plugin execution have
-shipped.
+contract tests. `scripts/plugin-certifier.mjs` uses the committed Draft 2020-12 schemas to certify
+package containment, proposal fixtures, documentation/license presence, and declared-authority
+probes without executing plugin code. These contracts do not imply that remote adapters or plugin
+execution have shipped.
 
 | What | Where |
 |---|---|

@@ -113,6 +113,7 @@ record(
 )
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))
+const pluginCertificationSchema = JSON.parse(text('docs/schemas/syzygy-plugin-certification-v1.schema.json'))
 const platformContractsSource = text('frontend/src-tauri/src/platform_contracts.rs')
 const providerRuntimeSource = text('frontend/src-tauri/src/model_provider.rs')
 const providerStreamSource = text('frontend/src-tauri/src/provider_stream.rs')
@@ -126,9 +127,24 @@ record(
   pluginManifestSchema.$schema === 'https://json-schema.org/draft/2020-12/schema' &&
     pluginManifestSchema.additionalProperties === false &&
     pluginProposalSchema.additionalProperties === false &&
+    pluginCertificationSchema.additionalProperties === false &&
     platformContractsSource.includes('"pluginLoader": "contract-only"') &&
+    platformContractsSource.includes('"pluginCertifier": "contract-certified-runner"') &&
     platformContractsSource.includes('"automaticSharedMutation": false'),
   'strict v1 schemas, honest runtime status, and proposal-only shared mutation',
+)
+const pluginCertifierSource = text('scripts/plugin-certifier.mjs')
+record(
+  'plugin package certification remains non-executing',
+  rootPackage.devDependencies?.ajv === '8.20.0' &&
+    lock.packages?.['node_modules/ajv']?.version === '8.20.0' &&
+    pluginCertifierSource.includes("frontendRequire('ajv/dist/2020')") &&
+    pluginCertifierSource.includes('realpathSync') &&
+    pluginCertifierSource.includes('expected-valid and one expected-invalid') &&
+    pluginCertifierSource.includes('at least one denied-authority probe') &&
+    !/child_process|\bspawn\s*\(|\bexec(?:File)?\s*\(/.test(pluginCertifierSource) &&
+    text('examples/plugins/citation-auditor/citation-auditor.component').includes('NOT AN EXECUTABLE'),
+  'exact Draft 2020 validator, real-path and adversarial-fixture gates, no process execution, interface-only example',
 )
 record(
   'remote provider boundary remains gated',

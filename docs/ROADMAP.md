@@ -100,6 +100,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   and a Windows Credential Manager harness created, read, deleted, and independently proved absence
   of a random canary without printing it. Native macOS Keychain and persistent Linux backend builds
   are configured, but their live canaries and the user-facing key/disclosure flow remain open.
+- The open researcher API now has a non-executing package certifier and a complete interface-only
+  citation-auditor example. Draft 2020-12 schemas, bounded JSON, real-path containment, valid and
+  invalid proposal fixtures, plugin identity, documentation/license/runtime-file presence, and
+  seven explicit authority allow/deny probes run headlessly. The report says
+  `contract-certified`, never runtime-safe; plugin discovery, install, WASI execution, permission
+  brokerage, UI, lifecycle, and output-flood/crash tests remain open.
 
 ## Current completion snapshot
 

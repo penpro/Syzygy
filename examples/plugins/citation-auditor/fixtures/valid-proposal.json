@@ -1,0 +1,10 @@
+{
+  "proposalVersion": 1,
+  "proposalId": "proposal-example-1",
+  "pluginId": "org.example.citation-auditor",
+  "projectId": "project-example",
+  "expectedRevision": "revision-example",
+  "summary": "Add a citation coverage warning.",
+  "content": "> Citation coverage needs review.",
+  "operation": "append"
+}

@@ -435,8 +435,10 @@ compute-matched results and limitations are published.
 
 ### Research plugin API
 
-Manifest/proposal schema v1 and TypeScript validators have landed. Next deliver a headless
-certification runner, a no-authority WASI host/WIT world, declarative contribution rendering, local
+Manifest/proposal/certification schema v1, TypeScript validators, and a non-executing headless
+package certifier have landed. The runner proves bounded schema/path/fixture/authority metadata and
+deliberately labels results `contract-certified`, not runtime-safe. Next deliver a no-authority
+WASI host/WIT world, declarative contribution rendering, local
 install/disable/upgrade, and the advanced native MCP trust tier. Marketplace control is optional;
 local packages and open documentation are required.
 

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "runId": "PLUGIN-CERTIFIER-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "contract-certified-runner",
+  "commands": [
+    "npm run test:plugin-sdk",
+    "npm run certify:plugin -- ..\\examples\\plugins\\citation-auditor"
+  ],
+  "results": {
+    "runnerTestsPassed": 4,
+    "exampleCertified": true,
+    "proposalFixtures": 2,
+    "authorityProbes": 7,
+    "pluginCodeExecuted": false,
+    "extensionContractTestsPassed": 8,
+    "fullRustTestsPassed": 36,
+    "frontendModulesTransformed": 989,
+    "structuralAuditChecksPassed": 18,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true,
+    "npmAuditVulnerabilities": 0
+  },
+  "proved": [
+    "Draft 2020-12 manifest, proposal, and certification schemas are executable",
+    "unknown manifest fields fail closed",
+    "lexical traversal, absolute paths, and resolved package escape fail closed",
+    "expected-valid and expected-invalid proposal fixtures are both required",
+    "valid proposal plugin identity must match the manifest",
+    "undeclared capabilities, hostnames, wildcard apexes, and URL-shaped network targets are denied",
+    "documentation, license, and runtime marker are package-contained and present",
+    "the report distinguishes contract certification from runtime safety"
+  ],
+  "notProved": [
+    "valid WebAssembly component format or WIT compatibility",
+    "WASI no-authority execution",
+    "native MCP sandboxing (which is not promised)",
+    "runtime timeout, cancellation, crash, output flood, or secret leakage",
+    "install, upgrade, downgrade, disable, removal, signature, or archive extraction",
+    "plugin usefulness or determinism"
+  ]
+}

@@ -103,7 +103,8 @@ MCP host
 - `syzygy_platform_contracts` embeds public schemas and implementation-state labels only. It
   reports the unwired OpenAI adapter as `request-and-stream-conformance`, and deliberately
   reports the credential vault as `implemented-unverified` and aggregate remote execution,
-  adversarial execution, and plugin loading as `contract-only`;
+  the non-executing plugin certifier as `contract-certified-runner`, and adversarial execution and
+  plugin loading as `contract-only`;
   it returns no key, provider account, project content, or Drive credential.
 
 ## Executable evidence

@@ -19,6 +19,7 @@ npm run audit              # architecture, identity, provenance, capability-ledg
 npm run test:providers     # fake-server remote-provider boundary; no live key or network required
 npm run test:provider-streams # fragmented/multiline/unknown/malformed SSE conformance
 npm run test:credentials   # memory-backed credential-vault contract; no OS store mutation
+npm run test:plugin-sdk    # non-executing package/schema/path/authority certification
 cargo fmt --all -- --check # Rust formatting
 ```
 
@@ -90,6 +91,18 @@ npm run test:credentials:live
 It creates a process-unique random credential, proves exact readback, deletes it, and independently
 proves it is absent. The value is never printed. This intentionally touches the current user's OS
 credential store and is therefore not part of the default headless suite.
+
+## Headless researcher-plugin contract proof
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm run test:plugin-sdk
+npm run certify:plugin -- ..\examples\plugins\citation-auditor
+```
+
+The first command tests schema rejection, real-path containment, wildcard-domain semantics, and
+undeclared-authority denial. The second emits a JSON certification report for the interface-only
+example. Neither command executes plugin code; runtime/WASI certification remains a separate gate.
 
 After building the current packaged executable, an explicit live-profile proof can
 launch the GUI through MCP, create a visible demonstration project, exercise replace/append and

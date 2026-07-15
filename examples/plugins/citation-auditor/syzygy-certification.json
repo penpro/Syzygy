@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "documentation": "README.md",
+  "license": "LICENSE",
+  "determinism": "deterministic",
+  "fixtures": [
+    { "id": "valid-review-note", "proposal": "fixtures/valid-proposal.json", "expectedValid": true },
+    { "id": "missing-revision", "proposal": "fixtures/invalid-missing-revision.json", "expectedValid": false }
+  ],
+  "authorityProbes": [
+    { "id": "read-project", "capability": "project.read", "expected": "allow" },
+    { "id": "propose-project", "capability": "project.propose", "expected": "allow" },
+    { "id": "fetch-doi", "capability": "network.fetch", "target": "doi.org", "expected": "allow" },
+    { "id": "fetch-crossref-subdomain", "capability": "network.fetch", "target": "api.crossref.org", "expected": "allow" },
+    { "id": "deny-crossref-apex", "capability": "network.fetch", "target": "crossref.org", "expected": "deny" },
+    { "id": "deny-other-network", "capability": "network.fetch", "target": "example.net", "expected": "deny" },
+    { "id": "deny-drive", "capability": "drive.read", "expected": "deny" }
+  ]
+}

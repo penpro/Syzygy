@@ -91,7 +91,9 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
 - `workspace/` — schema-versioned project manifests, provider-neutral Yjs shared types,
   the local IndexedDB collaboration provider, an original Lexical policy editor, and the
   research workspace shell. Reserved Yjs collections hold scenarios, heuristics,
-  discussions, and settings; the Lexical/Yjs editor owns the `root` shared type.
+  discussions, and settings; `heuristicsModel.ts` now owns the first typed collaborative domain
+  record with nested CRDT fields and attributed edit events; the Lexical/Yjs editor owns the
+  `root` shared type.
 - `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
   navigation, and revision-guarded editor reads/writes. It does not own persistence.
 - `components/McpSetupModal.tsx` — Settings guide that asks Rust for the exact running executable
@@ -109,6 +111,14 @@ WebSocket implementations must pass the same contract before their capability st
 Its `nodes/PolicyBlockNode.ts` is the first original domain editor node: stable identity and
 review state live with editable Lexical content and survive JSON/MCP serialization and two-editor
 convergence. Pointer and keyboard interaction gates remain open.
+
+`heuristicsModel.ts` is the first non-editor shared research domain service. Each heuristic is a
+nested Y.Map so concurrent edits to different fields merge instead of replacing an opaque object;
+a nested edit map retains unique author/time/changed-field/value events. Reads validate and
+project bounded records, duplicate/reused edit identity fails closed locally and after peer merge,
+and top-level deletion wins
+over a concurrent nested edit in the committed convergence fixture. No heuristics UI or evaluation
+engine is claimed.
 
 The frontend `extensions/` folder owns provider-neutral model descriptors, a content-free
 provider-run provenance record, deterministic adversarial-run planning plus an evidence-gated

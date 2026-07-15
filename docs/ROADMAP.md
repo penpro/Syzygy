@@ -107,6 +107,14 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   supports OpenAI, Anthropic, Gemini, and xAI set/replace/remove without persisting a key or gaining
   generation authority.
   Evidence: `docs/audits/runs/PROVIDER-SETTINGS-2026-07-15.json`.
+- P-04 now has a typed collaborative heuristics domain service. Nested Yjs maps merge concurrent
+  field edits, retain per-edit author/time/value attribution, reject invalid or conflicting replay
+  locally, and fail closed when disconnected peers collide on one edit ID,
+  and make deletion win over concurrent nested edits without resurrection. Eighty seeded delivery
+  permutations plus invalid-state tests pass. UI, positive/negative examples, voting, evaluation,
+  and remote transport remain open, so the capability is `implemented_unverified` rather than a
+  product-complete claim.
+  Evidence: `docs/audits/runs/HEURISTICS-CONVERGENCE-2026-07-15.json`.
 - The open researcher API now has a non-executing package certifier and a complete interface-only
   citation-auditor example. Draft 2020-12 schemas, bounded JSON, real-path containment, valid and
   invalid proposal fixtures, plugin identity, documentation/license/runtime-file presence, and

@@ -118,6 +118,11 @@ Every row needs evidence in `docs/audits/CAPABILITIES.json` before becoming `ver
 | S-05 | replaceable transport | same Yjs fixture converges on every provider |
 | S-06 | data minimization | network trace matches active feature/copy |
 
+P-04 now has a Penumbra-original typed Yjs domain service and deterministic headless evidence for
+concurrent add, independent field edit, attributed edit history, and delete-versus-edit without
+resurrection. This closes the data-model convergence slice only; the visible block editor,
+examples, voting, and P-26 explainable checker remain open.
+
 ## 5. Target architecture
 
 ```text

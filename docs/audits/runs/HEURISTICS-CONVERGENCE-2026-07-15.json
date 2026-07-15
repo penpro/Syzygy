@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "runId": "HEURISTICS-CONVERGENCE-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "capability": "P-04",
+  "status": "implemented_unverified",
+  "commands": [
+    "npm run test:workspace",
+    "npm run build",
+    "npm run audit",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "workspaceTestsPassed": 30,
+    "heuristicsTestsPassed": 6,
+    "seededDeliveryOrdersChecked": 80,
+    "frontendModulesTransformed": 990,
+    "structuralAuditChecksPassed": 29,
+    "externalNetworkUsed": false,
+    "realCredentialsUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "Heuristics have a schema-versioned bounded domain record with stable ID, title, guidance, priority, enabled state, creator identity/time, and attributed edits.",
+    "Each heuristic and its edit history use nested Yjs maps rather than opaque last-writer objects.",
+    "Concurrent edits to different fields merge and both author/time/changed-field/value edit events survive.",
+    "Forty deterministic seeded delivery orders, including duplicate updates, converge to the same field values, edit list, and Yjs state fingerprint.",
+    "Concurrent addition of different heuristics converges in another forty seeded delivery orders.",
+    "Deleting a heuristic concurrently with a nested edit converges to deletion without resurrection in the committed fixture.",
+    "Invalid IDs fail before collection mutation; identical local edit replay is idempotent and conflicting local reuse fails before mutation.",
+    "Disconnected peers store edit events under peer-specific internal keys; if they independently reuse one public edit ID, merged projection detects the duplicate and fails closed instead of silently choosing one event.",
+    "Reads reject malformed schema, identity, fields, timestamps, priorities, or incomplete edit history rather than projecting them as valid heuristics, and malformed edit-field containers fail closed without throwing.",
+    "Read projections detach edit fields and change objects, so callers cannot mutate shared Yjs state through returned plugin-facing values.",
+    "P-04 is recorded as implemented_unverified with source, tests, and this evidence file; no UI-complete claim is made."
+  ],
+  "notProved": [
+    "A visible heuristics block/editor, keyboard or pointer interaction, accessibility, or theme behavior.",
+    "Positive/negative examples, votes, notes, context labels, scenario links, or an explainable heuristic evaluator.",
+    "Two-machine remote collaboration, awareness/presence, authentication, authorization, or identity verification.",
+    "Heuristics can invoke a local or remote model, mutate policy text, or run through the plugin host.",
+    "Semantic correctness or research usefulness of a heuristic."
+  ]
+}

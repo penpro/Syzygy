@@ -83,6 +83,29 @@ record(
   missingWorkspaceProvenance.join(', ') || `${workspaceSources.length} source files registered`,
 )
 
+const heuristicsModelSource = text('frontend/src/workspace/heuristicsModel.ts')
+const heuristicsModelTestSource = text('frontend/src/workspace/heuristicsModel.test.ts')
+record(
+  'collaborative heuristics remain typed, attributed, replay-safe, and convergent',
+  heuristicsModelSource.includes('HEURISTIC_SCHEMA_VERSION = 1') &&
+    heuristicsModelSource.includes('new Y.Map<HeuristicEdit>()') &&
+    heuristicsModelSource.includes('MAX_EDIT_HISTORY = 10_000') &&
+    heuristicsModelSource.includes('editStorageKey') &&
+    heuristicsModelSource.includes('Heuristic edit ID was reused') &&
+    heuristicsModelSource.includes("collection.doc.transact(operation, 'syzygy-heuristics')") &&
+    heuristicsModelSource.includes('collection.delete(id)') &&
+    heuristicsModelSource.includes('validStoredEdit') &&
+    heuristicsModelSource.includes('changes: { ...edit.changes }') &&
+    (heuristicsModelTestSource.match(/seed <= 40/g) ?? []).length === 2 &&
+    heuristicsModelTestSource.includes('delete-versus-edit without resurrection') &&
+    heuristicsModelTestSource.includes('disconnected peers independently reuse one edit ID') &&
+    heuristicsModelTestSource.includes('Mutated plugin copy') &&
+    heuristicsModelTestSource.includes('peer supplies malformed edit fields') &&
+    heuristicsModelTestSource.includes("toThrow('Heuristic edit ID was reused')") &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-04", "phase": 2, "status": "implemented_unverified"'),
+  'nested field/edit CRDT maps, detached bounded reads, hostile-input and peer-collision fail-closed attribution, 80 seeded merge orders, delete-without-resurrection, and truthful P-04 status are present',
+)
+
 const tauriConfig = JSON.parse(text('frontend/src-tauri/tauri.conf.json'))
 record(
   'bundle identity',

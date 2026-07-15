@@ -94,4 +94,12 @@ versions/evaluation evidence.
   reject components with unexpected imports, enforce memory/fuel/wall-time/output ceilings,
   contain traps, and pass the plugin output through the authority broker. Until then the status is
   `published-zero-imports-no-runtime`.
+- Collaborative heuristics treat peer CRDT data as untrusted. Reads accept only the current schema,
+  bounded stable IDs/text, known priorities, booleans, finite timestamps, and a complete valid edit
+  map. Within a replica, update IDs are one-use: identical replay is idempotent and conflicting
+  replay fails before mutation. Peer-specific internal storage keys keep independently created
+  colliding edit IDs from overwriting one another; the validated projection detects the duplicate
+  and fails closed after merge. Histories above 10,000 events are also rejected. The convergence
+  harness fixes delete-versus-concurrent-edit semantics as deletion with no resurrection. This does
+  not authorize a heuristic to run a model or mutate policy text.
 - Claiming S-01 verified before the live Drive→local-model harness passes is a documentation defect.

@@ -41,6 +41,13 @@ idempotently, duplicate/out-of-order Yjs updates converge, concurrent offline co
 and acknowledged project state reopens from IndexedDB. It does **not** yet prove two-machine rich
 text convergence or Drive transport; those remain separate capability gates.
 
+The same suite includes `heuristicsModel.test.ts`. Forty seeded delivery orders prove concurrent
+field edits retain both values and attribution events, and another forty prove concurrent additions
+plus delete-versus-edit converge without resurrection. Invalid identity and conflicting edit-ID
+replay fail locally; peer-specific internal keys retain disconnected collisions so merged reads
+fail closed instead of silently choosing one event. This is the P-04 domain contract; it does not prove a
+heuristics UI, evaluation workflow, presence, or remote collaboration transport.
+
 ## Headless live-MCP contract proof
 
 Run the embedded MCP protocol, loopback-security, and live-editor mutation contracts without

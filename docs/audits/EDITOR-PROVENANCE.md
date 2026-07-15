@@ -20,6 +20,7 @@
 | `frontend/src-tauri/src/google_*.rs` | Penumbra original | OAuth/Drive implementation and ADR-0001 |
 | `frontend/src/workspace/schema.ts` | Penumbra original | Versioned project-manifest contract and fail-closed validator |
 | `frontend/src/workspace/projectModel.ts` | Penumbra original | Provider-neutral Yjs shared-type names and update helpers |
+| `frontend/src/workspace/heuristicsModel.ts` | Penumbra original | Typed collaborative heuristic records with nested CRDT fields, bounded validation, per-edit attribution, replay rejection, and deterministic read projection |
 | `frontend/src/workspace/localProvider.ts` | Penumbra original | Local IndexedDB provider implementing the Lexical/Yjs provider boundary |
 | `frontend/src/workspace/collaborationProvider.ts` | Penumbra original | Provider-neutral lifecycle shared by local and test/future transports |
 | `frontend/src/workspace/memoryProvider.ts` | Penumbra original | Deterministic two-editor live/partition convergence transport used only by the headless contract suite |

@@ -12,6 +12,7 @@ pub mod mcp;
 mod mcp_setup;
 pub mod model_provider;
 mod platform_contracts;
+mod provider_runtime;
 pub mod provider_stream;
 mod state;
 mod updates;
@@ -159,6 +160,9 @@ pub fn run() {
             automation::automation_ready,
             automation::automation_respond,
             mcp_setup::mcp_connection_info,
+            provider_runtime::provider_credential_set,
+            provider_runtime::provider_credential_status,
+            provider_runtime::provider_credential_delete,
             updates::app_version
         ])
         .run(tauri::generate_context!())

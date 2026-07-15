@@ -1,8 +1,8 @@
 //! Self-describing research extension contracts shared with headless MCP clients.
 //!
-//! These are capability contracts and truthful implementation states, not a plugin loader or
-//! remote-provider implementation. Keeping them callable without the GUI lets CI and external
-//! reviewers inspect the same boundary the future runtime must honor.
+//! These are capability contracts and truthful implementation states, not a plugin loader or a
+//! claim that the internal provider task runtime is product-callable. Keeping them callable
+//! without the GUI lets CI and external reviewers inspect the same boundary future UI must honor.
 
 use serde_json::{json, Value};
 
@@ -38,10 +38,11 @@ pub fn current() -> Result<Value, String> {
         "contractVersion": 1,
         "implementationStatus": {
             "localProvider": "available",
-            "remoteProviderAdapters": "contract-only",
+            "remoteProviderAdapters": "runtime-boundary-unwired",
+            "providerTaskRuntime": "fake-network-certified-unwired",
             "providerRunRecordValidator": "implemented",
             "modelAdapterCertifier": "contract-certified-runner",
-            "credentialVault": "implemented-unverified",
+            "credentialVault": "tauri-command-ui-open",
             "adversarialRecordValidator": "implemented",
             "adversarialRunner": "contract-only",
             "pluginCertifier": "contract-certified-runner",
@@ -96,6 +97,7 @@ pub fn current() -> Result<Value, String> {
         "selfCheck": {
             "command": "npm run test:contracts",
             "providerCommand": "npm run test:providers",
+            "providerRuntimeCommand": "npm run test:provider-runtime",
             "providerStreamCommand": "npm run test:provider-streams",
             "credentialCommand": "npm run test:credentials",
             "credentialLiveCommand": "npm run test:credentials:live",
@@ -118,7 +120,11 @@ mod tests {
         assert_eq!(contracts["contractVersion"], 1);
         assert_eq!(
             contracts["implementationStatus"]["remoteProviderAdapters"],
-            "contract-only"
+            "runtime-boundary-unwired"
+        );
+        assert_eq!(
+            contracts["implementationStatus"]["providerTaskRuntime"],
+            "fake-network-certified-unwired"
         );
         assert_eq!(
             contracts["providerAdapterStatus"]["openai-responses"],
@@ -138,7 +144,7 @@ mod tests {
         );
         assert_eq!(
             contracts["implementationStatus"]["credentialVault"],
-            "implemented-unverified"
+            "tauri-command-ui-open"
         );
         assert_eq!(
             contracts["implementationStatus"]["pluginCertifier"],

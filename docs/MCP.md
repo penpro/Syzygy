@@ -102,12 +102,14 @@ MCP host
   content, and are also visible to the user in Settings.
 - `syzygy_platform_contracts` embeds public plugin, custom-adapter, provider-run, and adversarial-run schemas plus implementation-state labels only. It
   reports the unwired OpenAI adapter as `request-and-stream-control-conformance` and Anthropic
-  Messages, Gemini Interactions, and xAI Responses as the narrower `request-control-conformance`. It deliberately reports the credential
-  vault as `implemented-unverified` and aggregate remote execution,
-  the non-executing plugin certifier as `contract-certified-runner`, and adversarial execution and
-  plugin loading and custom-adapter execution as `contract-only`; the non-executing adapter
+  Messages, Gemini Interactions, and xAI Responses as the narrower `request-control-conformance`.
+  It reports credential-only Tauri commands as `tauri-command-ui-open`, the internal one-shot task
+  bridge as `fake-network-certified-unwired`, and aggregate remote execution as
+  `runtime-boundary-unwired` because generation is not registered. It reports the non-executing
+  plugin certifier as `contract-certified-runner`, and adversarial execution, plugin loading, and
+  custom-adapter execution as `contract-only`; the non-executing adapter
   certifier is `contract-certified-runner`, while provider-run and adversarial record validators are
-  reported separately as `implemented` without implying model calls run;
+  reported separately as `implemented` without implying product model calls run;
   it returns no key, provider account, project content, or Drive credential.
 
 ## Executable evidence

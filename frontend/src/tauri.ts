@@ -45,6 +45,8 @@ export interface McpConnectionInfo {
   starterPrompt: string
 }
 
+export type RemoteProviderId = 'openai' | 'anthropic' | 'gemini' | 'xai'
+
 // ---------- engine & models ----------
 
 /** GPU VRAM usage in MiB (via `nvidia-smi`). null off-Tauri / on non-NVIDIA. */
@@ -292,6 +294,20 @@ export const automationReady = (): Promise<void> => invoke('automation_ready')
 
 /** Exact, copy-ready connection details generated from the currently running executable. */
 export const mcpConnectionInfo = (): Promise<McpConnectionInfo> => invoke('mcp_connection_info')
+
+// ---------- optional remote-provider credentials ----------
+
+/** Store or replace one provider key in the OS credential vault. The key is never persisted in app state. */
+export const providerCredentialSet = (provider: RemoteProviderId, secret: string): Promise<void> =>
+  invoke('provider_credential_set', { provider, secret })
+
+/** Report only whether the default OS-vault credential exists; never returns the credential. */
+export const providerCredentialStatus = (provider: RemoteProviderId): Promise<boolean> =>
+  invoke('provider_credential_status', { provider })
+
+/** Delete the default provider credential from the OS vault. */
+export const providerCredentialDelete = (provider: RemoteProviderId): Promise<void> =>
+  invoke('provider_credential_delete', { provider })
 
 /** Complete one semantic automation request. Content is returned only to its authenticated caller. */
 export const automationRespond = (

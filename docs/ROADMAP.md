@@ -135,6 +135,10 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - Custom compatible model adapters now have strict profile/certification schemas, a non-executing
   package runner, hostile profile fixtures, exact endpoint probes, and a documented local-vLLM
   example. Runtime transport and credentials remain `contract-only`.
+- The built-in one-shot provider task bridge now proves vault lookup, fixed-endpoint dispatch,
+  sanitized normalized output, disclosure denial without network contact, and Rust-authored
+  content-free provenance. Credential-only Tauri commands exist; generation remains unregistered
+  pending the human disclosure surface.
 
 ## Current completion snapshot
 

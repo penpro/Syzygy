@@ -4,8 +4,9 @@
 bounded timeout/cancellation, and fake-network incremental stream dispatch are at
 `request-and-stream-control-conformance` and intentionally not product-callable; Anthropic
 Messages, Gemini Interactions, and xAI Responses one-shot requests are at
-`request-control-conformance`; custom remote adapters
-are contract-only.
+`request-control-conformance`. A Rust one-shot task bridge is fake-network certified but remains
+unregistered pending human disclosure UI; credential set/status/delete are typed Tauri commands
+without a product key field. Custom remote adapters are contract-only.
 
 The canonical TypeScript contract is `frontend/src/extensions/providerContract.ts`. It prevents
 research workflows from depending on a vendor response shape and keeps provider availability
@@ -23,8 +24,9 @@ or inconsistent token total. MCP publishes the exact schema and truthful validat
 
 This record is an interchange and audit boundary, not proof that a provider honored its policy.
 The transport's fake/live evidence and the dated policy source remain separate artifacts. Product
-wiring must create records inside the Rust-owned execution path so a caller cannot omit a failed,
-cancelled, or timed-out call.
+The internal Rust task bridge now creates the record for completed, failed, cancelled, and timed-out
+attempts. Generation is not registered with Tauri yet, so this is fake-network runtime evidence,
+not a product-available remote call.
 
 ## Required adapter behavior
 
@@ -69,10 +71,10 @@ response rejection, secret/error-body redaction, request and stalled-body timeou
 in-flight cancellation. Invalid or overlong timeout controls fail before transport. The network
 stream path verifies the SSE media type, feeds real HTTP byte chunks through the same decoder,
 enforces start/finish/end order and a 32 MiB aggregate ceiling, serially dispatches normalized
-events, distinguishes sanitized provider failure, and cancels between events. It does not yet wire
-saved keys into requests, handle streamed tools, expose a frontend command/event bridge, or contact
-the live service. `syzygy_platform_contracts` reports this narrower status
-without changing the aggregate remote runtime from `contract-only`.
+events, distinguishes sanitized provider failure, and cancels between events. The internal one-shot
+task bridge now retrieves saved keys and authors provenance, but it does not handle streamed tools,
+expose generation to the frontend, or contact the live service. `syzygy_platform_contracts` reports
+aggregate status as `runtime-boundary-unwired`.
 
 The incremental OpenAI SSE decoder accepts arbitrary byte fragmentation, including split Unicode;
 joins multiline `data:` fields; ignores keepalives; validates optional SSE event labels against
@@ -87,8 +89,10 @@ The credential-vault boundary uses `keyring` 3.6.3 (MIT/Apache-2.0; MSRV 1.75) w
 macOS, and persistent Linux backends. Provider secret strings zeroize on drop. The ordinary suite
 uses an in-memory trait implementation; `npm run test:credentials:live` creates a random canary in
 the current OS credential store, reads it back, deletes it, and verifies absence without printing
-the canary. The Windows proof passes, but macOS/Linux live evidence and product-facing key setup are
-still open. Dependency provenance is recorded in `docs/audits/EXTENSION-PROVENANCE.md`.
+the canary. Credential-only Tauri commands and `tauri.ts` wrappers now set, report presence, or
+delete the default provider key without returning it. No product key field exists; macOS/Linux live
+evidence, transient-entry leak tests, and disclosure UI remain open. Dependency provenance is
+recorded in `docs/audits/EXTENSION-PROVENANCE.md`.
 
 The first Anthropic Messages slice is also Rust-owned and fake-server-only. It proves the exact
 `/v1/messages` endpoint, `x-api-key`, `anthropic-version: 2023-06-01`, content type, separate system
@@ -164,4 +168,5 @@ Passing the contract suite establishes protocol behavior for a named adapter ver
 establish model quality or a provider's legal/privacy suitability for a particular study.
 
 Run the currently executable Rust provider slice with `npm run test:providers`.
+Run the internal vault/task/provenance bridge with `npm run test:provider-runtime`.
 Run its incremental streaming parser with `npm run test:provider-streams`.

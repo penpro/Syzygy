@@ -17,6 +17,7 @@ npx vitest run             # all pass
 cargo check                # in src-tauri (cargo is at C:\Users\penum\.cargo\bin, not on PATH)
 npm run audit              # architecture, identity, provenance, capability-ledger invariants
 npm run test:providers     # fake-server remote-provider boundary; no live key or network required
+npm run test:provider-runtime # fake-vault task bridge and Rust-authored provenance; no live key/network
 npm run test:contracts     # public provider-run/adversarial/plugin schemas and semantic validators
 npm run test:provider-streams # fragmented/multiline/unknown/malformed SSE conformance
 npm run test:credentials   # memory-backed credential-vault contract; no OS store mutation
@@ -102,6 +103,14 @@ semantics. The fake server checks bearer auth, `store:false`, no previous-respon
 bounded normalization, timeout/cancellation, and a mandatory boolean `x-zero-data-retention`
 response header. The result preserves that ZDR attestation for later disclosure. xAI streaming,
 tools/reasoning continuation, UI, and live proof remain open.
+
+`npm run test:provider-runtime` proves the next internal boundary: a typed task retrieves a key
+from an injected vault, executes through the existing provider transport, normalizes the result,
+and authors a content-free provider-run record. The fixture fails if the secret, prompt, or content
+category appears in serialized output. A disclosure denial is recorded without contacting the
+network. Credential set/status/delete are registered through `tauri.ts`; generation/cancellation
+remain intentionally unregistered until the human disclosure UI and cross-language record check
+exist.
 
 `npm run test:contracts` also validates the public content-free provider-run record. It rejects
 undisclosed remote transmission, non-HTTPS remote destinations, contradictory retention

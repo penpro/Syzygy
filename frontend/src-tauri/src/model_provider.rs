@@ -29,11 +29,14 @@ const MAX_STREAM_BYTES: usize = 32 * 1024 * 1024;
 const MAX_PROVIDER_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "kebab-case")]
 pub enum RemoteProviderId {
+    #[serde(rename = "openai")]
     OpenAi,
+    #[serde(rename = "anthropic")]
     Anthropic,
+    #[serde(rename = "gemini")]
     Gemini,
+    #[serde(rename = "xai")]
     Xai,
 }
 
@@ -1161,6 +1164,28 @@ mod tests {
             ProviderSecret::new("bad\r\nheader".to_owned()),
             Err(ProviderError::InvalidSecret)
         ));
+    }
+
+    #[test]
+    fn provider_ids_match_the_public_descriptor_contract() {
+        assert_eq!(
+            serde_json::to_value(RemoteProviderId::OpenAi).unwrap(),
+            "openai"
+        );
+        assert_eq!(
+            serde_json::to_value(RemoteProviderId::Anthropic).unwrap(),
+            "anthropic"
+        );
+        assert_eq!(
+            serde_json::to_value(RemoteProviderId::Gemini).unwrap(),
+            "gemini"
+        );
+        assert_eq!(serde_json::to_value(RemoteProviderId::Xai).unwrap(), "xai");
+        assert_eq!(
+            serde_json::from_value::<RemoteProviderId>(json!("openai")).unwrap(),
+            RemoteProviderId::OpenAi
+        );
+        assert!(serde_json::from_value::<RemoteProviderId>(json!("open-ai")).is_err());
     }
 
     #[test]

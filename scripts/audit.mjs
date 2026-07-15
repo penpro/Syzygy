@@ -120,6 +120,7 @@ const modelAdapterSchema = JSON.parse(text('docs/schemas/syzygy-model-adapter-v1
 const modelAdapterCertificationSchema = JSON.parse(text('docs/schemas/syzygy-model-adapter-certification-v1.schema.json'))
 const platformContractsSource = text('frontend/src-tauri/src/platform_contracts.rs')
 const providerRuntimeSource = text('frontend/src-tauri/src/model_provider.rs')
+const providerTaskRuntimeSource = text('frontend/src-tauri/src/provider_runtime.rs')
 const providerStreamSource = text('frontend/src-tauri/src/provider_stream.rs')
 const credentialVaultSource = text('frontend/src-tauri/src/credential_vault.rs')
 const credentialHarnessSource = text('frontend/src-tauri/src/bin/credential-harness.rs')
@@ -232,13 +233,20 @@ record(
     platformContractsSource.includes('GEMINI_ADAPTER_STATUS') &&
     platformContractsSource.includes('XAI_ADAPTER_STATUS') &&
     platformContractsSource.includes('OPENAI_ADAPTER_STATUS') &&
-    platformContractsSource.includes('"remoteProviderAdapters": "contract-only"') &&
     !rustWiringSource.includes('model_provider::execute_openai_response') &&
     !rustWiringSource.includes('model_provider::execute_openai_stream_controlled') &&
     !rustWiringSource.includes('model_provider::execute_anthropic_response') &&
     !rustWiringSource.includes('model_provider::execute_gemini_response') &&
-    !rustWiringSource.includes('model_provider::execute_xai_response'),
-  'OpenAI request/stream plus Anthropic, Gemini, and xAI request wire contracts, disclosure, storage/ZDR policy, controls, truthful status, and unwired-runtime gates present',
+    !rustWiringSource.includes('provider_runtime::provider_generate') &&
+    providerTaskRuntimeSource.includes('execute_openai_response_controlled') &&
+    providerTaskRuntimeSource.includes('execute_anthropic_response_controlled') &&
+    providerTaskRuntimeSource.includes('execute_gemini_response_controlled') &&
+    providerTaskRuntimeSource.includes('execute_xai_response_controlled') &&
+    providerTaskRuntimeSource.includes('run_record(') &&
+    providerTaskRuntimeSource.includes('Registered only after the native disclosure UI') &&
+    platformContractsSource.includes('"remoteProviderAdapters": "runtime-boundary-unwired"') &&
+    platformContractsSource.includes('"providerTaskRuntime": "fake-network-certified-unwired"'),
+  'OpenAI request/stream plus Anthropic, Gemini, and xAI request wire contracts, content-free task runtime, disclosure/storage/ZDR controls, truthful status, and unregistered generation gate present',
 )
 record(
   'provider credential vault remains isolated',
@@ -253,9 +261,13 @@ record(
     credentialVaultSource.includes('RemoteProviderId::Xai => "xai"') &&
     credentialVaultSource.includes('keyring::Entry::new') &&
     credentialHarnessSource.includes('cleanupVerified') &&
-    platformContractsSource.includes('"credentialVault": "implemented-unverified"') &&
-    !rustWiringSource.includes('credential_vault::'),
-  'exact keyring backends, zeroization, sanitized vault, cleanup harness, truthful status, and no Tauri command',
+    platformContractsSource.includes('"credentialVault": "tauri-command-ui-open"') &&
+    rustWiringSource.includes('provider_runtime::provider_credential_set') &&
+    rustWiringSource.includes('provider_runtime::provider_credential_status') &&
+    rustWiringSource.includes('provider_runtime::provider_credential_delete') &&
+    text('frontend/src/tauri.ts').includes("invoke('provider_credential_set'") &&
+    !text('frontend/src/tauri.ts').includes("invoke('provider_generate'"),
+  'exact keyring backends, zeroization, sanitized vault, cleanup harness, typed credential-only Tauri commands, no generation command',
 )
 const mcpSetupSource = text('frontend/src/components/McpSetupModal.tsx')
 record(

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "runId": "PROVIDER-TASK-RUNTIME-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "fake-network-certified-unwired",
+  "commands": [
+    "npm run test:provider-runtime",
+    "npm run test:providers",
+    "npm run test:contracts",
+    "npm run build",
+    "npm run audit",
+    "cargo test --lib",
+    "node D:\\PolicyPad\\syzygy\\scripts\\mcp-harness.mjs"
+  ],
+  "result": {
+    "passed": true,
+    "providerRuntimeTestsPassed": 2,
+    "providerBoundaryTestsPassed": 28,
+    "extensionContractTestsPassed": 25,
+    "fullRustTestsPassed": 61,
+    "frontendModulesTransformed": 989,
+    "structuralAuditChecksPassed": 21,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true
+  },
+  "proved": [
+    "An internal Rust task retrieves the matching provider secret through the credential-vault trait and executes the existing bounded adapter against a loopback fake server.",
+    "The task returns provider-neutral normalized output and authors a content-free provider-run record with source IDs, hashes, disclosure, endpoint, policy, retention state, terminal status, usage, and null unknown cost.",
+    "The serialized outcome contains neither the credential canary, prompt text, nor disclosure category text.",
+    "Disclosure denial returns a typed failed record and does not contact the unreachable loopback endpoint.",
+    "Provider IDs serialize exactly as the public descriptor IDs: openai, anthropic, gemini, and xai.",
+    "Credential set/status/delete are registered only through typed tauri.ts wrappers and no command returns a credential.",
+    "Generation and cancellation are absent from the Tauri handler, and MCP reports fake-network-certified-unwired rather than available."
+  ],
+  "notProved": [
+    "A product UI can start a remote model call.",
+    "Human disclosure approval is bound to provider, content, and call lifetime by a native surface.",
+    "A real provider credential or external network request works.",
+    "Streaming or tool calls pass through the task runtime.",
+    "Rust-authored records pass the TypeScript semantic validator across the Tauri serialization boundary.",
+    "Transient key-entry DOM/memory, macOS/Linux credential stores, logs, exports, or crash artifacts are leak-free."
+  ]
+}

@@ -36,7 +36,7 @@ sha2 = "0.10"
 getrandom = "0.2"
 url = "2"
 # Drive folder sync: RFC3339 timestamps + setting local file mtimes to match Drive
-chrono = { version = "0.4", default-features = false, features = ["std"] }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 filetime = "0.2"
 zeroize = "1.8.1"
 

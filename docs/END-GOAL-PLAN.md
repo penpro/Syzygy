@@ -467,15 +467,19 @@ Gate: unknown/undeclared authority fails closed; WASI begins with no project, Dr
 model, or filesystem access; native MCP is never described as sandboxed; all mutations are bounded
 revision-guarded proposals with a human-visible diff and attribution.
 
-Machine-readable inspection is available through `syzygy_platform_contracts`. Until the
-corresponding runtime gates pass it must continue returning `contract-only` for remote providers,
-adversarial execution, and plugin loading.
+Machine-readable inspection is available through `syzygy_platform_contracts`. It must distinguish
+the fake-network-certified but unregistered provider task bridge from product availability, and
+continue returning `contract-only` for adversarial execution, custom-adapter execution, and plugin
+loading.
 
 Progress: OpenAI Responses one-shot request construction, bounded whole-operation timeout,
 idempotent in-flight/inter-event cancellation, and fake-network incremental SSE dispatch now pass
 unwired Rust conformance suites and are reported as `request-and-stream-control-conformance`.
-Aggregate remote execution remains `contract-only` until OS credential integration, the typed
-frontend event/disclosure bridge, streamed-tool handling, and opt-in live evidence pass.
+Aggregate remote execution is now `runtime-boundary-unwired`: an internal one-shot task bridge
+retrieves an injected vault credential, applies disclosure/timeout/cancellation controls, normalizes
+the response, and authors content-free provenance. Generation remains outside the Tauri handler
+until the human disclosure surface and cross-language record gate land; streamed tools and opt-in
+live evidence are also open.
 
 Anthropic Messages one-shot request/control conformance now passes the same unwired Rust boundary;
 its stream parser/network path and tool blocks remain open, so the adapter is not product-available.
@@ -487,8 +491,9 @@ response attestation; its stream/tool paths remain open, so it is not product-av
 
 Credential progress: the cross-platform OS-vault abstraction, zeroizing secret wrapper, memory
 contract tests, and an opt-in Windows Credential Manager create/read/delete/absence canary pass.
-macOS/Linux live canaries, UI setup, and end-to-end leak scans remain open, so this boundary is
-`implemented-unverified` and remote execution remains unavailable.
+Typed credential-only Tauri commands and wrappers now exist, but no product key field calls them.
+macOS/Linux live canaries, transient-entry and end-to-end leak scans remain open; generation is
+still unavailable.
 
 ## 11. Recommended next slice
 

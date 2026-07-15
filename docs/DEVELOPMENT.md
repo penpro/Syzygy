@@ -54,6 +54,12 @@ projections, parent validation, historical display-name attribution, and forty r
 delivery checks for independently created branches. Direct record tampering must fail closed. This
 proves the P-23/P-27 domain layer, not a version rail, restore workflow, diff UI, or remote transport.
 
+`policyVersionHistory.test.ts` extends that gate for P-28/P-29. It rejects stale expected heads
+before creating a version, restores an old snapshot only by creating a new child of the current
+head, retains both concurrent restore branches across forty reordered/duplicate deliveries, and
+produces the same structured diff/count note on repeated runs with no model dependency. This does
+not prove the future history rail, user interaction, export, or semantic usefulness of a diff.
+
 ## Headless live-MCP contract proof
 
 Run the embedded MCP protocol, loopback-security, and live-editor mutation contracts without

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "runId": "POLICY-VERSION-HISTORY-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "capabilities": ["P-28", "P-29"],
+  "status": "implemented_unverified",
+  "commands": [
+    "npm run test:workspace",
+    "npm run build",
+    "npm run audit",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "workspaceTestsPassed": 41,
+    "policyVersionHistoryTestsPassed": 6,
+    "seededDeliveryOrdersChecked": 40,
+    "frontendModulesTransformed": 990,
+    "structuralAuditChecksPassed": 31,
+    "externalNetworkUsed": false,
+    "modelEngineUsed": false,
+    "realCredentialsUsed": false
+  },
+  "proved": [
+    "A new head commit requires the exact current head and hashes that head into the immutable parent link.",
+    "The expected head and parent bytes are rechecked before one Yjs transaction inserts the version and changes the metadata head.",
+    "A stale expected head fails before inserting a new version in the committed fixture.",
+    "Restore reads and verifies an old target, copies its policy/scenario snapshot into a new attributed version, parents it to the current head, and leaves every historical record unchanged.",
+    "Two disconnected peers restoring from one head retain both immutable child branches after merge; one deterministic Yjs head and the complete version set converge across forty reordered/duplicate deliveries.",
+    "The structured block diff is deterministic, detects added/removed/changed/moved blocks, and produces a stable count note without importing or calling a model/network provider.",
+    "Tampered restore targets fail closed without moving the head.",
+    "A content-valid child with a missing immutable ancestor is rejected as a restore target, even though its individual record hash remains valid.",
+    "P-28 and P-29 are implemented_unverified; no visible history/restore/diff workflow claim is made."
+  ],
+  "notProved": [
+    "A user can view, select, label, restore, or reconcile branches in the product UI.",
+    "Non-head branches are surfaced or automatically reconciled after remote collaboration.",
+    "Non-policy prose has stable semantic identity; changed prose may be represented as remove/add.",
+    "Diff rendering, accessibility, keyboard interaction, large-document performance, or export fidelity.",
+    "Authenticated participant identity, signed history, Drive-backed convergence, or portable archive verification.",
+    "An AI-generated note is accurate; AI notes remain optional and must cite deterministic evidence."
+  ]
+}

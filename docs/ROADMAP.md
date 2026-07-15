@@ -192,11 +192,16 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   display-name-at-save survive later name changes. Forty reordered/duplicate branch deliveries
   converge. This closes P-23/P-27 domain evidence only; save/restore UI, head selection, diffs,
   archives, and remote-provider validation remain open.
+- Exact-head version commits and restore-as-new-child are now implemented at the domain layer.
+  Stale commits fail before insertion; concurrent restores retain both immutable branches while
+  Yjs selects one deterministic head. A pure structured block diff and stable count note operate
+  with the model engine off. This closes P-28/P-29 headless evidence only; the version rail,
+  conflict reconciliation, richer notes, exports, and interaction tests remain open.
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **41 capabilities**: **13 are
-`implemented_unverified`, 28 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **41 capabilities**: **15 are
+`implemented_unverified`, 26 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, portable local lifecycle,
 Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned

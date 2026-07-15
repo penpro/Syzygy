@@ -127,6 +127,13 @@ readback reparses, re-canonicalizes, and rehashes it, so direct or remote replac
 Returned structures are detached copies. This is a domain/history foundation only: the editor
 does not yet expose save, rail, restore, or deterministic diff controls.
 
+`policyVersionHistory.ts` adds exact-head commits and restore-as-new-version semantics. The mutable
+head is one Yjs metadata pointer; a commit hashes its expected current head into the new immutable
+parent link and rechecks the pointer inside the same Yjs transaction. Concurrent commits retain
+both immutable branches even though Yjs deterministically selects one displayed head. The module
+also produces a bounded structured block diff and deterministic count note without a model or
+network call. There is still no product history UI or automatic conflict-resolution policy.
+
 The frontend `extensions/` folder owns provider-neutral model descriptors, a content-free
 provider-run provenance record, deterministic adversarial-run planning plus an evidence-gated
 run-record validator and injected headless phase runner, strict researcher-plugin manifests/proposals, declarative custom model-adapter

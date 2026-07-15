@@ -130,6 +130,11 @@ tests cover tampering, detached results, idempotent replay, display-name changes
 reordered/duplicate branch deliveries. Save/restore UI, a shared head, deterministic diffs, and
 archive interchange remain open.
 
+P-28/P-29 now have exact-head commit, restore-as-new-child, and deterministic engine-free diff
+services. A stale head fails before creating an orphan; two concurrent restores preserve both
+immutable branches and converge one Yjs head across forty delivery orders. Restore/history UI,
+branch reconciliation, labels, richer human change notes, and archive interchange remain open.
+
 ## 5. Target architecture
 
 ```text

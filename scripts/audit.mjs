@@ -125,6 +125,29 @@ record(
   'canonical SHA-256 envelopes, detached verified reads, lineage/project guards, historical attribution, tamper rejection, 40 branch delivery orders, and truthful P-23/P-27 statuses are present',
 )
 
+const policyVersionHistorySource = text('frontend/src/workspace/policyVersionHistory.ts')
+const policyVersionHistoryTestSource = text('frontend/src/workspace/policyVersionHistory.test.ts')
+record(
+  'policy restore and diffs remain history-preserving, revision-guarded, and engine-free',
+  policyVersionSource.includes('POLICY_VERSION_HEAD_KEY') &&
+    policyVersionSource.includes("collection.doc.transact(operation, 'syzygy-policy-version-head')") &&
+    policyVersionSource.includes('Policy version head conflict') &&
+    policyVersionSource.includes('Parent policy version changed during commit') &&
+    policyVersionSource.includes('export async function readPolicyVersionLineage') &&
+    policyVersionHistorySource.includes('return commitPolicyVersion(versions, metadata, commit)') &&
+    policyVersionHistorySource.includes('export function diffPolicyVersions') &&
+    policyVersionHistorySource.includes('export function deterministicChangeNote') &&
+    !/ollama|model_provider|fetch\s*\(/.test(policyVersionHistorySource) &&
+    policyVersionHistoryTestSource.includes('without rewriting history') &&
+    policyVersionHistoryTestSource.includes('rejects stale commits without creating an orphan') &&
+    policyVersionHistoryTestSource.includes('seed <= 40') &&
+    policyVersionHistoryTestSource.includes('immutable ancestor is missing') &&
+    policyVersionHistoryTestSource.includes('produces a stable engine-free structured diff and change note') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-28", "phase": 3, "status": "implemented_unverified"') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-29", "phase": 3, "status": "implemented_unverified"'),
+  'exact-head atomic commit, bounded lineage verification, restore-as-new-child, retained concurrent branches, 40 delivery orders, pure deterministic diff/note, and truthful P-28/P-29 statuses are present',
+)
+
 const tauriConfig = JSON.parse(text('frontend/src-tauri/tauri.conf.json'))
 record(
   'bundle identity',

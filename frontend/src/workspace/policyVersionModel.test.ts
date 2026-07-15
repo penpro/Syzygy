@@ -107,6 +107,13 @@ describe('immutable policy version model', () => {
     const versions = getProjectSharedTypes(doc).versions
     await expect(createPolicyVersion(versions, { ...rootInput, parentVersionId: '0'.repeat(64) })).rejects.toThrow('Parent policy version not found or invalid')
     await expect(createPolicyVersion(versions, { ...rootInput, scenarioIds: ['same', 'same'] })).rejects.toThrow('Invalid policy version scenario references')
+    await expect(createPolicyVersion(versions, {
+      ...rootInput,
+      blocks: [
+        { kind: 'policy', policyId: 'duplicate', status: 'draft', text: 'First.' },
+        { kind: 'policy', policyId: 'duplicate', status: 'review', text: 'Second.' },
+      ],
+    })).rejects.toThrow('Policy version contains duplicate policy block IDs')
     const root = await createPolicyVersion(versions, rootInput)
     await expect(createPolicyVersion(versions, { ...rootInput, projectId: 'another-project', parentVersionId: root.versionId, createdAt: 12 }))
       .rejects.toThrow('Parent policy version belongs to another project')

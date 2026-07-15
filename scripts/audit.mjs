@@ -103,11 +103,21 @@ const advertisedMcpTools = [
   'read_active_project',
   'replace_active_document',
   'append_active_document',
+  'syzygy_installation',
 ]
 record(
   'embedded MCP entry and tools',
   mainSource.includes('"--mcp"') && advertisedMcpTools.every((name) => mcpSource.includes(`"${name}"`)),
   `${advertisedMcpTools.filter((name) => mcpSource.includes(`"${name}"`)).length}/${advertisedMcpTools.length} semantic tools registered`,
+)
+const mcpSetupSource = text('frontend/src/components/McpSetupModal.tsx')
+record(
+  'in-app MCP setup is executable-derived',
+  mcpSetupSource.includes('mcpConnectionInfo()') &&
+    mcpSetupSource.includes('info.executablePath') &&
+    mcpSetupSource.includes('info.connectionPrompt') &&
+    text('frontend/src-tauri/src/lib.rs').includes('mcp_setup::mcp_connection_info'),
+  'Settings guide uses the typed Rust-generated path, config, and prompt',
 )
 record(
   'MCP loopback security boundary',

@@ -59,6 +59,7 @@ source of project truth.
 | `vision.rs` | Optional vision-model engine swap (image describe/search). |
 | `automation.rs` | Ephemeral authenticated loopback bridge into semantic live-webview actions. |
 | `mcp.rs` | Embedded stdio MCP mode, tool schemas, and JSON-RPC protocol routing. |
+| `mcp_setup.rs` | Running-executable discovery plus copy-ready JSON/TOML configuration and connection prompts shared by the UI and MCP. |
 
 **Security posture:** the model only ever sees selected text; the webview never sees OAuth
 credentials/tokens (they live in Rust + app-data); local file access is allowlisted via
@@ -88,6 +89,8 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   discussions, and settings; the Lexical/Yjs editor owns the `root` shared type.
 - `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
   navigation, and revision-guarded editor reads/writes. It does not own persistence.
+- `components/McpSetupModal.tsx` — Settings guide that asks Rust for the exact running executable
+  and displays copy-ready MCP configuration and prompts; it never guesses an install path.
 
 ## Persistence map
 
@@ -131,4 +134,5 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   derived plain-text copy is a second mutable source of truth.
 - **MCP automation is semantic and live.** Document mutations require a read revision and fail
   closed on concurrent change; the MCP receives no ambient Drive, filesystem, or model authority.
-  See `MCP.md`.
+  Setup data is generated from `current_exe` in Rust and reused by the app and the
+  `syzygy_installation` tool. See `MCP.md`.

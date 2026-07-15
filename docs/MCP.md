@@ -12,7 +12,13 @@ evaluation, Drive project transport, and real-time presence slices.
 
 ## Connect an MCP host
 
-Configure a local stdio server using the full path to the installed Syzygy executable:
+The streamlined path is **Syzygy → Settings → Connect an LLM → MCP setup guide**. The running app
+detects its exact executable and install folder, then generates JSON-host configuration, Codex
+TOML, a connection prompt, and a safe first task. Use those generated values because install paths
+vary across computers.
+
+To configure a host manually, use a local stdio server with the full path to the installed Syzygy
+executable:
 
 ```json
 {
@@ -41,6 +47,7 @@ Recommended first instruction to an MCP-capable model:
 |---|---:|---|
 | `syzygy_status` | no | Running version/view, active project, editor readiness, honest capability report |
 | `launch_syzygy` | launches app | Starts the GUI from the same installed executable and waits for readiness |
+| `syzygy_installation` | no | Exact executable/install folder, protocol, JSON/TOML configuration, connection prompt, and starter prompt; works without the GUI |
 | `workspace_walkthrough` | no | State-aware explanation of the current use case and next step |
 | `list_projects` | no | Stable IDs, titles, archive state, transport, active project |
 | `create_project` | yes | Creates and opens a local project with a non-empty title |
@@ -88,6 +95,9 @@ MCP host
   local app data and input devices.
 - MCP tools do not receive ambient Drive, filesystem, or local-model authority. Future tools for
   those systems need their own typed proposal/confirmation contracts.
+- `syzygy_installation` discloses the executable and parent-folder paths to the already-connected
+  local MCP host. These paths are local machine metadata, contain no OAuth token or research
+  content, and are also visible to the user in Settings.
 
 ## Executable evidence
 
@@ -96,6 +106,8 @@ Run the cross-layer headless contract harness:
 ```powershell
 cd D:\PolicyPad\syzygy\frontend
 npm run test:mcp
+# packaged binary self-description/protocol proof, without launching the GUI
+node ..\scripts\mcp-harness.mjs --executable <absolute-Syzygy.exe>
 ```
 
 It fails unless:
@@ -105,12 +117,17 @@ It fails unless:
 3. the loopback parser accepts an authenticated request and rejects browser origins;
 4. MCP initialization negotiates the current `2025-11-25` protocol revision;
 5. all semantic tools are discoverable and route to their intended live operation; and
-6. the actual compiled application binary speaks newline-delimited JSON-RPC over stdio without
+6. self-description returns absolute paths and copy-ready configuration without a GUI; and
+7. the actual compiled application binary speaks newline-delimited JSON-RPC over stdio without
    contaminating stdout.
 
 The harness uses a fake semantic live responder for protocol routing and the real Lexical editor
 for mutation behavior. A packaged-app live smoke proof remains a separate release check because
 it opens the user's actual WebView profile.
+
+The 0.1.10 onboarding/self-description run is recorded in
+`docs/audits/runs/MCP-SETUP-2026-07-14.json`, including the packaged executable path, tool count,
+installer size, compile marker, and explicit test limitations.
 
 For an explicit end-to-end proof against the current user's real app profile, build the app and
 run `npm run test:mcp:live`. It launches the GUI if needed, creates a visible `MCP pilot` project,

@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-07-14",
+  "appVersion": "0.1.10",
+  "scope": "In-app MCP onboarding and executable-derived self-description",
+  "results": {
+    "frontendUnitTests": {
+      "command": "npm test",
+      "filesPassed": 16,
+      "testsPassed": 78
+    },
+    "rustSetupTests": {
+      "command": "cargo test --manifest-path src-tauri/Cargo.toml mcp_setup::tests",
+      "testsPassed": 2,
+      "covers": [
+        "exact executable and parent-folder derivation",
+        "JSON and TOML generation for paths containing spaces"
+      ]
+    },
+    "mcpPackagedBinary": {
+      "command": "node ../scripts/mcp-harness.mjs --executable ./src-tauri/target/release/Syzygy.exe",
+      "passed": true,
+      "protocolVersion": "2025-11-25",
+      "toolCount": 11,
+      "appVersion": "0.1.10",
+      "executable": "frontend/src-tauri/target/release/Syzygy.exe",
+      "absoluteExecutableObserved": true,
+      "absoluteInstallFolderObserved": true,
+      "generatedConfigurationContainedMcpArgument": true,
+      "connectionPromptContainedDetectedExecutable": true,
+      "stderrProtocolClean": true
+    },
+    "architectureAudit": {
+      "command": "npm run audit",
+      "passed": true,
+      "checksPassed": 14,
+      "registeredMcpTools": "11/11"
+    },
+    "windowsBundle": {
+      "command": "npm run tauri -- build",
+      "frontendReembedded": true,
+      "compileMarker": "Compiling app v0.1.10",
+      "installer": "frontend/src-tauri/target/release/bundle/nsis/Syzygy_0.1.10_x64-setup.exe",
+      "installerBytes": 70174053
+    },
+    "browserPreview": {
+      "settingsEntryRendered": true,
+      "setupDialogRendered": true,
+      "accessibleDialogName": "Connect an LLM",
+      "backendUnavailableCopyWasNontechnical": true
+    }
+  },
+  "limitations": [
+    "The browser preview exercised the no-native-backend error state; packaged success values were proven through the Rust command and packaged MCP binary rather than browser injection.",
+    "This run did not install the local NSIS artifact or change the public updater feed.",
+    "This onboarding slice does not verify any of the 41 research-workflow capability gates."
+  ]
+}

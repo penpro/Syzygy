@@ -41,13 +41,22 @@ opening a GUI:
 ```powershell
 cd D:\PolicyPad\syzygy\frontend
 npm run test:mcp
+# interrogate an already-built packaged executable without launching its GUI
+node ..\scripts\mcp-harness.mjs --executable <absolute-Syzygy.exe>
 ```
 
 The harness compiles the real application binary, starts `app --mcp` over stdio, negotiates MCP
-`2025-11-25`, discovers its tools, checks notification framing and ping, and calls a typed live
-status result. Separate frontend tests prove structured Lexical reads, replace/append behavior,
-and stale-revision rejection; Rust tests prove authenticated loopback parsing and browser-origin
-rejection. See `MCP.md` for the security and tool contract.
+`2025-11-25`, discovers its eleven tools, checks notification framing and ping, calls a typed live
+status result, then calls `syzygy_installation` without a GUI. That self-description must contain
+absolute executable/install-folder paths plus configuration and a connection prompt derived from
+the executable. Separate frontend tests prove structured Lexical reads, replace/append behavior,
+and stale-revision rejection; Rust tests prove authenticated loopback parsing, browser-origin
+rejection, and correct JSON/TOML generation for executable paths with spaces. See `MCP.md` for the
+security and tool contract.
+
+The packaged UI exposes the same Rust-generated values under **Settings → Connect an LLM → MCP
+setup guide**. Do not hard-code an installer location in React or documentation; installed paths
+vary by OS, installer choice, and portable/dev execution.
 
 After building the current packaged executable, an explicit live-profile proof can
 launch the GUI through MCP, create a visible demonstration project, exercise replace/append and

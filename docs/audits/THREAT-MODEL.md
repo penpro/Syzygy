@@ -41,6 +41,7 @@ versions/evaluation evidence.
 | MCP overwrites a collaborator's newer draft | Every document write requires the exact revision from a prior live read | Revision is editor-state optimistic concurrency, not yet an attributed review/approval workflow |
 | Stale MCP descriptor targets the wrong process | Descriptor includes schema/PID/version; connection and per-process token fail closed; normal shutdown removes it | Abrupt termination leaves a harmless stale descriptor until the next GUI launch; add PID liveness cleanup |
 | Same-user malware steals the MCP token | User-local temp ACL (and `0600` on Unix); token rotates every GUI process | Not a same-user sandbox; evaluate OS named pipes/peer credentials before exposing higher-risk tools |
+| Generated MCP instructions point to the wrong binary | UI and `syzygy_installation` share Rust `current_exe` discovery; JSON/TOML path-with-spaces tests run against the real binary | Reinstall/move can invalidate configuration; the guide tells users to regenerate it from the running app |
 
 ## Release blockers
 

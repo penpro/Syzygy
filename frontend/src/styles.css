@@ -1993,6 +1993,117 @@ select:focus {
   transform: translateY(0.5px);
 }
 
+/* ---------- local MCP connection guide ---------- */
+.mcp-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.mcp-intro {
+  margin: 0;
+  color: var(--text-2);
+  line-height: 1.55;
+}
+.mcp-status,
+.mcp-error {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  padding: 10px 12px;
+  color: var(--muted);
+}
+.mcp-error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.mcp-step {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  padding: 12px;
+}
+.mcp-step-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+.mcp-step-number {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+.mcp-step h3 {
+  margin: 1px 0 2px;
+  font-size: 14px;
+}
+.mcp-step-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.mcp-facts {
+  display: grid;
+  gap: 7px;
+  margin: 0 0 10px;
+}
+.mcp-facts > div {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+}
+.mcp-facts dt {
+  color: var(--muted);
+  font-size: 11px;
+}
+.mcp-facts dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12px;
+}
+.mcp-facts code {
+  overflow-wrap: anywhere;
+}
+.mcp-format {
+  display: flex;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+.mcp-copy-area {
+  width: 100%;
+  min-height: 118px;
+  margin-bottom: 8px;
+  resize: vertical;
+  background: var(--bg-2);
+  color: var(--text);
+  border-color: var(--border-2);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.mcp-prompt-area {
+  min-height: 142px;
+  font-family: var(--font);
+  font-size: 12px;
+}
+
+@media (max-width: 560px) {
+  .mcp-facts > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
 /* Sidebar thread list must ALWAYS scroll internally, never push the footer off-screen:
    pin the growing section's basis to 0 so the list gets exactly the leftover space. */
 .side-section.grow {

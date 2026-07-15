@@ -7,6 +7,7 @@ import { VisionSettings } from './VisionSettings'
 import { ModelsModal } from './ModelsModal'
 import { LogModal } from './LogModal'
 import { UpdateCheck } from './UpdateCheck'
+import { McpSetupModal } from './McpSetupModal'
 import { crashReportsAvailable, startCrashReports, stopCrashReports } from '../crashReports'
 import { useConfirm } from './ConfirmDialog'
 import { STORE_KEY, exportData } from '../storage'
@@ -167,6 +168,7 @@ export function SettingsPanel({
   const updateSettings = useStore((s) => s.updateSettings)
   const [showModels, setShowModels] = useState(false)
   const [showLog, setShowLog] = useState(false)
+  const [showMcpSetup, setShowMcpSetup] = useState(false)
   const loadedModel = useStore((s) => s.loadedModel)
   const confirm = useConfirm()
 
@@ -232,6 +234,18 @@ export function SettingsPanel({
     >
       <div className="form">
         <UpdateCheck />
+
+        <div className="field">
+          <span>Connect an LLM</span>
+          <div className="row gap">
+            <button className="btn sm ghost" onClick={() => setShowMcpSetup(true)}>
+              MCP setup guide
+            </button>
+          </div>
+          <em className="hint">
+            Detect this installation, copy the exact MCP configuration, and generate a starter prompt for an MCP-capable assistant.
+          </em>
+        </div>
 
         <div className="field">
           <span>Your data</span>
@@ -590,6 +604,7 @@ export function SettingsPanel({
       </div>
     </Modal>
     {showLog && <LogModal onClose={() => setShowLog(false)} />}
+    {showMcpSetup && <McpSetupModal onClose={() => setShowMcpSetup(false)} />}
     {showModels && (
       <ModelsModal
         onClose={() => setShowModels(false)}

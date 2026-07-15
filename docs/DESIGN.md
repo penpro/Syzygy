@@ -102,3 +102,16 @@ evaluation panel. Incomplete controls are visibly disabled and described as upco
 not imply that versioning, Drive CRDT transport, scenarios, or real-time presence already work.
 The editor uses Plex Serif for document content and Plex Mono metadata stamps, with every surface,
 border, status, and selection derived from theme tokens so retained dark themes remain usable.
+
+## MCP connection guide
+
+Settings includes a **Connect an LLM** guide for people who should not need to understand MCP
+internals. The flow is numbered and concrete: show the detected executable/install folder, copy
+host configuration, copy a connection prompt, then copy a safe first task. Paths and generated
+text come from the running Rust executable, not UI constants. Technical values use Plex Mono;
+explanations stay in plain Plex Sans. Copy success is expressed in text, errors say what failed,
+and all cards, borders, states, and narrow-layout behavior use theme tokens.
+
+The copy must distinguish configuration from capability. A successful setup does not imply that
+unfinished versions, scenarios, Drive project transport, evaluation, or presence are available.
+It must also say that MCP does not automatically gain Drive, filesystem, or local-model authority.

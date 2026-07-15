@@ -404,6 +404,12 @@ compaction time, five/twenty-client sessions, local-model latency, and evaluatio
 
 ## 11. Recommended next slice
 
+Status snapshot on 2026-07-14: the 41-row ledger has 9 `implemented_unverified`, 32 `planned`,
+and 0 `verified` capabilities. The shipped local editor, Drive research path, local engine, and MCP
+pilot are meaningful foundations, but none substitutes for the decisive two-install, convergence,
+portable-archive, workflow, accessibility, and adversarial gates below. MCP setup/onboarding is
+tracked as enabling infrastructure rather than inflating the product-capability count.
+
 Do not use the web port or upstream source as an implementation input. First:
 
 1. maintain the new provenance and machine-readable capability ledgers and finish their open

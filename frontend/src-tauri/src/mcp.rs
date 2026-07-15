@@ -5,6 +5,7 @@
 //! This keeps one source of truth and lets the same tools work with future persistence providers.
 
 use crate::automation::{descriptor_path, AutomationDescriptor, BridgeReply, BridgeRequest};
+use crate::mcp_setup::{self, MCP_PROTOCOL_VERSION};
 use serde_json::{json, Map, Value};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
@@ -12,7 +13,6 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
-const MCP_PROTOCOL_VERSION: &str = "2025-11-25";
 const SUPPORTED_PROTOCOL_VERSIONS: &[&str] =
     &["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 static REQUEST_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -91,7 +91,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Start with syzygy_status, then workspace_walkthrough and list_projects. Read a project before editing it. Document writes require the exact revision returned by read_active_project; if a revision conflict occurs, read again and reconcile. Never claim disabled capabilities (snapshots, scenarios, Drive project transport, or real-time presence) are available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Read a project before editing it. Document writes require the exact revision returned by read_active_project; if a revision conflict occurs, read again and reconcile. Never claim disabled capabilities (snapshots, scenarios, Drive project transport, or real-time presence) are available."
             })
         }
         "ping" => json!({}),
@@ -129,6 +129,10 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "replace_active_document" => live("document.replace", arguments),
         "append_active_document" => live("document.append", arguments),
         "launch_syzygy" => launch_live_app(),
+        "syzygy_installation" => mcp_setup::current().and_then(|info| {
+            serde_json::to_value(info)
+                .map_err(|error| format!("Could not encode Syzygy installation details: {error}"))
+        }),
         _ => Err(format!("Unknown Syzygy tool: {name}")),
     };
 
@@ -157,6 +161,11 @@ fn tool_definitions() -> Vec<Value> {
         tool(
             "launch_syzygy",
             "Launch the Syzygy GUI from this installed executable when it is not already running, then wait until semantic automation is ready.",
+            object_schema(&[], &[]),
+        ),
+        tool(
+            "syzygy_installation",
+            "Return the exact running Syzygy executable and install-folder paths, stdio arguments, copy-ready MCP configuration, protocol version, and recommended connection prompts. This does not require the GUI to be open.",
             object_schema(&[], &[]),
         ),
         tool(
@@ -388,6 +397,7 @@ mod tests {
             .filter_map(|tool| tool["name"].as_str())
             .collect();
         assert!(names.contains(&"workspace_walkthrough"));
+        assert!(names.contains(&"syzygy_installation"));
         assert!(names.contains(&"read_active_project"));
         assert!(names.contains(&"replace_active_document"));
     }

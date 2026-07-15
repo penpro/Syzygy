@@ -8,6 +8,7 @@ pub mod google_auth;
 pub mod google_drive;
 mod knowledge;
 pub mod mcp;
+mod mcp_setup;
 mod state;
 mod updates;
 mod vision;
@@ -153,6 +154,7 @@ pub fn run() {
             google_drive::google_drive_mirror_append_log,
             automation::automation_ready,
             automation::automation_respond,
+            mcp_setup::mcp_connection_info,
             updates::app_version
         ])
         .run(tauri::generate_context!())

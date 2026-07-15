@@ -31,6 +31,20 @@ export interface DownloadInfo {
   status: string
 }
 
+export interface McpConnectionInfo {
+  appVersion: string
+  protocolVersion: string
+  serverName: string
+  transport: 'stdio'
+  executablePath: string
+  installFolder: string
+  arguments: string[]
+  genericJson: string
+  codexToml: string
+  connectionPrompt: string
+  starterPrompt: string
+}
+
 // ---------- engine & models ----------
 
 /** GPU VRAM usage in MiB (via `nvidia-smi`). null off-Tauri / on non-NVIDIA. */
@@ -275,6 +289,9 @@ export const appVersion = (): Promise<string> => invoke('app_version')
 
 /** Mark the webview ready after its authenticated automation event listener is attached. */
 export const automationReady = (): Promise<void> => invoke('automation_ready')
+
+/** Exact, copy-ready connection details generated from the currently running executable. */
+export const mcpConnectionInfo = (): Promise<McpConnectionInfo> => invoke('mcp_connection_info')
 
 /** Complete one semantic automation request. Content is returned only to its authenticated caller. */
 export const automationRespond = (

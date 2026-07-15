@@ -15,6 +15,7 @@
 | Update check/install | User confirms check/install | GitHub release endpoint → updater | Version metadata, signed installer | Installer/update cache | Explicit disclosure; updater signature |
 | Diagnostic log | Runtime errors/milestones | Frontend/Rust error boundary → local ring | Command/tag/error only | localStorage, newest 500 entries | No prompt, file content, token, or credential logging |
 | Live MCP read/control | MCP host starts `Syzygy --mcp` and calls a tool | MCP stdio → token-authenticated ephemeral loopback → Rust event → live webview | Semantic method/parameters; project content only for explicit read/write tools | No MCP copy; live Zustand/Yjs owners persist normally | Loopback only, 256-bit per-process bearer, browser-origin rejection, bounded request, timeout |
+| MCP setup/self-description | User opens Settings guide or connected host calls `syzygy_installation` | Running Rust process → webview or MCP stdio | Executable path, parent install folder, app/protocol versions, generated config/prompts | None | Local process metadata only; no OAuth token, model secret, or research content |
 
 ## Drive boundary nuance
 

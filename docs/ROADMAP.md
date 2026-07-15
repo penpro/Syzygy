@@ -61,6 +61,21 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   workspace, navigate project identity, and read/replace/append the active Lexical draft with
   optimistic revision guards. The MCP explicitly reports disabled versions, scenarios, Drive
   project transport, and real-time presence instead of implying those placeholders work.
+- The v0.1.10 MCP onboarding slice moves connection instructions into Settings. Rust derives
+  the exact executable/install folder and produces JSON, Codex TOML, a connection prompt, and a
+  starter task used by both the UI and the new `syzygy_installation` MCP tool. The headless harness
+  rejects relative paths or configuration that is not tied to the binary under test; the packaged
+  proof is recorded in `docs/audits/runs/MCP-SETUP-2026-07-14.json`.
+
+## Current completion snapshot
+
+The machine-readable end-goal ledger currently contains **41 capabilities**: **9 are
+`implemented_unverified`, 32 are `planned`, and 0 are `verified`**. MCP onboarding improves
+operability and automated testing but does not close a research-workflow capability by itself.
+The next product-critical gaps remain the custom editor/domain nodes, portable local lifecycle,
+Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned
+evaluation. The definitive contracts and gates remain in `END-GOAL-PLAN.md` and
+`docs/audits/CAPABILITIES.json`.
 
 ## Next (in intended order)
 

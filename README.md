@@ -16,7 +16,7 @@
 - **See images (optional)** — add a vision model and it can describe images or search a folder for the ones matching a description.
 - **Private by default** — no account, no telemetry. After the one-time model download it works with the network unplugged.
 - **Google Drive (optional, in progress)** — choose a Drive workspace for direct shared research. Syzygy exports Docs, Sheets, and Slides into local-model context without requiring a mirror; OAuth tokens remain in the Rust core. Google does not offer a folder-only scope for this desktop flow, so the app discloses its broader collaboration grant and constrains operations to the folder you select.
-- **Live MCP automation (in progress)** — the installed executable can run as a local stdio MCP server and semantically pilot the running project/editor. Reads and revision-guarded writes go through the live app rather than a second mirror; unfinished workspace capabilities are reported as unavailable.
+- **Live MCP automation (in progress)** — the installed executable can run as a local stdio MCP server and semantically pilot the running project/editor. Settings detects the exact installation and generates copy-ready JSON/TOML configuration and prompts. Reads and revision-guarded writes go through the live app rather than a second mirror; unfinished workspace capabilities are reported as unavailable.
 
 > *Syzygy (n.) — an alignment of celestial bodies. Sister app to [Aphelion](https://github.com/penpro/Aphelion), Penumbra's local-AI studio: Aphelion is your AI at the farthest point from the cloud; Syzygy is where people and documents come into alignment.*
 

@@ -5,6 +5,8 @@ import {
   automationEditorReady,
   getAutomationEditorController,
 } from './workspace/editorAutomationRegistry'
+import { inspectResearchState } from './workspace/researchStateInspection'
+import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
 
 interface AutomationRequest {
   id: string
@@ -51,15 +53,17 @@ export async function dispatchAutomationRequest(
         projectCount: state.projects.filter((project) => !project.archivedAt).length,
         activeProject: activeProject ? summarizeProject(activeProject, state.activeProjectId) : null,
         editorReady: activeProject ? automationEditorReady(activeProject.id) : false,
+        researchStateReady: activeProject ? automationProjectDocumentReady(activeProject.id) : false,
         capabilities: {
           available: [
             'local project identity',
             'local collaborative rich-text draft',
             'automatic IndexedDB persistence',
             'revision-guarded semantic MCP reads and writes',
+            'read-only MCP integrity inspection for heuristics and immutable version history',
           ],
           unavailable: [
-            'immutable snapshots and diffs',
+            'version save, restore, and diff controls in the product UI or MCP',
             'scenario and evaluation workflows',
             'Drive-backed project CRDT transport',
             'real-time collaborator presence',
@@ -105,6 +109,17 @@ export async function dispatchAutomationRequest(
       )
       if (!project) throw new Error('No research project is active; list or create a project first')
       return { project: summarizeProject(project, latest.activeProjectId), document: getAutomationEditorController(project.id).read() }
+    }
+    case 'project.readResearchState': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      return { project: summarizeProject(project, latest.activeProjectId), researchState: await inspectResearchState(
+        getAutomationProjectDocument(project.id),
+        project.id,
+      ) }
     }
     case 'document.replace': {
       const expectedRevision = requiredString(params, 'expectedRevision')
@@ -170,8 +185,8 @@ function buildWalkthrough() {
       },
       {
         name: 'Versions and comparisons',
-        status: 'not-implemented',
-        use: 'The left rail is a visible placeholder; snapshots and diffs do not work yet.',
+        status: project && automationProjectDocumentReady(project.id) ? 'domain-inspection-ready' : 'needs-open-project',
+        use: 'Immutable history and deterministic diff foundations are headlessly tested; the visible rail and MCP remain read-only.',
       },
       {
         name: 'Scenarios and evaluation',

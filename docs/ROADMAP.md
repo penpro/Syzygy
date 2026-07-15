@@ -197,6 +197,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   Yjs selects one deterministic head. A pure structured block diff and stable count note operate
   with the model engine off. This closes P-28/P-29 headless evidence only; the version rail,
   conflict reconciliation, richer notes, exports, and interaction tests remain open.
+- The live MCP now advertises a thirteenth semantic tool, `inspect_research_state`. A lifecycle-
+  safe registry points it at the same active Y.Doc as the editor. The tool validates heuristic
+  records, immutable version hashes, project ownership, head shape, and complete ancestor lineage,
+  but returns only bounded metadata summaries and no policy/guidance/edit/note bodies. Pure
+  frontend, Rust routing, and compiled debug-executable stdio tests are committed; the mutation-
+  capable packaged live harness is updated but was not run by this non-interactive checkpoint.
 
 ## Current completion snapshot
 

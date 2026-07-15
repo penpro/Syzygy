@@ -141,9 +141,12 @@ try {
       throw new Error('The live app did not reject the stale MCP write')
     }
     const readback = await session.tool('read_active_project')
+    const researchState = await session.tool('inspect_research_state')
     if (readback.structuredContent.project.id !== projectId) throw new Error('Live project identity changed')
     if (!readback.structuredContent.document.text.includes('Testable example')) throw new Error('Live append was not readable')
     if (readback.structuredContent.document.text.includes('stale write')) throw new Error('Stale write reached the live draft')
+    if (researchState.structuredContent.researchState.projectId !== projectId) throw new Error('Research-state inspection targeted the wrong project')
+    if (researchState.structuredContent.researchState.selfCheck.healthy !== true) throw new Error('Live research-state integrity check failed')
     evidence.write = {
       projectId,
       reusedProject: !!existing,
@@ -152,6 +155,9 @@ try {
       finalRevision: appended.structuredContent.document.revision,
       finalBlockCount: readback.structuredContent.document.blocks.length,
       staleWriteRejected: true,
+      researchStateHealthy: true,
+      heuristicRecords: researchState.structuredContent.researchState.heuristics.totalRecords,
+      versionRecords: researchState.structuredContent.researchState.versions.totalRecords,
     }
   }
   evidence.passed = true

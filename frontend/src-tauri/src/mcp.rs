@@ -92,7 +92,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Read a project before editing it. Document writes require the exact revision returned by read_active_project; if a revision conflict occurs, read again and reconcile. Never claim disabled capabilities (snapshots, scenarios, Drive project transport, or real-time presence) are available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_research_state for bounded read-only integrity metadata about heuristics and immutable history. Read a project before editing it. Document writes require the exact revision returned by read_active_project; if a revision conflict occurs, read again and reconcile. Never claim unavailable UI/mutation capabilities, scenarios, Drive project transport, or real-time presence are available."
             })
         }
         "ping" => json!({}),
@@ -127,6 +127,7 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "open_project" => live("project.open", arguments),
         "rename_project" => live("project.rename", arguments),
         "read_active_project" => live("project.readActive", json!({})),
+        "inspect_research_state" => live("project.readResearchState", json!({})),
         "replace_active_document" => live("document.replace", arguments),
         "append_active_document" => live("document.append", arguments),
         "launch_syzygy" => launch_live_app(),
@@ -209,6 +210,11 @@ fn tool_definitions() -> Vec<Value> {
         tool(
             "read_active_project",
             "Read the active live project's manifest and collaborative document as structured blocks and plain text. Always call this before a document write and retain its revision.",
+            object_schema(&[], &[]),
+        ),
+        tool(
+            "inspect_research_state",
+            "Inspect bounded read-only metadata and integrity checks for the active project's collaborative heuristics and immutable policy-version history. Omits policy text, heuristic guidance/edit values, and notes; grants no mutation authority.",
             object_schema(&[], &[]),
         ),
         tool(
@@ -407,6 +413,7 @@ mod tests {
         assert!(names.contains(&"syzygy_installation"));
         assert!(names.contains(&"syzygy_platform_contracts"));
         assert!(names.contains(&"read_active_project"));
+        assert!(names.contains(&"inspect_research_state"));
         assert!(names.contains(&"replace_active_document"));
     }
 
@@ -434,6 +441,25 @@ mod tests {
             "project-123"
         );
         assert_eq!(response["result"]["isError"], false);
+    }
+
+    #[test]
+    fn routes_research_state_inspection_read_only() {
+        let response = dispatch_message(
+            &json!({
+                "jsonrpc": "2.0",
+                "id": "inspect-1",
+                "method": "tools/call",
+                "params": { "name": "inspect_research_state", "arguments": {} }
+            }),
+            &fake_live,
+        )
+        .unwrap();
+        assert_eq!(
+            response["result"]["structuredContent"]["method"],
+            "project.readResearchState"
+        );
+        assert_eq!(response["result"]["structuredContent"]["params"], json!({}));
     }
 
     #[test]

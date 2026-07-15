@@ -286,8 +286,8 @@ export async function readPolicyVersionLineage(
 }
 
 export async function listPolicyVersions(collection: Y.Map<unknown>): Promise<PolicyVersion[]> {
+  if (collection.size > MAX_VERSIONS) return []
   const ids = Array.from(collection.keys()).sort()
-  if (ids.length > MAX_VERSIONS) return []
   const versions = await Promise.all(ids.map((id) => readPolicyVersion(collection, id)))
   return versions.filter((value): value is PolicyVersion => value !== null)
     .sort((left, right) => left.createdAt - right.createdAt || left.versionId.localeCompare(right.versionId))

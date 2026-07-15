@@ -81,6 +81,13 @@ and stale-revision rejection; Rust tests prove authenticated loopback parsing, b
 rejection, and correct JSON/TOML generation for executable paths with spaces. See `MCP.md` for the
 security and tool contract.
 
+The live collaboration document registry and `researchStateInspection.test.ts` add a content-
+minimized MCP self-check. It validates every heuristic record, version hash/schema, project
+identity, head, and full bounded ancestor chain, while returning at most 200 metadata summaries
+and omitting policy text, heuristic guidance/edit values, and notes. Rust tests require the
+thirteenth `inspect_research_state` tool to route only to this read operation. The mutation-capable
+live harness checks it when explicitly run; CI does not claim a packaged GUI proof.
+
 The packaged UI exposes the same Rust-generated values under **Settings → Connect an LLM → MCP
 setup guide**. Do not hard-code an installer location in React or documentation; installed paths
 vary by OS, installer choice, and portable/dev execution.

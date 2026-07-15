@@ -9,16 +9,19 @@ import type {
 } from './collaborationProvider'
 import { createProjectDocument } from './projectModel'
 import type { ResearchProjectManifest } from './schema'
+import { registerAutomationProjectDocument } from './workspaceAutomationRegistry'
 
 export class LocalProjectProvider implements ProjectCollaborationProvider {
   readonly awareness: Awareness
   private readonly persistence: IndexeddbPersistence
   private readonly listeners = new Map<ProjectProviderEvent, Set<ProjectProviderListener>>()
   private connected = false
+  private unregisterAutomation: (() => void) | null = null
 
   constructor(
     readonly doc: Y.Doc,
     storageKey: string,
+    private readonly projectId = doc.guid,
   ) {
     this.awareness = new Awareness(doc)
     this.persistence = new IndexeddbPersistence(storageKey, doc)
@@ -28,6 +31,7 @@ export class LocalProjectProvider implements ProjectCollaborationProvider {
   connect(): void {
     if (this.connected) return
     this.connected = true
+    this.unregisterAutomation = registerAutomationProjectDocument(this.projectId, this.doc)
     this.emit('status', { status: 'connecting' })
     // Return void deliberately. Lexical's development StrictMode cleanup defers disconnecting
     // promise-returning providers and can disconnect a newer mount when the old promise settles.
@@ -44,6 +48,8 @@ export class LocalProjectProvider implements ProjectCollaborationProvider {
   }
 
   disconnect(): void {
+    this.unregisterAutomation?.()
+    this.unregisterAutomation = null
     if (!this.connected) return
     this.connected = false
     this.awareness.setLocalState(null)
@@ -85,7 +91,7 @@ export function createLocalProviderFactory(manifest: ResearchProjectManifest) {
   return (id: string, docMap: Map<string, Y.Doc>): Provider => {
     const doc = createProjectDocument(manifest)
     docMap.set(id, doc)
-    const provider = new LocalProjectProvider(doc, `syzygy-project-v1:${manifest.id}`)
+    const provider = new LocalProjectProvider(doc, `syzygy-project-v1:${manifest.id}`, manifest.id)
     // Lexical's provider contract intentionally supports several network providers. This
     // local implementation exposes the same lifecycle and awareness surface while IndexedDB
     // supplies durable offline updates; Drive and WebSocket providers can replace it later.

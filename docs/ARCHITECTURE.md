@@ -95,7 +95,8 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   while `policyVersionModel.ts` stores canonical version envelopes as SHA-256-addressed strings
   whose hash is rechecked on every read. The Lexical/Yjs editor owns the `root` shared type.
 - `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
-  navigation, and revision-guarded editor reads/writes. It does not own persistence.
+  navigation, revision-guarded editor reads/writes, and bounded read-only research-state integrity
+  inspection. It does not own persistence.
 - `components/McpSetupModal.tsx` — Settings guide that asks Rust for the exact running executable
   and displays copy-ready MCP configuration and prompts; it never guesses an install path.
 - `components/RemoteProviderSettings.tsx` — collapsed advanced settings for OpenAI, Anthropic,

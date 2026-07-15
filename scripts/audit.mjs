@@ -167,6 +167,7 @@ const advertisedMcpTools = [
   'open_project',
   'rename_project',
   'read_active_project',
+  'inspect_research_state',
   'replace_active_document',
   'append_active_document',
   'syzygy_installation',
@@ -176,6 +177,26 @@ record(
   'embedded MCP entry and tools',
   mainSource.includes('"--mcp"') && advertisedMcpTools.every((name) => mcpSource.includes(`"${name}"`)),
   `${advertisedMcpTools.filter((name) => mcpSource.includes(`"${name}"`)).length}/${advertisedMcpTools.length} semantic tools registered`,
+)
+const researchInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
+const researchInspectionTestSource = text('frontend/src/workspace/researchStateInspection.test.ts')
+const automationRegistrySource = text('frontend/src/workspace/workspaceAutomationRegistry.ts')
+record(
+  'MCP research-state inspection remains live, bounded, content-minimized, and read-only',
+  automationRegistrySource.includes('if (documents.get(projectId) === doc) documents.delete(projectId)') &&
+    text('frontend/src/workspace/localProvider.ts').includes('registerAutomationProjectDocument(this.projectId, this.doc)') &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.readResearchState'") &&
+    researchInspectionSource.includes('MAX_RETURNED_ITEMS = 200') &&
+    researchInspectionSource.includes('readPolicyVersionLineage') &&
+    researchInspectionSource.includes('countInvalidLineages') &&
+    researchInspectionSource.includes('policy text, heuristic guidance, edit values, and notes are omitted') &&
+    researchInspectionTestSource.includes('Secret guidance is omitted') &&
+    researchInspectionTestSource.includes("not.toContain('Secret policy text')") &&
+    researchInspectionTestSource.includes('reports a tampered version and invalid head lineage') &&
+    researchInspectionTestSource.includes('content-valid non-head record whose ancestor is missing') &&
+    mcpSource.includes('"inspect_research_state" => live("project.readResearchState"') &&
+    text('scripts/mcp-live-harness.mjs').includes('researchStateHealthy: true'),
+  'identity-safe live Y.Doc registry, 200-item metadata caps, secret-body canaries, tamper/head/lineage self-checks, read-only MCP routing, and packaged-live assertion are present',
 )
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))

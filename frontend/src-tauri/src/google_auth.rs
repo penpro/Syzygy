@@ -335,12 +335,6 @@ pub(crate) async fn access_token(app: &tauri::AppHandle) -> Result<String, Strin
     tokens.access_token.ok_or("No access token in refresh response.".into())
 }
 
-/// Exchange the stored refresh token for a fresh access token (for Drive calls made from Rust).
-#[tauri::command]
-pub async fn google_access_token(app: tauri::AppHandle) -> Result<String, String> {
-    access_token(&app).await
-}
-
 /// Create a folder in the user's Drive (idempotent: returns the existing folder when one with
 /// this name already exists and is owned/visible under the app's `drive.file` scope).
 /// Returns `"created:<id>"` or `"exists:<id>"` so the caller can phrase the result honestly.

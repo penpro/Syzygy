@@ -19,7 +19,7 @@
 
 > *Syzygy (n.) — an alignment of celestial bodies. Sister app to [Aphelion](https://github.com/penpro/Aphelion), Penumbra's local-AI studio: Aphelion is your AI at the farthest point from the cloud; Syzygy is where people and documents come into alignment.*
 
-**Where this is heading:** a free, local-first collaborative document editor — the fully-free rework of the ideas in [PolicyPad](https://github.com/kjfeng/policypad) (CHI 2026), with the collaborative Tiptap editor as the main workspace and pluggable sync (shared folder / self-hosted / P2P). The Ask workspace above is the foundation it lands on.
+**Where this is heading:** a free, local-first collaborative research workspace with an independently built Penumbra editor, local AI, and pluggable sync (Drive / self-hosted / P2P). No Tiptap or PolicyPad code, templates, prompts, schemas, fixtures, or assets are used.
 
 ## Documentation
 
@@ -30,6 +30,7 @@
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Dev/build/release processes, secrets & keys, the gotcha table |
 | [docs/GOOGLE-DRIVE.md](docs/GOOGLE-DRIVE.md) | Drive auth + folder-mirror sync, Google quirks, limitations |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Lineage, shipped versions, what's next, decision log |
+| [docs/END-GOAL-PLAN.md](docs/END-GOAL-PLAN.md) | Independent end-goal delivery plan, hard gates, tests, and adversarial audit protocol |
 
 ## Build from source
 

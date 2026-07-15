@@ -186,6 +186,9 @@ export const googleDriveListFolder = (folderName: string): Promise<DriveFileInfo
 export const googleDriveReadFile = (fileId: string): Promise<string> =>
   invoke('google_drive_read_file', { fileId })
 
+export const googleDriveRetrieveContext = (folderName: string, query: string, maxChars: number): Promise<string> =>
+  invoke('google_drive_retrieve_context', { folderName, query, maxChars })
+
 /** The local mirror of the shared Drive folder (Documents/Syzygy), created + granted on demand. */
 export const googleDriveMirrorDir = (): Promise<string> => invoke('google_drive_mirror_dir')
 

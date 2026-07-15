@@ -107,7 +107,7 @@ export function ModelsModal({ onClose, onGetMore }: { onClose: () => void; onGet
           Working on {label(busy)}… (switching the main model reloads the engine — give it a moment)
         </div>
       )}
-      {err && <div style={{ color: '#ff6b6b', marginTop: 8 }}>{err}</div>}
+      {err && <div style={{ color: 'var(--danger)', marginTop: 8 }}>{err}</div>}
       {onGetMore && (
         <button className="btn sm" style={{ marginTop: 12 }} disabled={!!busy} onClick={onGetMore}>
           ⬇ Download more models…

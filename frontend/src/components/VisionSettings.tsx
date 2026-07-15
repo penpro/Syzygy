@@ -84,7 +84,7 @@ export function VisionSettings() {
           <div>{vm.note}</div>
           <div style={{ marginTop: 6 }}>
             {present ? (
-              <span style={{ color: 'var(--corona, #5EEAD4)' }}>✓ Downloaded and ready.</span>
+              <span style={{ color: 'var(--accent)' }}>✓ Downloaded and ready.</span>
             ) : anyActive ? (
               <span>
                 {anyResuming ? 'Resuming' : 'Downloading'}… {pct}%{' '}
@@ -110,7 +110,7 @@ export function VisionSettings() {
             unload your main model while it works. Downloads resume automatically and run in the background (progress shows
             bottom-left).
           </div>
-          {err && <div style={{ color: '#ff6b6b', marginTop: 4 }}>{err}</div>}
+          {err && <div style={{ color: 'var(--danger)', marginTop: 4 }}>{err}</div>}
         </div>
       )}
     </label>

@@ -461,8 +461,8 @@ export function DocumentModal({
           style={{
             marginTop: 10,
             padding: 10,
-            background: 'rgba(255,90,90,.08)',
-            border: '1px solid rgba(255,90,90,.32)',
+            background: 'color-mix(in srgb, var(--danger) 8%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--danger) 32%, transparent)',
             borderRadius: 8,
             fontSize: 12,
             whiteSpace: 'pre-wrap',

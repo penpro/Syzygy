@@ -9,25 +9,28 @@ A **local-first AI document workspace**: a Tauri v2 desktop app pairing a fully-
 Google Drive collaboration. Forked from **Aphelion** (`penpro/Aphelion`), Penumbra's
 local-AI studio; the roleplay surface was removed and the document/collaboration surface
 is being built in its place. The long-term goal is a free, local-first collaborative
-document editor — the fully-free rework of the ideas in
-[PolicyPad](https://github.com/kjfeng/policypad) (CHI 2026).
+research workspace that democratizes policy design and evaluation, implemented independently
+under Penumbra ownership and the repository's MIT license.
 
 ## The three sibling folders (on the dev machine)
 
 | Folder | Role |
 |---|---|
-| `D:\PolicyPad\policypad` | Pristine clone of upstream PolicyPad. Reference only — never build here. |
-| `D:\PolicyPad\syzygy-web` | The Next.js fork holding the **Tiptap-v3 collaborative editor** + pluggable AI backend. Porting source for the future workspace view — not shipped. |
+| `D:\PolicyPad\policypad` | Historical comparison only. **Never copy code, prompts, schemas, assets, fixtures, or UI.** |
+| `D:\PolicyPad\syzygy-web` | Abandoned experiment; not an implementation source and never shipped. |
 | `D:\PolicyPad\syzygy` | **This repo.** The shipping desktop app. |
 
-## The Aphelion model (no server, ever)
+## Current runtime model (no mandatory backend)
 
-There is no backend server. The app is a static **Vite React SPA** rendered in a Tauri
+The current app has no backend server. It is a static **Vite React SPA** rendered in a Tauri
 webview, plus a **Rust core**. Anything "backend" is one of two calls:
 
 1. **AI** → direct `fetch` from the webview to the bundled llama.cpp server on
    `http://127.0.0.1:11435/v1` (OpenAI-compatible; hidden process; loopback only).
 2. **OS / files / network** → `invoke('command')` into the Rust core.
+
+Future collaboration providers may include an optional self-hosted real-time relay. Local use
+and Drive-asynchronous collaboration must not depend on a Penumbra-hosted service.
 
 ```
  you ──▶ webview (React) ──▶ 127.0.0.1:11435 llama.cpp ──▶ GGUF on GPU
@@ -78,7 +81,7 @@ credentials/tokens (they live in Rust + app-data); file access is allowlisted vi
 | Settings, experts, ask threads | localStorage key `syzygy` (webview) |
 | Google refresh token + client info | `<app-data>/google_auth.json` (Rust-only) |
 | Models (GGUF) | `<app-data>/models/` |
-| Drive mirror folder | `<Documents>/Syzygy` (synced to Drive folder "Syzygy") |
+| Optional Drive mirror folder | `<Documents>/Syzygy` (manual sync with Drive folder "Syzygy") |
 
 ## Key invariants
 
@@ -88,3 +91,8 @@ credentials/tokens (they live in Rust + app-data); file access is allowlisted vi
 - **`tauri.ts` is the only invoke boundary** (logging + typing chokepoint).
 - **`migrations.ts` is the only save-migration site.**
 - **Removed features come back from Aphelion** (`D:\LocalLLM`), not from git archaeology.
+- **Shared-folder reads are remote-first.** Ask retrieves supported content directly from
+  Drive; the local mirror is an explicit sync/offline option, not a collaboration prerequisite.
+- **The collaborative workspace is Penumbra-original.** No Tiptap or PolicyPad code, packages,
+  prompts, schemas, fixtures, assets, or UI enter the shipping tree. The baseline editor
+  candidate is exact-version MIT Lexical with Yjs; all product nodes and UI are authored here.

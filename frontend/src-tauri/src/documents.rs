@@ -95,13 +95,23 @@ fn run_typst(app: &tauri::AppHandle, root: &PathBuf, input: &PathBuf, out: &Path
 /// Compile Typst `source` to a PDF. With `out_path`, writes there; otherwise to a temp
 /// preview file. Returns the PDF path on success, or Typst's error output on failure.
 #[tauri::command]
-pub fn compile_typst(app: tauri::AppHandle, source: String, out_path: Option<String>) -> Result<String, String> {
+pub fn compile_typst(
+    app: tauri::AppHandle,
+    granted: tauri::State<Granted>,
+    source: String,
+    out_path: Option<String>,
+) -> Result<String, String> {
     let work = std::env::temp_dir().join("aphelion-typst");
     std::fs::create_dir_all(&work).map_err(|e| e.to_string())?;
     let input = work.join("document.typ");
     std::fs::write(&input, &source).map_err(|e| format!("couldn't write source: {e}"))?;
     let out = match out_path {
-        Some(p) => PathBuf::from(p),
+        Some(p) => {
+            if !path_allowed(&granted.0.lock().unwrap_or_else(|e| e.into_inner()), &p) {
+                return Err("That location isn't in a folder you've opened.".into());
+            }
+            PathBuf::from(p)
+        }
         None => work.join("preview.pdf"),
     };
     run_typst(&app, &work, &input, &out)?;
@@ -113,8 +123,8 @@ pub fn compile_typst(app: tauri::AppHandle, source: String, out_path: Option<Str
 pub fn open_path(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     let mut cmd = {
-        let mut c = Command::new("cmd");
-        c.args(["/C", "start", "", &path]);
+        let mut c = Command::new("explorer");
+        c.arg(&path);
         c
     };
     #[cfg(target_os = "macos")]
@@ -141,10 +151,13 @@ pub fn open_path(path: String) -> Result<(), String> {
 /// Save a generated document into a user-granted folder: writes `<title>.typ` and compiles
 /// `<title>.pdf` beside it (folder is the Typst root, so `#image(...)` resolves). Returns the PDF path.
 #[tauri::command]
-pub fn save_document(app: tauri::AppHandle, folder: String, title: String, source: String) -> Result<String, String> {
+pub fn save_document(app: tauri::AppHandle, granted: tauri::State<Granted>, folder: String, title: String, source: String) -> Result<String, String> {
     let dir = PathBuf::from(&folder);
     if !dir.is_dir() {
         return Err("That folder no longer exists.".into());
+    }
+    if !path_allowed(&granted.0.lock().unwrap_or_else(|e| e.into_inner()), &folder) {
+        return Err("That folder hasn't been opened in Syzygy.".into());
     }
     let safe = sanitize_title(&title);
     let typ = dir.join(format!("{safe}.typ"));
@@ -156,12 +169,15 @@ pub fn save_document(app: tauri::AppHandle, folder: String, title: String, sourc
 
 /// List saved document sources / editable files in a folder, newest first — for reopening.
 #[tauri::command]
-pub fn list_documents(folder: String) -> Vec<String> {
+pub fn list_documents(granted: tauri::State<Granted>, folder: String) -> Vec<String> {
     const DOC_EXTS: &[&str] = &[
         "typ", "md", "markdown", "txt", "text", "html", "htm", "css", "js", "ts", "jsx", "tsx", "json",
         "csv", "xml", "yaml", "yml", "java", "py", "rs", "go", "c", "cpp", "h", "sh", "sql",
     ];
     let mut docs: Vec<(std::time::SystemTime, String)> = Vec::new();
+    if !path_allowed(&granted.0.lock().unwrap_or_else(|e| e.into_inner()), &folder) {
+        return Vec::new();
+    }
     if let Ok(entries) = std::fs::read_dir(&folder) {
         for e in entries.flatten() {
             let p = e.path();
@@ -181,18 +197,24 @@ pub fn list_documents(folder: String) -> Vec<String> {
 
 /// Read a saved document's source back from a granted folder (for reopening / editing).
 #[tauri::command]
-pub fn read_document(folder: String, name: String) -> Result<String, String> {
+pub fn read_document(granted: tauri::State<Granted>, folder: String, name: String) -> Result<String, String> {
     let p = PathBuf::from(&folder).join(&name);
+    if !path_allowed(&granted.0.lock().unwrap_or_else(|e| e.into_inner()), &p.to_string_lossy()) {
+        return Err("That file isn't in a folder you've opened.".into());
+    }
     std::fs::read_to_string(&p).map_err(|e| e.to_string())
 }
 
 /// Save a generated plain-text / code document as `<title>.<ext>` in a granted folder,
 /// ready for an IDE/editor to open. Returns the file path.
 #[tauri::command]
-pub fn save_text_document(folder: String, title: String, ext: String, content: String) -> Result<String, String> {
+pub fn save_text_document(granted: tauri::State<Granted>, folder: String, title: String, ext: String, content: String) -> Result<String, String> {
     let dir = PathBuf::from(&folder);
     if !dir.is_dir() {
         return Err("That folder no longer exists.".into());
+    }
+    if !path_allowed(&granted.0.lock().unwrap_or_else(|e| e.into_inner()), &folder) {
+        return Err("That folder hasn't been opened in Syzygy.".into());
     }
     let safe = sanitize_title(&title);
     let ext_clean: String = ext.chars().filter(|c| c.is_alphanumeric()).take(12).collect::<String>().to_lowercase();

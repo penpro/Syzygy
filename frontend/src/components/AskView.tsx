@@ -23,7 +23,7 @@ import { MessageInput } from './MessageInput'
 import { ExpertEditor } from './ExpertEditor'
 import { FolderGrant } from './FolderGrant'
 import { GoogleDriveButton, DRIVE_FOLDER } from './GoogleDriveButton'
-import { googleDriveSyncFolder, googleDriveMirrorDir, googleDriveMirrorAppendLog } from '../tauri'
+import { googleDriveSyncFolder, googleDriveAppendText, googleDriveRetrieveContext } from '../tauri'
 import { logInfo } from '../log'
 import { DocumentModal } from './DocumentModal'
 import { ImageFinderModal } from './ImageFinderModal'
@@ -223,19 +223,19 @@ export function AskView() {
     setBusy(true)
     setError('')
     try {
-      // Shared-folder mode: pull the latest from Drive BEFORE retrieval, so "look at the
-      // project files" sees what collaborators just added. Failure is non-fatal (offline etc.).
-      if (ask.syncToDrive) {
-        try {
-          const r = await googleDriveSyncFolder(DRIVE_FOLDER)
-          if (r.pulled || r.pushed) logInfo('drive', `Pre-send sync: ⬇${r.pulled} ⬆${r.pushed}`)
-        } catch {
-          /* already in the diagnostic log via the invoke wrapper */
-        }
-      }
       // Knowledge folder: fold the passages most relevant to this question into the system prompt.
       let sysFull = sys
-      if (ask.knowledgeFolder) {
+      if (ask.syncToDrive) {
+        try {
+          const kb = await googleDriveRetrieveContext(DRIVE_FOLDER, userText, 6000)
+          if (kb.trim()) {
+            sysFull = `${sys}\n\n# Reference material read directly from the shared Google Drive folder\nUse it to answer accurately and cite file names when relevant; if it doesn't cover the question, say so. Never ask for a public link when this material is present.\n\n${kb}`
+          }
+        } catch {
+          /* Drive unavailable — fall back to the optional local folder below */
+        }
+      }
+      if (ask.knowledgeFolder && sysFull === sys) {
         try {
           const kb = await retrieveContext(ask.knowledgeFolder, userText, 6000)
           if (kb.trim()) {
@@ -287,12 +287,9 @@ export function AskView() {
         const reply = done?.messages.find((m) => m.id === assistantId)?.content ?? ''
         const stamp = new Date().toISOString().replace('T', ' ').slice(0, 16)
         const block = `\n---\n\n**[${stamp}] You**\n\n${userText}\n\n**[${stamp}] ${modelName}**\n\n${reply}\n`
-        googleDriveMirrorAppendLog(logBase(ask.title), block)
-          .then((file) => {
-            logInfo('drive', `Exchange logged to ${file}`)
-            return googleDriveSyncFolder(DRIVE_FOLDER)
-          })
-          .then((r) => logInfo('drive', `Post-exchange sync: ⬇${r.pulled} ⬆${r.pushed}`))
+        const file = `${logBase(ask.title)}_001.md`
+        googleDriveAppendText(DRIVE_FOLDER, file, block)
+          .then(() => logInfo('drive', `Exchange logged directly to ${file}`))
           .catch(() => {}) // already in the diagnostic log via the invoke wrapper
       }
     } catch (e) {
@@ -397,7 +394,7 @@ export function AskView() {
         setDragOver(false)
         addFiles(Array.from(e.dataTransfer.files))
       }}
-      style={dragOver ? { outline: '2px dashed var(--corona, #5EEAD4)', outlineOffset: -6 } : undefined}
+      style={dragOver ? { outline: '2px dashed var(--accent)', outlineOffset: -6 } : undefined}
     >
       <header className="chat-head">
         <div className="chat-title">🪄 Ask {modelName}</div>
@@ -449,23 +446,15 @@ export function AskView() {
           className={cx('btn sm ghost', ask.syncToDrive && 'sel')}
           title={
             ask.syncToDrive
-              ? 'Shared-folder mode is ON: this thread reads its knowledge from Documents\\Syzygy (synced with Drive) and logs each exchange there — click to stop'
-              : 'Shared-folder mode: point this thread at the Drive-synced folder — it reads project files from there and logs the conversation into it'
+              ? 'Shared-folder mode is ON: this thread reads Google Drive directly and logs exchanges there — click to stop'
+              : 'Read and collaborate in the linked Google Drive folder directly; use Sync separately when you want a local copy'
           }
-          onClick={async () => {
+          onClick={() => {
             if (ask.syncToDrive) {
               updateAsk(ask.id, { syncToDrive: false })
               return
             }
-            try {
-              const mirror = await googleDriveMirrorDir()
-              updateAsk(ask.id, { syncToDrive: true, knowledgeFolder: mirror })
-              googleDriveSyncFolder(DRIVE_FOLDER)
-                .then((r) => logInfo('drive', `Shared-folder on: ⬇${r.pulled} ⬆${r.pushed}`))
-                .catch(() => {})
-            } catch (e) {
-              setError((e as { message?: string })?.message ?? 'Could not open the shared folder.')
-            }
+            updateAsk(ask.id, { syncToDrive: true })
           }}
         >
           {ask.syncToDrive ? '☁ Shared ✓' : '☁ Shared folder'}
@@ -537,7 +526,7 @@ export function AskView() {
             <div key={m.id} className={cx('msg', isUser ? 'msg-user' : 'msg-assistant', m.error && 'msg-error')}>
               <div
                 className={cx('msg-avatar', expIcon && 'has-portrait')}
-                style={{ background: isUser ? '#2a2342' : expIcon ? 'transparent' : 'var(--accent)' }}
+                style={{ background: isUser ? 'var(--bg-3)' : expIcon ? 'transparent' : 'var(--accent)' }}
               >
                 {isUser ? '🧑' : expIcon ? <img src={expIcon} alt="" /> : expert?.emoji || '🪄'}
               </div>
@@ -633,9 +622,9 @@ export function AskView() {
           style={{
             margin: '8px 14px 0',
             padding: '10px 12px',
-            border: '1px solid var(--corona, #5EEAD4)',
+            border: '1px solid var(--accent)',
             borderRadius: 10,
-            background: 'rgba(94,234,212,.06)',
+            background: 'var(--accent-soft)',
           }}
         >
           <div style={{ fontSize: 13, marginBottom: 8 }}>

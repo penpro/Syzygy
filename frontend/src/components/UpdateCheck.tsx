@@ -9,8 +9,8 @@ const boxStyle: CSSProperties = {
   marginTop: 8,
   padding: 10,
   borderRadius: 8,
-  background: 'rgba(255,255,255,.04)',
-  border: '1px solid rgba(255,255,255,.12)',
+  background: 'var(--accent-soft)',
+  border: '1px solid var(--border)',
   fontSize: 13,
 }
 
@@ -109,13 +109,13 @@ export function UpdateCheck() {
       {phase === 'checking' && <em className="hint">Contacting GitHub…</em>}
 
       {phase === 'none' && (
-        <em className="hint" style={{ color: 'var(--corona, #5EEAD4)' }}>
+        <em className="hint" style={{ color: 'var(--accent)' }}>
           ✓ You're on the latest version.
         </em>
       )}
 
       {phase === 'error' && err && (
-        <em className="hint" style={{ color: '#ff6b6b' }}>
+        <em className="hint" style={{ color: 'var(--danger)' }}>
           {err}
         </em>
       )}
@@ -148,8 +148,8 @@ export function UpdateCheck() {
           <p style={{ margin: '0 0 8px' }}>
             Downloading &amp; installing{pct > 0 ? ` — ${pct}%` : '…'}. The app will relaunch when it's done.
           </p>
-          <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,.1)', overflow: 'hidden' }}>
-            <div style={{ width: `${pct}%`, height: '100%', background: 'var(--corona, #5EEAD4)', transition: 'width .3s' }} />
+          <div style={{ height: 6, borderRadius: 3, background: 'var(--bg-3)', overflow: 'hidden' }}>
+            <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', transition: 'width .3s' }} />
           </div>
         </div>
       )}

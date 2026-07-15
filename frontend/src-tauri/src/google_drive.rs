@@ -152,6 +152,64 @@ pub struct DriveFile {
     pub size: Option<String>,
 }
 
+fn export_mime(mime: &str) -> Option<&'static str> {
+    match mime {
+        "application/vnd.google-apps.document" => Some("text/plain"),
+        "application/vnd.google-apps.spreadsheet" => Some("text/csv"),
+        "application/vnd.google-apps.presentation" => Some("text/plain"),
+        _ => None,
+    }
+}
+
+async fn drive_file_bytes(client: &reqwest::Client, token: &str, id: &str, mime: &str) -> Result<Option<Vec<u8>>, String> {
+    let request = if let Some(export_as) = export_mime(mime) {
+        client.get(format!("{FILES_ENDPOINT}/{id}/export")).bearer_auth(token).query(&[("mimeType", export_as)])
+    } else if mime.starts_with("application/vnd.google-apps") {
+        return Ok(None);
+    } else {
+        client.get(format!("{FILES_ENDPOINT}/{id}")).bearer_auth(token).query(&[("alt", "media")])
+    };
+    let resp = request.send().await.map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(format!("Drive read failed: HTTP {}", resp.status()));
+    }
+    Ok(Some(resp.bytes().await.map_err(|e| e.to_string())?.to_vec()))
+}
+
+/// Retrieve relevant passages directly from Drive. Google Docs, Sheets, and Slides are
+/// exported in memory, so collaborators do not need to maintain a local mirror.
+#[tauri::command]
+pub async fn google_drive_retrieve_context(
+    app: tauri::AppHandle,
+    folder_name: String,
+    query: String,
+    max_chars: usize,
+) -> Result<String, String> {
+    let token = access_token(&app).await?;
+    let folder_id = find_or_create_folder(&token, &folder_name).await?;
+    let q = format!("'{}' in parents and trashed = false", esc(&folder_id));
+    let v = drive_get_json(&token, FILES_ENDPOINT, &[("q", q.as_str()), ("fields", "files(id,name,mimeType)"), ("pageSize", "200")]).await?;
+    let client = reqwest::Client::new();
+    let mut chunks = Vec::new();
+    for f in v["files"].as_array().map(|a| a.as_slice()).unwrap_or(&[]) {
+        let (Some(id), Some(name), Some(mime)) = (f["id"].as_str(), f["name"].as_str(), f["mimeType"].as_str()) else { continue };
+        let Some(bytes) = drive_file_bytes(&client, &token, id, mime).await? else { continue };
+        let text = if mime == "application/pdf" {
+            crate::knowledge::extract_pdf_bytes(&bytes).ok()
+        } else if mime.starts_with("text/") || mime == "application/json" || export_mime(mime).is_some() {
+            String::from_utf8(bytes).ok()
+        } else {
+            None
+        };
+        if let Some(text) = text {
+            for chunk in crate::knowledge::chunk_text(&text) {
+                chunks.push((name.to_string(), chunk));
+            }
+        }
+    }
+    Ok(crate::knowledge::retrieve_chunks(&chunks, &query, max_chars))
+}
+
 /// List files inside `<folder_name>` (created on demand), newest first.
 /// The read primitive of the shared-folder test.
 #[tauri::command]
@@ -304,19 +362,36 @@ pub async fn google_drive_sync_folder(app: tauri::AppHandle, folder_name: String
     )
     .await?;
     let mut remote: std::collections::HashMap<String, (String, i64)> = std::collections::HashMap::new();
+    let mut exported_names = std::collections::HashSet::new();
+    let mut pulled = 0u32;
+    let mut pushed = 0u32;
     for f in v["files"].as_array().map(|a| a.as_slice()).unwrap_or(&[]) {
         let (Some(id), Some(name), Some(mt)) = (f["id"].as_str(), f["name"].as_str(), f["modifiedTime"].as_str())
         else {
             continue;
         };
-        if f["mimeType"].as_str().unwrap_or("").starts_with("application/vnd.google-apps") {
+        let mime = f["mimeType"].as_str().unwrap_or("");
+        if let Some(export_as) = export_mime(mime) {
+            let suffix = if export_as == "text/csv" { ".csv" } else { ".txt" };
+            let local_name = format!("{name}{suffix}");
+            exported_names.insert(local_name.clone());
+            let local = mirror_path.join(&local_name);
+            let rtime = rfc3339_to_epoch(mt).unwrap_or(0);
+            if file_mtime_epoch(&local).map_or(true, |lt| rtime > lt + SLACK) {
+                let bytes = drive_file_bytes(&client, &token, id, mime)
+                    .await?
+                    .ok_or_else(|| format!("Drive file {name} cannot be exported."))?;
+                std::fs::write(&local, bytes).map_err(|e| e.to_string())?;
+                let _ = filetime::set_file_mtime(&local, filetime::FileTime::from_unix_time(rtime, 0));
+                pulled += 1;
+            }
+            continue;
+        }
+        if mime.starts_with("application/vnd.google-apps") {
             continue;
         }
         remote.insert(name.to_string(), (id.to_string(), rfc3339_to_epoch(mt).unwrap_or(0)));
     }
-
-    let mut pulled = 0u32;
-    let mut pushed = 0u32;
 
     // Pull: remote file missing locally, or newer than the local copy.
     for (name, (id, rtime)) in &remote {
@@ -348,6 +423,9 @@ pub async fn google_drive_sync_folder(app: tauri::AppHandle, folder_name: String
             continue;
         }
         let Some(name) = path.file_name().map(|n| n.to_string_lossy().to_string()) else { continue };
+        if exported_names.contains(&name) {
+            continue;
+        }
         let ltime = file_mtime_epoch(&path).unwrap_or(0);
         let needs_push = match remote.get(&name) {
             None => true,

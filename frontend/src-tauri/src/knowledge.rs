@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use tauri::State;
 
 /// Split text into ~1200-char chunks on paragraph boundaries.
-fn chunk_text(t: &str) -> Vec<String> {
+pub(crate) fn chunk_text(t: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut cur = String::new();
     for para in t.split("\n\n") {
@@ -68,7 +68,7 @@ fn ingest_folder(path: &str) -> Vec<(String, String)> {
 }
 
 /// Score chunks by query keyword frequency; return the most relevant, up to `max_chars`.
-fn retrieve_chunks(chunks: &[(String, String)], query: &str, max_chars: usize) -> String {
+pub(crate) fn retrieve_chunks(chunks: &[(String, String)], query: &str, max_chars: usize) -> String {
     let terms: Vec<String> = query
         .to_lowercase()
         .split(|c: char| !c.is_alphanumeric())
@@ -130,6 +130,10 @@ pub fn retrieve_context(cache: State<KnowledgeCache>, path: String, query: Strin
 /// PDFs yield nothing.
 #[tauri::command]
 pub fn extract_pdf(data: Vec<u8>) -> Result<String, String> {
+    extract_pdf_bytes(&data)
+}
+
+pub(crate) fn extract_pdf_bytes(data: &[u8]) -> Result<String, String> {
     let tmp = std::env::temp_dir().join(format!(
         "aphelion-drop-{}.pdf",
         std::time::SystemTime::now()
@@ -137,7 +141,7 @@ pub fn extract_pdf(data: Vec<u8>) -> Result<String, String> {
             .map(|d| d.as_nanos())
             .unwrap_or(0)
     ));
-    std::fs::write(&tmp, &data).map_err(|e| e.to_string())?;
+    std::fs::write(&tmp, data).map_err(|e| e.to_string())?;
     let text = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| pdf_extract::extract_text(&tmp).ok()))
         .ok()
         .flatten();

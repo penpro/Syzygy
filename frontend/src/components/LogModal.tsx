@@ -3,9 +3,9 @@ import { Modal } from './Modal'
 import { subscribeLog, getLog, clearLog, logAsText, type LogEntry } from '../log'
 
 const LEVEL_COLOR: Record<LogEntry['level'], string> = {
-  info: '#8b7ab0',
-  warn: '#f5a623',
-  error: '#ff6b6b',
+  info: 'var(--accent)',
+  warn: 'var(--warn)',
+  error: 'var(--danger)',
 }
 
 const fmtTime = (ts: number) => {
@@ -55,7 +55,7 @@ export function LogModal({ onClose }: { onClose: () => void }) {
       {entries.length === 0 && <div className="muted pad">Nothing logged yet.</div>}
       <div style={{ display: 'flex', flexDirection: 'column-reverse', gap: 2, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>
         {entries.map((e, i) => (
-          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'baseline', padding: '3px 6px', borderRadius: 4, background: e.level === 'error' ? 'rgba(255,107,107,.08)' : 'transparent' }}>
+          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'baseline', padding: '3px 6px', borderRadius: 4, background: e.level === 'error' ? 'color-mix(in srgb, var(--danger) 8%, transparent)' : 'transparent' }}>
             <span className="muted" style={{ whiteSpace: 'nowrap' }}>{fmtTime(e.ts)}</span>
             <span style={{ color: LEVEL_COLOR[e.level], whiteSpace: 'nowrap', minWidth: 38 }}>{e.level.toUpperCase()}</span>
             <span className="muted" style={{ whiteSpace: 'nowrap' }}>[{e.tag}]</span>

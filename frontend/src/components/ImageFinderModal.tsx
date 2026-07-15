@@ -198,8 +198,8 @@ export function ImageFinderModal({
       </div>
 
       {phase === 'classifying' && total > 0 && (
-        <div style={{ height: 5, borderRadius: 3, background: 'rgba(255,255,255,.1)', marginTop: 10, overflow: 'hidden' }}>
-          <div style={{ width: `${Math.round((checked / total) * 100)}%`, height: '100%', background: 'var(--corona, #5EEAD4)', transition: 'width .3s' }} />
+        <div style={{ height: 5, borderRadius: 3, background: 'var(--bg-3)', marginTop: 10, overflow: 'hidden' }}>
+          <div style={{ width: `${Math.round((checked / total) * 100)}%`, height: '100%', background: 'var(--accent)', transition: 'width .3s' }} />
         </div>
       )}
 
@@ -209,9 +209,9 @@ export function ImageFinderModal({
         </div>
       )}
       {savedNote && (
-        <div style={{ marginTop: 10, color: 'var(--corona, #5EEAD4)' }}>{savedNote}</div>
+        <div style={{ marginTop: 10, color: 'var(--accent)' }}>{savedNote}</div>
       )}
-      {err && <div style={{ color: '#ff6b6b', marginTop: 10 }}>{err}</div>}
+      {err && <div style={{ color: 'var(--danger)', marginTop: 10 }}>{err}</div>}
     </Modal>
   )
 }

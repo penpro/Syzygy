@@ -65,12 +65,12 @@ export function DownloadIndicator() {
                 </button>
               )}
             </div>
-            <div style={{ height: 3, borderRadius: 2, background: 'rgba(255,255,255,.1)', marginTop: 3, overflow: 'hidden' }}>
+            <div style={{ height: 3, borderRadius: 2, background: 'var(--bg-3)', marginTop: 3, overflow: 'hidden' }}>
               <div
                 style={{
                   width: `${pct}%`,
                   height: '100%',
-                  background: failed ? '#ff6b6b' : 'var(--corona, #5EEAD4)',
+                  background: failed ? 'var(--danger)' : 'var(--accent)',
                   transition: 'width .4s ease',
                 }}
               />

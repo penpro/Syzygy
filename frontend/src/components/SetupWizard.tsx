@@ -111,7 +111,7 @@ export function SetupWizard({ onReady, onCancel }: { onReady: () => void; onCanc
           maxWidth: 580,
           maxHeight: '92vh',
           overflow: 'auto',
-          boxShadow: '0 20px 60px rgba(0,0,0,.5)',
+          boxShadow: 'var(--glow)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
@@ -148,14 +148,14 @@ export function SetupWizard({ onReady, onCancel }: { onReady: () => void; onCanc
               <div style={{ marginTop: 8 }}>
                 <div
                   style={{
-                    background: 'rgba(229,83,75,.10)',
-                    border: '1px solid rgba(229,83,75,.4)',
+                    background: 'color-mix(in srgb, var(--danger) 10%, transparent)',
+                    border: '1px solid color-mix(in srgb, var(--danger) 40%, transparent)',
                     borderRadius: 8,
                     padding: '8px 10px',
                     marginBottom: 8,
                   }}
                 >
-                  <span className="xs" style={{ color: '#e98b85' }}>
+                  <span className="xs" style={{ color: 'var(--danger)' }}>
                     ⚠️ These models have their safety guardrails removed. They can produce content that is offensive,
                     explicit, false, or illegal. Use at your own risk.
                   </span>

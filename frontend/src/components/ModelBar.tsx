@@ -42,7 +42,7 @@ export function ModelBar() {
     }
   }, [baseUrl, setLoadedModel])
 
-  const dotColor = status === 'ready' ? 'var(--accent)' : status === 'loading' ? 'var(--warn)' : '#6d5b8e'
+  const dotColor = status === 'ready' ? 'var(--accent)' : status === 'loading' ? 'var(--warn)' : 'var(--faint)'
   const usedGb = vram ? vram.used / 1024 : 0
   const totalGb = vram ? vram.total / 1024 : 0
   const pct = vram && vram.total > 0 ? Math.min(100, (vram.used / vram.total) * 100) : 0

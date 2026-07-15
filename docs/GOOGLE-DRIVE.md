@@ -54,6 +54,13 @@ shows the helper modal.
 
 ## The folder mirror (what makes Drive a first-class destination)
 
+> **Current behavior:** Shared-folder Ask reads and writes directly through the Drive API.
+> Plain text, Markdown, JSON, and PDFs are read directly; Google Docs, Sheets, and Slides
+> are exported in memory as text or CSV. The mirror below is now an explicit sync option
+> for offline/local workflows rather than a prerequisite for collaboration. Manual sync
+> also exports native Google files as read-only `.txt`/`.csv` snapshots and never pushes
+> those snapshots back as duplicate Drive files.
+
 **Design decision:** instead of teaching every subsystem the Drive API, keep one local
 folder — **`<Documents>/Syzygy`** — synced with the Drive folder **"Syzygy"**. All
 existing local-folder machinery (knowledge retrieval, document generation, file

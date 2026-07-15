@@ -14,6 +14,7 @@
 | Model download | User selects model | Publisher URL → app model directory | GGUF/model metadata | App data | Explicit UI action and expected hash/size metadata where available |
 | Update check/install | User confirms check/install | GitHub release endpoint → updater | Version metadata, signed installer | Installer/update cache | Explicit disclosure; updater signature |
 | Diagnostic log | Runtime errors/milestones | Frontend/Rust error boundary → local ring | Command/tag/error only | localStorage, newest 500 entries | No prompt, file content, token, or credential logging |
+| Live MCP read/control | MCP host starts `Syzygy --mcp` and calls a tool | MCP stdio → token-authenticated ephemeral loopback → Rust event → live webview | Semantic method/parameters; project content only for explicit read/write tools | No MCP copy; live Zustand/Yjs owners persist normally | Loopback only, 256-bit per-process bearer, browser-origin rejection, bounded request, timeout |
 
 ## Drive boundary nuance
 
@@ -26,5 +27,6 @@ the selected tree or must receive a separate explicit review.
 
 - sanitized per-feature network traces (S-06);
 - Windows/macOS/Linux app-data permission checks;
-- crash-dump inspection for prompt/token leakage; and
-- two-account Drive harness evidence after restricted-scope reauthorization.
+- crash-dump inspection for prompt/token leakage;
+- two-account Drive harness evidence after restricted-scope reauthorization; and
+- packaged Windows/macOS/Linux MCP launch and same-user temp-descriptor permission checks.

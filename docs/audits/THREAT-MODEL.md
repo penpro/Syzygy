@@ -17,6 +17,7 @@ versions/evaluation evidence.
 5. Updater ↔ GitHub signed release metadata.
 6. Local IndexedDB provider ↔ Yjs/domain state.
 7. Future Drive/WebSocket collaboration provider ↔ local Yjs/domain state.
+8. Local MCP process ↔ authenticated loopback bridge ↔ live webview state.
 
 ## Current threats and controls
 
@@ -36,10 +37,15 @@ versions/evaluation evidence.
 | OAuth token stolen from app data | OS user boundary; no webview exposure | OS credential vault/encryption evaluation needed |
 | Malicious update | Tauri updater signature and separate Syzygy key | Protect/back up signing key; clean-machine update tests |
 | Diagnostics leak research/token | Typed invoke logger records command/error only | Automated canary/redaction tests needed |
+| LAN or website pilots the live app | Ephemeral IPv4 loopback bind, random 256-bit bearer, browser-origin rejection, bounded HTTP parser | Verify OS firewall/listener state and hostile browser preflight on each platform |
+| MCP overwrites a collaborator's newer draft | Every document write requires the exact revision from a prior live read | Revision is editor-state optimistic concurrency, not yet an attributed review/approval workflow |
+| Stale MCP descriptor targets the wrong process | Descriptor includes schema/PID/version; connection and per-process token fail closed; normal shutdown removes it | Abrupt termination leaves a harmless stale descriptor until the next GUI launch; add PID liveness cleanup |
+| Same-user malware steals the MCP token | User-local temp ACL (and `0600` on Unix); token rotates every GUI process | Not a same-user sandbox; evaluate OS named pipes/peer credentials before exposing higher-risk tools |
 
 ## Release blockers
 
 - A path traversal or selected-workspace escape is high severity.
 - Returning Drive tokens to the webview is high severity.
 - Any AI action that mutates shared state without human acceptance is high severity.
+- Any MCP addition that bypasses semantic domain/editor contracts or grants ambient Drive/filesystem/model authority is high severity.
 - Claiming S-01 verified before the live Drive→local-model harness passes is a documentation defect.

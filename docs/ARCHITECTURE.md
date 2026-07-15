@@ -32,6 +32,11 @@ webview, plus a **Rust core**. Anything "backend" is one of two calls:
 Future collaboration providers may include an optional self-hosted real-time relay. Local use
 and Drive-asynchronous collaboration must not depend on a Penumbra-hosted service.
 
+The installed executable also has an MCP stdio mode (`Syzygy --mcp`). That process connects to a
+random-token authenticated ephemeral loopback bridge owned by the GUI, which emits semantic
+requests into the live webview. It never edits browser storage or a local mirror as a second
+source of project truth.
+
 ```
  you ──▶ webview (React) ──▶ 127.0.0.1:11435 llama.cpp ──▶ GGUF on GPU
               │
@@ -52,6 +57,8 @@ and Drive-asynchronous collaboration must not depend on a Penumbra-hosted servic
 | `updates.rs` | App version for the in-app updater. |
 | `state.rs` | Shared state types (`Engine`, `Granted`, `KnowledgeCache`, …). |
 | `vision.rs` | Optional vision-model engine swap (image describe/search). |
+| `automation.rs` | Ephemeral authenticated loopback bridge into semantic live-webview actions. |
+| `mcp.rs` | Embedded stdio MCP mode, tool schemas, and JSON-RPC protocol routing. |
 
 **Security posture:** the model only ever sees selected text; the webview never sees OAuth
 credentials/tokens (they live in Rust + app-data); local file access is allowlisted via
@@ -79,6 +86,8 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   the local IndexedDB collaboration provider, an original Lexical policy editor, and the
   research workspace shell. Reserved Yjs collections hold scenarios, heuristics,
   discussions, and settings; the Lexical/Yjs editor owns the `root` shared type.
+- `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
+  navigation, and revision-guarded editor reads/writes. It does not own persistence.
 
 ## Persistence map
 
@@ -92,6 +101,7 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
 | Selected Drive workspace ID/name | `<app-data>/drive_workspace.json` |
 | Models (GGUF) | `<app-data>/models/` |
 | Optional Drive mirror folder | `<Documents>/Syzygy` (manual sync with Drive folder "Syzygy") |
+| Ephemeral MCP bridge descriptor | OS temp `syzygy-automation-v1.json` (port/token/PID/version only; removed on shutdown) |
 
 ## Key invariants
 
@@ -119,3 +129,6 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
 - **Project metadata and collaborative content have different owners.** Zustand/localStorage holds
   manifest/navigation identity; Yjs/IndexedDB holds collaborative editor and domain state. No
   derived plain-text copy is a second mutable source of truth.
+- **MCP automation is semantic and live.** Document mutations require a read revision and fail
+  closed on concurrent change; the MCP receives no ambient Drive, filesystem, or model authority.
+  See `MCP.md`.

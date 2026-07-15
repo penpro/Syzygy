@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "kind": "syzygy-live-mcp-proof",
+  "date": "2026-07-14",
+  "platform": "windows-x86_64",
+  "build": {
+    "sourceVersion": "0.1.9",
+    "packagedExecutable": "frontend/src-tauri/target/release/Syzygy.exe",
+    "frontendReembedded": true
+  },
+  "protocol": {
+    "transport": "stdio",
+    "negotiatedVersion": "2025-11-25",
+    "discoveredToolCount": 10,
+    "walkthroughStepCount": 5
+  },
+  "liveAssertions": {
+    "guiLaunchedThroughMcp": true,
+    "existingPilotProjectReused": true,
+    "stableProjectIdentityPreserved": true,
+    "replaceReachedLiveLexicalEditor": true,
+    "appendReachedLiveLexicalEditor": true,
+    "finalBlockCount": 8,
+    "readbackMatched": true,
+    "staleRevisionRejected": true,
+    "abaRevisionRejected": true
+  },
+  "securityAssertions": {
+    "ipv4LoopbackOnly": true,
+    "perProcessBearerBits": 256,
+    "browserOriginRejected": true,
+    "requestBodyBounded": true,
+    "researchContentPrinted": false,
+    "oauthOrDriveAuthorityExposed": false
+  },
+  "headlessCommand": "npm run test:mcp",
+  "liveCommand": "node ../scripts/mcp-live-harness.mjs --write-proof --executable <packaged Syzygy.exe>",
+  "limitations": [
+    "This proof used one Windows OS user and one live WebView profile.",
+    "It does not prove macOS/Linux executable launch or temp-file permissions.",
+    "It does not prove two-user rich-text convergence, Drive project transport, snapshots, scenarios, evaluation, or presence.",
+    "MCP write revisions are optimistic concurrency guards, not human review/acceptance records."
+  ]
+}

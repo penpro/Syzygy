@@ -12,6 +12,7 @@ import { TitleBar } from './components/TitleBar'
 import { ResizeHandles } from './components/ResizeHandles'
 import { SplashScreen } from './components/SplashScreen'
 import { StorageBanner } from './components/StorageBanner'
+import { startAutomationBridge } from './automationBridge'
 
 const WorkspaceView = lazy(() => import('./workspace/WorkspaceView').then((module) => ({ default: module.WorkspaceView })))
 
@@ -35,6 +36,24 @@ export default function App() {
   // baked in) does the Sentry module even load. Default state sends nothing, ever.
   useEffect(() => {
     if (crashReportsAvailable && useStore.getState().settings.crashReports) startCrashReports()
+  }, [])
+
+  useEffect(() => {
+    let disposed = false
+    let stop: (() => void) | undefined
+    void startAutomationBridge()
+      .then((unlisten) => {
+        if (disposed) unlisten()
+        else stop = unlisten
+      })
+      .catch(() => {
+        // Browser-only development has no Tauri event bridge. The typed invoke wrapper records
+        // real packaged failures without exposing request arguments or research content.
+      })
+    return () => {
+      disposed = true
+      stop?.()
+    }
   }, [])
 
   // First run: if no model has been downloaded yet, show the setup wizard.

@@ -16,6 +16,7 @@
 - **See images (optional)** — add a vision model and it can describe images or search a folder for the ones matching a description.
 - **Private by default** — no account, no telemetry. After the one-time model download it works with the network unplugged.
 - **Google Drive (optional, in progress)** — choose a Drive workspace for direct shared research. Syzygy exports Docs, Sheets, and Slides into local-model context without requiring a mirror; OAuth tokens remain in the Rust core. Google does not offer a folder-only scope for this desktop flow, so the app discloses its broader collaboration grant and constrains operations to the folder you select.
+- **Live MCP automation (in progress)** — the installed executable can run as a local stdio MCP server and semantically pilot the running project/editor. Reads and revision-guarded writes go through the live app rather than a second mirror; unfinished workspace capabilities are reported as unavailable.
 
 > *Syzygy (n.) — an alignment of celestial bodies. Sister app to [Aphelion](https://github.com/penpro/Aphelion), Penumbra's local-AI studio: Aphelion is your AI at the farthest point from the cloud; Syzygy is where people and documents come into alignment.*
 
@@ -29,6 +30,7 @@
 | [docs/DESIGN.md](docs/DESIGN.md) | Design system: palette, type, theming rules, motion, copy voice |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Dev/build/release processes, secrets & keys, the gotcha table |
 | [docs/GOOGLE-DRIVE.md](docs/GOOGLE-DRIVE.md) | Drive auth + folder-mirror sync, Google quirks, limitations |
+| [docs/MCP.md](docs/MCP.md) | Embedded live-app MCP tools, connection shape, security boundary, and headless proof |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Lineage, shipped versions, what's next, decision log |
 | [docs/END-GOAL-PLAN.md](docs/END-GOAL-PLAN.md) | Independent end-goal delivery plan, hard gates, tests, and adversarial audit protocol |
 | [docs/audits/](docs/audits/) | Machine-readable capability status, provenance, data flow, threat model, and decision records |

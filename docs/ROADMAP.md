@@ -56,6 +56,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   and a headless project harness. The harness covers malformed schemas, idempotent save migration,
   duplicate/reordered update convergence, concurrent offline domain edits, and close/reopen local
   persistence. This is scaffolding, not a claim of two-user rich-text or Drive CRDT completion.
+- The v0.1.9 workspace slice embeds a stdio MCP mode in the Syzygy executable and an authenticated
+  loopback bridge to the live webview. Its first ten semantic tools inspect and explain the
+  workspace, navigate project identity, and read/replace/append the active Lexical draft with
+  optimistic revision guards. The MCP explicitly reports disabled versions, scenarios, Drive
+  project transport, and real-time presence instead of implying those placeholders work.
 
 ## Next (in intended order)
 

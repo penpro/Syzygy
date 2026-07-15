@@ -89,6 +89,35 @@ record(
   `${tauriConfig.productName}/${tauriConfig.mainBinaryName}`,
 )
 
+const mcpSource = text('frontend/src-tauri/src/mcp.rs')
+const automationSource = text('frontend/src-tauri/src/automation.rs')
+const mainSource = text('frontend/src-tauri/src/main.rs')
+const advertisedMcpTools = [
+  'syzygy_status',
+  'launch_syzygy',
+  'workspace_walkthrough',
+  'list_projects',
+  'create_project',
+  'open_project',
+  'rename_project',
+  'read_active_project',
+  'replace_active_document',
+  'append_active_document',
+]
+record(
+  'embedded MCP entry and tools',
+  mainSource.includes('"--mcp"') && advertisedMcpTools.every((name) => mcpSource.includes(`"${name}"`)),
+  `${advertisedMcpTools.filter((name) => mcpSource.includes(`"${name}"`)).length}/${advertisedMcpTools.length} semantic tools registered`,
+)
+record(
+  'MCP loopback security boundary',
+  automationSource.includes('TcpListener::bind(("127.0.0.1", 0))') &&
+    automationSource.includes('let mut bytes = [0_u8; 32]') &&
+    automationSource.includes('Browser-origin automation requests are not accepted') &&
+    automationSource.includes('MAX_BODY_BYTES'),
+  'ephemeral IPv4 loopback, 256-bit bearer, origin rejection, bounded body',
+)
+
 const ledger = JSON.parse(text('docs/audits/CAPABILITIES.json'))
 const expectedIds = [
   ...Array.from({ length: 35 }, (_, index) => `P-${String(index + 1).padStart(2, '0')}`),

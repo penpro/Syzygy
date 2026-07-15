@@ -33,6 +33,34 @@ idempotently, duplicate/out-of-order Yjs updates converge, concurrent offline co
 and acknowledged project state reopens from IndexedDB. It does **not** yet prove two-machine rich
 text convergence or Drive transport; those remain separate capability gates.
 
+## Headless live-MCP contract proof
+
+Run the embedded MCP protocol, loopback-security, and live-editor mutation contracts without
+opening a GUI:
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm run test:mcp
+```
+
+The harness compiles the real application binary, starts `app --mcp` over stdio, negotiates MCP
+`2025-11-25`, discovers its tools, checks notification framing and ping, and calls a typed live
+status result. Separate frontend tests prove structured Lexical reads, replace/append behavior,
+and stale-revision rejection; Rust tests prove authenticated loopback parsing and browser-origin
+rejection. See `MCP.md` for the security and tool contract.
+
+After building the current packaged executable, an explicit live-profile proof can
+launch the GUI through MCP, create a visible demonstration project, exercise replace/append and
+stale-write rejection, and read it back:
+
+```powershell
+npm run test:mcp:live
+# packaged binary instead:
+node ..\scripts\mcp-live-harness.mjs --write-proof --executable <absolute-Syzygy.exe>
+```
+
+This intentionally changes the current user's Syzygy project list, so it is not part of CI.
+
 ## Local installer build
 
 ```powershell

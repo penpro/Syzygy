@@ -271,6 +271,23 @@ export const googleDriveMirrorAppendLog = (base: string, content: string): Promi
 /** The running app version (from Cargo). */
 export const appVersion = (): Promise<string> => invoke('app_version')
 
+// ---------- live semantic automation (MCP bridge) ----------
+
+/** Mark the webview ready after its authenticated automation event listener is attached. */
+export const automationReady = (): Promise<void> => invoke('automation_ready')
+
+/** Complete one semantic automation request. Content is returned only to its authenticated caller. */
+export const automationRespond = (
+  id: string,
+  reply: { ok: boolean; result?: unknown; error?: string },
+): Promise<void> =>
+  invoke('automation_respond', {
+    id,
+    ok: reply.ok,
+    result: reply.result ?? null,
+    error: reply.error ?? null,
+  })
+
 // ---------- high-level helpers ----------
 
 /**

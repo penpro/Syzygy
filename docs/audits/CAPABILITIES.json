@@ -9,8 +9,8 @@
     "out_of_scope": "Explicitly accepted as outside the product contract."
   },
   "capabilities": [
-    { "id": "P-01", "phase": 3, "status": "implemented_unverified", "claim": "Stable project entry across clean installs", "evidence": ["frontend/src/workspace/schema.ts", "frontend/src/store.ts", "frontend/src/migrations.test.ts", "docs/audits/runs/WORKSPACE-SCAFFOLD-2026-07-14.json"] },
-    { "id": "P-02", "phase": 2, "status": "implemented_unverified", "claim": "Rich policy editor fixture round-trip", "evidence": ["frontend/src/workspace/ResearchEditor.tsx", "frontend/src/workspace/projectModel.test.ts", "docs/audits/runs/WORKSPACE-SCAFFOLD-2026-07-14.json"] },
+    { "id": "P-01", "phase": 3, "status": "implemented_unverified", "claim": "Stable project entry across clean installs", "evidence": ["frontend/src/workspace/schema.ts", "frontend/src/store.ts", "frontend/src/migrations.test.ts", "docs/audits/runs/WORKSPACE-SCAFFOLD-2026-07-14.json", "docs/audits/runs/MCP-LIVE-2026-07-14.json"] },
+    { "id": "P-02", "phase": 2, "status": "implemented_unverified", "claim": "Rich policy editor fixture round-trip", "evidence": ["frontend/src/workspace/ResearchEditor.tsx", "frontend/src/workspace/projectModel.test.ts", "frontend/src/workspace/editorAutomation.test.ts", "docs/audits/runs/WORKSPACE-SCAFFOLD-2026-07-14.json", "docs/audits/runs/MCP-LIVE-2026-07-14.json"] },
     { "id": "P-03", "phase": 2, "status": "planned", "claim": "Policy block edit, reorder, serialization, and merge", "evidence": [] },
     { "id": "P-04", "phase": 2, "status": "planned", "claim": "Heuristics block converges under concurrent edits", "evidence": [] },
     { "id": "P-05", "phase": 6, "status": "planned", "claim": "Scenario chips retain stable links", "evidence": [] },
@@ -40,7 +40,7 @@
     { "id": "P-29", "phase": 3, "status": "planned", "claim": "Deterministic change notes work without the engine", "evidence": [] },
     { "id": "P-30", "phase": 8, "status": "planned", "claim": "Scenario reruns use a resumable bounded queue", "evidence": [] },
     { "id": "P-31", "phase": 8, "status": "planned", "claim": "Baseline comparisons are stable and exportable", "evidence": [] },
-    { "id": "P-32", "phase": 9, "status": "implemented_unverified", "claim": "Diagnostics exclude research content", "evidence": ["frontend/src/log.ts", "frontend/src/tauri.ts"] },
+    { "id": "P-32", "phase": 9, "status": "implemented_unverified", "claim": "Diagnostics exclude research content", "evidence": ["frontend/src/log.ts", "frontend/src/tauri.ts", "docs/audits/runs/MCP-LIVE-2026-07-14.json"] },
     { "id": "P-33", "phase": 6, "status": "planned", "claim": "Scenario packs have a validated open schema", "evidence": [] },
     { "id": "P-34", "phase": 2, "status": "planned", "claim": "Table of contents derives from headings", "evidence": [] },
     { "id": "P-35", "phase": 9, "status": "implemented_unverified", "claim": "Keyboard, contrast, reduced motion, and all themes", "evidence": ["frontend/src/a11y.css", "frontend/src/driveContext.test.ts"] },

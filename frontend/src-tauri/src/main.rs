@@ -2,5 +2,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    app_lib::run();
+    if std::env::args().any(|argument| argument == "--mcp") {
+        if let Err(error) = app_lib::mcp::run() {
+            eprintln!("Syzygy MCP stopped: {error}");
+            std::process::exit(1);
+        }
+    } else {
+        app_lib::run();
+    }
 }

@@ -23,6 +23,7 @@ import { $createHeadingNode, HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { useEffect, useMemo, useState } from 'react'
 import type { ResearchProjectManifest } from './schema'
 import { createLocalProviderFactory } from './localProvider'
+import { registerAutomationEditor } from './editorAutomation'
 
 const editorTheme = {
   heading: {
@@ -79,6 +80,12 @@ function Toolbar() {
   )
 }
 
+function AutomationEditorRegistration({ projectId }: { projectId: string }) {
+  const [editor] = useLexicalComposerContext()
+  useEffect(() => registerAutomationEditor(projectId, editor), [editor, projectId])
+  return null
+}
+
 export function ResearchEditor({ project }: { project: ResearchProjectManifest }) {
   const providerFactory = useMemo(() => createLocalProviderFactory(project), [project.documentId])
   const initialConfig = useMemo(
@@ -97,6 +104,7 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
   return (
     <LexicalCollaboration>
       <LexicalComposer initialConfig={initialConfig}>
+        <AutomationEditorRegistration projectId={project.id} />
         <Toolbar />
         <div className="research-paper">
           <RichTextPlugin

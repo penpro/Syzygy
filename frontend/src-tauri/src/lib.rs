@@ -1,11 +1,13 @@
 //! Syzygy Tauri backend. Domain logic lives in the modules below; this file wires up
 //! state, auto-starts the engine on launch, and registers the command handlers.
+mod automation;
 mod documents;
 mod downloads;
 mod engine;
 pub mod google_auth;
 pub mod google_drive;
 mod knowledge;
+pub mod mcp;
 mod state;
 mod updates;
 mod vision;
@@ -29,6 +31,7 @@ pub fn run() {
         .manage(MainModel(Mutex::new(None)))
         .manage(Downloads(Mutex::new(HashMap::new())))
         .manage(Granted(Mutex::new(HashSet::new())))
+        .manage(automation::AutomationState::default())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -36,6 +39,11 @@ pub fn run() {
                         .level(log::LevelFilter::Info)
                         .build(),
                 )?;
+            }
+            if let Err(error) = automation::start(app.handle()) {
+                // MCP is an optional local interoperability surface. A locked/unwritable temp
+                // directory must not prevent the primary desktop workspace from opening.
+                log::warn!("Live MCP bridge unavailable: {error}");
             }
             // Auto-start the engine on the largest non-projector model already downloaded
             // (the user's main model is bigger than any bundled vision model); else the
@@ -81,6 +89,7 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Destroyed = event {
+                automation::cleanup(window.app_handle());
                 if let Some(engine) = window.app_handle().try_state::<Engine>() {
                     if let Some(mut child) =
                         engine.0.lock().unwrap_or_else(|e| e.into_inner()).take()
@@ -142,6 +151,8 @@ pub fn run() {
             google_drive::google_drive_mirror_dir,
             google_drive::google_drive_sync_folder,
             google_drive::google_drive_mirror_append_log,
+            automation::automation_ready,
+            automation::automation_respond,
             updates::app_version
         ])
         .run(tauri::generate_context!())

@@ -62,7 +62,7 @@ source of project truth.
 | `mcp_setup.rs` | Running-executable discovery plus copy-ready JSON/TOML configuration and connection prompts shared by the UI and MCP. |
 | `platform_contracts.rs` | Machine-readable provider-run, adversarial-review, and researcher-plugin schemas/status exposed to headless MCP clients. |
 | `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses one-shot/SSE plus Anthropic Messages, Gemini Interactions, and xAI Responses one-shot wire contracts have fake-server evidence with bounded controls and sanitized normalization. |
-| `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. The public command accepts a structured question plus labeled source snapshots; Rust derives disclosure categories and provenance IDs from that exact payload. Every ordinary call uses a blocking native dialog to create one-use approval before any vault read or network access. A separate adversarial command can create/status/revoke an exact-route, bounded, expiring batch authorization but cannot consume it or call a model. Fake-network one-shot execution and Rust→TypeScript record validation are proven; no product workflow calls the command yet. |
+| `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. The public command accepts a structured question plus labeled source snapshots; Rust derives disclosure categories and provenance IDs from that exact payload. Every ordinary call uses a blocking native dialog to create one-use approval before any vault read or network access. A separate adversarial command can create/status/revoke an exact-route, bounded, expiring batch authorization. A private, non-executing reservation function atomically proves run/source-ID/route/call-ID checks and route+total decrements, but no command consumes it or calls a model. Fake-network one-shot execution and Rust→TypeScript record validation are proven; no product workflow calls the command yet. |
 | `provider_stream.rs` | Incremental provider SSE normalization. The OpenAI decoder handles byte-fragmented Unicode, multiline frames, usage/finish events, unknown future events, sanitized provider errors, and bounded malformed/truncated input. |
 | `credential_vault.rs` | Provider-secret abstraction backed by Windows Credential Manager, macOS Keychain, or Linux Secret Service/keyutils. Unit tests use only a memory implementation; a separate live harness creates and deletes a random OS-store canary. |
 
@@ -178,8 +178,10 @@ provider call, Drive call, or mutation implementation.
   content-free Rust-to-TypeScript provenance. A separate adversarial batch authorizer validates
   exact remote routes and call ceilings, derives content categories from the real question/source
   scope plus cross-provider artifacts, and holds an expiring/revocable random capability in Rust
-  process memory. It does not read a credential, execute a call, or grant MCP authority; the
-  authorized executor remains open. No product workflow or MCP tool invokes provider execution yet;
+  process memory. Its private reservation state machine atomically enforces exact run/source-ID/
+  route/call identity and route+total budgets under concurrency. It does not bind actual task bytes,
+  read a credential, execute a call, or grant MCP authority; the authorized executor remains open.
+  No product workflow or MCP tool invokes provider execution yet;
   streamed tools, live-provider certification, and other remote adapters remain open.
   Plugins declare capabilities and submit revision-guarded proposals. No plugin
   code executes in the webview and no contract-only feature may report itself as available. See

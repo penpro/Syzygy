@@ -67,7 +67,10 @@ The native batch authorizer now closes the consent-planning half of that boundar
 real question/source scope, exact remote provider/model routes, per-route and total ceilings, and
 discloses cross-provider artifact sharing plus dated provider handling profiles. Approval is a
 random 30-minute process-memory capability with content-free status and explicit revocation;
-denial creates none. No consumer exists, so it reads no credential and cannot execute a call.
+denial creates none. A private reservation function now atomically checks expiry, exact
+run/source-ID/route scope, unique call identity, and route plus total budgets under concurrency.
+No consumer exists, so it binds no actual task bytes, reads no credential, and cannot execute a
+call.
 
 ## Benchmark before product claims
 

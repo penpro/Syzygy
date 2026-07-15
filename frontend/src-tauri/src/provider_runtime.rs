@@ -38,8 +38,10 @@ struct ProviderBatchAuthorization {
     run_id: String,
     scope_sha256: String,
     source_snapshot_ids: Vec<String>,
-    routes: Vec<ProviderBatchRoute>,
+    routes: Vec<ProviderBatchRouteStatus>,
     remaining_calls: u32,
+    #[cfg_attr(not(test), allow(dead_code))]
+    used_call_ids: HashSet<String>,
     expires_at: Instant,
     expires_at_text: String,
 }
@@ -98,9 +100,47 @@ pub struct ProviderBatchAuthorizationStatus {
     pub run_id: String,
     pub scope_sha256: String,
     pub source_snapshot_ids: Vec<String>,
-    pub routes: Vec<ProviderBatchRoute>,
+    pub routes: Vec<ProviderBatchRouteStatus>,
     pub remaining_calls: u32,
     pub expires_at: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderBatchRouteStatus {
+    pub provider: RemoteProviderId,
+    pub model: String,
+    pub max_calls: u32,
+    pub remaining_calls: u32,
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+#[derive(Clone, Debug)]
+struct ProviderBatchCallScope {
+    authorization_id: String,
+    run_id: String,
+    call_id: String,
+    provider: RemoteProviderId,
+    model: String,
+    source_snapshot_ids: Vec<String>,
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ProviderBatchReservationError {
+    InvalidScope,
+    Missing,
+    Expired,
+    DuplicateCall,
+    BudgetExhausted,
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ProviderBatchReservation {
+    call_id: String,
+    remaining_route_calls: u32,
+    remaining_total_calls: u32,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -447,8 +487,18 @@ fn authorize_batch_with(
             .into_iter()
             .map(|source| source.snapshot_id)
             .collect(),
-        routes: request.routes,
+        routes: request
+            .routes
+            .into_iter()
+            .map(|route| ProviderBatchRouteStatus {
+                provider: route.provider,
+                model: route.model,
+                max_calls: route.max_calls,
+                remaining_calls: route.max_calls,
+            })
+            .collect(),
         remaining_calls: request.total_remote_calls,
+        used_call_ids: HashSet::new(),
         expires_at: expires_instant,
         expires_at_text: expires_at.clone(),
     };
@@ -470,12 +520,80 @@ fn authorize_batch_with(
     })
 }
 
-fn revoke_batch_with(state: &ProviderRuntimeState, authorization_id: &str) -> Result<bool, String> {
-    if authorization_id.len() != 64
-        || !authorization_id
+fn valid_authorization_id(authorization_id: &str) -> bool {
+    authorization_id.len() == 64
+        && authorization_id
             .bytes()
             .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn reserve_batch_call(
+    state: &ProviderRuntimeState,
+    scope: ProviderBatchCallScope,
+) -> Result<ProviderBatchReservation, ProviderBatchReservationError> {
+    if !valid_authorization_id(&scope.authorization_id)
+        || !valid_id(&scope.run_id)
+        || !valid_id(&scope.call_id)
+        || scope.model.trim().is_empty()
+        || scope.model.chars().count() > 200
+        || scope.model.chars().any(char::is_control)
+        || scope.source_snapshot_ids.is_empty()
+        || scope.source_snapshot_ids.len() > 200
+        || scope.source_snapshot_ids.iter().any(|id| !valid_id(id))
+        || scope
+            .source_snapshot_ids
+            .iter()
+            .collect::<HashSet<_>>()
+            .len()
+            != scope.source_snapshot_ids.len()
     {
+        return Err(ProviderBatchReservationError::InvalidScope);
+    }
+    let mut authorizations = state
+        .batch_authorizations
+        .lock()
+        .map_err(|_| ProviderBatchReservationError::Missing)?;
+    let Some(authorization) = authorizations.get_mut(&scope.authorization_id) else {
+        return Err(ProviderBatchReservationError::Missing);
+    };
+    if authorization.expires_at <= Instant::now() {
+        authorizations.remove(&scope.authorization_id);
+        return Err(ProviderBatchReservationError::Expired);
+    }
+    let same_sources = authorization.source_snapshot_ids.len() == scope.source_snapshot_ids.len()
+        && authorization
+            .source_snapshot_ids
+            .iter()
+            .all(|id| scope.source_snapshot_ids.contains(id));
+    if authorization.run_id != scope.run_id || !same_sources {
+        return Err(ProviderBatchReservationError::InvalidScope);
+    }
+    if authorization.used_call_ids.contains(&scope.call_id) {
+        return Err(ProviderBatchReservationError::DuplicateCall);
+    }
+    let Some(route) = authorization
+        .routes
+        .iter_mut()
+        .find(|route| route.provider == scope.provider && route.model == scope.model)
+    else {
+        return Err(ProviderBatchReservationError::InvalidScope);
+    };
+    if authorization.remaining_calls == 0 || route.remaining_calls == 0 {
+        return Err(ProviderBatchReservationError::BudgetExhausted);
+    }
+    authorization.used_call_ids.insert(scope.call_id.clone());
+    authorization.remaining_calls -= 1;
+    route.remaining_calls -= 1;
+    Ok(ProviderBatchReservation {
+        call_id: scope.call_id,
+        remaining_route_calls: route.remaining_calls,
+        remaining_total_calls: authorization.remaining_calls,
+    })
+}
+
+fn revoke_batch_with(state: &ProviderRuntimeState, authorization_id: &str) -> Result<bool, String> {
+    if !valid_authorization_id(authorization_id) {
         return Err("Remote batch authorization ID is invalid".to_owned());
     }
     let mut authorizations = state
@@ -489,11 +607,7 @@ fn batch_status_with(
     state: &ProviderRuntimeState,
     authorization_id: &str,
 ) -> Result<Option<ProviderBatchAuthorizationStatus>, String> {
-    if authorization_id.len() != 64
-        || !authorization_id
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
-    {
+    if !valid_authorization_id(authorization_id) {
         return Err("Remote batch authorization ID is invalid".to_owned());
     }
     let mut authorizations = state
@@ -892,6 +1006,7 @@ mod tests {
     use crate::model_provider::{InputRole, ProviderInput, ProviderSecret};
     use std::io::{Read, Write};
     use std::net::TcpListener;
+    use std::sync::Arc;
     use std::thread;
 
     #[derive(Default)]
@@ -991,6 +1106,22 @@ mod tests {
                 },
             ],
             total_remote_calls: 7,
+        }
+    }
+
+    fn batch_call(
+        authorization_id: &str,
+        call_id: &str,
+        provider: RemoteProviderId,
+        model: &str,
+    ) -> ProviderBatchCallScope {
+        ProviderBatchCallScope {
+            authorization_id: authorization_id.to_owned(),
+            run_id: "adversarial-run-001".to_owned(),
+            call_id: call_id.to_owned(),
+            provider,
+            model: model.to_owned(),
+            source_snapshot_ids: vec!["source-snapshot-001".to_owned()],
         }
     }
 
@@ -1214,6 +1345,125 @@ mod tests {
         assert!(!serialized_status.contains("private-source-content-canary"));
         assert!(revoke_batch_with(&state, &authorization_id).unwrap());
         assert!(!revoke_batch_with(&state, &authorization_id).unwrap());
+        assert!(state.batch_authorizations.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn adversarial_batch_reservations_atomically_enforce_scope_ids_and_budgets() {
+        let state = Arc::new(ProviderRuntimeState::default());
+        let approved = authorize_batch_with(&state, batch_authorization(), true).unwrap();
+        let authorization_id = approved.authorization_id.unwrap();
+
+        let mut wrong_run = batch_call(
+            &authorization_id,
+            "wrong-run",
+            RemoteProviderId::OpenAi,
+            "proposal-model",
+        );
+        wrong_run.run_id = "other-run".to_owned();
+        assert_eq!(
+            reserve_batch_call(&state, wrong_run),
+            Err(ProviderBatchReservationError::InvalidScope)
+        );
+
+        let attempts = (0..8)
+            .map(|index| {
+                let state = Arc::clone(&state);
+                let scope = batch_call(
+                    &authorization_id,
+                    &format!("parallel-call-{index}"),
+                    RemoteProviderId::OpenAi,
+                    "proposal-model",
+                );
+                thread::spawn(move || reserve_batch_call(&state, scope))
+            })
+            .collect::<Vec<_>>();
+        let results = attempts
+            .into_iter()
+            .map(|attempt| attempt.join().unwrap())
+            .collect::<Vec<_>>();
+        let reservations = results
+            .iter()
+            .filter_map(|result| result.as_ref().ok())
+            .collect::<Vec<_>>();
+        assert_eq!(reservations.len(), 4);
+        assert_eq!(
+            results
+                .iter()
+                .filter(|result| **result == Err(ProviderBatchReservationError::BudgetExhausted))
+                .count(),
+            4
+        );
+
+        let duplicate_id = reservations[0].call_id.clone();
+        assert_eq!(
+            reserve_batch_call(
+                &state,
+                batch_call(
+                    &authorization_id,
+                    &duplicate_id,
+                    RemoteProviderId::Anthropic,
+                    "judge-model",
+                ),
+            ),
+            Err(ProviderBatchReservationError::DuplicateCall)
+        );
+        for index in 0..3 {
+            reserve_batch_call(
+                &state,
+                batch_call(
+                    &authorization_id,
+                    &format!("judge-call-{index}"),
+                    RemoteProviderId::Anthropic,
+                    "judge-model",
+                ),
+            )
+            .unwrap();
+        }
+        assert_eq!(
+            reserve_batch_call(
+                &state,
+                batch_call(
+                    &authorization_id,
+                    "judge-over-budget",
+                    RemoteProviderId::Anthropic,
+                    "judge-model",
+                ),
+            ),
+            Err(ProviderBatchReservationError::BudgetExhausted)
+        );
+        let status = batch_status_with(&state, &authorization_id)
+            .unwrap()
+            .expect("active scope");
+        assert_eq!(status.remaining_calls, 0);
+        assert!(status.routes.iter().all(|route| route.remaining_calls == 0));
+    }
+
+    #[test]
+    fn adversarial_batch_reservation_removes_expired_authority_without_consuming() {
+        let state = ProviderRuntimeState::default();
+        let approved = authorize_batch_with(&state, batch_authorization(), true).unwrap();
+        let authorization_id = approved.authorization_id.unwrap();
+        state
+            .batch_authorizations
+            .lock()
+            .unwrap()
+            .get_mut(&authorization_id)
+            .unwrap()
+            .expires_at = Instant::now() - Duration::from_secs(1);
+
+        assert_eq!(
+            reserve_batch_call(
+                &state,
+                batch_call(
+                    &authorization_id,
+                    "expired-call",
+                    RemoteProviderId::OpenAi,
+                    "proposal-model",
+                ),
+            ),
+            Err(ProviderBatchReservationError::Expired)
+        );
         assert!(state.batch_authorizations.lock().unwrap().is_empty());
     }
 }

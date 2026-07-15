@@ -120,7 +120,7 @@ export interface ProviderBatchAuthorizationStatus {
   runId: string
   scopeSha256: string
   sourceSnapshotIds: string[]
-  routes: ProviderBatchRoute[]
+  routes: Array<ProviderBatchRoute & { remainingCalls: number }>
   remainingCalls: number
   expiresAt: string
 }

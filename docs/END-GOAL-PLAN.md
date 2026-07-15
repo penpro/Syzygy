@@ -459,6 +459,9 @@ The native batch authorizer now validates exact remote routes, per-route and tot
 real question/frozen-source scope, cross-provider artifact sharing, and policy handling before a
 single native decision. Approval is random, process-memory-only, expires after 30 minutes, exposes
 content-free status, and can be revoked; denial stores nothing. It cannot execute a model call.
+Its internal reservation boundary now proves exact run/source-ID/route/call-ID checks and atomic
+route plus total budget decrements under parallel attempts. It exposes no command and still cannot
+bind actual task bytes, read a credential, or execute a model call.
 The run-record interchange is now published as strict Draft 2020-12 JSON Schema and embedded in
 MCP. Its typed plan-relative validator remains the authority for cross-record semantics that JSON
 Schema alone cannot establish.
@@ -485,6 +488,7 @@ Machine-readable inspection is available through `syzygy_platform_contracts`. It
 the native-disclosure research envelope with no product caller from product availability, report
 adversarial execution as `injected-runner-no-product-executor`, and continue returning
 `native-scoped-authorizer-no-product-executor` for provider batch authorization, plus
+`internal-atomic-reservation-no-executor` for the private budget boundary, plus
 `contract-only` for custom-adapter execution and plugin loading.
 
 Progress: OpenAI Responses one-shot request construction, bounded whole-operation timeout,

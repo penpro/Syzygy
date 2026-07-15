@@ -329,6 +329,21 @@ record(
   'native dialog derives a bounded route/source/call scope, denial stores nothing, approval expires, explicit revocation exists, and no authorized executor is claimed',
 )
 record(
+  'adversarial batch reservations are atomic, scoped, and still non-executing',
+  providerTaskRuntimeSource.includes('fn reserve_batch_call(') &&
+    providerTaskRuntimeSource.includes('used_call_ids: HashSet<String>') &&
+    providerTaskRuntimeSource.includes('authorization.used_call_ids.contains(&scope.call_id)') &&
+    providerTaskRuntimeSource.includes('authorization.remaining_calls -= 1') &&
+    providerTaskRuntimeSource.includes('route.remaining_calls -= 1') &&
+    providerTaskRuntimeSource.includes('ProviderBatchReservationError::Expired') &&
+    providerTaskRuntimeSource.includes('adversarial_batch_reservations_atomically_enforce_scope_ids_and_budgets') &&
+    providerTaskRuntimeSource.includes('adversarial_batch_reservation_removes_expired_authority_without_consuming') &&
+    platformContractsSource.includes('"providerBatchReservation": "internal-atomic-reservation-no-executor"') &&
+    !tauriSource.includes("invoke('provider_adversarial_reserve'") &&
+    !providerTaskRuntimeSource.includes('pub async fn provider_adversarial_reserve'),
+  'one Rust mutex atomically checks exact run/source/route/call scope, rejects reuse and expiry, decrements route and total budgets, and exposes no public executor command',
+)
+record(
   'provider research task derives disclosure and provenance',
   providerTaskRuntimeSource.includes('pub struct ProviderResearchTaskRequest') &&
     providerTaskRuntimeSource.includes('pub struct ProviderResearchSource') &&

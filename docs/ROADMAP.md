@@ -133,9 +133,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   judgments, and a separate `2N + 3` call baseline. Synthetic executors prove phase isolation,
   route blinding, cancellation, sanitized failure, pending human review, and no shared mutation.
   Native batch scope validation/disclosure plus expiring/revocable authorization now exist without
-  a consumer. Atomic scope consumption, a product provider executor, UI/persistence, public fixtures, and live
+  a consumer. An internal concurrency-tested reservation function now enforces exact run/source-ID/
+  route/call identity and atomic route+total decrements, but binds no task bytes and executes
+  nothing. A content-bound product provider executor, UI/persistence, public fixtures, and live
   comparative evidence remain open; this is not a quality or superiority claim.
-  Evidence: `docs/audits/runs/ADVERSARIAL-BATCH-AUTHORIZATION-2026-07-15.json`.
+  Evidence: `docs/audits/runs/ADVERSARIAL-BATCH-AUTHORIZATION-2026-07-15.json` and
+  `docs/audits/runs/ADVERSARIAL-BATCH-RESERVATION-2026-07-15.json`.
 - Anthropic Messages now has a one-shot `request-control-conformance` slice. A fake server
   proves the current `/v1/messages` path, `x-api-key`, pinned API version, system/user mapping,
   bounds, normalized text/usage, thinking-block non-retention, sanitized failure, timeout, and

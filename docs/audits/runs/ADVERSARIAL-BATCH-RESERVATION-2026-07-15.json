@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "runId": "ADVERSARIAL-BATCH-RESERVATION-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "internal-atomic-reservation-no-executor",
+  "commands": [
+    "cargo test --manifest-path src-tauri/Cargo.toml provider_runtime::tests",
+    "cargo test --manifest-path src-tauri/Cargo.toml",
+    "cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check",
+    "npm run build",
+    "npm run audit",
+    "npm run test:mcp",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "providerRuntimeTestsPassed": 11,
+    "fullRustLibraryTestsPassed": 70,
+    "fullRustBinaryHarnessTestsPassed": 4,
+    "frontendModulesTransformed": 990,
+    "structuralAuditChecksPassed": 27,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "Reservation validates a 256-bit authorization capability plus bounded run, call, model, and unique frozen source IDs before touching authorization state.",
+    "One Rust authorization-registry mutex covers expiry, exact run/source-set/route checks, call-ID replay detection, and both budget decrements.",
+    "Eight parallel attempts against a four-call route produce exactly four successful reservations and four budget-exhausted results.",
+    "A successful call ID cannot be reused on another provider route, and failed scope attempts consume no budget.",
+    "Per-route and total remaining-call counters reach zero together for the approved two-route fixture.",
+    "An expired capability returns an explicit expired result and is removed from process memory without consuming a call.",
+    "Status serialization exposes remaining budgets but contains no question, label, excerpt, prompt, output, or credential.",
+    "No Tauri or MCP reservation command, provider executor, vault read, or network operation was added.",
+    "The compiled MCP reports the authorizer and internal reservation as separate truthful implementation states."
+  ],
+  "notProved": [
+    "Reservation binds actual question, excerpt, task instruction, or cross-phase artifact bytes to the approved scope; it currently rechecks source identity only.",
+    "A reservation is consumed immediately before a vault read or network request; no authorized consumer exists.",
+    "Reserved capacity is refunded or finalized after transport failure; the executor lifecycle is not implemented.",
+    "The packaged native authorization dialog has been clicked or visually inspected.",
+    "A product workflow creates, monitors, persists, resumes, or revokes an adversarial run.",
+    "Live provider behavior, quality, cost, latency, retention, or panel superiority."
+  ]
+}

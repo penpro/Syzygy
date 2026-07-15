@@ -20,8 +20,16 @@ capability for 30 minutes; denial stores nothing. The content-free scope/status 
 and explicitly revoked through typed commands. No credential is read and no network request is
 made by authorization. The status is `native-scoped-authorizer-no-product-executor`: an authorized
 call consumer has not been implemented and the capability cannot currently transmit anything.
+An internal reservation state machine now proves the next boundary without exposing a command:
+under one Rust mutex it rechecks capability expiry, exact run, frozen source-ID set, exact
+provider/model route, and one-use call identity, then decrements route and total budgets together.
+Parallel and expiry tests prove fail-closed accounting. It binds source identity rather than the
+actual task bytes and cannot read a key, contact a provider, or return model authority. The future
+consumer must bind the authorized question/source content and derived phase artifact to a per-call
+record before reserving and transmitting.
 The reproducible proof and explicit non-claims are in
-`docs/audits/runs/ADVERSARIAL-BATCH-AUTHORIZATION-2026-07-15.json`.
+`docs/audits/runs/ADVERSARIAL-BATCH-AUTHORIZATION-2026-07-15.json` and
+`docs/audits/runs/ADVERSARIAL-BATCH-RESERVATION-2026-07-15.json`.
 
 The callable command takes `ProviderResearchTaskRequest`, not a raw provider request. Its fields are
 run/call/task identity, provider/model/bounds, an optional developer instruction, a research
@@ -78,9 +86,10 @@ domain semantic validation both pass.
   call count before first transmission. Changing provider or expanding content invalidates it.
 - An adversarial batch authorization names every remote provider/model route, its ceiling, the
   total ceiling, frozen source count, cross-provider artifact category, retention profile, and a
-  fixed expiration. It is process-memory-only and explicitly revocable. Future consumption must
-  atomically check route/run/source scope and decrement both route and total budgets before vault
-  or network access.
+  fixed expiration. It is process-memory-only and explicitly revocable. Internal reservation now
+  atomically checks route/run/source identity plus a one-use call ID and decrements both route and
+  total budgets before any possible vault/network access. It is not a public consumer and does not
+  yet bind actual prompt/source bytes.
 - Custom endpoints are visibly unverified and require HTTPS unless the user explicitly selects a
   loopback development endpoint.
 

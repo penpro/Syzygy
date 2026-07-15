@@ -83,6 +83,9 @@ versions/evaluation evidence.
 - The native batch authorizer accepts the real question/source scope so Rust, rather than a
   caller-authored category list, derives what the dialog says. It binds exact remote routes and
   budgets, expires after 30 minutes, and supports status/revocation. Its random capability currently
-  has no consumer. Before consumption ships, tests must prove atomic route and total decrements,
-  run/source equality, expiry/revocation during concurrency, and no vault/network access on mismatch.
+  has no consumer. The private reservation function now proves atomic route and total decrements,
+  one-use call IDs, exact run/source-ID/route checks, and expiry cleanup under concurrency. Before
+  consumption ships, tests must bind actual question/source/task/artifact bytes to the approved
+  scope, recheck expiry/revocation immediately before vault/network access, preserve per-call
+  provenance, and fail closed under parallel calls.
 - Claiming S-01 verified before the live Drive→local-model harness passes is a documentation defect.

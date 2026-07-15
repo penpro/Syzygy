@@ -108,7 +108,9 @@ MCP host
   `native-disclosure-command-no-product-ui`. MCP itself has no provider-generation or credential
   tool and therefore cannot bypass the native send boundary. It reports adversarial batch
   authorization as `native-scoped-authorizer-no-product-executor`; the authorizer itself is not an
-  MCP tool and has no call consumer. It reports the non-executing
+  MCP tool and has no call consumer. It separately reports its private concurrency-tested budget
+  boundary as `internal-atomic-reservation-no-executor`; that function also has no MCP/Tauri
+  command, content binding, credential access, or network access. It reports the non-executing
   plugin certifier as `contract-certified-runner`, adversarial execution as
   `injected-runner-no-product-executor`, and plugin loading and custom-adapter execution as
   `contract-only`; the non-executing adapter

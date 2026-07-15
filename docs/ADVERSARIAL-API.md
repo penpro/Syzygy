@@ -47,6 +47,12 @@ identity, cross-provider artifact sharing, policy profiles, and a 30-minute life
 nothing; approval returns a random process-memory capability with status/revoke commands. The
 authorized call consumer is deliberately absent, so the capability cannot yet bypass the per-call
 dialog or transmit content.
+A private reservation function now proves atomic accounting under parallel calls: it checks exact
+authorization/run/source/route identity, expiry, revocation, and a globally one-use call ID while
+holding the authorization mutex, then decrements route and total budgets together. It has no
+Tauri or MCP command and cannot read credentials or reach a network. Its source check is
+identity-only; binding actual question, excerpt, task, and cross-phase artifact bytes to the
+approved digest remains a prerequisite for the real executor.
 
 ## Validation pipeline
 

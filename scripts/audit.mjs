@@ -227,6 +227,7 @@ const advertisedMcpTools = [
   'rename_project',
   'read_active_project',
   'inspect_research_state',
+  'create_scenario',
   'save_active_policy_version',
   'replace_active_document',
   'append_active_document',
@@ -282,6 +283,21 @@ record(
     mcpSource.includes('"save_active_policy_version" => live("project.savePolicyVersion"') &&
     text('scripts/mcp-live-harness.mjs').includes('dualRevisionCheckpoint: true'),
   'pre-hash and in-transaction document guards, exact head/parent checks, semantic block mapping, stale/mid-hash zero-write tests, fourteenth MCP route, and packaged-live assertion are present',
+)
+const scenarioAutomationSource = text('frontend/src/workspace/scenarioAutomation.ts')
+const scenarioAutomationTestSource = text('frontend/src/workspace/scenarioAutomation.test.ts')
+record(
+  'MCP scenario creation remains research-revision guarded and live-document scoped',
+  researchInspectionSource.includes('startingRevision = projectStateFingerprint(doc)') &&
+    researchInspectionSource.includes('Research state changed during inspection; inspect again') &&
+    scenarioAutomationSource.includes("throw new Error('Research state revision conflict')") &&
+    scenarioAutomationSource.includes('createScenario(scenarios') &&
+    scenarioAutomationTestSource.includes('creates one scenario against the exact monotonic research revision') &&
+    scenarioAutomationTestSource.includes('rejects a stale revision without mutating scenario state') &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.createScenario'") &&
+    mcpSource.includes('"create_scenario" => live("project.createScenario"') &&
+    text('scripts/mcp-live-harness.mjs').includes('staleScenarioCreateRejected: true'),
+  'stable inspection revision, zero-write stale rejection, live Y.Doc route, fifteenth MCP tool, and packaged-live assertions are present',
 )
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))

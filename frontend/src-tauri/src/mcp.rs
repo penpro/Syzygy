@@ -92,7 +92,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting and annotations, heuristics, and immutable history. Read a project before editing or checkpointing it. Document writes require the exact revision returned by read_active_project. save_active_policy_version additionally requires the exact non-null head from inspection, or omission when no head exists. On any conflict, read again and reconcile. Never claim unavailable scenario/voting/annotation UI or mutations, restore UI, Drive project transport, or real-time presence are available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting and annotations, heuristics, and immutable history. Read a project before editing or checkpointing it. Document writes require the exact revision returned by read_active_project. create_scenario requires the exact research revision from inspection. save_active_policy_version additionally requires the exact non-null head from inspection, or omission when no head exists. On any conflict, read again and reconcile. Never claim unavailable scenario turn/voting/annotation UI or mutations, restore UI, Drive project transport, or real-time presence are available."
             })
         }
         "ping" => json!({}),
@@ -128,6 +128,7 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "rename_project" => live("project.rename", arguments),
         "read_active_project" => live("project.readActive", json!({})),
         "inspect_research_state" => live("project.readResearchState", json!({})),
+        "create_scenario" => live("project.createScenario", arguments),
         "save_active_policy_version" => live("project.savePolicyVersion", arguments),
         "replace_active_document" => live("document.replace", arguments),
         "append_active_document" => live("document.append", arguments),
@@ -217,6 +218,22 @@ fn tool_definitions() -> Vec<Value> {
             "inspect_research_state",
             "Inspect bounded read-only metadata and integrity checks for the active project's collaborative scenarios, aggregate votes and annotation lifecycle, heuristics, and immutable policy-version history. Omits policy text, scenario/annotation/voter bodies, heuristic guidance/edit values, and version notes; grants no mutation authority.",
             object_schema(&[], &[]),
+        ),
+        tool(
+            "create_scenario",
+            "Create one scenario in the active live project against the exact research revision from inspect_research_state. This creates scenario metadata/background only; it does not generate model turns or imply a visible gallery.",
+            object_schema(
+                &[
+                    ("expectedResearchRevision", string_schema("Exact researchState.revision from inspect_research_state.")),
+                    ("scenarioId", string_schema("New stable scenario ID.")),
+                    ("title", string_schema("Non-empty scenario title.")),
+                    ("background", string_schema("Scenario background; may be empty.")),
+                    ("status", string_schema("Optional draft, ready, or archived lifecycle state.")),
+                    ("parentScenarioId", string_schema("Optional existing parent scenario ID for a branch.")),
+                    ("participantId", string_schema("Caller-supplied participant ID; identity is not authenticated across installs.")),
+                ],
+                &["expectedResearchRevision", "scenarioId", "title", "background", "participantId"],
+            ),
         ),
         tool(
             "save_active_policy_version",
@@ -429,6 +446,7 @@ mod tests {
         assert!(names.contains(&"syzygy_platform_contracts"));
         assert!(names.contains(&"read_active_project"));
         assert!(names.contains(&"inspect_research_state"));
+        assert!(names.contains(&"create_scenario"));
         assert!(names.contains(&"save_active_policy_version"));
         assert!(names.contains(&"replace_active_document"));
     }
@@ -476,6 +494,31 @@ mod tests {
             "project.readResearchState"
         );
         assert_eq!(response["result"]["structuredContent"]["params"], json!({}));
+    }
+
+    #[test]
+    fn routes_scenario_creation_with_research_revision_guard() {
+        let response = dispatch_message(
+            &json!({
+                "jsonrpc": "2.0",
+                "id": "scenario-1",
+                "method": "tools/call",
+                "params": {
+                    "name": "create_scenario",
+                    "arguments": {
+                        "expectedResearchRevision": "1.2.3",
+                        "scenarioId": "test-scenario",
+                        "title": "Test scenario",
+                        "background": "",
+                        "participantId": "researcher-1"
+                    }
+                }
+            }),
+            &fake_live,
+        )
+        .unwrap();
+        assert_eq!(response["result"]["structuredContent"]["method"], "project.createScenario");
+        assert_eq!(response["result"]["structuredContent"]["params"]["expectedResearchRevision"], "1.2.3");
     }
 
     #[test]

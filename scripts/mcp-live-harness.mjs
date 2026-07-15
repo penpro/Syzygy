@@ -147,13 +147,35 @@ try {
     if (readback.structuredContent.document.text.includes('stale write')) throw new Error('Stale write reached the live draft')
     if (researchState.structuredContent.researchState.projectId !== projectId) throw new Error('Research-state inspection targeted the wrong project')
     if (researchState.structuredContent.researchState.selfCheck.healthy !== true) throw new Error('Live research-state integrity check failed')
+    const scenarioId = `mcp-live-${Date.now().toString(36)}`
+    const createdScenario = await session.tool('create_scenario', {
+      expectedResearchRevision: researchState.structuredContent.researchState.revision,
+      scenarioId,
+      title: 'MCP live harness scenario',
+      background: 'Verify guarded scenario creation through the semantic live bridge.',
+      participantId: 'mcp-live-harness',
+    })
+    const staleScenarioCreate = await session.tool('create_scenario', {
+      expectedResearchRevision: researchState.structuredContent.researchState.revision,
+      scenarioId: `${scenarioId}-stale`,
+      title: 'This stale scenario must not land',
+      background: '',
+      participantId: 'mcp-live-harness',
+    }, true)
+    if (!staleScenarioCreate.isError || !/Research state revision conflict/.test(staleScenarioCreate.structuredContent?.error ?? '')) {
+      throw new Error('The live app did not reject stale MCP scenario creation')
+    }
+    const stateAfterScenario = await session.tool('inspect_research_state')
+    if (createdScenario.structuredContent.scenario.id !== scenarioId) throw new Error('Scenario creation returned the wrong identity')
+    if (stateAfterScenario.structuredContent.researchState.scenarios.totalRecords !== researchState.structuredContent.researchState.scenarios.totalRecords + 1) throw new Error('Scenario creation did not add exactly one record')
+    if (stateAfterScenario.structuredContent.researchState.scenarios.items.some((item) => item.id === `${scenarioId}-stale`)) throw new Error('Stale scenario creation reached live state')
     const saveArguments = {
       expectedDocumentRevision: readback.structuredContent.document.revision,
       participantId: 'mcp-live-harness',
       displayName: 'MCP live harness',
       note: 'Headless MCP revision checkpoint',
     }
-    const previousHead = researchState.structuredContent.researchState.versions.headVersionId
+    const previousHead = stateAfterScenario.structuredContent.researchState.versions.headVersionId
     if (previousHead) saveArguments.expectedHeadVersionId = previousHead
     const savedVersion = await session.tool('save_active_policy_version', saveArguments)
     const stateAfterSave = await session.tool('inspect_research_state')
@@ -170,6 +192,9 @@ try {
       finalBlockCount: readback.structuredContent.document.blocks.length,
       staleWriteRejected: true,
       researchStateHealthy: true,
+      scenarioId,
+      scenarioCreateRevisionGuarded: true,
+      staleScenarioCreateRejected: true,
       heuristicRecords: researchState.structuredContent.researchState.heuristics.totalRecords,
       versionRecords: researchState.structuredContent.researchState.versions.totalRecords,
       savedVersionId: savedVersion.structuredContent.version.versionId,

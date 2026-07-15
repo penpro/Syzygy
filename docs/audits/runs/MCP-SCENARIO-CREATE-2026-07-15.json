@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "runId": "MCP-SCENARIO-CREATE-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "status": "implemented_unverified",
+  "commands": ["npm run test:workspace", "npm run test:mcp", "npm run build", "npm run audit", "git diff --check"],
+  "result": {
+    "passed": true,
+    "workspaceTestsPassed": 71,
+    "scenarioAutomationTestsPassed": 3,
+    "rustMcpTestsPassed": 7,
+    "mcpToolsAdvertised": 15,
+    "frontendModulesTransformed": 1000,
+    "structuralAuditChecksPassed": 37,
+    "externalNetworkUsed": false,
+    "packagedLiveHarnessRun": false,
+    "realProjectMutation": false
+  },
+  "proved": [
+    "Research inspection returns one monotonic state-vector revision and rejects a result if the Yjs document changes during asynchronous validation.",
+    "Scenario creation requires exact research revision and project identity; a stale revision creates zero scenario records.",
+    "A valid call creates a bounded scenario and a second guarded call can create a branch only when the parent exists.",
+    "Rust advertises and routes create_scenario as the fifteenth semantic MCP tool; compiled stdio discovery requires it.",
+    "The packaged live harness creates one unique scenario, verifies inspection count growth, and requires a stale second creation to fail, but this run did not mutate the user profile."
+  ],
+  "notProved": [
+    "The installed packaged GUI completed the updated live mutation harness.",
+    "Scenario turn editing, generation, voting/annotation mutation, gallery UI, or evaluation through MCP.",
+    "Authenticated participant identity, Drive/WebSocket project transport, or multi-install concurrency."
+  ]
+}

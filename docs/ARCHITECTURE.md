@@ -99,7 +99,8 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   read. The Lexical/Yjs editor owns the `root` shared type.
 - `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
   navigation, revision-guarded editor reads/writes, and bounded read-only research-state integrity
-  inspection. `versionAutomation.ts` maps the exact active semantic editor snapshot into an
+  inspection. `scenarioAutomation.ts` creates one scenario only against the monotonic research
+  revision returned by inspection. `versionAutomation.ts` maps the exact active semantic editor snapshot into an
   immutable version only after both the document revision and version head pass inside the final
   Yjs transaction. The bridge does not own persistence.
 - `components/McpSetupModal.tsx` — Settings guide that asks Rust for the exact running executable

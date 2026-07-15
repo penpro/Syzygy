@@ -6,6 +6,8 @@ import {
   getAutomationEditorController,
 } from './workspace/editorAutomationRegistry'
 import { inspectResearchState } from './workspace/researchStateInspection'
+import { createAutomationScenario } from './workspace/scenarioAutomation'
+import type { ScenarioStatus } from './workspace/scenarioModel'
 import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
 import { saveAutomationPolicyVersion } from './workspace/versionAutomation'
 
@@ -63,10 +65,11 @@ export async function dispatchAutomationRequest(
             'revision-guarded semantic MCP reads and writes',
             'read-only MCP integrity inspection for heuristics and immutable version history',
             'dual-revision-guarded MCP creation of immutable policy checkpoints',
+            'research-revision-guarded MCP scenario creation',
           ],
           unavailable: [
             'version save, restore, and diff controls in the product UI; MCP restore remains unavailable',
-            'scenario and evaluation workflows',
+            'scenario gallery/editing/voting UI and evaluation workflows',
             'Drive-backed project CRDT transport',
             'real-time collaborator presence',
           ],
@@ -159,6 +162,42 @@ export async function dispatchAutomationRequest(
         deterministicChangeNote: saved.changeNote,
       }
     }
+    case 'project.createScenario': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const statusValue = optionalString(params, 'status')
+      if (statusValue !== null && !['draft', 'ready', 'archived'].includes(statusValue)) {
+        throw new Error('status must be draft, ready, or archived')
+      }
+      const createdAt = Date.now()
+      const created = createAutomationScenario(getAutomationProjectDocument(project.id), project.id, {
+        expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
+        scenarioId: requiredString(params, 'scenarioId'),
+        title: requiredString(params, 'title'),
+        background: requiredString(params, 'background', true),
+        status: statusValue as ScenarioStatus | null ?? undefined,
+        parentScenarioId: optionalString(params, 'parentScenarioId'),
+        participantId: requiredString(params, 'participantId'),
+        createdAt,
+        editId: `mcp-${crypto.randomUUID()}`,
+      })
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        scenario: {
+          id: created.scenario.id,
+          title: created.scenario.title,
+          status: created.scenario.status,
+          parentScenarioId: created.scenario.parentScenarioId,
+          createdBy: created.scenario.createdBy,
+          createdAt: created.scenario.createdAt,
+          turnCount: created.scenario.turns.length,
+        },
+        researchRevision: created.researchRevision,
+      }
+    }
     case 'document.replace': {
       const expectedRevision = requiredString(params, 'expectedRevision')
       const content = requiredString(params, 'content', true)
@@ -228,8 +267,8 @@ function buildWalkthrough() {
       },
       {
         name: 'Scenarios and evaluation',
-        status: 'not-implemented',
-        use: 'The right rail is a visible placeholder for testing a policy against concrete cases.',
+        status: project && automationProjectDocumentReady(project.id) ? 'domain-create-ready' : 'needs-open-project',
+        use: 'Scenario records, votes, and flags/notes have tested collaborative foundations; MCP can inspect them and create a guarded scenario, while the gallery, turns, and evaluation UI remain unavailable.',
       },
       {
         name: 'Network collaboration',

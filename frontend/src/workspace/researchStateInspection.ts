@@ -1,6 +1,6 @@
 import type * as Y from 'yjs'
 import { listHeuristics } from './heuristicsModel'
-import { getProjectSharedTypes } from './projectModel'
+import { getProjectSharedTypes, projectStateFingerprint } from './projectModel'
 import { listPolicyVersions, readPolicyVersionHead, readPolicyVersionLineage } from './policyVersionModel'
 import type { PolicyVersion } from './policyVersionModel'
 import { inspectScenarioGraph, listScenarios } from './scenarioModel'
@@ -34,6 +34,7 @@ function countInvalidLineages(versions: PolicyVersion[]): number {
 }
 
 export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string) {
+  const startingRevision = projectStateFingerprint(doc)
   const { metadata, discussions, heuristics: heuristicMap, scenarios: scenarioMap, versions: versionMap } = getProjectSharedTypes(doc)
   if (metadata.get('projectId') !== expectedProjectId) throw new Error('Live collaboration document project identity does not match')
 
@@ -72,9 +73,11 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
     issues.push('The policy version head has an invalid shape')
   }
 
+  if (projectStateFingerprint(doc) !== startingRevision) throw new Error('Research state changed during inspection; inspect again')
   return {
     schemaVersion: 1,
     projectId: expectedProjectId,
+    revision: startingRevision,
     heuristics: {
       totalRecords: heuristicMap.size,
       validRecords: validHeuristics.length,

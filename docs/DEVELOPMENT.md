@@ -109,6 +109,13 @@ background/turn/revision/voter bodies, heuristic guidance/edit values, and notes
 thirteenth `inspect_research_state` tool to route only to this read operation. The mutation-capable
 live harness checks it when explicitly run; CI does not claim a packaged GUI proof.
 
+`scenarioAutomation.test.ts` is the MCP scenario-mutation gate. Inspection returns a monotonic Yjs
+state-vector revision and rejects an internally inconsistent read if state changes during its
+asynchronous hash checks. Creation requires that exact revision, rechecks project identity, and
+mutates the registered live Y.Doc synchronously; stale revision tests prove zero scenario writes.
+Rust routing and the packaged live harness cover the fifteenth `create_scenario` tool. This grants
+scenario creation only—not turn editing, generation, voting/annotation mutation, or gallery UI.
+
 `versionAutomation.test.ts` adds the MCP checkpoint mutation gate. It proves semantic editor blocks
 become one immutable head, a stale document revision fails before hashing, a document revision that
 changes during hashing fails inside the final head transaction without inserting a version, and a

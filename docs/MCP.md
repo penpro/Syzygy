@@ -8,7 +8,8 @@ window, which remains the owner of project navigation, Lexical editor state, Yjs
 This is an automation and interoperability surface, not a claim that unfinished research
 features exist. `syzygy_status`, `workspace_walkthrough`, and `inspect_research_state` explicitly
 report the difference between usable domain foundations and the still-disabled version controls,
-scenario UI/mutation, evaluation, Drive project transport, and real-time presence slices.
+scenario turn/vote/annotation UI and mutation, evaluation, Drive project transport, and real-time
+presence slices. Guarded scenario/branch creation is the narrow exception.
 
 ## Connect an MCP host
 
@@ -56,6 +57,7 @@ Recommended first instruction to an MCP-capable model:
 | `rename_project` | yes | Changes project metadata only |
 | `read_active_project` | no | Returns the manifest plus structured blocks, plain text, and a revision |
 | `inspect_research_state` | no | Validates bounded live scenario/vote/flag/note/heuristic/version/head/lineage state and returns metadata summaries without policy, scenario, annotation, voter, guidance, edit-value, or version-note bodies |
+| `create_scenario` | scenario metadata | Creates one scenario/branch only when `expectedResearchRevision` exactly matches the revision from inspection; no model generation or turn editing |
 | `save_active_policy_version` | version metadata | Saves the exact active semantic draft as a new immutable head under both document-revision and expected-head guards; does not edit the draft or restore history |
 | `replace_active_document` | yes | Replaces the document only when `expectedRevision` still matches |
 | `append_active_document` | yes | Appends blocks only when `expectedRevision` still matches |
@@ -106,6 +108,10 @@ MCP host
   and edit values, and version notes are deliberately omitted. Scenario branch ancestry plus vote/
   annotation targets are checked; peer-colliding public identities or events fail closed. Aggregate
   vote counts and annotation lifecycle/event totals are metadata returned to the connected host.
+- `create_scenario` requires the exact monotonic Yjs research revision returned by
+  `inspect_research_state`. A stale revision fails before mutation; the frontend domain harness and
+  packaged live harness assert zero stale writes. Participant identity/time remain caller/process
+  supplied, and the tool does not generate turns or make the unavailable gallery appear.
 - `save_active_policy_version` requires `expectedDocumentRevision` from `read_active_project` and,
   when non-null, `expectedHeadVersionId` from `inspect_research_state`. The live editor revision is
   checked once before hashing and again inside the final Yjs head transaction; the existing head

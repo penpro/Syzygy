@@ -229,6 +229,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   writes reject; disconnected creation and concurrent edit-versus-resolve converge across eighty
   seeded deliveries; collisions and orphan scenario/turn targets surface in MCP integrity metadata.
   This closes P-20 domain evidence, not annotation UI, moderation, or authenticated identity.
+- MCP now advertises a fifteenth semantic tool, `create_scenario`. Research inspection returns a
+  monotonic Yjs revision and rejects a read that changes during validation; scenario creation
+  requires that exact revision and live project identity. Pure tests prove stale zero-write and
+  branch creation, while Rust/stdio/live harnesses lock the route. Turn mutation, generation, and
+  scenario UI remain unavailable.
 
 ## Current completion snapshot
 

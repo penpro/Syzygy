@@ -4,6 +4,7 @@ import { getProjectSharedTypes } from './projectModel'
 import { listPolicyVersions, readPolicyVersionHead, readPolicyVersionLineage } from './policyVersionModel'
 import type { PolicyVersion } from './policyVersionModel'
 import { inspectScenarioGraph, listScenarios } from './scenarioModel'
+import { inspectScenarioVotes, listScenarioVoteSummaries } from './scenarioVoteModel'
 
 const MAX_RETURNED_ITEMS = 200
 
@@ -32,12 +33,14 @@ function countInvalidLineages(versions: PolicyVersion[]): number {
 }
 
 export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string) {
-  const { metadata, heuristics: heuristicMap, scenarios: scenarioMap, versions: versionMap } = getProjectSharedTypes(doc)
+  const { metadata, discussions, heuristics: heuristicMap, scenarios: scenarioMap, versions: versionMap } = getProjectSharedTypes(doc)
   if (metadata.get('projectId') !== expectedProjectId) throw new Error('Live collaboration document project identity does not match')
 
   const validHeuristics = listHeuristics(heuristicMap)
   const validScenarios = listScenarios(scenarioMap)
   const scenarioGraph = inspectScenarioGraph(scenarioMap)
+  const voteSummaries = listScenarioVoteSummaries(discussions)
+  const voteInspection = inspectScenarioVotes(discussions, scenarioMap)
   const allVersions = await listPolicyVersions(versionMap)
   const versions = allVersions.filter((version) => version.projectId === expectedProjectId)
   const foreignProjectVersions = allVersions.length - versions.length
@@ -47,6 +50,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   const issues: string[] = []
   if (invalidHeuristicRecords > 0) issues.push(`${invalidHeuristicRecords} heuristic record(s) failed validation`)
   issues.push(...scenarioGraph.issues)
+  issues.push(...voteInspection.issues)
   if (invalidVersionRecords > 0) issues.push(`${invalidVersionRecords} version record(s) failed hash/schema validation`)
   if (foreignProjectVersions > 0) issues.push(`${foreignProjectVersions} version record(s) belong to another project`)
   if (invalidLineageRecords > 0) issues.push(`${invalidLineageRecords} version record(s) have missing, cross-project, or cyclic ancestry`)
@@ -102,6 +106,18 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
         editCount: scenario.edits.length,
       })),
     },
+    scenarioVotes: {
+      summaryCount: voteInspection.summaryCount,
+      invalidRecords: voteInspection.invalidRecords,
+      orphanScenarioIds: voteInspection.orphanScenarioIds,
+      truncated: voteSummaries.length > MAX_RETURNED_ITEMS,
+      items: voteSummaries.slice(0, MAX_RETURNED_ITEMS).map((summary) => ({
+        scenarioId: summary.scenarioId,
+        counts: { ...summary.counts },
+        activeVoteCount: summary.activeVotes.length,
+        eventCount: summary.history.length,
+      })),
+    },
     versions: {
       totalRecords: versionMap.size,
       validRecords: versions.length,
@@ -125,7 +141,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
     },
     selfCheck: { healthy: issues.length === 0, issues },
     limitations: [
-      'read-only MCP inspection; no version, heuristic, or scenario mutation authority',
+      'read-only MCP inspection; no version, heuristic, scenario, or vote mutation authority',
       'local live collaboration document; Drive/WebSocket project transport is not implemented',
       'counts and integrity are checked; policy text, heuristic guidance, scenario background/turn content/revision bodies, edit values, and notes are omitted',
     ],

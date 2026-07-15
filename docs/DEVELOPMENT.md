@@ -61,6 +61,13 @@ shapes, malformed order, and missing-parent inspection. Eighty seeded duplicate/
 checks must converge. This does not prove gallery UI, generation, voting, evaluation, scenario
 packs, or a remote collaboration provider.
 
+`scenarioVoteModel.test.ts` is the P-19 domain gate. It covers exact replay idempotency, attributed
+re-voting, abstention, withdrawal without history erasure, disconnected first-vote merge,
+concurrent same-participant re-votes, conflicting event identities, malformed buckets, namespace
+isolation, and orphan scenario targets. Eighty seeded duplicate/reordered deliveries must converge.
+This proves a shared vote ledger, not authenticated identity, a trusted distributed clock, voting
+UI, flags/notes, or remote transport.
+
 `policyVersionHistory.test.ts` extends that gate for P-28/P-29. It rejects stale expected heads
 before creating a version, restores an old snapshot only by creating a new child of the current
 head, retains both concurrent restore branches across forty reordered/duplicate deliveries, and
@@ -89,10 +96,10 @@ rejection, and correct JSON/TOML generation for executable paths with spaces. Se
 security and tool contract.
 
 The live collaboration document registry and `researchStateInspection.test.ts` add a content-
-minimized MCP self-check. It validates every scenario/heuristic record, scenario branch graph,
+minimized MCP self-check. It validates every scenario/heuristic record, scenario branch/vote graph,
 version hash/schema, project identity, head, and full bounded version ancestor chain, while
 returning at most 200 metadata summaries per collection and omitting policy text, scenario
-background/turn/revision bodies, heuristic guidance/edit values, and notes. Rust tests require the
+background/turn/revision/voter bodies, heuristic guidance/edit values, and notes. Rust tests require the
 thirteenth `inspect_research_state` tool to route only to this read operation. The mutation-capable
 live harness checks it when explicitly run; CI does not claim a packaged GUI proof.
 

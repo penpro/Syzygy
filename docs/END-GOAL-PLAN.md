@@ -137,6 +137,12 @@ preserve disconnected public-ID collisions for fail-closed projection; graph ins
 missing/cyclic ancestry. The gallery, generation, responses, voting, flags, evaluation, and open
 scenario-pack interchange remain open.
 
+P-19 now has a Penumbra-original collaborative vote-event ledger. Exact replay is idempotent;
+re-votes and withdrawals retain attributed history; peer-specific namespaced buckets preserve
+disconnected first votes; concurrent votes by one participant select a deterministic current event;
+and conflicting event identity fails closed. Authenticated identity, a trusted distributed clock,
+and visible vote controls remain open.
+
 P-28/P-29 now have exact-head commit, restore-as-new-child, and deterministic engine-free diff
 services. A stale head fails before creating an orphan; two concurrent restores preserve both
 immutable branches and converge one Yjs head across forty delivery orders. Restore/history UI,

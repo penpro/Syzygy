@@ -69,6 +69,7 @@ versions/evaluation evidence.
 | Plugin overwrites newer or unreviewed work | Plugin mutations use bounded revision-guarded proposals plus human acceptance | Drive-specific proposal schemas and runtime acceptance UI remain open |
 | A collaboration test mistakes internal node-map enumeration for visible document order | Policy-block convergence assertions traverse ordered root children; the false-positive failure and corrected oracle are recorded in run evidence | Add pointer/keyboard interaction, randomized ordering, and concurrent move-vs-edit partition cases before claiming P-10 |
 | Concurrent scenario work silently overwrites turns or creates corrupt branch history | Scenarios use nested field/turn/revision CRDTs and explicit ordered keys; peer-specific internal keys retain colliding public IDs so reads fail closed; graph inspection detects invalid records and missing/cyclic parents | Turn winner uses caller-supplied timestamp/edit identity; authenticated identity/clock policy, move/reorder, remote-provider proof, and recovery UI remain open |
+| Concurrent or replayed scenario votes double-count participants or overwrite dissent | Immutable events live in peer-specific versioned buckets; exact replay deduplicates; per-participant current projection retains every re-vote/withdrawal; conflicting event identities and orphan targets fail closed | Participant ID/display name/time are caller-supplied; authentication, trusted clock policy, moderation, recovery UI, and remote-provider proof remain open |
 
 ## Release blockers
 

@@ -92,7 +92,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_research_state for bounded read-only integrity metadata about scenarios, heuristics, and immutable history. Read a project before editing or checkpointing it. Document writes require the exact revision returned by read_active_project. save_active_policy_version additionally requires the exact non-null head from inspection, or omission when no head exists. On any conflict, read again and reconcile. Never claim unavailable scenario UI/mutations, restore UI, Drive project transport, or real-time presence are available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, heuristics, and immutable history. Read a project before editing or checkpointing it. Document writes require the exact revision returned by read_active_project. save_active_policy_version additionally requires the exact non-null head from inspection, or omission when no head exists. On any conflict, read again and reconcile. Never claim unavailable scenario/voting UI or mutations, restore UI, Drive project transport, or real-time presence are available."
             })
         }
         "ping" => json!({}),
@@ -215,7 +215,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "inspect_research_state",
-            "Inspect bounded read-only metadata and integrity checks for the active project's collaborative scenarios, heuristics, and immutable policy-version history. Omits policy text, scenario bodies, heuristic guidance/edit values, and notes; grants no mutation authority.",
+            "Inspect bounded read-only metadata and integrity checks for the active project's collaborative scenarios, aggregate votes, heuristics, and immutable policy-version history. Omits policy text, scenario/voter bodies, heuristic guidance/edit values, and notes; grants no mutation authority.",
             object_schema(&[], &[]),
         ),
         tool(

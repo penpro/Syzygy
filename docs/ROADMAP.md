@@ -219,11 +219,16 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   validates scenario records plus missing/cyclic branch ancestry alongside heuristics and immutable
   history. Scenario background, turn content, and revision bodies remain excluded, and the route
   remains read-only; this improves live harness coverage without claiming scenario UI or mutation.
+- Collaborative scenario voting now uses immutable, attributed vote events in peer-specific
+  namespaced discussion buckets. Replay is idempotent, re-votes/withdrawals retain history,
+  disconnected first votes and concurrent same-participant re-votes converge across eighty seeded
+  deliveries, and conflicting event IDs or orphan targets fail closed. MCP inspection exposes only
+  aggregate counts and event totals. This closes P-19 domain evidence, not voting UI or identity.
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **41 capabilities**: **17 are
-`implemented_unverified`, 24 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **41 capabilities**: **18 are
+`implemented_unverified`, 23 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, portable local lifecycle,
 Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned

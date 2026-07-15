@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "runId": "SCENARIO-VOTING-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "capabilities": ["P-19"],
+  "status": "implemented_unverified",
+  "commands": [
+    "npm run test:workspace",
+    "npm run test:mcp",
+    "npm run build",
+    "npm run audit",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "workspaceTestsPassed": 63,
+    "scenarioVoteModelTestsPassed": 5,
+    "seededDeliveryOrdersChecked": 80,
+    "rustMcpTestsPassed": 6,
+    "mcpToolsAdvertised": 14,
+    "frontendModulesTransformed": 998,
+    "structuralAuditChecksPassed": 35,
+    "externalNetworkUsed": false,
+    "realCredentialsUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "A participant has at most one active support/oppose/abstain projection per scenario while every attributed re-vote and withdrawal event remains in bounded history.",
+    "Exact event replay is idempotent and a locally reused event ID with different content is rejected before mutation.",
+    "Peer-specific versioned discussion buckets preserve both disconnected participants' first votes across forty duplicate/reordered deliveries without claiming the entire discussions collection.",
+    "Concurrent re-votes by one participant retain both alternatives and select the timestamp/event-ordered current value across another forty duplicate/reordered deliveries.",
+    "A conflicting event ID introduced by disconnected peers, malformed bucket shape, and missing scenario target fail closed or surface as explicit integrity issues.",
+    "MCP research-state inspection returns aggregate vote counts/event totals and integrity only; synthetic voter display-name content is omitted.",
+    "P-19 is implemented_unverified; no voting UI, authenticated identity, trusted distributed clock, or remote-provider claim is made."
+  ],
+  "notProved": [
+    "Authenticated participant identity, account membership, authorization, or Sybil resistance.",
+    "A trusted distributed timestamp policy; current winner metadata is caller-supplied with event-ID tie-breaking.",
+    "Visible vote controls, keyboard/pointer/accessibility behavior, notifications, moderation, or recovery UI.",
+    "Two-machine Drive/WebSocket collaboration or large-vote-set performance.",
+    "Flags, notes, resolution lifecycle, labels, examples, evaluation, or policy mutation."
+  ]
+}

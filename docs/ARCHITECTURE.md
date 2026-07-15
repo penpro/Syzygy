@@ -92,7 +92,8 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   the local IndexedDB collaboration provider, an original Lexical policy editor, and the
   research workspace shell. Reserved Yjs collections hold scenarios, heuristics, immutable
   versions, discussions, and settings; `heuristicsModel.ts` owns nested collaborative records,
-  `scenarioModel.ts` owns stable multi-turn scenario/branch records, while `policyVersionModel.ts`
+  `scenarioModel.ts` owns stable multi-turn scenario/branch records, `scenarioVoteModel.ts` owns
+  namespaced participant vote events and deterministic summaries, while `policyVersionModel.ts`
   stores canonical version envelopes as SHA-256-addressed strings whose hash is rechecked on every
   read. The Lexical/Yjs editor owns the `root` shared type.
 - `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
@@ -131,6 +132,14 @@ fail closed. Independent scalar edits and turn insertions converge; turn revisio
 attributed alternative and select a deterministic current value. A graph inspector detects invalid
 records, missing parents, and cycles. No visible gallery, generation, response evaluation, voting,
 or portable scenario-pack export is claimed.
+
+`scenarioVoteModel.ts` stores immutable vote events in peer-specific, version-prefixed buckets
+inside the reserved discussions collection. This avoids namespace collisions with future notes and
+flags while allowing disconnected first votes to merge without replacing one another. Projection
+deduplicates exact replay, fails closed on conflicting event identity, retains re-vote/withdrawal
+history, and chooses each participant's current event by timestamp then event identity. Caller-
+supplied participant identity and time are not authentication or a trusted clock; no voting UI is
+claimed.
 
 `policyVersionModel.ts` owns immutable policy checkpoints. A version contains a structured policy
 snapshot, parent hash, sorted scenario references, participant ID, display-name snapshot,

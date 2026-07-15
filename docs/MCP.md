@@ -55,7 +55,7 @@ Recommended first instruction to an MCP-capable model:
 | `open_project` | navigation | Opens a non-archived project by stable ID |
 | `rename_project` | yes | Changes project metadata only |
 | `read_active_project` | no | Returns the manifest plus structured blocks, plain text, and a revision |
-| `inspect_research_state` | no | Validates bounded live scenario/heuristic/version/head/lineage state and returns metadata summaries without policy, scenario, guidance, edit-value, or note bodies |
+| `inspect_research_state` | no | Validates bounded live scenario/vote/heuristic/version/head/lineage state and returns metadata summaries without policy, scenario, voter, guidance, edit-value, or note bodies |
 | `save_active_policy_version` | version metadata | Saves the exact active semantic draft as a new immutable head under both document-revision and expected-head guards; does not edit the draft or restore history |
 | `replace_active_document` | yes | Replaces the document only when `expectedRevision` still matches |
 | `append_active_document` | yes | Appends blocks only when `expectedRevision` still matches |
@@ -102,9 +102,10 @@ MCP host
 - `inspect_research_state` is read-only and content-minimized. It checks the same live Y.Doc owned
   by the editor/local provider, caps returned items, and has no scenario/heuristic/version/document mutation
   path. Titles, attribution, IDs, counts, and timestamps are metadata and may be returned; policy
-  text, scenario backgrounds/turn content/revision bodies, heuristic guidance and edit values, and
-  version notes are deliberately omitted. Scenario branch ancestry is checked for missing or cyclic
-  parents and peer-colliding public identities fail closed.
+  text, scenario backgrounds/turn content/revision and voter bodies, heuristic guidance and edit
+  values, and version notes are deliberately omitted. Scenario branch ancestry and vote targets are
+  checked; peer-colliding public identities or vote events fail closed. Aggregate vote counts and
+  event totals are metadata returned to the already-connected local MCP host.
 - `save_active_policy_version` requires `expectedDocumentRevision` from `read_active_project` and,
   when non-null, `expectedHeadVersionId` from `inspect_research_state`. The live editor revision is
   checked once before hashing and again inside the final Yjs head transaction; the existing head

@@ -4,6 +4,7 @@ import { createProjectDocument, getProjectSharedTypes } from './projectModel'
 import { commitPolicyVersion } from './policyVersionModel'
 import { inspectResearchState } from './researchStateInspection'
 import { createScenario, deleteScenario } from './scenarioModel'
+import { castScenarioVote } from './scenarioVoteModel'
 import { createProjectManifest } from './schema'
 
 const manifest = createProjectManifest({ id: 'inspection-project', documentId: 'inspection-document', timestamp: 1 })
@@ -19,6 +20,10 @@ async function populatedDocument() {
     id: 'source-challenge', title: 'Source challenge', background: 'Secret scenario background is omitted.',
     authorId: 'researcher-1', timestamp: 10, editId: 'create-source-challenge',
     turns: [{ id: 'challenge-question', role: 'user', content: 'Secret scenario turn is omitted.', editId: 'create-challenge-question' }],
+  })
+  castScenarioVote(getProjectSharedTypes(doc).discussions, scenarios, {
+    scenarioId: 'source-challenge', eventId: 'researcher-2-supports', participantId: 'researcher-2',
+    displayName: 'Secret voter display name is omitted.', choice: 'support', timestamp: 12,
   })
   createScenario(scenarios, {
     id: 'source-challenge-branch', title: 'Skeptical branch', background: '', parentScenarioId: 'source-challenge',
@@ -40,6 +45,10 @@ describe('research state inspection', () => {
     expect(result.heuristics).toMatchObject({ totalRecords: 1, validRecords: 1, invalidRecords: 0 })
     expect(result.scenarios).toMatchObject({ totalRecords: 2, validRecords: 2, invalidRecords: 0, rootCount: 1, branchCount: 1 })
     expect(result.scenarios.items[0]).toMatchObject({ id: 'source-challenge', turnCount: 1, turnRevisionCount: 1, editCount: 1 })
+    expect(result.scenarioVotes).toMatchObject({
+      summaryCount: 1, invalidRecords: 0, orphanScenarioIds: [],
+      items: [{ scenarioId: 'source-challenge', counts: { support: 1, oppose: 0, abstain: 0 }, activeVoteCount: 1, eventCount: 1 }],
+    })
     expect(result.versions).toMatchObject({ totalRecords: 1, validRecords: 1, invalidRecords: 0, headVersionId: version.versionId, headLineageDepth: 1 })
     const serialized = JSON.stringify(result)
     expect(serialized).not.toContain('Secret guidance')
@@ -47,6 +56,7 @@ describe('research state inspection', () => {
     expect(serialized).not.toContain('Secret note')
     expect(serialized).not.toContain('Secret scenario background')
     expect(serialized).not.toContain('Secret scenario turn')
+    expect(serialized).not.toContain('Secret voter display name')
   })
 
   it('reports invalid scenario branch ancestry without exposing scenario bodies', async () => {
@@ -57,7 +67,10 @@ describe('research state inspection', () => {
     expect(result.scenarios).toMatchObject({ totalRecords: 1, validRecords: 1, invalidRecords: 0, rootCount: 0, branchCount: 1 })
     expect(result.selfCheck).toEqual({
       healthy: false,
-      issues: ['Scenario source-challenge-branch has missing parent source-challenge'],
+      issues: [
+        'Scenario source-challenge-branch has missing parent source-challenge',
+        'Scenario votes target missing scenario source-challenge',
+      ],
     })
   })
 

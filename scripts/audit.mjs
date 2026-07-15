@@ -127,6 +127,25 @@ record(
   'nested ordered turn/revision/edit CRDTs, peer-collision fail-closed IDs, branch inspection, lifecycle/multi-turn CRUD, 80 delivery orders, delete authority, malformed-input tests, and truthful P-14/P-15 statuses are present',
 )
 
+const scenarioVoteSource = text('frontend/src/workspace/scenarioVoteModel.ts')
+const scenarioVoteTestSource = text('frontend/src/workspace/scenarioVoteModel.test.ts')
+record(
+  'collaborative scenario votes remain idempotent, attributed, namespaced, and convergent',
+  scenarioVoteSource.includes('SCENARIO_VOTE_SCHEMA_VERSION = 1') &&
+    scenarioVoteSource.includes("VOTE_BUCKET_PREFIX = 'scenario-votes:v1:'") &&
+    scenarioVoteSource.includes("collection.doc.transact(operation, 'syzygy-scenario-votes')") &&
+    scenarioVoteSource.includes('Scenario vote event ID was reused') &&
+    scenarioVoteSource.includes('inspectScenarioVotes') &&
+    scenarioVoteTestSource.includes('supports idempotent voting, attributed revoting, abstention, and withdrawal') &&
+    (scenarioVoteTestSource.match(/seed <= 40/g) ?? []).length === 2 &&
+    scenarioVoteTestSource.includes('disconnected first votes without losing either participant') &&
+    scenarioVoteTestSource.includes('concurrent revotes by one participant') &&
+    scenarioVoteTestSource.includes('reuse one event identity with different votes') &&
+    scenarioVoteTestSource.includes('future-discussion-type') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-19", "phase": 6, "status": "implemented_unverified"'),
+  'versioned discussion namespace, immutable attributed events, replay/revote/withdrawal behavior, 80 delivery orders, collision/orphan/malformed gates, and truthful P-19 status are present',
+)
+
 const policyVersionSource = text('frontend/src/workspace/policyVersionModel.ts')
 const policyVersionTestSource = text('frontend/src/workspace/policyVersionModel.test.ts')
 record(
@@ -212,11 +231,13 @@ record(
     researchInspectionSource.includes('readPolicyVersionLineage') &&
     researchInspectionSource.includes('countInvalidLineages') &&
     researchInspectionSource.includes('inspectScenarioGraph') &&
+    researchInspectionSource.includes('inspectScenarioVotes') &&
     researchInspectionSource.includes('turnRevisionCount') &&
     researchInspectionSource.includes('scenario background/turn content/revision bodies') &&
     researchInspectionTestSource.includes('Secret guidance is omitted') &&
     researchInspectionTestSource.includes("not.toContain('Secret policy text')") &&
     researchInspectionTestSource.includes("not.toContain('Secret scenario turn')") &&
+    researchInspectionTestSource.includes("not.toContain('Secret voter display name')") &&
     researchInspectionTestSource.includes('reports invalid scenario branch ancestry') &&
     researchInspectionTestSource.includes('reports a tampered version and invalid head lineage') &&
     researchInspectionTestSource.includes('content-valid non-head record whose ancestor is missing') &&

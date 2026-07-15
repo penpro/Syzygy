@@ -123,6 +123,13 @@ concurrent add, independent field edit, attributed edit history, and delete-vers
 resurrection. This closes the data-model convergence slice only; the visible block editor,
 examples, voting, and P-26 explainable checker remain open.
 
+P-23/P-27 now have a Penumbra-original immutable version domain service. Canonical structured
+policy snapshots, lineage, scenario references, participant identity, display-name-at-save,
+timestamp, and notes are stored as SHA-256-addressed strings and reverified on read. Headless
+tests cover tampering, detached results, idempotent replay, display-name changes, and forty
+reordered/duplicate branch deliveries. Save/restore UI, a shared head, deterministic diffs, and
+archive interchange remain open.
+
 ## 5. Target architecture
 
 ```text

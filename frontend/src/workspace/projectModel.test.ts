@@ -43,6 +43,7 @@ describe('project Yjs model', () => {
     types.settings.set('evaluationMode', 'manual')
     types.scenarios.set('scenario-1', { title: 'A difficult case' })
     types.heuristics.set('heuristic-1', { text: 'State limitations' })
+    types.versions.set('version-1', '{"immutable":true}')
 
     const restored = replicaFrom(source)
     const restoredTypes = getProjectSharedTypes(restored)
@@ -50,5 +51,6 @@ describe('project Yjs model', () => {
     expect(restoredTypes.settings.get('evaluationMode')).toBe('manual')
     expect(restoredTypes.scenarios.get('scenario-1')).toEqual({ title: 'A difficult case' })
     expect(restoredTypes.heuristics.get('heuristic-1')).toEqual({ text: 'State limitations' })
+    expect(restoredTypes.versions.get('version-1')).toBe('{"immutable":true}')
   })
 })

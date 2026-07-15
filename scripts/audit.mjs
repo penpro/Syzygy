@@ -106,6 +106,25 @@ record(
   'nested field/edit CRDT maps, detached bounded reads, hostile-input and peer-collision fail-closed attribution, 80 seeded merge orders, delete-without-resurrection, and truthful P-04 status are present',
 )
 
+const policyVersionSource = text('frontend/src/workspace/policyVersionModel.ts')
+const policyVersionTestSource = text('frontend/src/workspace/policyVersionModel.test.ts')
+record(
+  'policy versions remain immutable, content-addressed, attributed, and convergent',
+  policyVersionSource.includes('POLICY_VERSION_SCHEMA_VERSION = 1') &&
+    policyVersionSource.includes("globalThis.crypto.subtle.digest('SHA-256'") &&
+    policyVersionSource.includes("collection.doc.transact(operation, 'syzygy-policy-version')") &&
+    policyVersionSource.includes('canonical !== stored || await sha256(canonical) !== versionId') &&
+    policyVersionSource.includes('Parent policy version belongs to another project') &&
+    policyVersionSource.includes('blocks: payload.policy.blocks.map((block) => ({ ...block }))') &&
+    policyVersionTestSource.includes('Mutated caller copy') &&
+    policyVersionTestSource.includes('Tampered policy') &&
+    policyVersionTestSource.includes('later changes display name') &&
+    policyVersionTestSource.includes('seed <= 40') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-23", "phase": 3, "status": "implemented_unverified"') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-27", "phase": 3, "status": "implemented_unverified"'),
+  'canonical SHA-256 envelopes, detached verified reads, lineage/project guards, historical attribution, tamper rejection, 40 branch delivery orders, and truthful P-23/P-27 statuses are present',
+)
+
 const tauriConfig = JSON.parse(text('frontend/src-tauri/tauri.conf.json'))
 record(
   'bundle identity',

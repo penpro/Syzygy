@@ -48,6 +48,12 @@ replay fail locally; peer-specific internal keys retain disconnected collisions 
 fail closed instead of silently choosing one event. This is the P-04 domain contract; it does not prove a
 heuristics UI, evaluation workflow, presence, or remote collaboration transport.
 
+The suite also includes `policyVersionModel.test.ts`. It requires canonical semantic-block
+snapshots, SHA-256 address verification on every read, idempotent identical saves, detached
+projections, parent validation, historical display-name attribution, and forty reordered/duplicate
+delivery checks for independently created branches. Direct record tampering must fail closed. This
+proves the P-23/P-27 domain layer, not a version rail, restore workflow, diff UI, or remote transport.
+
 ## Headless live-MCP contract proof
 
 Run the embedded MCP protocol, loopback-security, and live-editor mutation contracts without

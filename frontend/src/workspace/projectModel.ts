@@ -5,6 +5,7 @@ export const PROJECT_SHARED_TYPES = {
   metadata: 'project:metadata',
   scenarios: 'project:scenarios',
   heuristics: 'project:heuristics',
+  versions: 'project:versions',
   discussions: 'project:discussions',
   settings: 'project:settings',
   editorRoot: 'root',
@@ -14,6 +15,7 @@ export interface ProjectSharedTypes {
   metadata: Y.Map<unknown>
   scenarios: Y.Map<unknown>
   heuristics: Y.Map<unknown>
+  versions: Y.Map<unknown>
   discussions: Y.Map<unknown>
   settings: Y.Map<unknown>
   editorRoot: Y.XmlText
@@ -24,6 +26,7 @@ export function getProjectSharedTypes(doc: Y.Doc): ProjectSharedTypes {
     metadata: doc.getMap(PROJECT_SHARED_TYPES.metadata),
     scenarios: doc.getMap(PROJECT_SHARED_TYPES.scenarios),
     heuristics: doc.getMap(PROJECT_SHARED_TYPES.heuristics),
+    versions: doc.getMap(PROJECT_SHARED_TYPES.versions),
     discussions: doc.getMap(PROJECT_SHARED_TYPES.discussions),
     settings: doc.getMap(PROJECT_SHARED_TYPES.settings),
     editorRoot: doc.get(PROJECT_SHARED_TYPES.editorRoot, Y.XmlText) as Y.XmlText,

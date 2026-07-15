@@ -186,11 +186,17 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - The actual Rust-authored task record now crosses process serialization and passes the public
   TypeScript schema plus semantic validator. Loopback evidence is explicitly marked and cannot be
   mistaken for a production HTTPS call.
+- Immutable policy checkpoints now use a canonical semantic-block envelope stored under its
+  SHA-256 address. Readback re-canonicalizes and rehashes; direct tampering fails closed, returned
+  values are detached, parent links are validated, and the author's stable participant ID plus
+  display-name-at-save survive later name changes. Forty reordered/duplicate branch deliveries
+  converge. This closes P-23/P-27 domain evidence only; save/restore UI, head selection, diffs,
+  archives, and remote-provider validation remain open.
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **41 capabilities**: **10 are
-`implemented_unverified`, 31 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **41 capabilities**: **13 are
+`implemented_unverified`, 28 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, portable local lifecycle,
 Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned

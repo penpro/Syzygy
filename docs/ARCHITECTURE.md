@@ -90,10 +90,10 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   `LogModal`), Drive (`GoogleDriveButton`), brand (`SyzygyMark`).
 - `workspace/` — schema-versioned project manifests, provider-neutral Yjs shared types,
   the local IndexedDB collaboration provider, an original Lexical policy editor, and the
-  research workspace shell. Reserved Yjs collections hold scenarios, heuristics,
-  discussions, and settings; `heuristicsModel.ts` now owns the first typed collaborative domain
-  record with nested CRDT fields and attributed edit events; the Lexical/Yjs editor owns the
-  `root` shared type.
+  research workspace shell. Reserved Yjs collections hold scenarios, heuristics, immutable
+  versions, discussions, and settings; `heuristicsModel.ts` owns nested collaborative records,
+  while `policyVersionModel.ts` stores canonical version envelopes as SHA-256-addressed strings
+  whose hash is rechecked on every read. The Lexical/Yjs editor owns the `root` shared type.
 - `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
   navigation, and revision-guarded editor reads/writes. It does not own persistence.
 - `components/McpSetupModal.tsx` — Settings guide that asks Rust for the exact running executable
@@ -119,6 +119,13 @@ project bounded records, duplicate/reused edit identity fails closed locally and
 and top-level deletion wins
 over a concurrent nested edit in the committed convergence fixture. No heuristics UI or evaluation
 engine is claimed.
+
+`policyVersionModel.ts` owns immutable policy checkpoints. A version contains a structured policy
+snapshot, parent hash, sorted scenario references, participant ID, display-name snapshot,
+timestamp, and optional note. The canonical envelope is stored under its SHA-256 identifier;
+readback reparses, re-canonicalizes, and rehashes it, so direct or remote replacement fails closed.
+Returned structures are detached copies. This is a domain/history foundation only: the editor
+does not yet expose save, rail, restore, or deterministic diff controls.
 
 The frontend `extensions/` folder owns provider-neutral model descriptors, a content-free
 provider-run provenance record, deterministic adversarial-run planning plus an evidence-gated

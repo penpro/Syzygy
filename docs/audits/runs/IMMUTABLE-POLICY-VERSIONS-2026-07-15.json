@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "runId": "IMMUTABLE-POLICY-VERSIONS-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "capabilities": ["P-23", "P-27"],
+  "status": "implemented_unverified",
+  "commands": [
+    "npm run test:workspace",
+    "npm run build",
+    "npm run audit",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "workspaceTestsPassed": 35,
+    "policyVersionTestsPassed": 5,
+    "seededDeliveryOrdersChecked": 40,
+    "frontendModulesTransformed": 990,
+    "structuralAuditChecksPassed": 30,
+    "externalNetworkUsed": false,
+    "realCredentialsUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "A version envelope has an exact schema, project identity, parent hash, structured semantic policy blocks, sorted unique scenario references, participant ID, display-name-at-save, timestamp, and optional note.",
+    "Canonical envelopes are stored as strings under their SHA-256 address and every read reparses, re-canonicalizes, and rehashes before returning data.",
+    "Replacing stored content without changing the key is detected and fails closed; callers receive detached blocks, scenario IDs, and attribution objects.",
+    "Repeating the identical save is idempotent and retains one record.",
+    "A child requires a valid parent from the same project; parent lineage is part of the hashed envelope.",
+    "Historical versions retain a stable participant ID and the display name recorded at save time when a later version uses a different display name.",
+    "Two peers independently creating children from one root converge to all three valid versions across forty reordered and duplicate update deliveries.",
+    "P-23 and P-27 are implemented_unverified; no save/restore UI, shared head, diff, archive, authentication, or remote-transport claim is made."
+  ],
+  "notProved": [
+    "A user can save, browse, label, compare, or restore versions in the product UI.",
+    "Restore creates a new head, or any shared head-selection conflict policy.",
+    "Deterministic change notes, policy diffs, scenario reruns, evaluations, or exports.",
+    "Participant identity is authenticated or portable between installations.",
+    "Two-machine remote collaboration, repair of malicious replacement, signed history, or portable archive verification.",
+    "Semantic quality or completeness of any saved policy."
+  ]
+}

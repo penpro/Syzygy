@@ -34,6 +34,8 @@ versions/evaluation evidence.
 | Transcript leaks a local conversation | Shared toggle is explicit and UI copy names logging | Per-message inclusion controls are future work |
 | Mirror conflict loses edits | Current LWW mirror documented as optional | Never use LWW for CRDT state; Phase 4 convergence tests |
 | Corrupt or future local project state loads as trusted content | Manifest parser rejects malformed/unknown schema versions; migrations are idempotent | Fuzz Yjs payloads, archive bombs, unknown node types, and interrupted IndexedDB writes |
+| A peer or plugin rewrites an immutable policy checkpoint | Versions are canonical bounded strings keyed by SHA-256; every read reparses, re-canonicalizes, and rehashes, and returns detached data | A malicious peer can make a hash entry unavailable by replacing it; future signed/exported archives and transport recovery must detect and repair denial-of-service without accepting mutation |
+| A collaborator's display-name change rewrites historical attribution | Each version hashes both stable participant ID and display-name-at-save into its immutable envelope | Participant identity is caller-supplied and not yet authenticated across installs; Phase 3 identity enrollment remains open |
 | Local provider is mistaken for real-time collaboration | UI says local persistence; Drive/presence controls remain disabled | Two-editor and two-install provider-contract gates must pass before collaboration claims |
 | Path traversal through Drive filename | Direct reads are in memory; mirror joins remote names | Sanitize/reject separators before mirror writes |
 | OAuth token stolen from app data | OS user boundary; no webview exposure | OS credential vault/encryption evaluation needed |

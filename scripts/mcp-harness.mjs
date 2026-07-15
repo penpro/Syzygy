@@ -63,6 +63,12 @@ async function proveStdioContract() {
     method: 'tools/call',
     params: { name: 'syzygy_status', arguments: {} },
   })
+  writeMessage(child, {
+    jsonrpc: '2.0',
+    id: 6,
+    method: 'tools/call',
+    params: { name: 'syzygy_platform_contracts', arguments: {} },
+  })
   child.stdin.end()
 
   const exitCode = await new Promise((resolve, reject) => {
@@ -73,10 +79,10 @@ async function proveStdioContract() {
 
   const messages = stdout.trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
   const byId = new Map(messages.map((message) => [message.id, message]))
-  if (messages.length !== 5) throw new Error(`expected 5 MCP responses, received ${messages.length}`)
+  if (messages.length !== 6) throw new Error(`expected 6 MCP responses, received ${messages.length}`)
   if (byId.get(1)?.result?.protocolVersion !== '2025-11-25') throw new Error('MCP version negotiation failed')
   const tools = byId.get(2)?.result?.tools
-  if (!Array.isArray(tools) || tools.length < 11) throw new Error('MCP tool discovery is incomplete')
+  if (!Array.isArray(tools) || tools.length < 12) throw new Error('MCP tool discovery is incomplete')
   if (!tools.some((tool) => tool.name === 'workspace_walkthrough')) throw new Error('walkthrough tool is missing')
   if (JSON.stringify(byId.get(3)?.result) !== '{}') throw new Error('MCP ping failed')
   if (typeof byId.get(4)?.result?.isError !== 'boolean') throw new Error('live status tool result is malformed')
@@ -86,6 +92,11 @@ async function proveStdioContract() {
   if (!path.isAbsolute(installation?.installFolder ?? '')) throw new Error('installation tool did not return an absolute install folder')
   if (!installation?.genericJson?.includes('--mcp')) throw new Error('installation tool did not generate MCP configuration')
   if (!installation?.connectionPrompt?.includes(installation.executablePath)) throw new Error('connection prompt omitted the detected executable')
+  const contracts = byId.get(6)?.result?.structuredContent
+  if (byId.get(6)?.result?.isError !== false) throw new Error('platform contracts tool failed without a live GUI')
+  if (contracts?.contractVersion !== 1) throw new Error('platform contract version is missing')
+  if (contracts?.implementationStatus?.pluginLoader !== 'contract-only') throw new Error('plugin loader status is overstated')
+  if (contracts?.pluginManifestSchema?.additionalProperties !== false) throw new Error('plugin manifest schema is not strict')
 
   return {
     executable,
@@ -95,6 +106,7 @@ async function proveStdioContract() {
     notificationProducedNoResponse: true,
     liveStatusResultWasTyped: true,
     installationDetailsWereSelfDescribing: true,
+    platformContractsWereSelfDescribing: true,
     stderrWasProtocolClean: stderr.trim().length === 0,
   }
 }
@@ -107,6 +119,7 @@ run(process.execPath, [
 ], frontend)
 run('cargo', ['test', '--manifest-path', manifest, 'automation::tests'], frontend)
 run('cargo', ['test', '--manifest-path', manifest, 'mcp::tests'], frontend)
+run('cargo', ['test', '--manifest-path', manifest, 'platform_contracts::tests'], frontend)
 if (!suppliedExecutable) run('cargo', ['build', '--manifest-path', manifest, '--bin', 'app'], frontend)
 
 const stdio = await proveStdioContract()

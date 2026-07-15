@@ -1,0 +1,100 @@
+# Research plugin API
+
+**Manifest version:** 1. **Runtime status:** schemas and validators implemented; discovery,
+installation, execution, and UI are not yet implemented.
+
+The API is deliberately contribution-open and authority-closed. Researchers can add tools,
+evaluators, importers, and exporters without receiving ambient project, Drive, network, model, or
+filesystem access.
+
+## Files and contracts
+
+- Manifest schema: `docs/schemas/syzygy-research-plugin-v1.schema.json`
+- Change proposal schema: `docs/schemas/syzygy-plugin-proposal-v1.schema.json`
+- Runtime validator/types: `frontend/src/extensions/pluginManifest.ts`
+- Machine-readable inspection: MCP tool `syzygy_platform_contracts`
+
+Example:
+
+```json
+{
+  "schemaVersion": 1,
+  "id": "org.example.citation-auditor",
+  "name": "Citation auditor",
+  "version": "1.0.0",
+  "description": "Checks cited claims and proposes a review note.",
+  "runtime": {
+    "kind": "wasi-component",
+    "component": "citation-auditor.wasm",
+    "world": "syzygy:research/plugin"
+  },
+  "permissions": {
+    "capabilities": ["project.read", "project.propose", "network.fetch"],
+    "networkDomains": ["doi.org", "*.crossref.org"],
+    "modelProviders": []
+  },
+  "contributions": [
+    {
+      "kind": "evaluator",
+      "id": "citation-coverage",
+      "title": "Citation coverage",
+      "description": "Find claims that lack source support."
+    }
+  ]
+}
+```
+
+## Permissions
+
+| Permission | Meaning | Never implies |
+|---|---|---|
+| `project.read` | receive the selected, bounded project snapshot | filesystem, Drive, keys, other projects |
+| `project.propose` | return a revision-guarded typed proposal | direct mutation or automatic acceptance |
+| `drive.read` | request a selected-workspace read through Syzygy | raw OAuth token or arbitrary Drive access |
+| `drive.propose` | propose a typed Drive operation for confirmation | direct Google mutation |
+| `network.fetch` | request HTTPS fetches for declared host patterns | arbitrary hosts, credentials, local/LAN access |
+| `model.invoke` | request named configured providers | API keys, undeclared providers, automatic remote transmission |
+
+Permissions are granted per installed plugin and can be revoked. Manifest declarations are
+requests, not authority. Syzygy revalidates every operation and target at execution time.
+
+## Runtime tiers
+
+1. `wasi-component` is preferred. Components begin without ambient authority; Syzygy links only
+   the approved host interfaces. The future WIT world will version project snapshots, proposals,
+   logging, bounded HTTP, and provider calls independently.
+2. `mcp-stdio` is an advanced native-process tier. It can be useful for Python/R workflows and
+   existing MCP servers, but the OS process is outside the WASI sandbox. Installation must show a
+   stronger warning, exact executable/arguments, publisher/hash, and requested Syzygy permissions.
+
+No plugin JavaScript executes inside the Tauri webview. A UI contribution is declarative data
+rendered by Syzygy components and theme tokens; arbitrary HTML, script, CSS, and active URLs are
+rejected.
+
+## Mutation protocol
+
+Plugins never receive a writable project handle. They return a `PluginChangeProposal` containing
+plugin/project identity, an expected document revision, summary, bounded content, and append or
+replace operation. Syzygy shows a diff; the person accepts, edits, or rejects. Acceptance rechecks
+plugin permission, project identity, revision, content bounds, and target provider, and attributes
+the change to the accepting person plus plugin/version.
+
+Drive mutations use separate domain-specific proposal schemas; generic replace/append does not
+grant Drive writes.
+
+## Certification and publication
+
+The planned headless certification runner will validate:
+
+- schema validity, unknown fields, duplicate IDs, Unicode, and maximum sizes;
+- denied permissions and undeclared domain/provider attempts;
+- stale revision, malformed proposal, timeout, cancellation, crash, and output flood;
+- prompt injection in project/Drive content;
+- determinism declaration and fixture output where applicable;
+- no secrets in stdout/stderr/logs/artifacts;
+- WASI no-authority baseline and each granted capability; and
+- install, disable, upgrade, downgrade, and removal without project corruption.
+
+A signed marketplace is not required for the API. Local folders and explicit package files remain
+supported. Publication metadata, signatures, and reputation can be layered on later without
+changing the project/proposal contracts.

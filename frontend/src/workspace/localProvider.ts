@@ -2,16 +2,18 @@ import type { Provider } from '@lexical/yjs'
 import { IndexeddbPersistence, storeState } from 'y-indexeddb'
 import { Awareness } from 'y-protocols/awareness'
 import * as Y from 'yjs'
+import type {
+  ProjectCollaborationProvider,
+  ProjectProviderEvent,
+  ProjectProviderListener,
+} from './collaborationProvider'
 import { createProjectDocument } from './projectModel'
 import type { ResearchProjectManifest } from './schema'
 
-type ProviderEvent = 'sync' | 'status' | 'update' | 'reload'
-type Listener = (payload: unknown) => void
-
-export class LocalProjectProvider {
+export class LocalProjectProvider implements ProjectCollaborationProvider {
   readonly awareness: Awareness
   private readonly persistence: IndexeddbPersistence
-  private readonly listeners = new Map<ProviderEvent, Set<Listener>>()
+  private readonly listeners = new Map<ProjectProviderEvent, Set<ProjectProviderListener>>()
   private connected = false
 
   constructor(
@@ -64,17 +66,17 @@ export class LocalProjectProvider {
     await this.persistence.clearData()
   }
 
-  on(type: ProviderEvent, callback: Listener): void {
-    const listeners = this.listeners.get(type) ?? new Set<Listener>()
+  on(type: ProjectProviderEvent, callback: ProjectProviderListener): void {
+    const listeners = this.listeners.get(type) ?? new Set<ProjectProviderListener>()
     listeners.add(callback)
     this.listeners.set(type, listeners)
   }
 
-  off(type: ProviderEvent, callback: Listener): void {
+  off(type: ProjectProviderEvent, callback: ProjectProviderListener): void {
     this.listeners.get(type)?.delete(callback)
   }
 
-  private emit(type: ProviderEvent, payload: unknown): void {
+  private emit(type: ProjectProviderEvent, payload: unknown): void {
     this.listeners.get(type)?.forEach((listener) => listener(payload))
   }
 }

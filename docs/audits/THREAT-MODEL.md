@@ -18,6 +18,8 @@ versions/evaluation evidence.
 6. Local IndexedDB provider ↔ Yjs/domain state.
 7. Future Drive/WebSocket collaboration provider ↔ local Yjs/domain state.
 8. Local MCP process ↔ authenticated loopback bridge ↔ live webview state.
+9. Future Rust provider adapters ↔ remote model APIs and OS credential storage.
+10. Future WASI/native-MCP plugin runtimes ↔ permission broker ↔ project/Drive/model services.
 
 ## Current threats and controls
 
@@ -42,6 +44,13 @@ versions/evaluation evidence.
 | Stale MCP descriptor targets the wrong process | Descriptor includes schema/PID/version; connection and per-process token fail closed; normal shutdown removes it | Abrupt termination leaves a harmless stale descriptor until the next GUI launch; add PID liveness cleanup |
 | Same-user malware steals the MCP token | User-local temp ACL (and `0600` on Unix); token rotates every GUI process | Not a same-user sandbox; evaluate OS named pipes/peer credentials before exposing higher-risk tools |
 | Generated MCP instructions point to the wrong binary | UI and `syzygy_installation` share Rust `current_exe` discovery; JSON/TOML path-with-spaces tests run against the real binary | Reinstall/move can invalidate configuration; the guide tells users to regenerate it from the running app |
+| Contract scaffolding is mistaken for a working feature | MCP returns explicit per-runtime `contract-only` status; tests assert it | Update status only with end-to-end adapter/runner/loader evidence |
+| Remote provider key leaks into webview/project/log/MCP | ADR-0002 requires Rust plus OS credential ownership and canary scans | Runtime not implemented; credential-vault/platform tests are a release gate |
+| Remote provider retains or trains on unexpected data | Provider profile separates state/training/ZDR and task disclosure is required | Policies change; re-check primary terms at adapter release and record policy date |
+| Multi-model panel creates false confidence | Blind proposals, evidence pass, reversed judge order, minority report, compute-matched baseline | Protocol execution and domain benchmark are not implemented; no quality claim yet |
+| Plugin manifest grants itself authority | Manifests are requests; broker grants and rechecks permissions | Runtime broker not implemented; hostile permission suite required |
+| Native plugin escapes product controls | Native MCP is labeled an advanced unsandboxed process; WASI is preferred | Same-user native code retains OS authority; hashes/signatures do not make it a sandbox |
+| Plugin overwrites newer or unreviewed work | Plugin mutations use bounded revision-guarded proposals plus human acceptance | Drive-specific proposal schemas and runtime acceptance UI remain open |
 
 ## Release blockers
 
@@ -49,4 +58,6 @@ versions/evaluation evidence.
 - Returning Drive tokens to the webview is high severity.
 - Any AI action that mutates shared state without human acceptance is high severity.
 - Any MCP addition that bypasses semantic domain/editor contracts or grants ambient Drive/filesystem/model authority is high severity.
+- Any remote adapter that exposes a key to the webview or transmits before disclosure is high severity.
+- Any plugin path that directly mutates project/Drive state or gains undeclared network/model authority is high severity.
 - Claiming S-01 verified before the live Drive→local-model harness passes is a documentation defect.

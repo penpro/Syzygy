@@ -6,6 +6,7 @@
 
 use crate::automation::{descriptor_path, AutomationDescriptor, BridgeReply, BridgeRequest};
 use crate::mcp_setup::{self, MCP_PROTOCOL_VERSION};
+use crate::platform_contracts;
 use serde_json::{json, Map, Value};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
@@ -133,6 +134,7 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
             serde_json::to_value(info)
                 .map_err(|error| format!("Could not encode Syzygy installation details: {error}"))
         }),
+        "syzygy_platform_contracts" => platform_contracts::current(),
         _ => Err(format!("Unknown Syzygy tool: {name}")),
     };
 
@@ -166,6 +168,11 @@ fn tool_definitions() -> Vec<Value> {
         tool(
             "syzygy_installation",
             "Return the exact running Syzygy executable and install-folder paths, stdio arguments, copy-ready MCP configuration, protocol version, and recommended connection prompts. This does not require the GUI to be open.",
+            object_schema(&[], &[]),
+        ),
+        tool(
+            "syzygy_platform_contracts",
+            "Return machine-readable provider, adversarial-review, and researcher-plugin contracts plus their honest implementation status and self-check commands. This does not require the GUI to be open.",
             object_schema(&[], &[]),
         ),
         tool(
@@ -398,6 +405,7 @@ mod tests {
             .collect();
         assert!(names.contains(&"workspace_walkthrough"));
         assert!(names.contains(&"syzygy_installation"));
+        assert!(names.contains(&"syzygy_platform_contracts"));
         assert!(names.contains(&"read_active_project"));
         assert!(names.contains(&"replace_active_document"));
     }
@@ -435,5 +443,28 @@ mod tests {
             &fake_live,
         )
         .is_none());
+    }
+
+    #[test]
+    fn exposes_platform_contracts_without_a_live_gui() {
+        let response = dispatch_message(
+            &json!({
+                "jsonrpc": "2.0",
+                "id": "contracts-1",
+                "method": "tools/call",
+                "params": { "name": "syzygy_platform_contracts", "arguments": {} }
+            }),
+            &fake_live,
+        )
+        .unwrap();
+        assert_eq!(response["result"]["isError"], false);
+        assert_eq!(
+            response["result"]["structuredContent"]["contractVersion"],
+            1
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["implementationStatus"]["pluginLoader"],
+            "contract-only"
+        );
     }
 }

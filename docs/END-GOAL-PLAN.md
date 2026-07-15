@@ -402,6 +402,52 @@ compaction time, five/twenty-client sessions, local-model latency, and evaluatio
 | participant authentication | 5 | impersonation/revocation analysis |
 | evaluation reproducibility | 8 | model/llama.cpp behavior tests |
 
+## 10.1 Open research platform and adversarial-model track
+
+This enabling track does not replace the 41 product capabilities or inflate their completion
+count. It lets researchers inspect, automate, compare, and extend those capabilities without
+making a paid provider mandatory.
+
+### Provider-neutral model layer
+
+1. Contract-only descriptors and retention/training capability fields (landed).
+2. Rust OS-credential boundary plus canary/redaction harness.
+3. Fake-server conformance suite for streaming, structured output, tools, cancellation, rate
+   limits, malformed events, usage, and storage-off inspection.
+4. Local adapter conformance, then one remote adapter at a time: OpenAI Responses, Anthropic
+   Messages, Gemini Interactions, xAI Responses, and documented custom adapters.
+5. Task-level content/provider disclosure and per-run provenance/cost/retention record.
+
+Gate: local remains the no-account default; no key appears in webview state, logs, crash reports,
+projects, MCP, or exports; every remote adapter passes the same conformance suite and a sanitized
+network trace before the UI calls it available.
+
+### Adversarial review
+
+Protocol v1 uses blind independent proposals, cross-critique, source audit, reversed-order judge
+passes, minority retention, explicit human acceptance, and an equal-call single-agent baseline.
+The rationale, counterevidence, and benchmark design live in `RESEARCH-EXTENSIONS.md`.
+
+Gate: a versioned public/licensed fixture corpus reports source support, omission, abstention,
+position stability, minority retention, human preference, latency, tokens, and cost. A panel may
+ship as experimental even when it loses, but Syzygy cannot claim superiority unless held-out,
+compute-matched results and limitations are published.
+
+### Research plugin API
+
+Manifest/proposal schema v1 and TypeScript validators have landed. Next deliver a headless
+certification runner, a no-authority WASI host/WIT world, declarative contribution rendering, local
+install/disable/upgrade, and the advanced native MCP trust tier. Marketplace control is optional;
+local packages and open documentation are required.
+
+Gate: unknown/undeclared authority fails closed; WASI begins with no project, Drive, network,
+model, or filesystem access; native MCP is never described as sandboxed; all mutations are bounded
+revision-guarded proposals with a human-visible diff and attribution.
+
+Machine-readable inspection is available through `syzygy_platform_contracts`. Until the
+corresponding runtime gates pass it must continue returning `contract-only` for remote providers,
+adversarial execution, and plugin loading.
+
 ## 11. Recommended next slice
 
 Status snapshot on 2026-07-14: the 41-row ledger has 9 `implemented_unverified`, 32 `planned`,
@@ -415,11 +461,13 @@ Do not use the web port or upstream source as an implementation input. First:
 1. maintain the new provenance and machine-readable capability ledgers and finish their open
    SBOM/license/sample-fixture/reviewer gates;
 2. maintain the now-pinned Lexical/Yjs dependency and source ledger;
-3. extend the original `WorkspaceView` with the first custom policy block and full formatting fixture;
-4. add a true two-editor `MemoryProvider` suite on top of the current Yjs update-order harness;
-5. render it in paper and all retained dark themes;
-6. measure bundle/startup/editor latency; and
-7. stop for audit before scenarios or Drive CRDT state.
+3. add the extension contract harness and truthful MCP self-description (landed; keep it green);
+4. extend the original `WorkspaceView` with the first custom policy block and full formatting fixture;
+5. maintain the now-landed two-editor `MemoryProvider` live/partition/reconnect suite and require
+   Drive/WebSocket providers to pass the same contract;
+6. render it in paper and all retained dark themes;
+7. measure bundle/startup/editor latency; and
+8. stop for audit before scenarios, provider calls, plugin execution, or Drive CRDT state.
 
 This tests the riskiest assumptions—license, Tauri integration, schema, Yjs, persistence, and
 design—without creating another monolith.

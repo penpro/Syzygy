@@ -21,12 +21,16 @@
 | `frontend/src/workspace/schema.ts` | Penumbra original | Versioned project-manifest contract and fail-closed validator |
 | `frontend/src/workspace/projectModel.ts` | Penumbra original | Provider-neutral Yjs shared-type names and update helpers |
 | `frontend/src/workspace/localProvider.ts` | Penumbra original | Local IndexedDB provider implementing the Lexical/Yjs provider boundary |
+| `frontend/src/workspace/collaborationProvider.ts` | Penumbra original | Provider-neutral lifecycle shared by local and test/future transports |
+| `frontend/src/workspace/memoryProvider.ts` | Penumbra original | Deterministic two-editor live/partition convergence transport used only by the headless contract suite |
 | `frontend/src/workspace/ResearchEditor.tsx` | Penumbra original | Original Syzygy editor composition, formatting toolbar, and local provider wiring |
 | `frontend/src/workspace/WorkspaceView.tsx` | Penumbra original | Original three-column research workspace scaffold |
 | `frontend/src/workspace/editorAutomation.ts` | Penumbra original | Semantic live-editor controller, deterministic text-block adapter, and optimistic revision guard |
 | `frontend/src/workspace/editorAutomationRegistry.ts` | Penumbra original | Lightweight active-editor capability registry that preserves lazy workspace loading |
 | `frontend/src/workspace/*.test.ts` and `frontend/src/migrations.test.ts` | Penumbra original | Schema, migration, convergence, duplicate/reorder, and reopen harnesses |
 | `frontend/src/automationBridge.ts` and `frontend/src-tauri/src/{automation,mcp}.rs` | Penumbra original | Live semantic dispatcher, authenticated loopback bridge, and stdio MCP protocol implementation |
+| `frontend/src/extensions/*.ts` | Penumbra original | Provider, adversarial-run, and researcher-plugin contracts and tests authored for Syzygy |
+| `frontend/src-tauri/src/platform_contracts.rs` and `docs/schemas/*.json` | Penumbra original | Strict extension schemas and truthful MCP self-description authored for Syzygy |
 
 ## Approved exact dependencies
 

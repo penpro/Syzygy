@@ -104,11 +104,24 @@ const advertisedMcpTools = [
   'replace_active_document',
   'append_active_document',
   'syzygy_installation',
+  'syzygy_platform_contracts',
 ]
 record(
   'embedded MCP entry and tools',
   mainSource.includes('"--mcp"') && advertisedMcpTools.every((name) => mcpSource.includes(`"${name}"`)),
   `${advertisedMcpTools.filter((name) => mcpSource.includes(`"${name}"`)).length}/${advertisedMcpTools.length} semantic tools registered`,
+)
+const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
+const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))
+const platformContractsSource = text('frontend/src-tauri/src/platform_contracts.rs')
+record(
+  'research extension contracts',
+  pluginManifestSchema.$schema === 'https://json-schema.org/draft/2020-12/schema' &&
+    pluginManifestSchema.additionalProperties === false &&
+    pluginProposalSchema.additionalProperties === false &&
+    platformContractsSource.includes('"pluginLoader": "contract-only"') &&
+    platformContractsSource.includes('"automaticSharedMutation": false'),
+  'strict v1 schemas, honest runtime status, and proposal-only shared mutation',
 )
 const mcpSetupSource = text('frontend/src/components/McpSetupModal.tsx')
 record(

@@ -48,6 +48,7 @@ Recommended first instruction to an MCP-capable model:
 | `syzygy_status` | no | Running version/view, active project, editor readiness, honest capability report |
 | `launch_syzygy` | launches app | Starts the GUI from the same installed executable and waits for readiness |
 | `syzygy_installation` | no | Exact executable/install folder, protocol, JSON/TOML configuration, connection prompt, and starter prompt; works without the GUI |
+| `syzygy_platform_contracts` | no | Provider, adversarial-review, and plugin schemas, honest runtime status, and self-check commands; works without the GUI |
 | `workspace_walkthrough` | no | State-aware explanation of the current use case and next step |
 | `list_projects` | no | Stable IDs, titles, archive state, transport, active project |
 | `create_project` | yes | Creates and opens a local project with a non-empty title |
@@ -98,6 +99,9 @@ MCP host
 - `syzygy_installation` discloses the executable and parent-folder paths to the already-connected
   local MCP host. These paths are local machine metadata, contain no OAuth token or research
   content, and are also visible to the user in Settings.
+- `syzygy_platform_contracts` embeds public schemas and implementation-state labels only. It
+  deliberately reports remote adapters, adversarial execution, and plugin loading as
+  `contract-only`; it returns no key, provider account, project content, or Drive credential.
 
 ## Executable evidence
 
@@ -117,8 +121,9 @@ It fails unless:
 3. the loopback parser accepts an authenticated request and rejects browser origins;
 4. MCP initialization negotiates the current `2025-11-25` protocol revision;
 5. all semantic tools are discoverable and route to their intended live operation; and
-6. self-description returns absolute paths and copy-ready configuration without a GUI; and
-7. the actual compiled application binary speaks newline-delimited JSON-RPC over stdio without
+6. self-description returns absolute paths and copy-ready configuration without a GUI;
+7. platform contracts parse, stay strict, and do not overstate unimplemented runtimes; and
+8. the actual compiled application binary speaks newline-delimited JSON-RPC over stdio without
    contaminating stdout.
 
 The harness uses a fake semantic live responder for protocol routing and the real Lexical editor

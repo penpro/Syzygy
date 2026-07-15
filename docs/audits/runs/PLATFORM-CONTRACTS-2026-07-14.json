@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "runId": "PLATFORM-CONTRACTS-2026-07-14",
+  "date": "2026-07-14",
+  "appVersionAtRun": "0.1.10",
+  "scope": [
+    "provider-neutral descriptor validation",
+    "adversarial-run planning",
+    "research plugin manifest and proposal validation",
+    "MCP platform contract self-description",
+    "two-editor Memory provider convergence"
+  ],
+  "commands": [
+    "npm run test",
+    "npm run test:contracts",
+    "npm run test:workspace",
+    "npm run test:mcp",
+    "npm run audit",
+    "npm run build"
+  ],
+  "results": {
+    "frontendTests": { "passed": true, "files": 19, "tests": 86 },
+    "extensionContractTests": { "passed": true, "files": 3, "tests": 8 },
+    "workspaceTests": { "passed": true, "files": 6, "tests": 20 },
+    "mcp": {
+      "passed": true,
+      "protocolVersion": "2025-11-25",
+      "toolCount": 12,
+      "platformContractsSelfDescribing": true,
+      "stdoutProtocolClean": true
+    },
+    "audit": { "passed": true, "checks": 15 },
+    "frontendProductionBuild": { "passed": true, "modulesTransformed": 988 }
+  },
+  "proved": [
+    "remote providers require explicit disclosure metadata and secure default endpoints",
+    "adversarial plans are deterministic, blinded, order-swapped, and compute-matched",
+    "plugin manifests request enumerated authority and mutation proposals carry a base revision",
+    "MCP exposes strict schemas while reporting unimplemented runtimes as contract-only",
+    "two active Yjs documents exchange live document/domain edits in both directions",
+    "partitioned offline edits merge to an identical state on reconnect",
+    "disconnected Memory providers do not transmit and clear local awareness"
+  ],
+  "notProved": [
+    "remote provider authentication, API execution, retention behavior, quality, cost, or key safety",
+    "adversarial model execution or superiority over any baseline",
+    "plugin discovery, installation, sandboxing, execution, UI, or Drive operation",
+    "Drive or WebSocket CRDT transport",
+    "two-account or two-install real collaboration",
+    "packaged v0.1.11 artifact"
+  ],
+  "review": {
+    "primaryResearchNotes": "docs/RESEARCH-EXTENSIONS.md",
+    "providerContract": "docs/PROVIDER-API.md",
+    "pluginContract": "docs/PLUGIN-API.md",
+    "adversarialPrompt": "Use the adversarial reviewer checklist in docs/RESEARCH-EXTENSIONS.md and report claim, contradiction, exact artifact, severity, reproduction, and resolving observation."
+  }
+}

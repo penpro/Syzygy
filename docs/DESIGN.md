@@ -115,3 +115,20 @@ and all cards, borders, states, and narrow-layout behavior use theme tokens.
 The copy must distinguish configuration from capability. A successful setup does not imply that
 unfinished versions, scenarios, Drive project transport, evaluation, or presence are available.
 It must also say that MCP does not automatically gain Drive, filesystem, or local-model authority.
+
+## Future provider, panel, and plugin surfaces
+
+Remote models are opt-in additions to a local-first product. Before first transmission, show the
+provider, exact content categories, provider storage/training profile, and estimated call count.
+Never collapse this into an unexplained "cloud mode," imply that every zero-retention option is
+available, or place API keys in a web field that persists to app state.
+
+An adversarial review panel shows candidates blinded during judgment, source support, disagreement,
+minority findings, order-swap instability, the compute-matched baseline, latency, and cost. Call it
+"review" or "panel," not consensus or truth. Nothing enters the shared draft until the person sees
+a diff and accepts it.
+
+Plugin permission screens use plain verbs and concrete scope: "Read this project," "Propose a
+change," "Fetch from doi.org," or "Use the configured local model." Native MCP plugins carry a
+stronger trust warning than capability-sandboxed WASI plugins. Advanced controls may be tucked
+away, but requested authority and remote transmission are never hidden there.

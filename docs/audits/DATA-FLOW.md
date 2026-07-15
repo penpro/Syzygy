@@ -16,6 +16,15 @@
 | Diagnostic log | Runtime errors/milestones | Frontend/Rust error boundary → local ring | Command/tag/error only | localStorage, newest 500 entries | No prompt, file content, token, or credential logging |
 | Live MCP read/control | MCP host starts `Syzygy --mcp` and calls a tool | MCP stdio → token-authenticated ephemeral loopback → Rust event → live webview | Semantic method/parameters; project content only for explicit read/write tools | No MCP copy; live Zustand/Yjs owners persist normally | Loopback only, 256-bit per-process bearer, browser-origin rejection, bounded request, timeout |
 | MCP setup/self-description | User opens Settings guide or connected host calls `syzygy_installation` | Running Rust process → webview or MCP stdio | Executable path, parent install folder, app/protocol versions, generated config/prompts | None | Local process metadata only; no OAuth token, model secret, or research content |
+| Extension contract inspection | Connected host calls `syzygy_platform_contracts` or CI loads validators | Embedded schemas/status → MCP stdio/test process | Provider transports, adversarial phases, plugin permissions/schemas, implementation states | None | Static public contract data; unimplemented runtimes say `contract-only`; no project/key/account data |
+
+## Planned flows that are not yet runtime claims
+
+| Flow | Trigger | Source → destination | Required guard |
+|---|---|---|---|
+| Remote model call | User accepts a task disclosure | Selected research context → Rust provider adapter → provider HTTPS API | OS credential store, non-storage default where supported, provider/content disclosure, normalized bounded response |
+| Adversarial panel | User starts a configured panel | Evidence snapshot → several provider adapters → blinded review record | compute-matched baseline, order swap, source audit, minority retention, no automatic shared mutation |
+| Research plugin | User installs/enables and invokes a contribution | Bounded snapshot → WASI or trusted MCP runtime → typed proposal | declared and granted permissions, no ambient authority, revision guard, diff plus human acceptance |
 
 ## Drive boundary nuance
 

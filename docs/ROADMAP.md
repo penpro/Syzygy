@@ -66,6 +66,17 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   starter task used by both the UI and the new `syzygy_installation` MCP tool. The headless harness
   rejects relative paths or configuration that is not tied to the binary under test; the packaged
   proof is recorded in `docs/audits/runs/MCP-SETUP-2026-07-14.json`.
+- The post-0.1.10 development slice defines provider-neutral descriptors for local, OpenAI,
+  Anthropic, Gemini, xAI, and custom adapters; a deterministic adversarial-review planner; strict
+  plugin/proposal schemas; and a twelfth headless MCP inspection tool. Remote adapters,
+  adversarial execution, and plugin loading remain explicitly `contract-only`. The evidence and
+  falsification design is in `RESEARCH-EXTENSIONS.md`; APIs are in `PROVIDER-API.md` and
+  `PLUGIN-API.md`.
+- The same slice adds a provider-neutral collaboration lifecycle and a deterministic two-editor
+  Memory transport. Its headless suite proves bidirectional live document/domain updates,
+  partition isolation, offline edits, reconnect merging, awareness cleanup, and identical final
+  state. This is evidence for the provider contract, not a claim that Drive or WebSocket
+  collaboration has shipped.
 
 ## Current completion snapshot
 
@@ -91,10 +102,13 @@ collaborators are not required to download large project folders.
    - Keep domain and provider interfaces independent from editor, Drive, and AI vendors.
    - Design target: the "research editor" panel of the approved mockup (version rail,
      evaluation panel, mono metadata stamps).
-3. **Real collaboration on the folder** — Yjs doc persisted in the synced folder;
+3. **Certify the open research platform boundary** — implement the Rust credential vault and one
+   remote adapter only after fake-server/key-canary tests; build the adversarial benchmark before
+   claiming panel quality; implement a no-authority WASI host before loading third-party code.
+4. **Real collaboration on the folder** — Yjs doc persisted in the synced folder;
    merge-on-sync instead of last-write-wins; presence later. Drive is transport #1;
    self-hosted y-websocket-compatible and P2P transports are siblings behind the same abstraction.
-4. **Independent research workflows on top** — scenarios, structured policy blocks,
+5. **Independent research workflows on top** — scenarios, structured policy blocks,
    heuristics, evaluation, versions, and review, designed and prompted from scratch for
    Syzygy's local model.
 

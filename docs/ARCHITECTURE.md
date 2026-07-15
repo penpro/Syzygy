@@ -60,6 +60,7 @@ source of project truth.
 | `automation.rs` | Ephemeral authenticated loopback bridge into semantic live-webview actions. |
 | `mcp.rs` | Embedded stdio MCP mode, tool schemas, and JSON-RPC protocol routing. |
 | `mcp_setup.rs` | Running-executable discovery plus copy-ready JSON/TOML configuration and connection prompts shared by the UI and MCP. |
+| `platform_contracts.rs` | Machine-readable provider, adversarial-review, and researcher-plugin schemas/status exposed to headless MCP clients. |
 
 **Security posture:** the model only ever sees selected text; the webview never sees OAuth
 credentials/tokens (they live in Rust + app-data); local file access is allowlisted via
@@ -93,6 +94,16 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   and displays copy-ready MCP configuration and prompts; it never guesses an install path.
 
 ## Persistence map
+
+The frontend `workspace/` folder also defines one collaboration-provider lifecycle. IndexedDB is
+the current product persistence provider; a deterministic Memory provider exists only to prove
+two active documents converge through live edits, partitions, and reconnects. Future Drive and
+WebSocket implementations must pass the same contract before their capability status changes.
+
+The frontend `extensions/` folder owns provider-neutral model descriptors, deterministic
+adversarial-run planning, strict researcher-plugin manifests/proposals, and their headless
+contract tests. These contracts do not imply that remote adapters or plugin execution have
+shipped.
 
 | What | Where |
 |---|---|
@@ -136,3 +147,7 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   closed on concurrent change; the MCP receives no ambient Drive, filesystem, or model authority.
   Setup data is generated from `current_exe` in Rust and reused by the app and the
   `syzygy_installation` tool. See `MCP.md`.
+- **Extensions request narrow authority.** Remote provider secrets and HTTPS stay in the future
+  Rust boundary; plugins declare capabilities and submit revision-guarded proposals. No plugin
+  code executes in the webview and no contract-only feature may report itself as available. See
+  `PROVIDER-API.md`, `PLUGIN-API.md`, and ADR-0002/0003.

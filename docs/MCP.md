@@ -8,8 +8,8 @@ window, which remains the owner of project navigation, Lexical editor state, Yjs
 This is an automation and interoperability surface, not a claim that unfinished research
 features exist. `syzygy_status`, `workspace_walkthrough`, and `inspect_research_state` explicitly
 report the difference between usable domain foundations and the still-disabled version controls,
-scenario UI and annotation mutation, evaluation, Drive project transport, and real-time presence
-slices. Guarded scenario/branch/turn mutation and aggregate voting are narrow automation surfaces.
+scenario UI, evaluation, Drive project transport, and real-time presence slices. Guarded scenario/
+branch/turn mutation, aggregate voting, and flag/note lifecycle are narrow automation surfaces.
 
 ## Connect an MCP host
 
@@ -61,6 +61,9 @@ Recommended first instruction to an MCP-capable model:
 | `add_scenario_turn` | scenario content | Adds one attributed system/user/assistant turn against the exact current research revision; never invokes a model |
 | `revise_scenario_turn` | scenario content | Adds an attributed immutable revision to an existing turn against the exact current research revision |
 | `cast_scenario_vote` | vote event | Casts support/oppose/abstain/withdrawn against the exact current research revision; retains re-vote history and returns aggregate counts |
+| `create_scenario_annotation` | annotation event | Creates a scenario- or turn-level flag/note against the exact research revision; stores but does not return its body |
+| `update_scenario_annotation` | annotation event | Appends a body revision only when both research revision and current annotation event match; prior bodies remain in history and readback omits them |
+| `set_scenario_annotation_resolution` | annotation event | Resolves or reopens by appending an event under both revision guards |
 | `save_active_policy_version` | version metadata | Saves the exact active semantic draft as a new immutable head under both document-revision and expected-head guards; does not edit the draft or restore history |
 | `replace_active_document` | yes | Replaces the document only when `expectedRevision` still matches |
 | `append_active_document` | yes | Appends blocks only when `expectedRevision` still matches |
@@ -122,6 +125,11 @@ MCP host
   an immutable event. Its response and inspection expose only aggregate counts/event totals. A
   stale call fails before adding an event. Participant IDs, display names, and time are caller/
   process supplied, so the tool is not an authenticated election or Sybil-resistant consensus.
+- Annotation create uses the research revision guard. Edit/resolve/reopen additionally require the
+  exact `currentEventId` returned by the preceding mutation or inspection. Both stale-research and
+  stale-lifecycle conflicts fail before an event is added. Bodies are accepted for create/edit and
+  retained locally in immutable history, but mutation responses and inspection return only IDs,
+  kind/status, target, timestamps, and event counts. Identity/time remain caller/process supplied.
 - `save_active_policy_version` requires `expectedDocumentRevision` from `read_active_project` and,
   when non-null, `expectedHeadVersionId` from `inspect_research_state`. The live editor revision is
   checked once before hashing and again inside the final Yjs head transaction; the existing head
@@ -168,7 +176,7 @@ It fails unless:
 2. replace/append operations change the same editor and reject a stale revision;
 3. the loopback parser accepts an authenticated request and rejects browser origins;
 4. MCP initialization negotiates the current `2025-11-25` protocol revision;
-5. all eighteen semantic tools are discoverable and route to their intended live operation;
+5. all twenty-one semantic tools are discoverable and route to their intended live operation;
 6. self-description returns absolute paths and copy-ready configuration without a GUI;
 7. platform contracts parse, keep provider-run/adversarial/plugin schemas strict, and do not
    overstate unimplemented runtimes; and
@@ -186,10 +194,10 @@ installer size, compile marker, and explicit test limitations.
 
 For an explicit end-to-end proof against the current user's real app profile, build the app and
 run `npm run test:mcp:live`. It launches the GUI if needed, creates a visible `MCP pilot` project,
-replaces/appends its document, creates a scenario, adds/revises a turn, support/re-votes, deliberately
-attempts stale document/scenario/vote writes, and reads bounded state back. Because this is a real
-mutation, it is deliberately excluded from CI and must not be run without intending to keep the
-demonstration project.
+replaces/appends its document, creates a scenario, adds/revises a turn, support/re-votes, runs a
+flag/note create→edit→resolve→reopen lifecycle, deliberately attempts stale writes at every layer,
+and reads bounded state back. Because this is a real mutation, it is deliberately excluded from CI
+and must not be run without intending to keep the demonstration project.
 
 ## Design sources
 

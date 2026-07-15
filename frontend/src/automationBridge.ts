@@ -6,7 +6,12 @@ import {
   getAutomationEditorController,
 } from './workspace/editorAutomationRegistry'
 import { inspectResearchState } from './workspace/researchStateInspection'
-import { addAutomationScenarioTurn, castAutomationScenarioVote, createAutomationScenario, reviseAutomationScenarioTurn } from './workspace/scenarioAutomation'
+import {
+  addAutomationScenarioTurn, castAutomationScenarioVote, createAutomationScenario,
+  createAutomationScenarioAnnotation, resolveAutomationScenarioAnnotation,
+  reviseAutomationScenarioTurn, updateAutomationScenarioAnnotation,
+} from './workspace/scenarioAutomation'
+import type { ScenarioAnnotation, ScenarioAnnotationKind } from './workspace/scenarioAnnotationModel'
 import type { ResearchScenario, ScenarioStatus, ScenarioTurn, ScenarioTurnRole } from './workspace/scenarioModel'
 import type { ScenarioVoteChoice } from './workspace/scenarioVoteModel'
 import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
@@ -66,7 +71,7 @@ export async function dispatchAutomationRequest(
             'revision-guarded semantic MCP reads and writes',
             'read-only MCP integrity inspection for heuristics and immutable version history',
             'dual-revision-guarded MCP creation of immutable policy checkpoints',
-            'research-revision-guarded MCP scenario creation, turn editing, and aggregate voting',
+            'research-revision-guarded MCP scenario creation, turn editing, aggregate voting, and annotation lifecycle',
           ],
           unavailable: [
             'version save, restore, and diff controls in the product UI; MCP restore remains unavailable',
@@ -252,6 +257,76 @@ export async function dispatchAutomationRequest(
         researchRevision: voted.researchRevision,
       }
     }
+    case 'project.createScenarioAnnotation': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const created = createAutomationScenarioAnnotation(getAutomationProjectDocument(project.id), project.id, {
+        expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
+        annotationId: requiredString(params, 'annotationId'),
+        scenarioId: requiredString(params, 'scenarioId'),
+        turnId: optionalString(params, 'turnId'),
+        kind: requiredScenarioAnnotationKind(params),
+        body: requiredString(params, 'body'),
+        participantId: requiredString(params, 'participantId'),
+        displayName: requiredString(params, 'displayName'),
+        timestamp: Date.now(),
+        eventId: `mcp-${crypto.randomUUID()}`,
+      })
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        annotation: summarizeScenarioAnnotation(created.annotation),
+        researchRevision: created.researchRevision,
+      }
+    }
+    case 'project.updateScenarioAnnotation': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const updated = updateAutomationScenarioAnnotation(getAutomationProjectDocument(project.id), project.id, {
+        expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
+        annotationId: requiredString(params, 'annotationId'),
+        scenarioId: requiredString(params, 'scenarioId'),
+        expectedCurrentEventId: requiredString(params, 'expectedCurrentEventId'),
+        body: requiredString(params, 'body'),
+        participantId: requiredString(params, 'participantId'),
+        displayName: requiredString(params, 'displayName'),
+        timestamp: Date.now(),
+        eventId: `mcp-${crypto.randomUUID()}`,
+      })
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        annotation: summarizeScenarioAnnotation(updated.annotation),
+        researchRevision: updated.researchRevision,
+      }
+    }
+    case 'project.setScenarioAnnotationResolution': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const changed = resolveAutomationScenarioAnnotation(getAutomationProjectDocument(project.id), project.id, {
+        expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
+        annotationId: requiredString(params, 'annotationId'),
+        scenarioId: requiredString(params, 'scenarioId'),
+        expectedCurrentEventId: requiredString(params, 'expectedCurrentEventId'),
+        resolved: requiredBoolean(params, 'resolved'),
+        participantId: requiredString(params, 'participantId'),
+        displayName: requiredString(params, 'displayName'),
+        timestamp: Date.now(),
+        eventId: `mcp-${crypto.randomUUID()}`,
+      })
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        annotation: summarizeScenarioAnnotation(changed.annotation),
+        researchRevision: changed.researchRevision,
+      }
+    }
     case 'document.replace': {
       const expectedRevision = requiredString(params, 'expectedRevision')
       const content = requiredString(params, 'content', true)
@@ -322,7 +397,7 @@ function buildWalkthrough() {
       {
         name: 'Scenarios and evaluation',
         status: project && automationProjectDocumentReady(project.id) ? 'domain-create-ready' : 'needs-open-project',
-        use: 'Scenario records, votes, and flags/notes have tested collaborative foundations; MCP can inspect them, create guarded scenarios, edit turns, and cast attributed votes, while the visible gallery and evaluation UI remain unavailable.',
+        use: 'Scenario records, votes, and flags/notes have tested collaborative foundations; MCP can inspect them, create guarded scenarios, edit turns, vote, and manage annotation lifecycle, while the visible gallery and evaluation UI remain unavailable.',
       },
       {
         name: 'Network collaboration',
@@ -375,6 +450,16 @@ function summarizeScenarioTurn(turn: ScenarioTurn) {
   }
 }
 
+function summarizeScenarioAnnotation(annotation: ScenarioAnnotation) {
+  return {
+    id: annotation.id, scenarioId: annotation.scenarioId, turnId: annotation.turnId,
+    kind: annotation.kind, status: annotation.status, currentEventId: annotation.currentEventId,
+    createdBy: annotation.createdBy, createdAt: annotation.createdAt,
+    lastActionBy: annotation.lastActionBy, lastActionAt: annotation.lastActionAt,
+    eventCount: annotation.events.length,
+  }
+}
+
 function asObject(value: unknown): Record<string, unknown> {
   if (value === undefined || value === null) return {}
   if (typeof value !== 'object' || Array.isArray(value)) throw new Error('Automation parameters must be an object')
@@ -412,4 +497,16 @@ function requiredScenarioVoteChoice(params: Record<string, unknown>): ScenarioVo
     throw new Error('choice must be support, oppose, abstain, or withdrawn')
   }
   return choice as ScenarioVoteChoice
+}
+
+function requiredScenarioAnnotationKind(params: Record<string, unknown>): ScenarioAnnotationKind {
+  const kind = requiredString(params, 'kind')
+  if (!['flag', 'note'].includes(kind)) throw new Error('kind must be flag or note')
+  return kind as ScenarioAnnotationKind
+}
+
+function requiredBoolean(params: Record<string, unknown>, name: string): boolean {
+  const value = params[name]
+  if (typeof value !== 'boolean') throw new Error(`${name} must be a boolean`)
+  return value
 }

@@ -139,6 +139,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
         turnId: annotation.turnId,
         kind: annotation.kind,
         status: annotation.status,
+        currentEventId: annotation.currentEventId,
         createdAt: annotation.createdAt,
         lastActionAt: annotation.lastActionAt,
         eventCount: annotation.events.length,
@@ -167,7 +168,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
     },
     selfCheck: { healthy: issues.length === 0, issues },
     limitations: [
-      'inspection itself is read-only; separate revision-guarded MCP tools can create scenarios, edit turns, cast votes, and save policy versions, but heuristic, flag/note, restore, and scenario lifecycle mutation remain unavailable',
+      'inspection itself is read-only; separate revision-guarded MCP tools can create scenarios, edit turns, cast votes, manage flag/note lifecycle, and save policy versions, but heuristic, restore, and broader scenario lifecycle mutation remain unavailable',
       'local live collaboration document; Drive/WebSocket project transport is not implemented',
       'counts and integrity are checked; policy text, heuristic guidance, scenario background/turn content/revision bodies, annotation/voter bodies, edit values, and version notes are omitted',
     ],

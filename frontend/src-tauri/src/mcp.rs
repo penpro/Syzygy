@@ -92,7 +92,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting and annotations, heuristics, and immutable history. Read a project before editing or checkpointing it. Document writes require the exact revision returned by read_active_project. Scenario create/add-turn/revise-turn/vote tools require the latest exact research revision from inspection or the prior scenario mutation. save_active_policy_version additionally requires the exact non-null head from inspection, or omission when no head exists. On any conflict, read again and reconcile. Never claim unavailable scenario gallery/voting/annotation UI, model generation, restore UI, Drive project transport, or real-time presence are available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting and annotations, heuristics, and immutable history. Read a project before editing or checkpointing it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, and annotation tools require the latest exact research revision from inspection or the prior mutation; annotation edit/resolve/reopen additionally require the exact current annotation event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. On any conflict, read again and reconcile. Never claim unavailable scenario gallery/voting/annotation UI, model generation, restore UI, Drive project transport, or real-time presence are available."
             })
         }
         "ping" => json!({}),
@@ -132,6 +132,11 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "add_scenario_turn" => live("project.addScenarioTurn", arguments),
         "revise_scenario_turn" => live("project.reviseScenarioTurn", arguments),
         "cast_scenario_vote" => live("project.castScenarioVote", arguments),
+        "create_scenario_annotation" => live("project.createScenarioAnnotation", arguments),
+        "update_scenario_annotation" => live("project.updateScenarioAnnotation", arguments),
+        "set_scenario_annotation_resolution" => {
+            live("project.setScenarioAnnotationResolution", arguments)
+        }
         "save_active_policy_version" => live("project.savePolicyVersion", arguments),
         "replace_active_document" => live("document.replace", arguments),
         "append_active_document" => live("document.append", arguments),
@@ -260,6 +265,55 @@ fn tool_definitions() -> Vec<Value> {
                     ("choice", string_schema("Vote choice: support, oppose, abstain, or withdrawn.")),
                 ],
                 &["expectedResearchRevision", "scenarioId", "participantId", "displayName", "choice"],
+            ),
+        ),
+        tool(
+            "create_scenario_annotation",
+            "Create one flag or note on an existing scenario or turn against the exact current research revision. The body is stored in collaborative history but omitted from bounded inspection and the tool response.",
+            object_schema(
+                &[
+                    ("expectedResearchRevision", string_schema("Exact research revision from inspect_research_state or the prior scenario mutation.")),
+                    ("annotationId", string_schema("New stable annotation ID.")),
+                    ("scenarioId", string_schema("Existing stable scenario ID.")),
+                    ("turnId", string_schema("Optional existing turn ID; omit for a scenario-level annotation.")),
+                    ("kind", string_schema("Annotation kind: flag or note.")),
+                    ("body", string_schema("Non-empty flag/note body, retained in collaborative history but omitted from MCP readback.")),
+                    ("participantId", string_schema("Caller-supplied participant ID; identity is not authenticated across installs.")),
+                    ("displayName", string_schema("Display name retained with the lifecycle event but omitted from this tool response.")),
+                ],
+                &["expectedResearchRevision", "annotationId", "scenarioId", "kind", "body", "participantId", "displayName"],
+            ),
+        ),
+        tool(
+            "update_scenario_annotation",
+            "Append an attributed body revision to an open flag or note. Requires both the exact current research revision and annotation event; prior bodies remain in immutable lifecycle history and are omitted from MCP readback.",
+            object_schema(
+                &[
+                    ("expectedResearchRevision", string_schema("Exact research revision from inspection or the prior mutation.")),
+                    ("annotationId", string_schema("Existing stable annotation ID.")),
+                    ("scenarioId", string_schema("Owning stable scenario ID.")),
+                    ("expectedCurrentEventId", string_schema("Exact currentEventId returned by the prior annotation mutation or bounded inspection.")),
+                    ("body", string_schema("New non-empty body; retained in history but omitted from MCP readback.")),
+                    ("participantId", string_schema("Caller-supplied participant ID; identity is not authenticated across installs.")),
+                    ("displayName", string_schema("Display name retained with the lifecycle event but omitted from this tool response.")),
+                ],
+                &["expectedResearchRevision", "annotationId", "scenarioId", "expectedCurrentEventId", "body", "participantId", "displayName"],
+            ),
+        ),
+        tool(
+            "set_scenario_annotation_resolution",
+            "Resolve or reopen one flag/note by appending an attributed lifecycle event. Requires both the exact current research revision and current annotation event.",
+            object_schema(
+                &[
+                    ("expectedResearchRevision", string_schema("Exact research revision from inspection or the prior mutation.")),
+                    ("annotationId", string_schema("Existing stable annotation ID.")),
+                    ("scenarioId", string_schema("Owning stable scenario ID.")),
+                    ("expectedCurrentEventId", string_schema("Exact currentEventId returned by the prior annotation mutation or bounded inspection.")),
+                    ("resolved", json!({ "type": "boolean", "description": "True to resolve; false to reopen." })),
+                    ("participantId", string_schema("Caller-supplied participant ID; identity is not authenticated across installs.")),
+                    ("displayName", string_schema("Display name retained with the lifecycle event but omitted from this tool response.")),
+                ],
+                &["expectedResearchRevision", "annotationId", "scenarioId", "expectedCurrentEventId", "resolved", "participantId", "displayName"],
             ),
         ),
         tool(
@@ -491,6 +545,9 @@ mod tests {
         assert!(names.contains(&"add_scenario_turn"));
         assert!(names.contains(&"revise_scenario_turn"));
         assert!(names.contains(&"cast_scenario_vote"));
+        assert!(names.contains(&"create_scenario_annotation"));
+        assert!(names.contains(&"update_scenario_annotation"));
+        assert!(names.contains(&"set_scenario_annotation_resolution"));
         assert!(names.contains(&"save_active_policy_version"));
         assert!(names.contains(&"replace_active_document"));
     }
@@ -561,8 +618,14 @@ mod tests {
             &fake_live,
         )
         .unwrap();
-        assert_eq!(response["result"]["structuredContent"]["method"], "project.createScenario");
-        assert_eq!(response["result"]["structuredContent"]["params"]["expectedResearchRevision"], "1.2.3");
+        assert_eq!(
+            response["result"]["structuredContent"]["method"],
+            "project.createScenario"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["params"]["expectedResearchRevision"],
+            "1.2.3"
+        );
     }
 
     #[test]
@@ -592,7 +655,10 @@ mod tests {
             )
             .unwrap();
             assert_eq!(response["result"]["structuredContent"]["method"], method);
-            assert_eq!(response["result"]["structuredContent"]["params"]["expectedResearchRevision"], "4.5.6");
+            assert_eq!(
+                response["result"]["structuredContent"]["params"]["expectedResearchRevision"],
+                "4.5.6"
+            );
         }
     }
 
@@ -617,8 +683,56 @@ mod tests {
             &fake_live,
         )
         .unwrap();
-        assert_eq!(response["result"]["structuredContent"]["method"], "project.castScenarioVote");
-        assert_eq!(response["result"]["structuredContent"]["params"]["expectedResearchRevision"], "7.8.9");
+        assert_eq!(
+            response["result"]["structuredContent"]["method"],
+            "project.castScenarioVote"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["params"]["expectedResearchRevision"],
+            "7.8.9"
+        );
+    }
+
+    #[test]
+    fn routes_scenario_annotation_lifecycle_with_both_revision_guards() {
+        for (name, method) in [
+            (
+                "create_scenario_annotation",
+                "project.createScenarioAnnotation",
+            ),
+            (
+                "update_scenario_annotation",
+                "project.updateScenarioAnnotation",
+            ),
+            (
+                "set_scenario_annotation_resolution",
+                "project.setScenarioAnnotationResolution",
+            ),
+        ] {
+            let response = dispatch_message(
+                &json!({
+                    "jsonrpc": "2.0",
+                    "id": name,
+                    "method": "tools/call",
+                    "params": {
+                        "name": name,
+                        "arguments": {
+                            "expectedResearchRevision": "10.11.12",
+                            "scenarioId": "test-scenario",
+                            "annotationId": "test-note",
+                            "expectedCurrentEventId": "current-event"
+                        }
+                    }
+                }),
+                &fake_live,
+            )
+            .unwrap();
+            assert_eq!(response["result"]["structuredContent"]["method"], method);
+            assert_eq!(
+                response["result"]["structuredContent"]["params"]["expectedResearchRevision"],
+                "10.11.12"
+            );
+        }
     }
 
     #[test]

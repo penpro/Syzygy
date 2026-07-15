@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { createProjectDocument, getProjectSharedTypes, projectStateFingerprint } from './projectModel'
 import { readScenario } from './scenarioModel'
-import { addAutomationScenarioTurn, castAutomationScenarioVote, createAutomationScenario, reviseAutomationScenarioTurn } from './scenarioAutomation'
+import {
+  addAutomationScenarioTurn, castAutomationScenarioVote, createAutomationScenario,
+  createAutomationScenarioAnnotation, resolveAutomationScenarioAnnotation,
+  reviseAutomationScenarioTurn, updateAutomationScenarioAnnotation,
+} from './scenarioAutomation'
+import { readScenarioAnnotations } from './scenarioAnnotationModel'
 import { readScenarioVotes } from './scenarioVoteModel'
 import { createProjectManifest } from './schema'
 
@@ -124,5 +129,52 @@ describe('automation scenario creation', () => {
     })).toThrow('Research state revision conflict')
     expect(readScenarioVotes(getProjectSharedTypes(doc).discussions, 'guarded-vote')?.history).toHaveLength(1)
     expect(first.researchRevision).toBe(projectStateFingerprint(doc))
+  })
+
+  it('creates, edits, resolves, and reopens an annotation through dual revision guards', () => {
+    const doc = createProjectDocument(manifest)
+    const createdScenario = createAutomationScenario(doc, manifest.id, {
+      expectedResearchRevision: projectStateFingerprint(doc), scenarioId: 'annotation-scenario', title: 'Annotations', background: '',
+      participantId: 'alice', createdAt: 10, editId: 'create-annotation-scenario',
+    })
+    const created = createAutomationScenarioAnnotation(doc, manifest.id, {
+      expectedResearchRevision: createdScenario.researchRevision, annotationId: 'source-note', scenarioId: 'annotation-scenario',
+      kind: 'note', body: 'Check the source.', participantId: 'alice', displayName: 'Alice', timestamp: 11, eventId: 'create-source-note',
+    })
+    const edited = updateAutomationScenarioAnnotation(doc, manifest.id, {
+      expectedResearchRevision: created.researchRevision, annotationId: 'source-note', scenarioId: 'annotation-scenario',
+      expectedCurrentEventId: created.annotation.currentEventId, body: 'Source checked.', participantId: 'bob', displayName: 'Bob', timestamp: 12, eventId: 'edit-source-note',
+    })
+    const resolved = resolveAutomationScenarioAnnotation(doc, manifest.id, {
+      expectedResearchRevision: edited.researchRevision, annotationId: 'source-note', scenarioId: 'annotation-scenario',
+      expectedCurrentEventId: edited.annotation.currentEventId, resolved: true, participantId: 'bob', displayName: 'Bob', timestamp: 13, eventId: 'resolve-source-note',
+    })
+    const reopened = resolveAutomationScenarioAnnotation(doc, manifest.id, {
+      expectedResearchRevision: resolved.researchRevision, annotationId: 'source-note', scenarioId: 'annotation-scenario',
+      expectedCurrentEventId: resolved.annotation.currentEventId, resolved: false, participantId: 'alice', displayName: 'Alice', timestamp: 14, eventId: 'reopen-source-note',
+    })
+    expect(reopened.annotation).toMatchObject({ body: 'Source checked.', status: 'open', lastActionBy: 'alice' })
+    expect(reopened.annotation.events).toHaveLength(4)
+  })
+
+  it('rejects stale research and annotation revisions without adding lifecycle events', () => {
+    const doc = createProjectDocument(manifest)
+    const createdScenario = createAutomationScenario(doc, manifest.id, {
+      expectedResearchRevision: projectStateFingerprint(doc), scenarioId: 'guarded-annotation', title: 'Guarded annotations', background: '',
+      participantId: 'alice', createdAt: 10, editId: 'create-guarded-annotation',
+    })
+    const created = createAutomationScenarioAnnotation(doc, manifest.id, {
+      expectedResearchRevision: createdScenario.researchRevision, annotationId: 'guarded-note', scenarioId: 'guarded-annotation',
+      kind: 'flag', body: 'Needs evidence.', participantId: 'alice', displayName: 'Alice', timestamp: 11, eventId: 'create-guarded-note',
+    })
+    expect(() => updateAutomationScenarioAnnotation(doc, manifest.id, {
+      expectedResearchRevision: createdScenario.researchRevision, annotationId: 'guarded-note', scenarioId: 'guarded-annotation',
+      expectedCurrentEventId: created.annotation.currentEventId, body: 'Stale research.', participantId: 'bob', displayName: 'Bob', timestamp: 12, eventId: 'stale-research-edit',
+    })).toThrow('Research state revision conflict')
+    expect(() => updateAutomationScenarioAnnotation(doc, manifest.id, {
+      expectedResearchRevision: created.researchRevision, annotationId: 'guarded-note', scenarioId: 'guarded-annotation',
+      expectedCurrentEventId: 'wrong-current-event', body: 'Stale annotation.', participantId: 'bob', displayName: 'Bob', timestamp: 13, eventId: 'stale-annotation-edit',
+    })).toThrow('Scenario annotation revision conflict')
+    expect(readScenarioAnnotations(getProjectSharedTypes(doc).discussions, 'guarded-annotation')?.[0].events).toHaveLength(1)
   })
 })

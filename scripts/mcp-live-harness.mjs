@@ -219,6 +219,67 @@ try {
     if (supportVote.structuredContent.vote.counts.support !== 1 || supportVote.structuredContent.vote.eventCount !== 1) throw new Error('Initial scenario vote was not projected correctly')
     if (opposeVote.structuredContent.vote.counts.support !== 0 || opposeVote.structuredContent.vote.counts.oppose !== 1 || opposeVote.structuredContent.vote.eventCount !== 2) throw new Error('Scenario re-vote did not preserve history and update the projection')
     if (inspectedVotes?.counts.support !== 0 || inspectedVotes?.counts.oppose !== 1 || inspectedVotes?.activeVoteCount !== 1 || inspectedVotes?.eventCount !== 2) throw new Error('Scenario vote state was not visible through bounded inspection')
+    const createdAnnotation = await session.tool('create_scenario_annotation', {
+      expectedResearchRevision: opposeVote.structuredContent.researchRevision,
+      annotationId: 'source-note',
+      scenarioId,
+      turnId: 'answer-turn',
+      kind: 'note',
+      body: 'Verify the cited source before accepting this answer.',
+      participantId: 'mcp-live-reviewer',
+      displayName: 'MCP live reviewer',
+    })
+    const updatedAnnotation = await session.tool('update_scenario_annotation', {
+      expectedResearchRevision: createdAnnotation.structuredContent.researchRevision,
+      annotationId: 'source-note',
+      scenarioId,
+      expectedCurrentEventId: createdAnnotation.structuredContent.annotation.currentEventId,
+      body: 'Source verified against the shared evidence.',
+      participantId: 'mcp-live-reviewer',
+      displayName: 'MCP live reviewer',
+    })
+    const resolvedAnnotation = await session.tool('set_scenario_annotation_resolution', {
+      expectedResearchRevision: updatedAnnotation.structuredContent.researchRevision,
+      annotationId: 'source-note',
+      scenarioId,
+      expectedCurrentEventId: updatedAnnotation.structuredContent.annotation.currentEventId,
+      resolved: true,
+      participantId: 'mcp-live-reviewer',
+      displayName: 'MCP live reviewer',
+    })
+    const reopenedAnnotation = await session.tool('set_scenario_annotation_resolution', {
+      expectedResearchRevision: resolvedAnnotation.structuredContent.researchRevision,
+      annotationId: 'source-note',
+      scenarioId,
+      expectedCurrentEventId: resolvedAnnotation.structuredContent.annotation.currentEventId,
+      resolved: false,
+      participantId: 'mcp-live-reviewer',
+      displayName: 'MCP live reviewer',
+    })
+    const staleAnnotationResearch = await session.tool('update_scenario_annotation', {
+      expectedResearchRevision: opposeVote.structuredContent.researchRevision,
+      annotationId: 'source-note',
+      scenarioId,
+      expectedCurrentEventId: reopenedAnnotation.structuredContent.annotation.currentEventId,
+      body: 'This stale research edit must not land.',
+      participantId: 'mcp-live-stale-reviewer',
+      displayName: 'MCP live stale reviewer',
+    }, true)
+    if (!staleAnnotationResearch.isError || !/Research state revision conflict/.test(staleAnnotationResearch.structuredContent?.error ?? '')) throw new Error('The live app did not reject stale research for an annotation edit')
+    const staleAnnotationEvent = await session.tool('update_scenario_annotation', {
+      expectedResearchRevision: reopenedAnnotation.structuredContent.researchRevision,
+      annotationId: 'source-note',
+      scenarioId,
+      expectedCurrentEventId: createdAnnotation.structuredContent.annotation.currentEventId,
+      body: 'This stale lifecycle edit must not land.',
+      participantId: 'mcp-live-stale-reviewer',
+      displayName: 'MCP live stale reviewer',
+    }, true)
+    if (!staleAnnotationEvent.isError || !/Scenario annotation revision conflict/.test(staleAnnotationEvent.structuredContent?.error ?? '')) throw new Error('The live app did not reject a stale annotation lifecycle event')
+    const stateAfterAnnotations = await session.tool('inspect_research_state')
+    const inspectedAnnotation = stateAfterAnnotations.structuredContent.researchState.scenarioAnnotations.items.find((item) => item.id === 'source-note' && item.scenarioId === scenarioId)
+    if (reopenedAnnotation.structuredContent.annotation.status !== 'open' || reopenedAnnotation.structuredContent.annotation.eventCount !== 4) throw new Error('Annotation reopen did not retain the full lifecycle')
+    if (inspectedAnnotation?.status !== 'open' || inspectedAnnotation?.eventCount !== 4 || inspectedAnnotation?.currentEventId !== reopenedAnnotation.structuredContent.annotation.currentEventId) throw new Error('Annotation lifecycle was not visible through bounded inspection')
     const saveArguments = {
       expectedDocumentRevision: readback.structuredContent.document.revision,
       participantId: 'mcp-live-harness',
@@ -248,6 +309,8 @@ try {
       scenarioTurnAddAndRevisionGuarded: true,
       scenarioVoteRevisionGuarded: true,
       staleScenarioVoteRejected: true,
+      scenarioAnnotationLifecycleGuarded: true,
+      staleScenarioAnnotationRejected: true,
       heuristicRecords: researchState.structuredContent.researchState.heuristics.totalRecords,
       versionRecords: researchState.structuredContent.researchState.versions.totalRecords,
       savedVersionId: savedVersion.structuredContent.version.versionId,

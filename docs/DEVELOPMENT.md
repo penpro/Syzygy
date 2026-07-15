@@ -93,7 +93,7 @@ node ..\scripts\mcp-harness.mjs --executable <absolute-Syzygy.exe>
 ```
 
 The harness compiles the real application binary, starts `app --mcp` over stdio, negotiates MCP
-`2025-11-25`, discovers its eighteen tools, checks notification framing and ping, calls a typed live
+`2025-11-25`, discovers its twenty-one tools, checks notification framing and ping, calls a typed live
 status result, then calls `syzygy_installation` without a GUI. That self-description must contain
 absolute executable/install-folder paths plus configuration and a connection prompt derived from
 the executable. Separate frontend tests prove structured Lexical reads, replace/append behavior,
@@ -115,10 +115,12 @@ asynchronous hash checks. Creation requires that exact revision, rechecks projec
 mutates the registered live Y.Doc synchronously. Add-turn and revise-turn require the revision from
 inspection or the immediately preceding mutation; revisions retain both authors and bodies. Stale
 tests prove zero scenario/turn writes. Rust routing and the packaged live harness cover the
-fifteenth through eighteenth tools. The voting gate chains support, re-vote, and withdrawal events,
+fifteenth through twenty-first tools. The voting gate chains support, re-vote, and withdrawal events,
 then proves a stale call adds no vote event; MCP output exposes aggregate counts, not voter bodies.
-This grants direct scenario content editing and attributed voting—not model generation,
-annotation mutation, authenticated identity, or gallery UI.
+The annotation gate chains create, edit, resolve, and reopen under both project-research and exact-
+current-event guards, then proves both conflict classes add no lifecycle event. MCP output and
+inspection omit every annotation body. This grants direct scenario content editing, attributed
+voting, and annotation lifecycle—not model generation, authenticated identity, or gallery UI.
 
 `versionAutomation.test.ts` adds the MCP checkpoint mutation gate. It proves semantic editor blocks
 become one immutable head, a stale document revision fails before hashing, a document revision that

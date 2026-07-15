@@ -243,6 +243,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   exact research revision, retains support/re-vote/withdrawal history, returns aggregate counts,
   and rejects stale calls without adding events. Identity remains unauthenticated and no UI or
   evaluation claim follows from the automation route.
+- Three annotation tools bring MCP discovery to twenty-one. They create scenario/turn flags or
+  notes, edit bodies, and resolve/reopen while retaining immutable lifecycle history. Edit and
+  status changes require both the current research revision and exact annotation event; stale
+  project or lifecycle calls add nothing. Bodies remain omitted from MCP readback and no UI,
+  moderation, or authenticated-identity claim is made.
 
 ## Current completion snapshot
 

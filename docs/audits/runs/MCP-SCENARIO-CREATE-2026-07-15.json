@@ -7,10 +7,10 @@
   "commands": ["npm run test:workspace", "npm run test:mcp", "npm run build", "npm run audit", "git diff --check"],
   "result": {
     "passed": true,
-    "workspaceTestsPassed": 75,
-    "scenarioAutomationTestsPassed": 7,
-    "rustMcpTestsPassed": 9,
-    "mcpToolsAdvertised": 18,
+    "workspaceTestsPassed": 77,
+    "scenarioAutomationTestsPassed": 9,
+    "rustMcpTestsPassed": 10,
+    "mcpToolsAdvertised": 21,
     "frontendModulesTransformed": 1000,
     "structuralAuditChecksPassed": 37,
     "externalNetworkUsed": false,
@@ -23,12 +23,13 @@
     "A valid call creates a bounded scenario and a second guarded call can create a branch only when the parent exists.",
     "Guarded add-turn and revise-turn operations chain returned revisions, retain earlier attributed turn bodies, and reject stale mutations without changing history.",
     "Guarded voting chains support, re-vote, and withdrawal events; aggregate projection updates while history is retained, and a stale revision adds no event.",
-    "Rust advertises and routes create_scenario, add_scenario_turn, revise_scenario_turn, and cast_scenario_vote as the fifteenth through eighteenth semantic MCP tools; compiled stdio discovery requires all four.",
-    "The packaged live harness chains unique scenario creation, turn add/revision, support/re-vote, bounded metadata readback, and stale rejection, but this run did not mutate the user profile."
+    "Annotation automation chains create, edit, resolve, and reopen under both the current research revision and exact annotation event; stale project/lifecycle calls add no event and bodies are omitted from readback.",
+    "Rust advertises and routes scenario creation, turn add/revise, voting, and annotation lifecycle as the fifteenth through twenty-first semantic MCP tools; compiled stdio discovery requires all seven.",
+    "The packaged live harness chains unique scenario creation, turn add/revision, support/re-vote, annotation create/edit/resolve/reopen, bounded metadata readback, and stale rejection, but this run did not mutate the user profile."
   ],
   "notProved": [
     "The installed packaged GUI completed the updated live mutation harness.",
-    "Model-driven scenario generation, annotation mutation, gallery UI, authenticated voting, or evaluation through MCP.",
+    "Model-driven scenario generation, gallery UI, authenticated voting/annotation identity, moderation, or evaluation through MCP.",
     "Authenticated participant identity, Drive/WebSocket project transport, or multi-install concurrency."
   ]
 }

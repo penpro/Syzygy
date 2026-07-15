@@ -75,14 +75,17 @@ The fake loopback provider captures the actual Rust HTTP request and fails unles
 uses the expected path, bearer header, `store:false`, bounded output, and approved disclosure. It
 also proves malformed output, unsafe non-TLS endpoints, rejected disclosure, provider error-body
 redaction, a bounded whole-request deadline (including a body stalled after headers), and idempotent
-in-flight cancellation. Passing this is request/control and stream-parser conformance, not live
-availability; product credential integration, network SSE dispatch, UI disclosure, and an opt-in
-live canary are separate gates.
+in-flight cancellation. The same fake server sends a real `text/event-stream` response in separated
+TCP writes; the transport checks `stream:true`/`store:false`, normalizes events incrementally,
+enforces terminal order and a total-byte ceiling, distinguishes sanitized provider failure, and
+cancels between dispatched events. Passing this is request/stream/control conformance, not live
+availability; product credential integration, the frontend event bridge, UI disclosure, and an
+opt-in live canary are separate gates.
 
 `npm run test:provider-streams` separately feeds the OpenAI decoder byte-by-byte and with
 multiline, unknown, malformed, mismatched, oversized, and truncated SSE fixtures. It proves parser
-normalization, not live network event dispatch; the cancellation proof wraps the one-shot transport
-and bounded body collection.
+normalization in isolation. `test:providers` separately proves the parser is fed through fake HTTP
+streaming and that the same controls wrap both one-shot and streamed transport.
 
 Run the explicit OS-store canary only when validating a desktop environment:
 

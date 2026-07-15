@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "runId": "OPENAI-NETWORK-STREAM-CONFORMANCE-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "request-and-stream-control-conformance",
+  "command": "npm run test:providers",
+  "result": {
+    "passed": true,
+    "providerBoundaryTestsPassed": 15,
+    "networkStreamTestsPassed": 4,
+    "loopbackFakeNetworkUsed": true,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "paidProviderCalls": 0
+  },
+  "regressionGates": {
+    "fullRustTestsPassed": 45,
+    "extensionContractTestsPassed": 14,
+    "frontendModulesTransformed": 989,
+    "structuralAuditChecksPassed": 19,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true
+  },
+  "proved": [
+    "the OpenAI streaming request sends stream:true and store:false through the Rust-owned HTTP boundary",
+    "a text/event-stream response written in separate TCP fragments is incrementally normalized, including a split inside a Unicode scalar",
+    "normalized start, text, usage, finish, and end events are delivered in order",
+    "wrong media type, missing terminal events, duplicate or invalid terminal order, and aggregate stream overflow fail closed",
+    "a provider error body is reduced to a sanitized code and returns a distinct remote-stream-failed result",
+    "caller cancellation takes effect while waiting between normalized stream events"
+  ],
+  "notProved": [
+    "the frontend event bridge or slow-consumer behavior under sustained output",
+    "function/tool call argument streaming or structured-output validation",
+    "retry-after, duplicate event IDs, reconnect, or resumption semantics",
+    "product credential integration or typed disclosure acceptance",
+    "a live OpenAI request or any model-quality property",
+    "Anthropic, Gemini, xAI, or custom provider streaming"
+  ]
+}

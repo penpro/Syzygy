@@ -97,7 +97,7 @@ mod tests {
         );
         assert_eq!(
             contracts["providerAdapterStatus"]["openai-responses"],
-            "request-stream-parser-control-conformance"
+            "request-and-stream-control-conformance"
         );
         assert_eq!(
             contracts["implementationStatus"]["credentialVault"],

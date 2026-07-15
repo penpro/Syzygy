@@ -167,16 +167,20 @@ record(
     providerRuntimeSource.includes('endpoint.scheme() == "https"') &&
     providerRuntimeSource.includes('ProviderError::Timeout') &&
     providerRuntimeSource.includes('ProviderError::Cancelled') &&
+    providerRuntimeSource.includes('execute_openai_stream_controlled') &&
+    providerRuntimeSource.includes('MAX_STREAM_BYTES') &&
+    providerRuntimeSource.includes('text/event-stream') &&
     providerRuntimeSource.includes('Abortable::new') &&
     providerRuntimeSource.includes('.timeout(execution.timeout)') &&
     providerStreamSource.includes('MAX_PENDING_BYTES') &&
     providerStreamSource.includes('ProviderWarning') &&
     providerStreamSource.includes('provider-error-body-canary') &&
-    platformContractsSource.includes('request-stream-parser-control-conformance') &&
+    platformContractsSource.includes('request-and-stream-control-conformance') &&
     platformContractsSource.includes('OPENAI_ADAPTER_STATUS') &&
     platformContractsSource.includes('"remoteProviderAdapters": "contract-only"') &&
-    !rustWiringSource.includes('model_provider::execute_openai_response'),
-  'storage-off, disclosure, TLS, bounded responses, timeout/cancellation, stream parsing, truthful status, and unwired-runtime gates present',
+    !rustWiringSource.includes('model_provider::execute_openai_response') &&
+    !rustWiringSource.includes('model_provider::execute_openai_stream_controlled'),
+  'storage-off, disclosure, TLS, bounded responses, timeout/cancellation, network stream dispatch, truthful status, and unwired-runtime gates present',
 )
 record(
   'provider credential vault remains isolated',

@@ -2,24 +2,26 @@
 //!
 //! The webview must never construct provider HTTP requests or receive provider credentials.
 //! This first executable slice certifies one-shot OpenAI Responses requests against a fake
-//! loopback server. Credential persistence, network-stream event dispatch, UI invocation, and
+//! loopback server. Product credential integration, frontend event delivery, UI invocation, and
 //! live-provider calls remain deliberately unavailable until their separate gates pass.
 
-#![allow(dead_code)] // The runtime remains intentionally unwired until credential-vault review.
+#![allow(dead_code)] // The runtime remains intentionally unwired until product-boundary review.
 
+use crate::provider_stream::{NormalizedStreamEvent, OpenAiSseDecoder};
 use futures_util::{
     future::{AbortHandle, AbortRegistration, Abortable},
     StreamExt,
 };
-use reqwest::{Client, Url};
+use reqwest::{header::CONTENT_TYPE, Client, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{fmt, time::Duration};
 use zeroize::Zeroize;
 
-pub const OPENAI_ADAPTER_STATUS: &str = "request-stream-parser-control-conformance";
+pub const OPENAI_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
 pub const DEFAULT_PROVIDER_TIMEOUT: Duration = Duration::from_secs(60);
 const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
+const MAX_STREAM_BYTES: usize = 32 * 1024 * 1024;
 const MAX_PROVIDER_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -188,6 +190,7 @@ pub enum ProviderError {
     InvalidExecution,
     Timeout,
     Cancelled,
+    RemoteStreamFailed,
     Transport,
     HttpStatus(u16),
     ResponseTooLarge,
@@ -230,6 +233,7 @@ impl fmt::Display for ProviderError {
             }
             Self::Timeout => formatter.write_str("Provider request timed out"),
             Self::Cancelled => formatter.write_str("Provider request was cancelled"),
+            Self::RemoteStreamFailed => formatter.write_str("Provider stream failed"),
             Self::Transport => formatter.write_str("Provider transport failed"),
             Self::HttpStatus(status) => write!(formatter, "Provider returned HTTP status {status}"),
             Self::ResponseTooLarge => {
@@ -248,6 +252,13 @@ fn classify_transport_error(error: &reqwest::Error) -> ProviderError {
     }
 }
 
+fn checked_stream_total(received_bytes: usize, chunk_bytes: usize) -> Result<usize, ProviderError> {
+    received_bytes
+        .checked_add(chunk_bytes)
+        .filter(|total| *total <= MAX_STREAM_BYTES)
+        .ok_or(ProviderError::ResponseTooLarge)
+}
+
 fn validate_endpoint(endpoint: &Url) -> Result<(), ProviderError> {
     let literal_loopback = matches!(endpoint.host_str(), Some("127.0.0.1" | "::1"));
     let allowed_scheme =
@@ -264,7 +275,7 @@ fn validate_endpoint(endpoint: &Url) -> Result<(), ProviderError> {
     Ok(())
 }
 
-fn openai_body(request: &GenerationRequest) -> Value {
+fn openai_body(request: &GenerationRequest, stream: bool) -> Value {
     json!({
         "model": request.model,
         "input": request.input.iter().map(|item| json!({
@@ -273,6 +284,7 @@ fn openai_body(request: &GenerationRequest) -> Value {
         })).collect::<Vec<_>>(),
         "max_output_tokens": request.max_output_tokens,
         "store": false,
+        "stream": stream,
     })
 }
 
@@ -393,7 +405,7 @@ pub async fn execute_openai_response_controlled(
             .timeout(execution.timeout)
             .bearer_auth(secret.expose())
             .header("content-type", "application/json")
-            .json(&openai_body(request))
+            .json(&openai_body(request, false))
             .send()
             .await
             .map_err(|error| classify_transport_error(&error))?;
@@ -409,11 +421,118 @@ pub async fn execute_openai_response_controlled(
         .map_err(|_| ProviderError::Cancelled)?
 }
 
+pub async fn execute_openai_stream_controlled<F>(
+    client: &Client,
+    endpoint: &Url,
+    secret: &ProviderSecret,
+    request: &GenerationRequest,
+    approval: &TransmissionApproval,
+    execution: ProviderExecution,
+    mut on_event: F,
+) -> Result<(), ProviderError>
+where
+    F: FnMut(NormalizedStreamEvent) -> Result<(), ProviderError>,
+{
+    validate_endpoint(endpoint)?;
+    request.validate()?;
+    approval.validate_for(RemoteProviderId::OpenAi)?;
+    let operation = async {
+        let response = client
+            .post(endpoint.clone())
+            .timeout(execution.timeout)
+            .bearer_auth(secret.expose())
+            .header("content-type", "application/json")
+            .json(&openai_body(request, true))
+            .send()
+            .await
+            .map_err(|error| classify_transport_error(&error))?;
+        if !response.status().is_success() {
+            return Err(ProviderError::HttpStatus(response.status().as_u16()));
+        }
+        let is_event_stream = response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.split(';').next())
+            .is_some_and(|value| value.trim().eq_ignore_ascii_case("text/event-stream"));
+        if !is_event_stream {
+            return Err(ProviderError::MalformedResponse);
+        }
+
+        let mut decoder = OpenAiSseDecoder::new();
+        let mut stream = response.bytes_stream();
+        let mut received_bytes = 0_usize;
+        let mut saw_start = false;
+        let mut saw_finish = false;
+        let mut saw_end = false;
+        let mut saw_provider_error = false;
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|error| classify_transport_error(&error))?;
+            received_bytes = checked_stream_total(received_bytes, chunk.len())?;
+            for event in decoder.push(&chunk)? {
+                match &event {
+                    NormalizedStreamEvent::MessageStart { .. } => {
+                        if saw_start || saw_finish || saw_end {
+                            return Err(ProviderError::MalformedResponse);
+                        }
+                        saw_start = true;
+                    }
+                    NormalizedStreamEvent::TextDelta { .. } => {
+                        if !saw_start || saw_finish || saw_end {
+                            return Err(ProviderError::MalformedResponse);
+                        }
+                    }
+                    NormalizedStreamEvent::Usage { .. } => {
+                        if !saw_start || saw_finish || saw_end {
+                            return Err(ProviderError::MalformedResponse);
+                        }
+                    }
+                    NormalizedStreamEvent::Finish { .. } => {
+                        if !saw_start || saw_finish || saw_end {
+                            return Err(ProviderError::MalformedResponse);
+                        }
+                        saw_finish = true;
+                    }
+                    NormalizedStreamEvent::StreamEnd => {
+                        if !saw_finish || saw_end {
+                            return Err(ProviderError::MalformedResponse);
+                        }
+                        saw_end = true;
+                    }
+                    NormalizedStreamEvent::ProviderWarning { .. } => {
+                        if saw_end {
+                            return Err(ProviderError::MalformedResponse);
+                        }
+                    }
+                    NormalizedStreamEvent::ProviderError { .. } => {
+                        if saw_end || saw_provider_error {
+                            return Err(ProviderError::MalformedResponse);
+                        }
+                        saw_provider_error = true;
+                    }
+                }
+                on_event(event)?;
+            }
+        }
+        decoder.finish()?;
+        if saw_provider_error {
+            return Err(ProviderError::RemoteStreamFailed);
+        }
+        if !saw_start || !saw_finish || !saw_end {
+            return Err(ProviderError::MalformedResponse);
+        }
+        Ok(())
+    };
+    Abortable::new(operation, execution.cancellation)
+        .await
+        .map_err(|_| ProviderError::Cancelled)?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::io::{Read, Write};
-    use std::net::TcpListener;
+    use std::net::{TcpListener, TcpStream};
     use std::sync::mpsc;
     use std::thread;
 
@@ -439,6 +558,36 @@ mod tests {
             content_categories: vec!["selected research excerpts".to_owned()],
             accepted: true,
         }
+    }
+
+    fn read_http_request(stream: &mut TcpStream) -> String {
+        let mut bytes = Vec::new();
+        let mut buffer = [0_u8; 2048];
+        let header_end;
+        loop {
+            let read = stream.read(&mut buffer).expect("read provider request");
+            assert!(read > 0, "provider request ended before headers");
+            bytes.extend_from_slice(&buffer[..read]);
+            if let Some(position) = bytes.windows(4).position(|window| window == b"\r\n\r\n") {
+                header_end = position + 4;
+                break;
+            }
+        }
+        let headers = String::from_utf8_lossy(&bytes[..header_end]);
+        let content_length = headers
+            .lines()
+            .find_map(|line| {
+                let (name, value) = line.split_once(':')?;
+                name.eq_ignore_ascii_case("content-length")
+                    .then(|| value.trim().parse::<usize>().expect("content length"))
+            })
+            .expect("content length header");
+        while bytes.len() < header_end + content_length {
+            let read = stream.read(&mut buffer).expect("read provider body");
+            assert!(read > 0, "provider request ended before body");
+            bytes.extend_from_slice(&buffer[..read]);
+        }
+        String::from_utf8(bytes).expect("UTF-8 request fixture")
     }
 
     fn fake_server(status: &str, body: &str) -> (Url, mpsc::Receiver<String>) {
@@ -473,34 +622,8 @@ mod tests {
         let body = body.to_owned();
         thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("accept provider request");
-            let mut bytes = Vec::new();
-            let mut buffer = [0_u8; 2048];
-            let header_end;
-            loop {
-                let read = stream.read(&mut buffer).expect("read provider request");
-                assert!(read > 0, "provider request ended before headers");
-                bytes.extend_from_slice(&buffer[..read]);
-                if let Some(position) = bytes.windows(4).position(|window| window == b"\r\n\r\n") {
-                    header_end = position + 4;
-                    break;
-                }
-            }
-            let headers = String::from_utf8_lossy(&bytes[..header_end]);
-            let content_length = headers
-                .lines()
-                .find_map(|line| {
-                    let (name, value) = line.split_once(':')?;
-                    name.eq_ignore_ascii_case("content-length")
-                        .then(|| value.trim().parse::<usize>().expect("content length"))
-                })
-                .expect("content length header");
-            while bytes.len() < header_end + content_length {
-                let read = stream.read(&mut buffer).expect("read provider body");
-                assert!(read > 0, "provider request ended before body");
-                bytes.extend_from_slice(&buffer[..read]);
-            }
             sender
-                .send(String::from_utf8(bytes).expect("UTF-8 request fixture"))
+                .send(read_http_request(&mut stream))
                 .expect("send captured request");
             match response_plan {
                 FakeResponsePlan::CompleteAfter(response_delay) => {
@@ -531,6 +654,42 @@ mod tests {
         });
         (
             Url::parse(&format!("http://{address}/v1/responses")).expect("fake URL"),
+            receiver,
+        )
+    }
+
+    fn fake_stream_server(
+        content_type: &str,
+        chunks: Vec<(Duration, Vec<u8>)>,
+    ) -> (Url, mpsc::Receiver<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback stream provider");
+        let address = listener.local_addr().expect("stream provider address");
+        let (sender, receiver) = mpsc::channel();
+        let content_type = content_type.to_owned();
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept stream request");
+            sender
+                .send(read_http_request(&mut stream))
+                .expect("send captured stream request");
+            let content_length = chunks.iter().map(|(_, chunk)| chunk.len()).sum::<usize>();
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\nContent-Length: {content_length}\r\nConnection: close\r\n\r\n"
+            )
+            .expect("write stream response headers");
+            stream.flush().expect("flush stream response headers");
+            for (delay, chunk) in chunks {
+                thread::sleep(delay);
+                if stream.write_all(&chunk).is_err() {
+                    break;
+                }
+                if stream.flush().is_err() {
+                    break;
+                }
+            }
+        });
+        (
+            Url::parse(&format!("http://{address}/v1/responses")).expect("stream fake URL"),
             receiver,
         )
     }
@@ -744,5 +903,231 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("cancel-secret-canary"));
+    }
+
+    #[test]
+    fn fake_network_stream_dispatches_normalized_events_and_storage_off_request() {
+        let fixture = concat!(
+            "event: response.created\n",
+            "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_stream\"}}\n\n",
+            "event: response.output_text.delta\n",
+            "data: {\"type\":\"response.output_text.delta\",\"delta\":\"Evidence: 雪\"}\n\n",
+            "data: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\",",
+            "\"usage\":{\"input_tokens\":9,\"output_tokens\":3,\"total_tokens\":12}}}\n\n",
+            "data: [DONE]\n\n"
+        )
+        .as_bytes()
+        .to_vec();
+        let snow = "雪".as_bytes();
+        let split = fixture
+            .windows(snow.len())
+            .position(|window| window == snow)
+            .expect("Unicode fixture")
+            + 1;
+        let chunks = vec![
+            (Duration::ZERO, fixture[..split].to_vec()),
+            (Duration::from_millis(5), fixture[split..].to_vec()),
+        ];
+        let (endpoint, captured) = fake_stream_server("text/event-stream; charset=utf-8", chunks);
+        let (execution, _cancellation) =
+            provider_execution(Duration::from_secs(2)).expect("execution controls");
+        let mut events = Vec::new();
+        tauri::async_runtime::block_on(execute_openai_stream_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("stream-wire-canary".to_owned()).expect("secret"),
+            &request(),
+            &approval(),
+            execution,
+            |event| {
+                events.push(event);
+                Ok(())
+            },
+        ))
+        .expect("normalized network stream");
+        assert_eq!(
+            events,
+            vec![
+                NormalizedStreamEvent::MessageStart {
+                    provider: RemoteProviderId::OpenAi,
+                    response_id: "resp_stream".to_owned(),
+                },
+                NormalizedStreamEvent::TextDelta {
+                    text: "Evidence: 雪".to_owned(),
+                },
+                NormalizedStreamEvent::Usage {
+                    usage: NormalizedUsage {
+                        input_tokens: 9,
+                        output_tokens: 3,
+                        total_tokens: 12,
+                    },
+                },
+                NormalizedStreamEvent::Finish {
+                    status: "completed".to_owned(),
+                },
+                NormalizedStreamEvent::StreamEnd,
+            ]
+        );
+        let raw = captured.recv().expect("captured stream request");
+        let (_, body) = raw.split_once("\r\n\r\n").expect("stream HTTP request");
+        let body: Value = serde_json::from_str(body).expect("stream request JSON");
+        assert_eq!(body["stream"], true);
+        assert_eq!(body["store"], false);
+    }
+
+    #[test]
+    fn fake_network_stream_rejects_wrong_media_type_and_missing_terminal_events() {
+        let complete =
+            b"data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp\"}}\n\n".to_vec();
+        let (endpoint, _captured) =
+            fake_stream_server("application/json", vec![(Duration::ZERO, complete.clone())]);
+        let (execution, _cancellation) =
+            provider_execution(Duration::from_secs(2)).expect("execution controls");
+        let wrong_type = tauri::async_runtime::block_on(execute_openai_stream_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("fixture-key".to_owned()).expect("secret"),
+            &request(),
+            &approval(),
+            execution,
+            |_| Ok(()),
+        ));
+        assert_eq!(wrong_type, Err(ProviderError::MalformedResponse));
+
+        let (endpoint, _captured) =
+            fake_stream_server("text/event-stream", vec![(Duration::ZERO, complete)]);
+        let (execution, _cancellation) =
+            provider_execution(Duration::from_secs(2)).expect("execution controls");
+        let truncated = tauri::async_runtime::block_on(execute_openai_stream_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("fixture-key".to_owned()).expect("secret"),
+            &request(),
+            &approval(),
+            execution,
+            |_| Ok(()),
+        ));
+        assert_eq!(truncated, Err(ProviderError::MalformedResponse));
+
+        let wrong_order = concat!(
+            "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp\"}}\n\n",
+            "data: [DONE]\n\n",
+            "data: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\"}}\n\n"
+        )
+        .as_bytes()
+        .to_vec();
+        let (endpoint, _captured) =
+            fake_stream_server("text/event-stream", vec![(Duration::ZERO, wrong_order)]);
+        let (execution, _cancellation) =
+            provider_execution(Duration::from_secs(2)).expect("execution controls");
+        let out_of_order = tauri::async_runtime::block_on(execute_openai_stream_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("fixture-key".to_owned()).expect("secret"),
+            &request(),
+            &approval(),
+            execution,
+            |_| Ok(()),
+        ));
+        assert_eq!(out_of_order, Err(ProviderError::MalformedResponse));
+    }
+
+    #[test]
+    fn stream_byte_accounting_rejects_limit_and_integer_overflow() {
+        assert_eq!(
+            checked_stream_total(MAX_STREAM_BYTES - 1, 1),
+            Ok(MAX_STREAM_BYTES)
+        );
+        assert_eq!(
+            checked_stream_total(MAX_STREAM_BYTES - 1, 2),
+            Err(ProviderError::ResponseTooLarge)
+        );
+        assert_eq!(
+            checked_stream_total(usize::MAX, 1),
+            Err(ProviderError::ResponseTooLarge)
+        );
+    }
+
+    #[test]
+    fn fake_network_stream_can_cancel_between_dispatched_events() {
+        let first = concat!(
+            "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_cancel\"}}\n\n",
+            "data: {\"type\":\"response.output_text.delta\",\"delta\":\"first\"}\n\n"
+        )
+        .as_bytes()
+        .to_vec();
+        let terminal = concat!(
+            "data: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\"}}\n\n",
+            "data: [DONE]\n\n"
+        )
+        .as_bytes()
+        .to_vec();
+        let (endpoint, _captured) = fake_stream_server(
+            "text/event-stream",
+            vec![
+                (Duration::ZERO, first),
+                (Duration::from_millis(250), terminal),
+            ],
+        );
+        let (execution, cancellation) =
+            provider_execution(Duration::from_secs(2)).expect("execution controls");
+        let cancellation_from_consumer = cancellation.clone();
+        let mut events = Vec::new();
+        let result = tauri::async_runtime::block_on(execute_openai_stream_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("stream-cancel-canary".to_owned()).expect("secret"),
+            &request(),
+            &approval(),
+            execution,
+            |event| {
+                let should_cancel = matches!(event, NormalizedStreamEvent::TextDelta { .. });
+                events.push(event);
+                if should_cancel {
+                    cancellation_from_consumer.cancel();
+                }
+                Ok(())
+            },
+        ));
+        assert_eq!(result, Err(ProviderError::Cancelled));
+        assert_eq!(events.len(), 2);
+        assert!(matches!(
+            events.last(),
+            Some(NormalizedStreamEvent::TextDelta { text }) if text == "first"
+        ));
+    }
+
+    #[test]
+    fn fake_network_stream_surfaces_sanitized_provider_error_and_fails_distinctly() {
+        let canary = "network-provider-error-body-canary";
+        let fixture = format!(
+            "data: {{\"type\":\"error\",\"code\":\"rate_limit\",\"message\":\"{canary}\"}}\n\n"
+        )
+        .into_bytes();
+        let (endpoint, _captured) =
+            fake_stream_server("text/event-stream", vec![(Duration::ZERO, fixture)]);
+        let (execution, _cancellation) =
+            provider_execution(Duration::from_secs(2)).expect("execution controls");
+        let mut events = Vec::new();
+        let result = tauri::async_runtime::block_on(execute_openai_stream_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new("fixture-key".to_owned()).expect("secret"),
+            &request(),
+            &approval(),
+            execution,
+            |event| {
+                events.push(event);
+                Ok(())
+            },
+        ));
+        assert_eq!(result, Err(ProviderError::RemoteStreamFailed));
+        assert_eq!(
+            events,
+            vec![NormalizedStreamEvent::ProviderError {
+                code: Some("rate_limit".to_owned())
+            }]
+        );
+        assert!(!format!("{events:?} {result:?}").contains(canary));
     }
 }

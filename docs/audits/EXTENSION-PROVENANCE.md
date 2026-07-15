@@ -10,7 +10,7 @@ boundaries. It is not a substitute for the generated release SBOM.
 | `ajv` | 8.20.0 exact | MIT | Draft 2020-12 validation for the non-executing plugin package certifier. Exact package-lock version; no remote schemas or generated plugin code are executed. |
 | `frontend/src-tauri/src/credential_vault.rs` | repository commit | Penumbra original / repository MIT | Narrow identifiers, sanitized error mapping, provider-neutral trait, native OS implementation, and memory contract tests. |
 | `frontend/src-tauri/src/bin/credential-harness.rs` | repository commit | Penumbra original / repository MIT | Opt-in live canary that verifies create/read/delete/absence and never prints the secret. |
-| `frontend/src-tauri/src/model_provider.rs` | repository commit | Penumbra original / repository MIT | Disclosure-gated OpenAI Responses request construction, provider-neutral output normalization, bounded deadlines, and caller-controlled cancellation. |
+| `frontend/src-tauri/src/model_provider.rs` | repository commit | Penumbra original / repository MIT | Disclosure-gated OpenAI Responses request/stream construction, provider-neutral HTTP event dispatch, bounded deadlines/bytes, and caller-controlled cancellation. |
 | `scripts/plugin-certifier.mjs`, its tests, and `examples/plugins/citation-auditor` | repository commit | Penumbra original / repository MIT | Bounded schema validation, real-path containment, proposal fixtures, authority probes, and interface-only example. |
 | `frontend/src/extensions/adversarialRunRecord.ts` and tests | repository commit | Penumbra original / repository MIT | Synthetic evidence-record validation and metrics; no external prompts, schemas, or product fixtures copied. |
 

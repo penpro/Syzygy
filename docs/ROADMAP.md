@@ -89,13 +89,15 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - The first remote-model execution boundary is now headlessly testable but not product-enabled.
   Rust constructs and normalizes an OpenAI Responses one-shot request, requires matching content
   disclosure, forces `store:false`, accepts only HTTPS or literal loopback test endpoints, bounds
-  the response, and sanitizes failures. A fake server captures the real wire request and ten tests
+  the response, and sanitizes failures. A fake server captures the real wire request and fifteen tests
   cover secret redaction, unsafe endpoints, disclosure, response parsing, and malformed/error
   responses. Its incremental SSE decoder now passes byte-fragmented Unicode, multiline, unknown
   future event, usage/finish, sanitized error, malformed, mismatched, oversized, and truncated
-  fixtures. Bounded request and stalled-body deadlines plus idempotent in-flight cancellation now
-  have fake-server evidence. The adapter is labeled `request-stream-parser-control-conformance`;
-  live network SSE dispatch, tools, UI disclosure, and opt-in proof remain gates before availability.
+  fixtures. Bounded request and stalled-body deadlines plus idempotent in-flight/inter-event
+  cancellation now have fake-server evidence. Real HTTP SSE chunks are incrementally normalized,
+  terminal order and aggregate size are enforced, and sanitized provider errors remain distinct.
+  The adapter is labeled `request-and-stream-control-conformance`; tools, the frontend event bridge,
+  UI disclosure, and opt-in live-provider proof remain gates before availability.
 - The provider credential vault is now implemented but not product-wired. Its provider-neutral
   trait passes an in-memory set/read/delete/error-redaction suite; secret strings zeroize on drop;
   and a Windows Credential Manager harness created, read, deleted, and independently proved absence
@@ -140,7 +142,7 @@ collaborators are not required to download large project folders.
      evaluation panel, mono metadata stamps).
 3. **Certify the open research platform boundary** — the first OpenAI fake-server/key-canary
    request/stream/control gates and Windows credential-vault canary have landed; next implement
-   live SSE dispatch and explicit disclosure UI before availability. Build the adversarial benchmark before
+   the typed frontend event/disclosure bridge before availability. Build the adversarial benchmark before
    claiming panel quality; implement a no-authority WASI host before loading third-party code.
 4. **Real collaboration on the folder** — Yjs doc persisted in the synced folder;
    merge-on-sync instead of last-write-wins; presence later. Drive is transport #1;

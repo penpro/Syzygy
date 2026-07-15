@@ -1,8 +1,8 @@
 # Model provider API
 
 **Contract version:** 1. **Runtime status:** local adapter available; OpenAI Responses request,
-bounded timeout/cancellation, and incremental stream normalization are at
-`request-stream-parser-control-conformance` and intentionally not product-callable; Anthropic,
+bounded timeout/cancellation, and fake-network incremental stream dispatch are at
+`request-and-stream-control-conformance` and intentionally not product-callable; Anthropic,
 Gemini, xAI, and custom remote adapters are contract-only.
 
 The canonical TypeScript contract is `frontend/src/extensions/providerContract.ts`. It prevents
@@ -49,9 +49,12 @@ The first OpenAI Responses slice lives in Rust and proves the exact `/v1/respons
 a loopback fake server: bearer authentication, `store:false`, bounded response collection,
 disclosure matching, literal-loopback-or-HTTPS endpoint policy, normalized output/usage, malformed
 response rejection, secret/error-body redaction, request and stalled-body timeout, and idempotent
-in-flight cancellation. Invalid or overlong timeout controls fail before transport. It does not yet
-wire saved keys into requests, dispatch live SSE events, handle streamed tools, expose a frontend
-command, or contact the live service. `syzygy_platform_contracts` reports this narrower status
+in-flight cancellation. Invalid or overlong timeout controls fail before transport. The network
+stream path verifies the SSE media type, feeds real HTTP byte chunks through the same decoder,
+enforces start/finish/end order and a 32 MiB aggregate ceiling, serially dispatches normalized
+events, distinguishes sanitized provider failure, and cancels between events. It does not yet wire
+saved keys into requests, handle streamed tools, expose a frontend command/event bridge, or contact
+the live service. `syzygy_platform_contracts` reports this narrower status
 without changing the aggregate remote runtime from `contract-only`.
 
 The incremental OpenAI SSE decoder accepts arbitrary byte fragmentation, including split Unicode;
@@ -59,9 +62,9 @@ joins multiline `data:` fields; ignores keepalives; validates optional SSE event
 the JSON event type; emits normalized start, text, usage, finish, error, and end events; preserves
 unknown future types as warnings; strips provider error messages; and bounds pending frames to one
 MiB. Malformed JSON, label mismatch, partial usage, oversized frames, and truncated streams fail
-closed. Function-call events, live network SSE dispatch, retry/duplicate semantics, and backpressure
-remain open. Cancellation currently covers the complete one-shot request/body future; the same
-control must wrap live event dispatch before streaming is product-callable.
+closed. Function-call events, retry/duplicate semantics, slow-consumer stress, and reconnect remain
+open. Cancellation covers the complete one-shot request/body future and the fake-network stream
+through normalized event dispatch; product wiring must preserve the same control boundary.
 
 The credential-vault boundary uses `keyring` 3.6.3 (MIT/Apache-2.0; MSRV 1.75) with native Windows,
 macOS, and persistent Linux backends. Provider secret strings zeroize on drop. The ordinary suite

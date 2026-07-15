@@ -18,6 +18,7 @@ const MODEL_ADAPTER_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-model-adapter-v1.schema.json");
 const MODEL_ADAPTER_CERTIFICATION_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-model-adapter-certification-v1.schema.json");
+const PLUGIN_WIT_CONTRACT: &str = include_str!("../../../docs/wit/syzygy-research-plugin-v1.wit");
 
 pub fn current() -> Result<Value, String> {
     let manifest_schema: Value = serde_json::from_str(PLUGIN_MANIFEST_SCHEMA)
@@ -49,6 +50,7 @@ pub fn current() -> Result<Value, String> {
             "adversarialRunner": "injected-runner-no-product-executor",
             "pluginCertifier": "contract-certified-runner",
             "pluginAuthorityBroker": "implemented-non-executing",
+            "pluginWitContract": "published-zero-imports-no-runtime",
             "pluginLoader": "contract-only"
         },
         "providerAdapterStatus": {
@@ -93,6 +95,8 @@ pub fn current() -> Result<Value, String> {
         ],
         "pluginManifestSchema": manifest_schema,
         "pluginProposalSchema": proposal_schema,
+        "pluginWitWorld": "syzygy:research/plugin@1.0.0",
+        "pluginWitContract": PLUGIN_WIT_CONTRACT,
         "adversarialRunRecordSchema": adversarial_run_schema,
         "providerRunRecordSchema": provider_run_schema,
         "modelAdapterProfileSchema": model_adapter_schema,
@@ -118,6 +122,7 @@ pub fn current() -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn embedded_contracts_are_strict_and_truthful() {
@@ -168,6 +173,17 @@ mod tests {
             "implemented-non-executing"
         );
         assert_eq!(
+            contracts["implementationStatus"]["pluginWitContract"],
+            "published-zero-imports-no-runtime"
+        );
+        assert_eq!(contracts["pluginWitWorld"], "syzygy:research/plugin@1.0.0");
+        assert!(contracts["pluginWitContract"]
+            .as_str()
+            .is_some_and(|wit| wit.contains("world plugin")
+                && !wit
+                    .lines()
+                    .any(|line| line.trim_start().starts_with("import "))));
+        assert_eq!(
             contracts["implementationStatus"]["adversarialRecordValidator"],
             "implemented"
         );
@@ -214,6 +230,30 @@ mod tests {
         assert_eq!(
             contracts["modelAdapterCertificationSchema"]["additionalProperties"],
             false
+        );
+    }
+
+    #[test]
+    fn plugin_wit_parses_as_one_zero_import_world() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../docs/wit/syzygy-research-plugin-v1.wit");
+        let mut resolve = wit_parser::Resolve::default();
+        let (package_id, _) = resolve
+            .push_path(&path)
+            .expect("WIT should parse and resolve");
+        let world_id = *resolve.packages[package_id]
+            .worlds
+            .get("plugin")
+            .expect("plugin world should exist");
+        let world = &resolve.worlds[world_id];
+        assert!(
+            world.imports.is_empty(),
+            "baseline world must import no authority"
+        );
+        assert_eq!(
+            world.exports.len(),
+            1,
+            "baseline world exports one interface"
         );
     }
 }

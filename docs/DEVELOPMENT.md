@@ -184,6 +184,15 @@ npm run test:plugin-host
 npm run certify:plugin -- ..\examples\plugins\citation-auditor
 ```
 
+`npm run test:contracts` also checks the published
+`docs/wit/syzygy-research-plugin-v1.wit` zero-import world and its bounded invocation/result
+validators. The Rust platform-contract suite uses pinned `wit-parser` 0.223.1 to resolve the public
+package and prove the world has zero imports and one export. TypeScript proves unknown/ambient
+fields, duplicate source identity, unbounded/cyclic payloads,
+direct mutation, and malformed proposals fail closed. It does not instantiate WebAssembly; MCP and
+the structural audit must continue to report `published-zero-imports-no-runtime` until a real host
+passes resource, trap, and denied-import tests.
+
 The first command tests schema rejection, real-path containment, wildcard-domain semantics, and
 undeclared-authority denial. The second emits a JSON certification report for the interface-only
 example. Neither command executes plugin code; runtime/WASI certification remains a separate gate.

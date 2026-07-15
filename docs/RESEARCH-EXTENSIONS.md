@@ -72,6 +72,13 @@ run/source-ID/route scope, unique call identity, and route plus total budgets un
 No consumer exists, so it binds no actual task bytes, reads no credential, and cannot execute a
 call.
 
+The researcher-plugin side now publishes `syzygy:research/plugin@1.0.0` as a zero-import WIT
+world. It receives only a bounded optional project snapshot and returns only no-change or typed
+revision-guarded proposals. The same envelope is validated in TypeScript and the WIT source is
+embedded in the MCP platform contract. This establishes a portable least-authority interface;
+component binary inspection, resource limits, instantiation, and denied-operation runtime proof
+remain open.
+
 ## Benchmark before product claims
 
 Build a versioned fixture corpus with public/licensed source packets and answer keys where

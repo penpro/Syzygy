@@ -12,7 +12,7 @@ const manifest: ResearchPluginManifest = {
   name: 'Citation auditor',
   version: '1.0.0',
   description: 'Checks cited claims and proposes a review note.',
-  runtime: { kind: 'wasi-component', component: 'citation-auditor.wasm', world: 'syzygy:research/plugin' },
+  runtime: { kind: 'wasi-component', component: 'citation-auditor.wasm', world: 'syzygy:research/plugin@1.0.0' },
   permissions: {
     capabilities: ['project.read', 'project.propose', 'network.fetch'],
     networkDomains: ['doi.org', '*.crossref.org'],

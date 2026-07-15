@@ -480,6 +480,11 @@ subset, returns detached bounded snapshots, accepts only pending exact-revision 
 issues non-executing Drive/network/model decisions with target/disclosure/provenance recheck flags.
 It contains no loader or external operation and is reported separately from `pluginLoader`.
 
+The first public WIT contract is also landed as `syzygy:research/plugin@1.0.0`. It has no imports,
+accepts a bounded optional project snapshot, and returns only no-change or revision-guarded
+proposals. The exact source is headlessly inspectable through MCP. No WebAssembly parser, loader,
+resource limiter, or component execution is claimed yet.
+
 Gate: unknown/undeclared authority fails closed; WASI begins with no project, Drive, network,
 model, or filesystem access; native MCP is never described as sandboxed; all mutations are bounded
 revision-guarded proposals with a human-visible diff and attribution.

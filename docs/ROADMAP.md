@@ -119,6 +119,14 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   no loader, fetch, provider call, Drive call, or mutation is wired. WASI/native hosts, install
   lifecycle, DNS/redirect enforcement, UI, and runtime failure tests remain open.
   Evidence: `docs/audits/runs/PLUGIN-AUTHORITY-BROKER-2026-07-15.json`.
+- The public `syzygy:research/plugin@1.0.0` WIT world now has zero host imports and one bounded
+  invocation/output surface. Tests reject ambient fields, duplicate sources, cyclic/oversized
+  envelopes, direct mutation, and malformed proposals; pinned upstream `wit-parser` resolves one
+  zero-import/one-export world; MCP embeds the exact WIT and reports
+  `published-zero-imports-no-runtime`. Component parsing/instantiation, import inspection,
+  fuel/memory/time limits, traps, install lifecycle, and any capability-bearing WIT world remain
+  open. This is an interface proof, not sandbox execution.
+  Evidence: `docs/audits/runs/PLUGIN-WIT-CONTRACT-2026-07-15.json`.
 - The adversarial protocol now has an executable run-record validator and synthetic benchmark
   fixture. Eight tests enforce blinded artifacts, complete candidates/critiques, claim-level source
   audits, planned reversed judge order, equal actual call budgets, supported-minority retention,

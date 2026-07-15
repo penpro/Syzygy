@@ -7,7 +7,7 @@
   "runtime": {
     "kind": "wasi-component",
     "component": "citation-auditor.component",
-    "world": "syzygy:research/plugin"
+    "world": "syzygy:research/plugin@1.0.0"
   },
   "permissions": {
     "capabilities": ["project.read", "project.propose", "network.fetch"],

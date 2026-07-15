@@ -126,6 +126,12 @@ short-lived in-memory session. It returns detached project snapshots, pending re
 proposals, and narrow Drive/network/model authorization decisions, but contains no loader, fetch,
 provider call, Drive call, or mutation implementation.
 
+The first plugin WIT world is a separate public contract with zero imports. It accepts only a
+bounded typed invocation and exports only no-change or proposal output; TypeScript validates the
+same envelope before the future host may call the authority broker. The world is embedded in MCP
+for installed-binary inspection. No component loader/runtime is present, so this is not a sandbox
+availability claim.
+
 | What | Where |
 |---|---|
 | Settings, experts, ask threads | localStorage key `syzygy` (webview) |

@@ -1,0 +1,53 @@
+package syzygy:research@1.0.0;
+
+/// The first Syzygy plugin world has no imports. A component implementing this world cannot ask
+/// the host for clocks, randomness, files, sockets, environment variables, Drive, models, or
+/// project mutation. The host passes only the bounded invocation the user authorized.
+interface research-plugin {
+  record source-snapshot {
+    snapshot-id: string,
+    label: string,
+    content: string,
+  }
+
+  record project-snapshot {
+    project-id: string,
+    revision: string,
+    document-text: string,
+    sources: list<source-snapshot>,
+  }
+
+  record invocation {
+    invocation-version: u32,
+    plugin-id: string,
+    contribution-id: string,
+    project: option<project-snapshot>,
+  }
+
+  enum proposal-operation {
+    append,
+    replace,
+  }
+
+  record change-proposal {
+    proposal-version: u32,
+    proposal-id: string,
+    plugin-id: string,
+    project-id: string,
+    expected-revision: string,
+    summary: string,
+    content: string,
+    operation: proposal-operation,
+  }
+
+  variant output {
+    no-change(string),
+    proposals(list<change-proposal>),
+  }
+
+  run: func(input: invocation) -> result<output, string>;
+}
+
+world plugin {
+  export research-plugin;
+}

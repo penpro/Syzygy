@@ -148,6 +148,9 @@ record(
 const pluginCertifierSource = text('scripts/plugin-certifier.mjs')
 const pluginAuthorityBrokerSource = text('frontend/src/extensions/pluginAuthorityBroker.ts')
 const pluginAuthorityBrokerTestSource = text('frontend/src/extensions/pluginAuthorityBroker.test.ts')
+const pluginWasiContractSource = text('frontend/src/extensions/pluginWasiContract.ts')
+const pluginWasiContractTestSource = text('frontend/src/extensions/pluginWasiContract.test.ts')
+const pluginWitSource = text('docs/wit/syzygy-research-plugin-v1.wit')
 record(
   'plugin package certification remains non-executing',
   rootPackage.devDependencies?.ajv === '8.20.0' &&
@@ -178,6 +181,26 @@ record(
     platformContractsSource.includes('"pluginAuthorityBroker": "implemented-non-executing"') &&
     platformContractsSource.includes('"pluginLoader": "contract-only"'),
   'short-lived explicit grants, detached snapshots, pending revision-guarded proposals, target-only decisions, sanitized denial, and no runtime/network/model execution',
+)
+record(
+  'plugin WIT contract is versioned, bounded, proposal-only, and zero-import',
+  pluginWitSource.includes('package syzygy:research@1.0.0;') &&
+    pluginWitSource.includes('world plugin') &&
+    pluginWitSource.includes('export research-plugin;') &&
+    !/^\s*import\s/m.test(pluginWitSource) &&
+    pluginWasiContractSource.includes("RESEARCH_PLUGIN_WIT_WORLD") &&
+    pluginWasiContractSource.includes('MAX_INVOCATION_BYTES') &&
+    pluginWasiContractSource.includes('validatePluginChangeProposal') &&
+    pluginWasiContractSource.includes("kind: 'no-change'") &&
+    pluginWasiContractSource.includes("kind: 'proposals'") &&
+    pluginWasiContractTestSource.includes('rejects ambient fields') &&
+    pluginWasiContractTestSource.includes('directly mutating plugin output') &&
+    cargoManifestSource.includes('wit-parser = "=0.223.1"') &&
+    platformContractsSource.includes('plugin_wit_parses_as_one_zero_import_world') &&
+    platformContractsSource.includes('world.imports.is_empty()') &&
+    platformContractsSource.includes('"pluginWitContract": "published-zero-imports-no-runtime"') &&
+    platformContractsSource.includes('"pluginWitWorld": "syzygy:research/plugin@1.0.0"'),
+  'pinned upstream parser resolves one zero-import world; typed envelopes cap snapshots/output and accept only no-change or schema-validated revision-guarded proposals; no runtime is claimed',
 )
 const adversarialRecordSource = text('frontend/src/extensions/adversarialRunRecord.ts')
 const adversarialRunnerSource = text('frontend/src/extensions/adversarialRunner.ts')

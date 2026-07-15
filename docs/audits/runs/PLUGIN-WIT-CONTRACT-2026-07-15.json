@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "runId": "PLUGIN-WIT-CONTRACT-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "published-zero-imports-no-runtime",
+  "commands": [
+    "npm run test:contracts",
+    "npm run test:plugin-sdk",
+    "cargo test --manifest-path src-tauri/Cargo.toml",
+    "cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check",
+    "npm run build",
+    "npm run audit",
+    "npm run test:mcp",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "extensionTestsPassed": 43,
+    "extensionTestsSkipped": 1,
+    "pluginPackageTestsPassed": 4,
+    "fullRustLibraryTestsPassed": 71,
+    "fullRustBinaryHarnessTestsPassed": 4,
+    "frontendModulesTransformed": 990,
+    "structuralAuditChecksPassed": 28,
+    "mcpToolCount": 12,
+    "mcpProtocolClean": true,
+    "externalNetworkUsedByTests": false,
+    "pluginBinariesExecuted": 0,
+    "realCredentialsUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "The public syzygy:research/plugin@1.0.0 WIT source declares one world and no host imports.",
+    "Pinned Bytecode Alliance wit-parser 0.223.1 parses and resolves that package as one zero-import world with one exported interface.",
+    "The invocation envelope permits only version, plugin identity, contribution identity, and an optional bounded project/source snapshot.",
+    "Unknown ambient fields, malformed identity, duplicate sources, cyclic serialization, and oversized project/source/envelope content fail closed.",
+    "Output is either a bounded non-empty no-change reason or one to 32 existing schema-validated revision-guarded proposals.",
+    "Direct-mutation markers, unknown output kinds/fields, empty proposal batches, and malformed proposals fail closed.",
+    "The existing manifest schema remains compatible; the example opts into the versioned reference world without claiming its marker artifact is executable.",
+    "MCP embeds the exact WIT source and world identifier while reporting published-zero-imports-no-runtime.",
+    "The structural audit locks parser use, zero imports, bounded envelopes, proposal validation, and truthful runtime status."
+  ],
+  "notProved": [
+    "The example marker is a valid WebAssembly component or implements the published world.",
+    "Any component is discovered, installed, parsed as a binary, instantiated, or executed.",
+    "A runtime enforces memory, fuel, wall-time, stdout/stderr, trap, cancellation, or output-flood limits.",
+    "A runtime rejects unexpected component imports or denies filesystem, network, environment, clock, randomness, Drive, or model access.",
+    "A plugin invocation is connected to the authority broker or product UI.",
+    "Native MCP plugin lifecycle, signing, upgrades, marketplace behavior, or third-party plugin usefulness."
+  ]
+}

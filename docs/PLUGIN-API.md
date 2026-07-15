@@ -1,8 +1,9 @@
 # Research plugin API
 
 **Manifest version:** 1. **Runtime status:** strict schemas/validators, a non-executing package
-certifier, and a non-executing host authority broker are implemented; discovery, installation,
-WASI/native execution, and UI are not yet implemented.
+certifier, a non-executing host authority broker, and a versioned zero-import WIT world with
+bounded TypeScript envelopes are implemented; discovery, installation, WASI/native execution, and
+UI are not yet implemented.
 
 The API is deliberately contribution-open and authority-closed. Researchers can add tools,
 evaluators, importers, and exporters without receiving ambient project, Drive, network, model, or
@@ -17,6 +18,8 @@ filesystem access.
 - Compatible model-adapter schemas: `docs/schemas/syzygy-model-adapter-*.schema.json`
 - Runtime validator/types: `frontend/src/extensions/pluginManifest.ts`
 - Host authority broker: `frontend/src/extensions/pluginAuthorityBroker.ts`
+- Zero-import WIT world: `docs/wit/syzygy-research-plugin-v1.wit`
+- WIT invocation/output validator: `frontend/src/extensions/pluginWasiContract.ts`
 - Headless package certifier: `scripts/plugin-certifier.mjs`
 - Complete interface-only example: `examples/plugins/citation-auditor`
 - Machine-readable inspection: MCP tool `syzygy_platform_contracts`
@@ -33,7 +36,7 @@ Example:
   "runtime": {
     "kind": "wasi-component",
     "component": "citation-auditor.wasm",
-    "world": "syzygy:research/plugin"
+    "world": "syzygy:research/plugin@1.0.0"
   },
   "permissions": {
     "capabilities": ["project.read", "project.propose", "network.fetch"],
@@ -99,8 +102,13 @@ Evidence and explicit non-claims:
 ## Runtime tiers
 
 1. `wasi-component` is preferred. Components begin without ambient authority; Syzygy links only
-   the approved host interfaces. The future WIT world will version project snapshots, proposals,
-   logging, bounded HTTP, and provider calls independently.
+   the approved host interfaces. The published `syzygy:research/plugin@1.0.0` world deliberately
+   imports nothing and exports one typed `run` function. Its invocation can contain only plugin and
+   contribution identity plus an optional bounded project snapshot; its result is either a bounded
+   no-change reason or revision-guarded proposals. The host must omit the project when
+   `project.read` is absent and must pass every proposal through the authority broker. A later
+   capability world may version logging, bounded HTTP, Drive, and provider calls independently;
+   those interfaces are not smuggled into the baseline world.
 2. `mcp-stdio` is an advanced native-process tier. It can be useful for Python/R workflows and
    existing MCP servers, but the OS process is outside the WASI sandbox. Installation must show a
    stronger warning, exact executable/arguments, publisher/hash, and requested Syzygy permissions.
@@ -108,6 +116,28 @@ Evidence and explicit non-claims:
 No plugin JavaScript executes inside the Tauri webview. A UI contribution is declarative data
 rendered by Syzygy components and theme tokens; arbitrary HTML, script, CSS, and active URLs are
 rejected.
+
+The WIT file is embedded verbatim in `syzygy_platform_contracts`, alongside the world identifier
+and the truthful status `published-zero-imports-no-runtime`. A pinned parser-only Bytecode Alliance
+`wit-parser` test resolves the package and proves the world has zero imports and one export;
+contract tests also prove the JSON-side envelopes reject unknown fields, duplicate source identity,
+cyclic/unbounded payloads, direct-mutation output, empty/oversized proposal batches, and malformed
+revision guards. This proves an interface, not a WebAssembly binary or sandbox runtime. Before the
+status can advance, a real component host must inspect component imports, enforce memory/fuel/time
+limits, contain traps and output floods, and prove denied filesystem/network/environment/clock/
+random access.
+
+Design basis: the upstream Component Model describes WIT worlds as the strict import/export
+boundary and explicitly notes that a component without a relevant import cannot access that host
+capability. WIT itself specifies contracts rather than behavior. Reviewers should compare this
+design against the primary references:
+
+- <https://component-model.bytecodealliance.org/design/worlds.html>
+- <https://component-model.bytecodealliance.org/design/wit.html>
+- <https://component-model.bytecodealliance.org/design/components.html>
+
+Reproducible results and non-claims are recorded in
+`docs/audits/runs/PLUGIN-WIT-CONTRACT-2026-07-15.json`.
 
 ## Mutation protocol
 

@@ -117,7 +117,8 @@ MCP host
   certifier is `contract-certified-runner`, while provider-run and adversarial record validators are
   reported separately as `implemented` without implying product model calls run;
   the in-process plugin authority broker is `implemented-non-executing` without implying a plugin
-  can be installed or loaded;
+  can be installed or loaded; the embedded `syzygy:research/plugin@1.0.0` WIT source is reported as
+  `published-zero-imports-no-runtime`, and the harness rejects any host import or runtime claim;
   it returns no key, provider account, project content, or Drive credential.
 
 ## Executable evidence

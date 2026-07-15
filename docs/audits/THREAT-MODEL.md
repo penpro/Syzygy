@@ -88,4 +88,10 @@ versions/evaluation evidence.
   consumption ships, tests must bind actual question/source/task/artifact bytes to the approved
   scope, recheck expiry/revocation immediately before vault/network access, preserve per-call
   provenance, and fail closed under parallel calls.
+- A WIT file is not a sandbox by itself. The published plugin baseline has no imports and bounded
+  typed input/output validators, which prevents the contract from naming filesystem, network,
+  environment, clock, randomness, Drive, model, or mutation authority. A future host must still
+  reject components with unexpected imports, enforce memory/fuel/wall-time/output ceilings,
+  contain traps, and pass the plugin output through the authority broker. Until then the status is
+  `published-zero-imports-no-runtime`.
 - Claiming S-01 verified before the live Drive→local-model harness passes is a documentation defect.

@@ -53,3 +53,7 @@ keyring = { version = "=3.6.3", default-features = false, features = ["linux-nat
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
+
+[dev-dependencies]
+# Parser-only test dependency. 0.223.1 keeps the repository's Rust 1.77.2 floor.
+wit-parser = "=0.223.1"

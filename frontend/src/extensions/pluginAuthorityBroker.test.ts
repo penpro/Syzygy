@@ -13,7 +13,7 @@ const manifest: ResearchPluginManifest = {
   name: 'Research helper',
   version: '1.0.0',
   description: 'Exercises the open host authority contract.',
-  runtime: { kind: 'wasi-component', component: 'research-helper.wasm', world: 'syzygy:research/plugin' },
+  runtime: { kind: 'wasi-component', component: 'research-helper.wasm', world: 'syzygy:research/plugin@1.0.0' },
   permissions: {
     capabilities: ['project.read', 'project.propose', 'drive.read', 'network.fetch', 'model.invoke'],
     networkDomains: ['doi.org', '*.crossref.org'],

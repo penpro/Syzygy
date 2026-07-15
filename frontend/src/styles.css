@@ -2378,7 +2378,7 @@ input.workspace-title-input:focus {
 }
 .workspace-grid {
   display: grid;
-  grid-template-columns: minmax(138px, 0.58fr) minmax(420px, 3.4fr) minmax(210px, 1fr);
+  grid-template-columns: minmax(138px, 0.58fr) minmax(420px, 3.4fr) minmax(260px, 1.18fr);
   flex: 1;
   min-height: 0;
 }
@@ -2409,6 +2409,78 @@ input.workspace-title-input:focus {
   padding-top: 12px;
   border-top: 1px solid var(--border);
   line-height: 1.8;
+}
+.remote-review {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.remote-review-intro {
+  margin: 10px 0 14px;
+}
+.remote-review label {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+.remote-review input,
+.remote-review select,
+.remote-review textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+  color: var(--text);
+  font: inherit;
+}
+.remote-review input,
+.remote-review select {
+  min-height: 34px;
+  padding: 6px 8px;
+}
+.remote-review textarea {
+  min-height: 100px;
+  padding: 8px;
+  line-height: 1.45;
+  resize: vertical;
+}
+.remote-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 11px;
+}
+.remote-review-status {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.remote-review-status.error {
+  color: var(--danger);
+}
+.remote-review-result {
+  margin-top: 13px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+}
+.remote-review-result-meta,
+.remote-review-retention {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+.remote-review-result-text {
+  margin: 8px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.55;
 }
 .workspace-rail-node {
   position: relative;

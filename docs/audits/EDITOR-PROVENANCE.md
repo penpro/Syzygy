@@ -34,6 +34,8 @@
 | `frontend/src/workspace/nodes/PolicyBlockNode.ts` | Penumbra original | Stable-identity editable policy statement node with review state and strict JSON round-trip |
 | `frontend/src/workspace/ResearchEditor.tsx` | Penumbra original | Original Syzygy editor composition, formatting toolbar, and local provider wiring |
 | `frontend/src/workspace/WorkspaceView.tsx` | Penumbra original | Original three-column research workspace scaffold |
+| `frontend/src/workspace/RemoteResearchReview.tsx` | Penumbra original | Optional single-provider review UI with native disclosure, cancellation, and non-mutating result presentation |
+| `frontend/src/workspace/remoteResearchTask.ts` | Penumbra original | Exact-draft content-addressed remote review envelope with editable current provider model defaults |
 | `frontend/src/workspace/editorAutomation.ts` | Penumbra original | Semantic live-editor controller, deterministic text-block adapter, and optimistic revision guard |
 | `frontend/src/workspace/editorAutomationRegistry.ts` | Penumbra original | Lightweight active-editor capability registry that preserves lazy workspace loading |
 | `frontend/src/workspace/workspaceAutomationRegistry.ts` | Penumbra original | Identity-safe lifecycle registry exposing only the active collaboration document to internal semantic automation |

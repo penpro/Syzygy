@@ -530,7 +530,7 @@ model, or filesystem access; native MCP is never described as sandboxed; all mut
 revision-guarded proposals with a human-visible diff and attribution.
 
 Machine-readable inspection is available through `syzygy_platform_contracts`. It must distinguish
-the native-disclosure research envelope with no product caller from product availability, report
+the native-disclosure research envelope and bounded single-review caller separately from live product availability, report
 adversarial execution as `injected-runner-no-product-executor`, and continue returning
 `native-scoped-authorizer-no-product-executor` for provider batch authorization, plus
 `internal-atomic-reservation-no-executor` for the private budget boundary, plus
@@ -539,10 +539,11 @@ adversarial execution as `injected-runner-no-product-executor`, and continue ret
 Progress: OpenAI Responses one-shot request construction, bounded whole-operation timeout,
 idempotent in-flight/inter-event cancellation, and fake-network incremental SSE dispatch now pass
 unwired Rust conformance suites and are reported as `request-and-stream-control-conformance`.
-Aggregate remote execution is now `native-disclosure-command-no-product-ui`: the registered
+Aggregate remote execution is now `native-disclosure-single-review-ui-no-live-proof`: the registered
 one-shot task bridge retrieves an OS-vault credential, applies native one-use
 disclosure/timeout/cancellation controls, normalizes the response, and authors content-free
-provenance. No product component calls it; streamed tools and opt-in live evidence are also open.
+provenance. One workspace component calls it for a non-mutating exact-draft review; streamed tools,
+adversarial batch execution, and opt-in live evidence are also open.
 The cross-language record gate now passes: the Rust loopback execution record is explicitly marked
 as conformance evidence and passes both the public TypeScript schema and semantic validator without
 leaking its secret or prompt canaries.

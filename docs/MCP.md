@@ -151,7 +151,7 @@ MCP host
   Messages, Gemini Interactions, and xAI Responses as the narrower `request-control-conformance`.
   It reports the OS-vault Settings surface as `settings-vault-ui`, the native-disclosure one-shot task
   bridge as `native-disclosure-research-envelope`, and aggregate remote execution as
-  `native-disclosure-command-no-product-ui`. MCP itself has no provider-generation or credential
+  `native-disclosure-single-review-ui-no-live-proof`. MCP itself has no provider-generation or credential
   tool and therefore cannot bypass the native send boundary. It reports adversarial batch
   authorization as `native-scoped-authorizer-no-product-executor`; the authorizer itself is not an
   MCP tool and has no call consumer. It separately reports its private concurrency-tested budget

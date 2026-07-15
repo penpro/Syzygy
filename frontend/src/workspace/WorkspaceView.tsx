@@ -1,5 +1,6 @@
 import { useStore } from '../store'
 import { ResearchEditor } from './ResearchEditor'
+import { RemoteResearchReview } from './RemoteResearchReview'
 
 export function WorkspaceView() {
   const projects = useStore((state) => state.projects)
@@ -54,6 +55,7 @@ export function WorkspaceView() {
           <p>Private experimentation, shared scenario references, and evaluations will use the project’s reserved CRDT collections.</p>
           <button className="btn" type="button" disabled>Add scenario</button>
           <div className="workspace-contract mono">scenarios · heuristics · discussions</div>
+          <RemoteResearchReview project={project} />
         </aside>
       </div>
     </section>

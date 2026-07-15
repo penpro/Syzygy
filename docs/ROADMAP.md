@@ -87,7 +87,7 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   Lexical node-map enumeration rather than root document order. The corrected oracle passes and
   is documented in the run evidence. P-03 is `implemented_unverified`; P-10 still requires real
   pointer and keyboard controls plus interaction testing.
-- The first remote-model execution boundary is now headlessly testable but not product-enabled.
+- The first remote-model execution boundary is now headlessly testable with a bounded product caller.
   Rust constructs and normalizes an OpenAI Responses one-shot request, requires matching content
   disclosure, forces `store:false`, accepts only HTTPS or literal loopback test endpoints, bounds
   the response, and sanitizes failures. A fake server captures the real wire request and fifteen tests
@@ -97,8 +97,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   fixtures. Bounded request and stalled-body deadlines plus idempotent in-flight/inter-event
   cancellation now have fake-server evidence. Real HTTP SSE chunks are incrementally normalized,
   terminal order and aggregate size are enforced, and sanitized provider errors remain distinct.
-  The adapter is labeled `request-and-stream-control-conformance`; tools, the frontend event bridge,
-  product workflow UI, and opt-in live-provider proof remain gates before availability.
+  The adapter is labeled `request-and-stream-control-conformance`; tools, the frontend streaming
+  event bridge, and opt-in live-provider proof remain gates before broader availability.
 - The provider credential vault now has a collapsed product Settings caller. Its provider-neutral
   trait passes an in-memory set/read/delete/error-redaction suite; secret strings zeroize on drop;
   and a Windows Credential Manager harness created, read, deleted, and independently proved absence
@@ -179,7 +179,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   always asks through a Rust-owned native **Send once** dialog; approval is absent from the request,
   and denial is proven to avoid both vault reads and network. The public request carries a
   structured question plus labeled source snapshots; Rust derives disclosure categories and unique
-  provenance IDs from the same serialized payload. No product workflow calls it yet.
+  provenance IDs from the same serialized payload. The workspace now calls it for one optional,
+  non-mutating current-draft review with editable provider/model/question and cancellation.
   The headless proof and non-claims are recorded in
   `docs/audits/runs/NATIVE-PROVIDER-DISCLOSURE-2026-07-15.json`.
   Envelope binding evidence: `docs/audits/runs/PROVIDER-RESEARCH-ENVELOPE-2026-07-15.json`.
@@ -266,8 +267,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **41 capabilities**: **20 are
-`implemented_unverified`, 21 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **41 capabilities**: **21 are
+`implemented_unverified`, 20 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, portable local lifecycle,
 Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned

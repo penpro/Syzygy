@@ -591,17 +591,23 @@ record(
     providerTaskRuntimeSource.includes('.blocking_show()') &&
     providerTaskRuntimeSource.includes('spawn_blocking') &&
     !providerTaskRuntimeSource.includes('pub disclosure_accepted') &&
-    platformContractsSource.includes('"remoteProviderAdapters": "native-disclosure-command-no-product-ui"') &&
+    platformContractsSource.includes('"remoteProviderAdapters": "native-disclosure-single-review-ui-no-live-proof"') &&
     platformContractsSource.includes('"providerTaskRuntime": "native-disclosure-research-envelope"') &&
     providerTaskRuntimeSource.includes('"executionMode": execution_mode') &&
     text('frontend/src/tauri.ts').includes("invoke('provider_generate'") &&
     text('frontend/src/tauri.ts').includes("invoke('provider_cancel'") &&
+    text('frontend/src/workspace/RemoteResearchReview.tsx').includes('providerGenerate(request)') &&
+    text('frontend/src/workspace/RemoteResearchReview.tsx').includes('providerCancel(activeCallId)') &&
+    text('frontend/src/workspace/RemoteResearchReview.tsx').includes('getAutomationEditorController(project.id).read()') &&
+    text('frontend/src/workspace/remoteResearchTask.ts').includes("taskType: 'research.remote-review'") &&
+    text('frontend/src/workspace/remoteResearchTask.ts').includes("crypto.subtle.digest('SHA-256'") &&
+    text('frontend/src/workspace/remoteResearchTask.test.ts').includes('without forging disclosure or provenance fields') &&
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_authorize'") &&
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_revoke'") &&
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_authorization_status'") &&
     !text('frontend/src/tauri.ts').includes('disclosureAccepted') &&
     text('frontend/src-tauri/src/bin/provider-runtime-harness.rs').includes('interop-secret-canary'),
-  'OpenAI request/stream plus Anthropic, Gemini, and xAI request wire contracts, content-free task runtime, native non-forgeable disclosure, cancellation, typed command wiring, and truthful no-product-UI status present',
+  'OpenAI request/stream plus Anthropic, Gemini, and xAI request wire contracts, content-free task runtime, native non-forgeable disclosure, cancellation, exact-draft product caller, and truthful no-live-proof status present',
 )
 record(
   'adversarial batch authorization is native, scoped, expiring, and non-executing',

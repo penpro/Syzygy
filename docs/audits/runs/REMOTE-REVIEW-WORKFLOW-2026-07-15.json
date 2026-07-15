@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "runId": "REMOTE-REVIEW-WORKFLOW-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "capabilities": ["P-25"],
+  "status": "implemented_unverified",
+  "commands": ["npm run test:workspace", "npm run test:providers", "npm run test:provider-runtime", "npm run test:provider-runtime-interop", "npm run build", "npm run test:mcp", "npm run audit", "git diff --check"],
+  "result": {
+    "passed": true,
+    "workspaceTestsPassed": 87,
+    "remoteReviewEnvelopeTestsPassed": 3,
+    "providerTransportTestsPassed": 28,
+    "providerRuntimeTestsPassed": 11,
+    "providerRuntimeInteropTestsPassed": 1,
+    "rustMcpTestsPassed": 11,
+    "mcpToolsAdvertised": 24,
+    "frontendModulesTransformed": 1003,
+    "structuralAuditChecksPassed": 38,
+    "headlessBrowserLayoutPassed": true,
+    "browserViewport": "1280x720",
+    "horizontalOverflowObserved": false,
+    "remoteReviewConsoleErrorsObserved": 0,
+    "externalNetworkUsed": false,
+    "realCredentialsUsed": false,
+    "realProviderCalls": 0
+  },
+  "proved": [
+    "The workspace exposes one optional remote review caller for OpenAI, Anthropic, Gemini, and xAI while local inference remains the stated default.",
+    "Each call reads the current semantic draft, binds a SHA-256 snapshot identity, supplies one editable model route and question, and cannot forge disclosure categories, approval, provenance, or credentials.",
+    "Rust still derives disclosure and provenance, requires the native Send once decision before vault/network access, normalizes failure, and exposes cancellation by exact call identity.",
+    "Provider output remains a non-mutating local review artifact; it is not silently inserted into the collaborative draft.",
+    "A headless 1280x720 browser pass found the provider/model/question controls visible, uniquely labeled, contained within the scenario rail, and free of horizontal overflow; browser-only Tauri-backend warnings were unrelated and pre-existing.",
+    "P-25 is implemented_unverified rather than verified because browser interaction and a real opt-in provider run remain unproved."
+  ],
+  "notProved": [
+    "A live API credential, paid request, provider policy behavior, output quality, or cost estimate.",
+    "Streaming output in the product UI, tool calls, structured output, retries, or adversarial multi-provider execution.",
+    "Installed-app keyboard/pointer/accessibility behavior or cancellation timing against each live provider.",
+    "Persistence, sharing, acceptance/rejection, or provenance export for the returned review artifact."
+  ]
+}

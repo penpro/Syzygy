@@ -8,8 +8,10 @@ Messages, Gemini Interactions, and xAI Responses one-shot requests are at
 with typed generation/cancellation commands. Each call obtains one-use approval from a native
 dialog before vault or network access; the request cannot provide its own approval. Credential
 set/status/delete are also typed commands and a collapsed Settings surface calls them without
-persisting keys in app state. No product generation workflow exists yet. Custom remote adapters
-are contract-only.
+persisting keys in app state. The workspace now has one optional, non-mutating remote-review
+caller: it reads the exact current draft, derives a content-addressed snapshot ID, and displays the
+normalized result as a local review artifact after the native **Send once** decision. Custom remote
+adapters are contract-only; no live provider call or product streaming claim is made.
 
 The native adversarial batch authorizer is a separate, non-executing boundary. Its request contains
 the actual research question, frozen source snapshots, exact remote provider/model routes,
@@ -113,9 +115,10 @@ stream path verifies the SSE media type, feeds real HTTP byte chunks through the
 enforces start/finish/end order and a 32 MiB aggregate ceiling, serially dispatches normalized
 events, distinguishes sanitized provider failure, and cancels between events. The internal one-shot
 task bridge now retrieves saved keys and authors provenance behind a typed native-disclosure
-command, but no product workflow calls it and no live service has been contacted. It does not
-handle streamed tools. `syzygy_platform_contracts` reports aggregate status as
-`native-disclosure-command-no-product-ui`.
+command. The single-review workspace calls that bridge with the current draft and an editable
+model ID, but no live service has been contacted. It does not handle streamed tools.
+`syzygy_platform_contracts` reports aggregate status as
+`native-disclosure-single-review-ui-no-live-proof`.
 
 The incremental OpenAI SSE decoder accepts arbitrary byte fragmentation, including split Unicode;
 joins multiline `data:` fields; ignores keepalives; validates optional SSE event labels against
@@ -134,7 +137,7 @@ the canary. Credential-only Tauri commands and `tauri.ts` wrappers now set, repo
 delete the default provider key without returning it. A collapsed Settings surface supports all
 four providers with a password field that is never placed in React/store state and is cleared
 before the asynchronous write completes. Saving does not transmit research. macOS/Linux live
-evidence, transient DOM/heap leak tests, and product generation workflow UI remain open. Dependency provenance is
+evidence, transient DOM/heap leak tests, and live provider workflow proof remain open. Dependency provenance is
 recorded in `docs/audits/EXTENSION-PROVENANCE.md`.
 
 The first Anthropic Messages slice is also Rust-owned and fake-server-only. It proves the exact
@@ -164,6 +167,16 @@ enterprise ZDR was actually active instead of treating `store:false` as ZDR. Out
 the provider-neutral Responses normalizer and the common disclosure, endpoint, size, redaction,
 timeout, and cancellation gates. Streaming/WebSocket mode, tools, encrypted reasoning continuity,
 cost ticks, UI, and opt-in live proof remain open.
+
+The review UI defaults are editable convenience values, not capability guarantees: `gpt-5.2`,
+`claude-sonnet-5`, `gemini-3.5-flash`, and `grok-4.5`. They were checked against each provider's
+official model documentation on 2026-07-15. Researchers can replace them with another model ID
+available to their account; provider-side availability is still validated only by the request:
+
+- <https://platform.openai.com/docs/api-reference/models/object>
+- <https://platform.claude.com/docs/en/about-claude/models/model-ids-and-versions>
+- <https://ai.google.dev/gemini-api/docs/models>
+- <https://docs.x.ai/developers/models/grok-4.5>
 
 ## Custom compatible adapters
 

@@ -172,13 +172,13 @@ It also certifies the stable-v1 Gemini Interactions one-shot boundary. The fake 
 `thinking_summaries:none`, system/user mapping, output bounds, text-only normalization, aggregate
 usage consistency, sanitized failures, timeout, and cancellation. The test rejects `/v1beta`
 instead of silently drifting API versions. Gemini SSE, tools/thought-signature continuation, a live
-credential, product workflow UI, and product availability remain open.
+credential, streamed product delivery, and product availability remain open.
 
 The xAI Responses one-shot boundary uses the Responses shape without assuming OpenAI's privacy
 semantics. The fake server checks bearer auth, `store:false`, no previous-response/cache identifier,
 bounded normalization, timeout/cancellation, and a mandatory boolean `x-zero-data-retention`
 response header. The result preserves that ZDR attestation for later disclosure. xAI streaming,
-tools/reasoning continuation, UI, and live proof remain open.
+tools/reasoning continuation, streamed product delivery, and live proof remain open.
 
 `npm run test:provider-runtime` proves the next internal boundary: a typed task retrieves a key
 from an injected vault, executes through the existing provider transport, normalizes the result,
@@ -188,7 +188,11 @@ network or reading the credential vault. Credential set/status/delete and one-sh
 generation/cancellation are registered through typed `tauri.ts` wrappers. The generation command
 uses Rust's native dialog with explicit **Send once** / **Cancel** buttons; there is no
 caller-supplied approval field. The pure disclosure-copy test is headless, while actually clicking
-the OS dialog remains a packaged-GUI check. No product component calls generation yet.
+the OS dialog remains a packaged-GUI check.
+The workspace single-review panel is now the first product caller: its pure envelope tests bind the
+current semantic draft to a SHA-256 source identity, retain editable provider/model/question fields,
+and cannot supply approval, categories, provenance, or credentials. Result text remains transient
+and does not mutate the shared draft. Live-key execution and UI interaction remain separate gates.
 The command also does not accept free-form disclosure categories or a detached source-ID list.
 `ProviderResearchTaskRequest` carries a question, optional task instructions, and labeled source
 snapshots; Rust serializes the actual payload, derives the categories and unique provenance IDs,

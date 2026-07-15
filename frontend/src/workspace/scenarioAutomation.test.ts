@@ -3,10 +3,12 @@ import { createProjectDocument, getProjectSharedTypes, projectStateFingerprint }
 import { readScenario } from './scenarioModel'
 import {
   addAutomationScenarioTurn, castAutomationScenarioVote, createAutomationScenario,
-  createAutomationScenarioAnnotation, resolveAutomationScenarioAnnotation,
-  reviseAutomationScenarioTurn, updateAutomationScenarioAnnotation,
+  createAutomationScenarioAnnotation, createAutomationScenarioLabel,
+  renameAutomationScenarioLabel, resolveAutomationScenarioAnnotation,
+  reviseAutomationScenarioTurn, setAutomationScenarioLabelAssignment, updateAutomationScenarioAnnotation,
 } from './scenarioAutomation'
 import { readScenarioAnnotations } from './scenarioAnnotationModel'
+import { readScenarioLabel, readScenarioLabelAssignment } from './scenarioLabelModel'
 import { readScenarioVotes } from './scenarioVoteModel'
 import { createProjectManifest } from './schema'
 
@@ -176,5 +178,49 @@ describe('automation scenario creation', () => {
       expectedCurrentEventId: 'wrong-current-event', body: 'Stale annotation.', participantId: 'bob', displayName: 'Bob', timestamp: 13, eventId: 'stale-annotation-edit',
     })).toThrow('Scenario annotation revision conflict')
     expect(readScenarioAnnotations(getProjectSharedTypes(doc).discussions, 'guarded-annotation')?.[0].events).toHaveLength(1)
+  })
+
+  it('creates, renames, assigns, and removes a label through chained research revisions', () => {
+    const doc = createProjectDocument(manifest)
+    const scenario = createAutomationScenario(doc, manifest.id, {
+      expectedResearchRevision: projectStateFingerprint(doc), scenarioId: 'label-scenario', title: 'Labels', background: '',
+      participantId: 'alice', createdAt: 10, editId: 'create-label-scenario',
+    })
+    const created = createAutomationScenarioLabel(doc, manifest.id, {
+      expectedResearchRevision: scenario.researchRevision, labelId: 'evidence', name: 'Evidence',
+      participantId: 'alice', timestamp: 11, eventId: 'create-evidence-label',
+    })
+    const renamed = renameAutomationScenarioLabel(doc, manifest.id, {
+      expectedResearchRevision: created.researchRevision, labelId: 'evidence', name: 'Evidence checked',
+      expectedCurrentEventId: created.label.currentEventId, participantId: 'bob', timestamp: 12, eventId: 'rename-evidence-label',
+    })
+    const assigned = setAutomationScenarioLabelAssignment(doc, manifest.id, {
+      expectedResearchRevision: renamed.researchRevision, scenarioId: 'label-scenario', labelId: 'evidence',
+      expectedCurrentEventId: null, assigned: true, participantId: 'alice', timestamp: 13, eventId: 'assign-evidence-label',
+    })
+    const removed = setAutomationScenarioLabelAssignment(doc, manifest.id, {
+      expectedResearchRevision: assigned.researchRevision, scenarioId: 'label-scenario', labelId: 'evidence',
+      expectedCurrentEventId: assigned.assignment.currentEventId, assigned: false, participantId: 'bob', timestamp: 14, eventId: 'remove-evidence-label',
+    })
+    expect(renamed.label).toMatchObject({ name: 'Evidence checked', events: [{}, {}] })
+    expect(removed.assignment).toMatchObject({ assigned: false, events: [{}, {}] })
+  })
+
+  it('rejects stale research and label parents without adding label events', () => {
+    const doc = createProjectDocument(manifest)
+    const created = createAutomationScenarioLabel(doc, manifest.id, {
+      expectedResearchRevision: projectStateFingerprint(doc), labelId: 'guarded-label', name: 'Guarded',
+      participantId: 'alice', timestamp: 10, eventId: 'create-guarded-label',
+    })
+    expect(() => renameAutomationScenarioLabel(doc, manifest.id, {
+      expectedResearchRevision: 'stale', labelId: 'guarded-label', name: 'Stale research',
+      expectedCurrentEventId: created.label.currentEventId, participantId: 'bob', timestamp: 11, eventId: 'stale-research-label',
+    })).toThrow('Research state revision conflict')
+    expect(() => renameAutomationScenarioLabel(doc, manifest.id, {
+      expectedResearchRevision: created.researchRevision, labelId: 'guarded-label', name: 'Stale parent',
+      expectedCurrentEventId: 'wrong-label-event', participantId: 'bob', timestamp: 12, eventId: 'stale-parent-label',
+    })).toThrow('Scenario label revision conflict')
+    expect(readScenarioLabel(getProjectSharedTypes(doc).settings, 'guarded-label')?.events).toHaveLength(1)
+    expect(readScenarioLabelAssignment(getProjectSharedTypes(doc).settings, 'missing', 'guarded-label')).toBeNull()
   })
 })

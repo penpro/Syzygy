@@ -257,6 +257,9 @@ const advertisedMcpTools = [
   'create_scenario_annotation',
   'update_scenario_annotation',
   'set_scenario_annotation_resolution',
+  'create_scenario_label',
+  'rename_scenario_label',
+  'set_scenario_label_assignment',
   'save_active_policy_version',
   'replace_active_document',
   'append_active_document',
@@ -330,6 +333,9 @@ record(
     scenarioAutomationSource.includes('createScenarioAnnotation(discussions, scenarios') &&
     scenarioAutomationSource.includes('updateScenarioAnnotation(discussions, scenarios') &&
     scenarioAutomationSource.includes('setScenarioAnnotationResolution(discussions, scenarios') &&
+    scenarioAutomationSource.includes('createScenarioLabel(settings') &&
+    scenarioAutomationSource.includes('renameScenarioLabel(settings') &&
+    scenarioAutomationSource.includes('setScenarioLabelAssignment(settings, scenarios') &&
     scenarioAutomationTestSource.includes('creates one scenario against the exact monotonic research revision') &&
     scenarioAutomationTestSource.includes('rejects a stale revision without mutating scenario state') &&
     scenarioAutomationTestSource.includes('adds and revises a turn through successive exact research revisions') &&
@@ -338,6 +344,8 @@ record(
     scenarioAutomationTestSource.includes('rejects a stale vote without adding a vote event') &&
     scenarioAutomationTestSource.includes('creates, edits, resolves, and reopens an annotation through dual revision guards') &&
     scenarioAutomationTestSource.includes('rejects stale research and annotation revisions without adding lifecycle events') &&
+    scenarioAutomationTestSource.includes('creates, renames, assigns, and removes a label through chained research revisions') &&
+    scenarioAutomationTestSource.includes('rejects stale research and label parents without adding label events') &&
     text('frontend/src/automationBridge.ts').includes("case 'project.createScenario'") &&
     text('frontend/src/automationBridge.ts').includes("case 'project.addScenarioTurn'") &&
     text('frontend/src/automationBridge.ts').includes("case 'project.reviseScenarioTurn'") &&
@@ -345,6 +353,9 @@ record(
     text('frontend/src/automationBridge.ts').includes("case 'project.createScenarioAnnotation'") &&
     text('frontend/src/automationBridge.ts').includes("case 'project.updateScenarioAnnotation'") &&
     text('frontend/src/automationBridge.ts').includes("case 'project.setScenarioAnnotationResolution'") &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.createScenarioLabel'") &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.renameScenarioLabel'") &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.setScenarioLabelAssignment'") &&
     mcpSource.includes('"create_scenario" => live("project.createScenario"') &&
     mcpSource.includes('"add_scenario_turn" => live("project.addScenarioTurn"') &&
     mcpSource.includes('"revise_scenario_turn" => live("project.reviseScenarioTurn"') &&
@@ -353,13 +364,19 @@ record(
     mcpSource.includes('"update_scenario_annotation" => live("project.updateScenarioAnnotation"') &&
     mcpSource.includes('"set_scenario_annotation_resolution"') &&
     mcpSource.includes('live("project.setScenarioAnnotationResolution", arguments)') &&
+    mcpSource.includes('"create_scenario_label" => live("project.createScenarioLabel"') &&
+    mcpSource.includes('"rename_scenario_label" => live("project.renameScenarioLabel"') &&
+    mcpSource.includes('"set_scenario_label_assignment"') &&
+    mcpSource.includes('live("project.setScenarioLabelAssignment", arguments)') &&
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioCreateRejected: true') &&
     text('scripts/mcp-live-harness.mjs').includes('scenarioTurnAddAndRevisionGuarded: true') &&
     text('scripts/mcp-live-harness.mjs').includes('scenarioVoteRevisionGuarded: true') &&
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioVoteRejected: true') &&
     text('scripts/mcp-live-harness.mjs').includes('scenarioAnnotationLifecycleGuarded: true') &&
-    text('scripts/mcp-live-harness.mjs').includes('staleScenarioAnnotationRejected: true'),
-  'stable inspection revision, zero-write stale rejection, live Y.Doc scenario/turn/vote/annotation routes, twenty-first MCP tool set, and packaged-live assertions are present',
+    text('scripts/mcp-live-harness.mjs').includes('staleScenarioAnnotationRejected: true') &&
+    text('scripts/mcp-live-harness.mjs').includes('scenarioLabelLifecycleGuarded: true') &&
+    text('scripts/mcp-live-harness.mjs').includes('staleScenarioLabelRejected: true'),
+  'stable inspection revision, zero-write stale rejection, live Y.Doc scenario/turn/vote/annotation/label routes, twenty-fourth MCP tool set, and packaged-live assertions are present',
 )
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))

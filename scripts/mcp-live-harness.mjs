@@ -280,6 +280,56 @@ try {
     const inspectedAnnotation = stateAfterAnnotations.structuredContent.researchState.scenarioAnnotations.items.find((item) => item.id === 'source-note' && item.scenarioId === scenarioId)
     if (reopenedAnnotation.structuredContent.annotation.status !== 'open' || reopenedAnnotation.structuredContent.annotation.eventCount !== 4) throw new Error('Annotation reopen did not retain the full lifecycle')
     if (inspectedAnnotation?.status !== 'open' || inspectedAnnotation?.eventCount !== 4 || inspectedAnnotation?.currentEventId !== reopenedAnnotation.structuredContent.annotation.currentEventId) throw new Error('Annotation lifecycle was not visible through bounded inspection')
+    const labelId = `${scenarioId}-label`
+    const createdLabel = await session.tool('create_scenario_label', {
+      expectedResearchRevision: reopenedAnnotation.structuredContent.researchRevision,
+      labelId,
+      name: 'Source review',
+      participantId: 'mcp-live-reviewer',
+    })
+    const renamedLabel = await session.tool('rename_scenario_label', {
+      expectedResearchRevision: createdLabel.structuredContent.researchRevision,
+      labelId,
+      expectedCurrentEventId: createdLabel.structuredContent.label.currentEventId,
+      name: 'Source verified',
+      participantId: 'mcp-live-reviewer',
+    })
+    const assignedLabel = await session.tool('set_scenario_label_assignment', {
+      expectedResearchRevision: renamedLabel.structuredContent.researchRevision,
+      scenarioId,
+      labelId,
+      assigned: true,
+      participantId: 'mcp-live-reviewer',
+    })
+    const removedLabel = await session.tool('set_scenario_label_assignment', {
+      expectedResearchRevision: assignedLabel.structuredContent.researchRevision,
+      scenarioId,
+      labelId,
+      expectedCurrentEventId: assignedLabel.structuredContent.assignment.currentEventId,
+      assigned: false,
+      participantId: 'mcp-live-reviewer',
+    })
+    const staleLabelResearch = await session.tool('rename_scenario_label', {
+      expectedResearchRevision: reopenedAnnotation.structuredContent.researchRevision,
+      labelId,
+      expectedCurrentEventId: renamedLabel.structuredContent.label.currentEventId,
+      name: 'This stale research rename must not land',
+      participantId: 'mcp-live-stale-reviewer',
+    }, true)
+    if (!staleLabelResearch.isError || !/Research state revision conflict/.test(staleLabelResearch.structuredContent?.error ?? '')) throw new Error('The live app did not reject stale research for a label rename')
+    const staleLabelEvent = await session.tool('rename_scenario_label', {
+      expectedResearchRevision: removedLabel.structuredContent.researchRevision,
+      labelId,
+      expectedCurrentEventId: createdLabel.structuredContent.label.currentEventId,
+      name: 'This stale label event must not land',
+      participantId: 'mcp-live-stale-reviewer',
+    }, true)
+    if (!staleLabelEvent.isError || !/Scenario label revision conflict/.test(staleLabelEvent.structuredContent?.error ?? '')) throw new Error('The live app did not reject a stale label lifecycle event')
+    const stateAfterLabels = await session.tool('inspect_research_state')
+    const inspectedLabel = stateAfterLabels.structuredContent.researchState.scenarioLabels.items.find((item) => item.id === labelId)
+    if (renamedLabel.structuredContent.label.name !== 'Source verified' || renamedLabel.structuredContent.label.eventCount !== 2) throw new Error('Label rename did not retain the full lifecycle')
+    if (removedLabel.structuredContent.assignment.assigned !== false || removedLabel.structuredContent.assignment.eventCount !== 2) throw new Error('Label removal did not retain assignment history')
+    if (inspectedLabel?.name !== 'Source verified' || inspectedLabel?.eventCount !== 2 || inspectedLabel?.currentEventId !== renamedLabel.structuredContent.label.currentEventId || inspectedLabel?.scenarioIds.length !== 0) throw new Error('Label lifecycle was not visible through bounded inspection')
     const saveArguments = {
       expectedDocumentRevision: readback.structuredContent.document.revision,
       participantId: 'mcp-live-harness',
@@ -311,6 +361,8 @@ try {
       staleScenarioVoteRejected: true,
       scenarioAnnotationLifecycleGuarded: true,
       staleScenarioAnnotationRejected: true,
+      scenarioLabelLifecycleGuarded: true,
+      staleScenarioLabelRejected: true,
       heuristicRecords: researchState.structuredContent.researchState.heuristics.totalRecords,
       versionRecords: researchState.structuredContent.researchState.versions.totalRecords,
       savedVersionId: savedVersion.structuredContent.version.versionId,

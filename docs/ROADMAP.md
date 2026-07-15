@@ -253,6 +253,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   status changes require both the current research revision and exact annotation event; stale
   project or lifecycle calls add nothing. Bodies remain omitted from MCP readback and no UI,
   moderation, or authenticated-identity claim is made.
+- Three shared-label tools bring MCP discovery to twenty-four. They create and rename labels, then
+  assign or remove them from scenarios. Every call consumes the exact research revision; rename
+  and follow-up assignment also consume their exact current event. Stale project or lifecycle
+  calls add nothing. Event bodies remain omitted and no label UI, moderation, or authenticated-
+  identity claim is made.
 - A clean-room public literature pass now constrains the adversarial-panel roadmap: preserve
   independent/minority artifacts, blind route identity, reverse judge order, audit frozen sources,
   compare against an equal-call baseline, and never treat agreement as truth. The source list,

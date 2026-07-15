@@ -159,7 +159,11 @@ versioned namespaces inside the reserved settings collection. Label renames and 
 assignments name their exact parent; disconnected concurrent renames remain in history and one
 timestamp/event-ID ordering produces a deterministic current name. Filtering projects only active
 assignments. Colliding roots and orphan scenario/label targets fail closed or surface in inspection.
-No label UI, moderation, authenticated identity, or remote-provider proof is claimed.
+`scenarioAutomation.ts` exposes label create/rename/assignment operations to the live automation
+bridge. Every call consumes the exact research-state revision; rename and follow-up assignment
+also consume the projected current event, so stale requests add no event. Responses expose bounded
+metadata rather than event bodies. No label UI, moderation, authenticated identity, or remote-
+provider proof is claimed.
 
 `policyVersionModel.ts` owns immutable policy checkpoints. A version contains a structured policy
 snapshot, parent hash, sorted scenario references, participant ID, display-name snapshot,

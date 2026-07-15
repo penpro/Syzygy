@@ -7,12 +7,12 @@
   "commands": ["npm run test:workspace", "npm run test:mcp", "npm run build", "npm run audit", "git diff --check"],
   "result": {
     "passed": true,
-    "workspaceTestsPassed": 77,
-    "scenarioAutomationTestsPassed": 9,
-    "rustMcpTestsPassed": 10,
-    "mcpToolsAdvertised": 21,
-    "frontendModulesTransformed": 1000,
-    "structuralAuditChecksPassed": 37,
+    "workspaceTestsPassed": 84,
+    "scenarioAutomationTestsPassed": 11,
+    "rustMcpTestsPassed": 11,
+    "mcpToolsAdvertised": 24,
+    "frontendModulesTransformed": 1001,
+    "structuralAuditChecksPassed": 38,
     "externalNetworkUsed": false,
     "packagedLiveHarnessRun": false,
     "realProjectMutation": false
@@ -24,8 +24,9 @@
     "Guarded add-turn and revise-turn operations chain returned revisions, retain earlier attributed turn bodies, and reject stale mutations without changing history.",
     "Guarded voting chains support, re-vote, and withdrawal events; aggregate projection updates while history is retained, and a stale revision adds no event.",
     "Annotation automation chains create, edit, resolve, and reopen under both the current research revision and exact annotation event; stale project/lifecycle calls add no event and bodies are omitted from readback.",
-    "Rust advertises and routes scenario creation, turn add/revise, voting, and annotation lifecycle as the fifteenth through twenty-first semantic MCP tools; compiled stdio discovery requires all seven.",
-    "The packaged live harness chains unique scenario creation, turn add/revision, support/re-vote, annotation create/edit/resolve/reopen, bounded metadata readback, and stale rejection, but this run did not mutate the user profile."
+    "Label automation chains create, rename, assign, and remove under the current research revision plus exact label/assignment event where applicable; stale project/lifecycle calls add no event and event bodies are omitted from readback.",
+    "Rust advertises and routes scenario creation, turn add/revise, voting, annotation lifecycle, and label lifecycle as the fifteenth through twenty-fourth semantic MCP tools; compiled stdio discovery requires all ten.",
+    "The packaged live harness chains unique scenario creation, turn add/revision, support/re-vote, annotation create/edit/resolve/reopen, label create/rename/assign/remove, bounded metadata readback, and stale rejection, but this run did not mutate the user profile."
   ],
   "notProved": [
     "The installed packaged GUI completed the updated live mutation harness.",

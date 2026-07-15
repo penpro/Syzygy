@@ -8,6 +8,11 @@ import {
   type ScenarioAnnotationKind,
   updateScenarioAnnotation,
 } from './scenarioAnnotationModel'
+import {
+  createScenarioLabel,
+  renameScenarioLabel,
+  setScenarioLabelAssignment,
+} from './scenarioLabelModel'
 
 export interface CreateAutomationScenarioInput {
   expectedResearchRevision: string
@@ -75,6 +80,30 @@ export interface ResolveAutomationScenarioAnnotationInput {
   resolved: boolean
   participantId: string
   displayName: string
+  timestamp: number
+  eventId: string
+}
+
+export interface CreateAutomationScenarioLabelInput {
+  expectedResearchRevision: string
+  labelId: string
+  name: string
+  participantId: string
+  timestamp: number
+  eventId: string
+}
+
+export interface RenameAutomationScenarioLabelInput extends CreateAutomationScenarioLabelInput {
+  expectedCurrentEventId: string
+}
+
+export interface SetAutomationScenarioLabelAssignmentInput {
+  expectedResearchRevision: string
+  scenarioId: string
+  labelId: string
+  expectedCurrentEventId: string | null
+  assigned: boolean
+  participantId: string
   timestamp: number
   eventId: string
 }
@@ -162,4 +191,35 @@ export function resolveAutomationScenarioAnnotation(doc: Y.Doc, expectedProjectI
     authorId: input.participantId, displayName: input.displayName, timestamp: input.timestamp,
   })
   return { annotation, researchRevision: projectStateFingerprint(doc) }
+}
+
+export function createAutomationScenarioLabel(doc: Y.Doc, expectedProjectId: string, input: CreateAutomationScenarioLabelInput) {
+  guardedScenarios(doc, expectedProjectId, input.expectedResearchRevision)
+  const { settings } = getProjectSharedTypes(doc)
+  const label = createScenarioLabel(settings, {
+    labelId: input.labelId, eventId: input.eventId, name: input.name,
+    authorId: input.participantId, timestamp: input.timestamp,
+  })
+  return { label, researchRevision: projectStateFingerprint(doc) }
+}
+
+export function renameAutomationScenarioLabel(doc: Y.Doc, expectedProjectId: string, input: RenameAutomationScenarioLabelInput) {
+  guardedScenarios(doc, expectedProjectId, input.expectedResearchRevision)
+  const { settings } = getProjectSharedTypes(doc)
+  const label = renameScenarioLabel(settings, {
+    labelId: input.labelId, eventId: input.eventId, expectedCurrentEventId: input.expectedCurrentEventId,
+    name: input.name, authorId: input.participantId, timestamp: input.timestamp,
+  })
+  return { label, researchRevision: projectStateFingerprint(doc) }
+}
+
+export function setAutomationScenarioLabelAssignment(doc: Y.Doc, expectedProjectId: string, input: SetAutomationScenarioLabelAssignmentInput) {
+  const scenarios = guardedScenarios(doc, expectedProjectId, input.expectedResearchRevision)
+  const { settings } = getProjectSharedTypes(doc)
+  const assignment = setScenarioLabelAssignment(settings, scenarios, {
+    scenarioId: input.scenarioId, labelId: input.labelId, eventId: input.eventId,
+    expectedCurrentEventId: input.expectedCurrentEventId, assigned: input.assigned,
+    authorId: input.participantId, timestamp: input.timestamp,
+  })
+  return { assignment, researchRevision: projectStateFingerprint(doc) }
 }

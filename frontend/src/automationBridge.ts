@@ -8,10 +8,13 @@ import {
 import { inspectResearchState } from './workspace/researchStateInspection'
 import {
   addAutomationScenarioTurn, castAutomationScenarioVote, createAutomationScenario,
-  createAutomationScenarioAnnotation, resolveAutomationScenarioAnnotation,
-  reviseAutomationScenarioTurn, updateAutomationScenarioAnnotation,
+  createAutomationScenarioAnnotation, createAutomationScenarioLabel,
+  renameAutomationScenarioLabel, resolveAutomationScenarioAnnotation,
+  reviseAutomationScenarioTurn, setAutomationScenarioLabelAssignment,
+  updateAutomationScenarioAnnotation,
 } from './workspace/scenarioAutomation'
 import type { ScenarioAnnotation, ScenarioAnnotationKind } from './workspace/scenarioAnnotationModel'
+import type { ScenarioLabel, ScenarioLabelAssignment } from './workspace/scenarioLabelModel'
 import type { ResearchScenario, ScenarioStatus, ScenarioTurn, ScenarioTurnRole } from './workspace/scenarioModel'
 import type { ScenarioVoteChoice } from './workspace/scenarioVoteModel'
 import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
@@ -71,7 +74,7 @@ export async function dispatchAutomationRequest(
             'revision-guarded semantic MCP reads and writes',
             'read-only MCP integrity inspection for scenarios, votes, annotations, labels, heuristics, and immutable version history',
             'dual-revision-guarded MCP creation of immutable policy checkpoints',
-            'research-revision-guarded MCP scenario creation, turn editing, aggregate voting, and annotation lifecycle',
+            'research-revision-guarded MCP scenario creation, turn editing, aggregate voting, annotation lifecycle, and shared labels',
           ],
           unavailable: [
             'version save, restore, and diff controls in the product UI; MCP restore remains unavailable',
@@ -327,6 +330,69 @@ export async function dispatchAutomationRequest(
         researchRevision: changed.researchRevision,
       }
     }
+    case 'project.createScenarioLabel': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const created = createAutomationScenarioLabel(getAutomationProjectDocument(project.id), project.id, {
+        expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
+        labelId: requiredString(params, 'labelId'),
+        name: requiredString(params, 'name'),
+        participantId: requiredString(params, 'participantId'),
+        timestamp: Date.now(),
+        eventId: `mcp-${crypto.randomUUID()}`,
+      })
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        label: summarizeScenarioLabel(created.label),
+        researchRevision: created.researchRevision,
+      }
+    }
+    case 'project.renameScenarioLabel': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const renamed = renameAutomationScenarioLabel(getAutomationProjectDocument(project.id), project.id, {
+        expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
+        labelId: requiredString(params, 'labelId'),
+        name: requiredString(params, 'name'),
+        expectedCurrentEventId: requiredString(params, 'expectedCurrentEventId'),
+        participantId: requiredString(params, 'participantId'),
+        timestamp: Date.now(),
+        eventId: `mcp-${crypto.randomUUID()}`,
+      })
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        label: summarizeScenarioLabel(renamed.label),
+        researchRevision: renamed.researchRevision,
+      }
+    }
+    case 'project.setScenarioLabelAssignment': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const changed = setAutomationScenarioLabelAssignment(getAutomationProjectDocument(project.id), project.id, {
+        expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
+        scenarioId: requiredString(params, 'scenarioId'),
+        labelId: requiredString(params, 'labelId'),
+        expectedCurrentEventId: optionalString(params, 'expectedCurrentEventId'),
+        assigned: requiredBoolean(params, 'assigned'),
+        participantId: requiredString(params, 'participantId'),
+        timestamp: Date.now(),
+        eventId: `mcp-${crypto.randomUUID()}`,
+      })
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        assignment: summarizeScenarioLabelAssignment(changed.assignment),
+        researchRevision: changed.researchRevision,
+      }
+    }
     case 'document.replace': {
       const expectedRevision = requiredString(params, 'expectedRevision')
       const content = requiredString(params, 'content', true)
@@ -397,7 +463,7 @@ function buildWalkthrough() {
       {
         name: 'Scenarios and evaluation',
         status: project && automationProjectDocumentReady(project.id) ? 'domain-create-ready' : 'needs-open-project',
-        use: 'Scenario records, votes, and flags/notes have tested collaborative foundations; MCP can inspect them, create guarded scenarios, edit turns, vote, and manage annotation lifecycle, while the visible gallery and evaluation UI remain unavailable.',
+        use: 'Scenario records, votes, flags/notes, and shared labels have tested collaborative foundations; MCP can inspect and mutate each through revision guards, while the visible gallery and evaluation UI remain unavailable.',
       },
       {
         name: 'Network collaboration',
@@ -457,6 +523,24 @@ function summarizeScenarioAnnotation(annotation: ScenarioAnnotation) {
     createdBy: annotation.createdBy, createdAt: annotation.createdAt,
     lastActionBy: annotation.lastActionBy, lastActionAt: annotation.lastActionAt,
     eventCount: annotation.events.length,
+  }
+}
+
+function summarizeScenarioLabel(label: ScenarioLabel) {
+  return {
+    id: label.id, name: label.name, currentEventId: label.currentEventId,
+    createdBy: label.createdBy, createdAt: label.createdAt,
+    lastActionBy: label.lastActionBy, lastActionAt: label.lastActionAt,
+    eventCount: label.events.length,
+  }
+}
+
+function summarizeScenarioLabelAssignment(assignment: ScenarioLabelAssignment) {
+  return {
+    scenarioId: assignment.scenarioId, labelId: assignment.labelId,
+    assigned: assignment.assigned, currentEventId: assignment.currentEventId,
+    lastActionBy: assignment.lastActionBy, lastActionAt: assignment.lastActionAt,
+    eventCount: assignment.events.length,
   }
 }
 

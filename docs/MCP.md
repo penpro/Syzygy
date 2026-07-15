@@ -64,6 +64,9 @@ Recommended first instruction to an MCP-capable model:
 | `create_scenario_annotation` | annotation event | Creates a scenario- or turn-level flag/note against the exact research revision; stores but does not return its body |
 | `update_scenario_annotation` | annotation event | Appends a body revision only when both research revision and current annotation event match; prior bodies remain in history and readback omits them |
 | `set_scenario_annotation_resolution` | annotation event | Resolves or reopens by appending an event under both revision guards |
+| `create_scenario_label` | label event | Creates a shared context label against the exact current research revision; event bodies remain omitted |
+| `rename_scenario_label` | label event | Appends a rename only when both research revision and current label event match |
+| `set_scenario_label_assignment` | assignment event | Assigns/removes a label under the research guard; follow-up events also require the exact assignment event |
 | `save_active_policy_version` | version metadata | Saves the exact active semantic draft as a new immutable head under both document-revision and expected-head guards; does not edit the draft or restore history |
 | `replace_active_document` | yes | Replaces the document only when `expectedRevision` still matches |
 | `append_active_document` | yes | Appends blocks only when `expectedRevision` still matches |
@@ -131,6 +134,10 @@ MCP host
   stale-lifecycle conflicts fail before an event is added. Bodies are accepted for create/edit and
   retained locally in immutable history, but mutation responses and inspection return only IDs,
   kind/status, target, timestamps, and event counts. Identity/time remain caller/process supplied.
+- Label create uses the research revision guard. Rename additionally requires the exact label
+  `currentEventId`; an assignment's first event requires no event parent and every follow-up add/
+  remove requires its exact assignment `currentEventId`. Stale research or event parents add no
+  event. Responses return label/assignment metadata only; caller identity/time are unauthenticated.
 - `save_active_policy_version` requires `expectedDocumentRevision` from `read_active_project` and,
   when non-null, `expectedHeadVersionId` from `inspect_research_state`. The live editor revision is
   checked once before hashing and again inside the final Yjs head transaction; the existing head

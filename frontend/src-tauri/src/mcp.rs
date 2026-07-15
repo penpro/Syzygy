@@ -92,7 +92,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting and annotations, heuristics, and immutable history. Read a project before editing or checkpointing it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, and annotation tools require the latest exact research revision from inspection or the prior mutation; annotation edit/resolve/reopen additionally require the exact current annotation event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. On any conflict, read again and reconcile. Never claim unavailable scenario gallery/voting/annotation UI, model generation, restore UI, Drive project transport, or real-time presence are available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, and immutable history. Read a project before editing or checkpointing it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. On any conflict, read again and reconcile. Never claim unavailable scenario gallery/voting/annotation/label UI, model generation, restore UI, Drive project transport, or real-time presence are available."
             })
         }
         "ping" => json!({}),
@@ -137,6 +137,9 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "set_scenario_annotation_resolution" => {
             live("project.setScenarioAnnotationResolution", arguments)
         }
+        "create_scenario_label" => live("project.createScenarioLabel", arguments),
+        "rename_scenario_label" => live("project.renameScenarioLabel", arguments),
+        "set_scenario_label_assignment" => live("project.setScenarioLabelAssignment", arguments),
         "save_active_policy_version" => live("project.savePolicyVersion", arguments),
         "replace_active_document" => live("document.replace", arguments),
         "append_active_document" => live("document.append", arguments),
@@ -314,6 +317,48 @@ fn tool_definitions() -> Vec<Value> {
                     ("displayName", string_schema("Display name retained with the lifecycle event but omitted from this tool response.")),
                 ],
                 &["expectedResearchRevision", "annotationId", "scenarioId", "expectedCurrentEventId", "resolved", "participantId", "displayName"],
+            ),
+        ),
+        tool(
+            "create_scenario_label",
+            "Create one shared context label against the exact current research revision. Label event history is retained but omitted from bounded inspection and this tool response.",
+            object_schema(
+                &[
+                    ("expectedResearchRevision", string_schema("Exact research revision from inspection or the prior mutation.")),
+                    ("labelId", string_schema("New stable label ID.")),
+                    ("name", string_schema("Non-empty human-readable label name.")),
+                    ("participantId", string_schema("Caller-supplied participant ID; identity is not authenticated across installs.")),
+                ],
+                &["expectedResearchRevision", "labelId", "name", "participantId"],
+            ),
+        ),
+        tool(
+            "rename_scenario_label",
+            "Rename one shared context label by appending an attributed immutable event. Requires the exact current research revision and label event.",
+            object_schema(
+                &[
+                    ("expectedResearchRevision", string_schema("Exact research revision from inspection or the prior mutation.")),
+                    ("labelId", string_schema("Existing stable label ID.")),
+                    ("expectedCurrentEventId", string_schema("Exact label currentEventId from inspection or the prior label mutation.")),
+                    ("name", string_schema("New non-empty human-readable label name.")),
+                    ("participantId", string_schema("Caller-supplied participant ID; identity is not authenticated across installs.")),
+                ],
+                &["expectedResearchRevision", "labelId", "expectedCurrentEventId", "name", "participantId"],
+            ),
+        ),
+        tool(
+            "set_scenario_label_assignment",
+            "Assign or remove one shared label on a scenario by appending an attributed immutable event. Requires the exact research revision; omit expectedCurrentEventId only for the first assignment event, then provide the exact assignment current event.",
+            object_schema(
+                &[
+                    ("expectedResearchRevision", string_schema("Exact research revision from inspection or the prior mutation.")),
+                    ("scenarioId", string_schema("Existing stable scenario ID.")),
+                    ("labelId", string_schema("Existing stable label ID.")),
+                    ("expectedCurrentEventId", string_schema("Exact assignment currentEventId from the prior mutation; omit only when this scenario-label pair has no event yet.")),
+                    ("assigned", json!({ "type": "boolean", "description": "True to assign; false to remove." })),
+                    ("participantId", string_schema("Caller-supplied participant ID; identity is not authenticated across installs.")),
+                ],
+                &["expectedResearchRevision", "scenarioId", "labelId", "assigned", "participantId"],
             ),
         ),
         tool(
@@ -548,6 +593,9 @@ mod tests {
         assert!(names.contains(&"create_scenario_annotation"));
         assert!(names.contains(&"update_scenario_annotation"));
         assert!(names.contains(&"set_scenario_annotation_resolution"));
+        assert!(names.contains(&"create_scenario_label"));
+        assert!(names.contains(&"rename_scenario_label"));
+        assert!(names.contains(&"set_scenario_label_assignment"));
         assert!(names.contains(&"save_active_policy_version"));
         assert!(names.contains(&"replace_active_document"));
     }
@@ -731,6 +779,42 @@ mod tests {
             assert_eq!(
                 response["result"]["structuredContent"]["params"]["expectedResearchRevision"],
                 "10.11.12"
+            );
+        }
+    }
+
+    #[test]
+    fn routes_scenario_label_lifecycle_with_research_and_event_guards() {
+        for (name, method) in [
+            ("create_scenario_label", "project.createScenarioLabel"),
+            ("rename_scenario_label", "project.renameScenarioLabel"),
+            (
+                "set_scenario_label_assignment",
+                "project.setScenarioLabelAssignment",
+            ),
+        ] {
+            let response = dispatch_message(
+                &json!({
+                    "jsonrpc": "2.0",
+                    "id": name,
+                    "method": "tools/call",
+                    "params": {
+                        "name": name,
+                        "arguments": {
+                            "expectedResearchRevision": "13.14.15",
+                            "scenarioId": "test-scenario",
+                            "labelId": "legal-risk",
+                            "expectedCurrentEventId": "current-event"
+                        }
+                    }
+                }),
+                &fake_live,
+            )
+            .unwrap();
+            assert_eq!(response["result"]["structuredContent"]["method"], method);
+            assert_eq!(
+                response["result"]["structuredContent"]["params"]["expectedResearchRevision"],
+                "13.14.15"
             );
         }
     }

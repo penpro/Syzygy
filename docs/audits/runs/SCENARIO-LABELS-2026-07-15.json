@@ -8,11 +8,12 @@
   "commands": ["npm run test:workspace", "npm run test:mcp", "npm run build", "npm run audit", "git diff --check"],
   "result": {
     "passed": true,
-    "workspaceTestsPassed": 82,
+    "workspaceTestsPassed": 84,
     "scenarioLabelModelTestsPassed": 5,
     "seededDeliveryOrdersChecked": 80,
-    "rustMcpTestsPassed": 10,
-    "mcpToolsAdvertised": 21,
+    "scenarioAutomationTestsPassed": 11,
+    "rustMcpTestsPassed": 11,
+    "mcpToolsAdvertised": 24,
     "frontendModulesTransformed": 1001,
     "structuralAuditChecksPassed": 38,
     "externalNetworkUsed": false,
@@ -24,13 +25,14 @@
     "Scenario assignments retain add/remove history and deterministic active filtering.",
     "Disconnected assignments merge and concurrent rename branches retain both events across eighty duplicate/reordered deliveries.",
     "Stale label or assignment parents add no event; colliding label roots fail closed and orphan scenario targets surface in integrity inspection.",
-    "Bounded MCP research inspection includes label/current-event/assignment metadata without adding label mutation authority.",
-    "P-21 is implemented_unverified; no label UI, authentication, moderation, MCP mutation, or remote-provider claim is made."
+    "Bounded MCP research inspection includes label/current-event/assignment metadata without event bodies.",
+    "MCP label create/rename/assign/remove operations consume the exact research revision; rename and follow-up assignment also consume exact current events, and stale project/label parents add no event.",
+    "P-21 is implemented_unverified; no label UI, authentication, moderation, or remote-provider claim is made."
   ],
   "notProved": [
     "Visible label controls, keyboard/pointer/accessibility behavior, or moderation.",
     "Authenticated participant identity, authorization, or a trusted distributed clock.",
     "Two-machine Drive/WebSocket collaboration or large-label-set performance.",
-    "Revision-guarded label mutation through MCP, scenario gallery filtering UI, or portable scenario-pack export."
+    "Installed packaged-GUI execution of the updated live label harness, scenario gallery filtering UI, or portable scenario-pack export."
   ]
 }

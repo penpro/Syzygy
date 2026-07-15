@@ -78,7 +78,7 @@ converge. This proves the lifecycle ledger, not its UI, authentication, moderati
 add/remove/filter, exact-current event guards, immutable history, disconnected assignments,
 concurrent rename branches, public-ID collisions, and orphan targets. Eighty seeded duplicate/
 reordered deliveries must converge. This proves the context-label domain, not its UI,
-authentication, moderation, MCP mutation, or remote transport.
+authentication, moderation, or remote transport.
 
 `policyVersionHistory.test.ts` extends that gate for P-28/P-29. It rejects stale expected heads
 before creating a version, restores an old snapshot only by creating a new child of the current
@@ -99,7 +99,7 @@ node ..\scripts\mcp-harness.mjs --executable <absolute-Syzygy.exe>
 ```
 
 The harness compiles the real application binary, starts `app --mcp` over stdio, negotiates MCP
-`2025-11-25`, discovers its twenty-one tools, checks notification framing and ping, calls a typed live
+`2025-11-25`, discovers its twenty-four tools, checks notification framing and ping, calls a typed live
 status result, then calls `syzygy_installation` without a GUI. That self-description must contain
 absolute executable/install-folder paths plus configuration and a connection prompt derived from
 the executable. Separate frontend tests prove structured Lexical reads, replace/append behavior,
@@ -121,12 +121,15 @@ asynchronous hash checks. Creation requires that exact revision, rechecks projec
 mutates the registered live Y.Doc synchronously. Add-turn and revise-turn require the revision from
 inspection or the immediately preceding mutation; revisions retain both authors and bodies. Stale
 tests prove zero scenario/turn writes. Rust routing and the packaged live harness cover the
-fifteenth through twenty-first tools. The voting gate chains support, re-vote, and withdrawal events,
+fifteenth through twenty-fourth tools. The voting gate chains support, re-vote, and withdrawal events,
 then proves a stale call adds no vote event; MCP output exposes aggregate counts, not voter bodies.
 The annotation gate chains create, edit, resolve, and reopen under both project-research and exact-
 current-event guards, then proves both conflict classes add no lifecycle event. MCP output and
-inspection omit every annotation body. This grants direct scenario content editing, attributed
-voting, and annotation lifecycle—not model generation, authenticated identity, or gallery UI.
+inspection omit every annotation body. The label gate chains create, rename, assign, and remove;
+rename/follow-up assignment require both research and exact-current-event guards, and both stale
+conflict classes add no event. This grants direct scenario content editing, attributed voting,
+annotation lifecycle, and shared-label mutation—not model generation, authenticated identity, or
+gallery UI.
 
 `versionAutomation.test.ts` adds the MCP checkpoint mutation gate. It proves semantic editor blocks
 become one immutable head, a stale document revision fails before hashing, a document revision that

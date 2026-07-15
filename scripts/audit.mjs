@@ -146,6 +146,25 @@ record(
   'versioned discussion namespace, immutable attributed events, replay/revote/withdrawal behavior, 80 delivery orders, collision/orphan/malformed gates, and truthful P-19 status are present',
 )
 
+const scenarioAnnotationSource = text('frontend/src/workspace/scenarioAnnotationModel.ts')
+const scenarioAnnotationTestSource = text('frontend/src/workspace/scenarioAnnotationModel.test.ts')
+record(
+  'collaborative scenario annotations remain revision-guarded, attributed, branched, and convergent',
+  scenarioAnnotationSource.includes('SCENARIO_ANNOTATION_SCHEMA_VERSION = 1') &&
+    scenarioAnnotationSource.includes("ANNOTATION_BUCKET_PREFIX = 'scenario-annotations:v1:'") &&
+    scenarioAnnotationSource.includes("collection.doc.transact(operation, 'syzygy-scenario-annotations')") &&
+    scenarioAnnotationSource.includes('Scenario annotation revision conflict') &&
+    scenarioAnnotationSource.includes('inspectScenarioAnnotations') &&
+    scenarioAnnotationTestSource.includes('retains note edits plus flag resolve and reopen lifecycle attribution') &&
+    (scenarioAnnotationTestSource.match(/seed <= 40/g) ?? []).length === 2 &&
+    scenarioAnnotationTestSource.includes('disconnected first notes without namespace replacement') &&
+    scenarioAnnotationTestSource.includes('concurrent edit and resolve branches') &&
+    scenarioAnnotationTestSource.includes('colliding annotation identity') &&
+    scenarioAnnotationTestSource.includes('future-discussion-type') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-20", "phase": 6, "status": "implemented_unverified"'),
+  'separate versioned namespace, immutable parent-linked lifecycle, exact-current guards, 80 delivery orders, collision/orphan gates, and truthful P-20 status are present',
+)
+
 const policyVersionSource = text('frontend/src/workspace/policyVersionModel.ts')
 const policyVersionTestSource = text('frontend/src/workspace/policyVersionModel.test.ts')
 record(
@@ -231,19 +250,22 @@ record(
     researchInspectionSource.includes('readPolicyVersionLineage') &&
     researchInspectionSource.includes('countInvalidLineages') &&
     researchInspectionSource.includes('inspectScenarioGraph') &&
+    researchInspectionSource.includes('inspectScenarioAnnotations') &&
     researchInspectionSource.includes('inspectScenarioVotes') &&
     researchInspectionSource.includes('turnRevisionCount') &&
     researchInspectionSource.includes('scenario background/turn content/revision bodies') &&
     researchInspectionTestSource.includes('Secret guidance is omitted') &&
     researchInspectionTestSource.includes("not.toContain('Secret policy text')") &&
     researchInspectionTestSource.includes("not.toContain('Secret scenario turn')") &&
+    researchInspectionTestSource.includes("not.toContain('Secret annotation body')") &&
+    researchInspectionTestSource.includes("not.toContain('Secret annotator display name')") &&
     researchInspectionTestSource.includes("not.toContain('Secret voter display name')") &&
     researchInspectionTestSource.includes('reports invalid scenario branch ancestry') &&
     researchInspectionTestSource.includes('reports a tampered version and invalid head lineage') &&
     researchInspectionTestSource.includes('content-valid non-head record whose ancestor is missing') &&
     mcpSource.includes('"inspect_research_state" => live("project.readResearchState"') &&
     text('scripts/mcp-live-harness.mjs').includes('researchStateHealthy: true'),
-  'identity-safe live Y.Doc registry, 200-item metadata caps, scenario graph plus version lineage self-checks, secret-body canaries, read-only MCP routing, and packaged-live assertion are present',
+  'identity-safe live Y.Doc registry, 200-item metadata caps, scenario graph/vote/annotation plus version-lineage self-checks, secret-body canaries, read-only MCP routing, and packaged-live assertion are present',
 )
 const versionAutomationSource = text('frontend/src/workspace/versionAutomation.ts')
 const versionAutomationTestSource = text('frontend/src/workspace/versionAutomation.test.ts')

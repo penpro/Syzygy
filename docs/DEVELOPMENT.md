@@ -68,6 +68,12 @@ isolation, and orphan scenario targets. Eighty seeded duplicate/reordered delive
 This proves a shared vote ledger, not authenticated identity, a trusted distributed clock, voting
 UI, flags/notes, or remote transport.
 
+`scenarioAnnotationModel.test.ts` is the P-20 domain gate. It covers note editing, turn-scoped
+flags, resolve/reopen attribution, exact-current revision guards, replay idempotency, disconnected
+first annotations, concurrent edit-versus-resolve branches, public-ID collision, namespace
+isolation, and missing scenario/turn targets. Eighty seeded duplicate/reordered deliveries must
+converge. This proves the lifecycle ledger, not its UI, authentication, moderation, or transport.
+
 `policyVersionHistory.test.ts` extends that gate for P-28/P-29. It rejects stale expected heads
 before creating a version, restores an old snapshot only by creating a new child of the current
 head, retains both concurrent restore branches across forty reordered/duplicate deliveries, and

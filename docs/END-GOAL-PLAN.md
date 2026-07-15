@@ -143,6 +143,11 @@ disconnected first votes; concurrent votes by one participant select a determini
 and conflicting event identity fails closed. Authenticated identity, a trusted distributed clock,
 and visible vote controls remain open.
 
+P-20 now has a Penumbra-original flag/note lifecycle ledger. Immutable create/edit/resolve/reopen
+events retain attribution and exact parent links. Stale product writes fail, concurrent children
+remain auditable, and missing scenario/turn targets or colliding annotation identities fail closed.
+Visible annotation controls, authenticated identity, moderation, and notifications remain open.
+
 P-28/P-29 now have exact-head commit, restore-as-new-child, and deterministic engine-free diff
 services. A stale head fails before creating an orphan; two concurrent restores preserve both
 immutable branches and converge one Yjs head across forty delivery orders. Restore/history UI,

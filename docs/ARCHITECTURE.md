@@ -92,8 +92,9 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   the local IndexedDB collaboration provider, an original Lexical policy editor, and the
   research workspace shell. Reserved Yjs collections hold scenarios, heuristics, immutable
   versions, discussions, and settings; `heuristicsModel.ts` owns nested collaborative records,
-  `scenarioModel.ts` owns stable multi-turn scenario/branch records, `scenarioVoteModel.ts` owns
-  namespaced participant vote events and deterministic summaries, while `policyVersionModel.ts`
+  `scenarioModel.ts` owns stable multi-turn scenario/branch records; `scenarioVoteModel.ts` and
+  `scenarioAnnotationModel.ts` own namespaced participant vote and flag/note lifecycle events;
+  while `policyVersionModel.ts`
   stores canonical version envelopes as SHA-256-addressed strings whose hash is rechecked on every
   read. The Lexical/Yjs editor owns the `root` shared type.
 - `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
@@ -140,6 +141,13 @@ deduplicates exact replay, fails closed on conflicting event identity, retains r
 history, and chooses each participant's current event by timestamp then event identity. Caller-
 supplied participant identity and time are not authentication or a trusted clock; no voting UI is
 claimed.
+
+`scenarioAnnotationModel.ts` uses a separate version-prefixed discussion namespace for immutable
+flag/note lifecycle events. Create, edit, resolve, and reopen operations retain author/display-name-
+at-the-time metadata. Every non-create event names its exact parent; product writes require the
+current event, while concurrent children remain as auditable branches and one timestamp/event-ID
+ordering supplies the deterministic projection. Missing scenario/turn targets and colliding public
+annotation identities are integrity failures. No annotations UI or authenticated identity is claimed.
 
 `policyVersionModel.ts` owns immutable policy checkpoints. A version contains a structured policy
 snapshot, parent hash, sorted scenario references, participant ID, display-name snapshot,

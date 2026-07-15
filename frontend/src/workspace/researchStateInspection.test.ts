@@ -4,6 +4,7 @@ import { createProjectDocument, getProjectSharedTypes } from './projectModel'
 import { commitPolicyVersion } from './policyVersionModel'
 import { inspectResearchState } from './researchStateInspection'
 import { createScenario, deleteScenario } from './scenarioModel'
+import { createScenarioAnnotation } from './scenarioAnnotationModel'
 import { castScenarioVote } from './scenarioVoteModel'
 import { createProjectManifest } from './schema'
 
@@ -24,6 +25,11 @@ async function populatedDocument() {
   castScenarioVote(getProjectSharedTypes(doc).discussions, scenarios, {
     scenarioId: 'source-challenge', eventId: 'researcher-2-supports', participantId: 'researcher-2',
     displayName: 'Secret voter display name is omitted.', choice: 'support', timestamp: 12,
+  })
+  createScenarioAnnotation(getProjectSharedTypes(doc).discussions, scenarios, {
+    annotationId: 'source-warning', eventId: 'create-source-warning', scenarioId: 'source-challenge',
+    kind: 'flag', body: 'Secret annotation body is omitted.', authorId: 'researcher-2',
+    displayName: 'Secret annotator display name is omitted.', timestamp: 12,
   })
   createScenario(scenarios, {
     id: 'source-challenge-branch', title: 'Skeptical branch', background: '', parentScenarioId: 'source-challenge',
@@ -49,6 +55,10 @@ describe('research state inspection', () => {
       summaryCount: 1, invalidRecords: 0, orphanScenarioIds: [],
       items: [{ scenarioId: 'source-challenge', counts: { support: 1, oppose: 0, abstain: 0 }, activeVoteCount: 1, eventCount: 1 }],
     })
+    expect(result.scenarioAnnotations).toMatchObject({
+      annotationCount: 1, invalidRecords: 0, orphanScenarioIds: [], orphanTurnTargets: [], openCount: 1, resolvedCount: 0,
+      items: [{ id: 'source-warning', scenarioId: 'source-challenge', kind: 'flag', status: 'open', eventCount: 1 }],
+    })
     expect(result.versions).toMatchObject({ totalRecords: 1, validRecords: 1, invalidRecords: 0, headVersionId: version.versionId, headLineageDepth: 1 })
     const serialized = JSON.stringify(result)
     expect(serialized).not.toContain('Secret guidance')
@@ -57,6 +67,8 @@ describe('research state inspection', () => {
     expect(serialized).not.toContain('Secret scenario background')
     expect(serialized).not.toContain('Secret scenario turn')
     expect(serialized).not.toContain('Secret voter display name')
+    expect(serialized).not.toContain('Secret annotation body')
+    expect(serialized).not.toContain('Secret annotator display name')
   })
 
   it('reports invalid scenario branch ancestry without exposing scenario bodies', async () => {
@@ -69,6 +81,7 @@ describe('research state inspection', () => {
       healthy: false,
       issues: [
         'Scenario source-challenge-branch has missing parent source-challenge',
+        'Scenario annotations target missing scenario source-challenge',
         'Scenario votes target missing scenario source-challenge',
       ],
     })

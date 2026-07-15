@@ -224,11 +224,16 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   disconnected first votes and concurrent same-participant re-votes converge across eighty seeded
   deliveries, and conflicting event IDs or orphan targets fail closed. MCP inspection exposes only
   aggregate counts and event totals. This closes P-19 domain evidence, not voting UI or identity.
+- Collaborative flags and notes now use their own versioned discussion namespace and immutable
+  parent-linked lifecycle events. Edit, resolve, and reopen retain historical attribution; stale
+  writes reject; disconnected creation and concurrent edit-versus-resolve converge across eighty
+  seeded deliveries; collisions and orphan scenario/turn targets surface in MCP integrity metadata.
+  This closes P-20 domain evidence, not annotation UI, moderation, or authenticated identity.
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **41 capabilities**: **18 are
-`implemented_unverified`, 23 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **41 capabilities**: **19 are
+`implemented_unverified`, 22 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, portable local lifecycle,
 Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned

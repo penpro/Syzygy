@@ -4,6 +4,7 @@ import { getProjectSharedTypes } from './projectModel'
 import { listPolicyVersions, readPolicyVersionHead, readPolicyVersionLineage } from './policyVersionModel'
 import type { PolicyVersion } from './policyVersionModel'
 import { inspectScenarioGraph, listScenarios } from './scenarioModel'
+import { inspectScenarioAnnotations, listScenarioAnnotationSummaries } from './scenarioAnnotationModel'
 import { inspectScenarioVotes, listScenarioVoteSummaries } from './scenarioVoteModel'
 
 const MAX_RETURNED_ITEMS = 200
@@ -39,6 +40,8 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   const validHeuristics = listHeuristics(heuristicMap)
   const validScenarios = listScenarios(scenarioMap)
   const scenarioGraph = inspectScenarioGraph(scenarioMap)
+  const annotationSummaries = listScenarioAnnotationSummaries(discussions)
+  const annotationInspection = inspectScenarioAnnotations(discussions, scenarioMap)
   const voteSummaries = listScenarioVoteSummaries(discussions)
   const voteInspection = inspectScenarioVotes(discussions, scenarioMap)
   const allVersions = await listPolicyVersions(versionMap)
@@ -50,6 +53,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   const issues: string[] = []
   if (invalidHeuristicRecords > 0) issues.push(`${invalidHeuristicRecords} heuristic record(s) failed validation`)
   issues.push(...scenarioGraph.issues)
+  issues.push(...annotationInspection.issues)
   issues.push(...voteInspection.issues)
   if (invalidVersionRecords > 0) issues.push(`${invalidVersionRecords} version record(s) failed hash/schema validation`)
   if (foreignProjectVersions > 0) issues.push(`${foreignProjectVersions} version record(s) belong to another project`)
@@ -118,6 +122,25 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
         eventCount: summary.history.length,
       })),
     },
+    scenarioAnnotations: {
+      annotationCount: annotationInspection.annotationCount,
+      invalidRecords: annotationInspection.invalidRecords,
+      orphanScenarioIds: annotationInspection.orphanScenarioIds,
+      orphanTurnTargets: annotationInspection.orphanTurnTargets,
+      openCount: annotationSummaries.filter((annotation) => annotation.status === 'open').length,
+      resolvedCount: annotationSummaries.filter((annotation) => annotation.status === 'resolved').length,
+      truncated: annotationSummaries.length > MAX_RETURNED_ITEMS,
+      items: annotationSummaries.slice(0, MAX_RETURNED_ITEMS).map((annotation) => ({
+        id: annotation.id,
+        scenarioId: annotation.scenarioId,
+        turnId: annotation.turnId,
+        kind: annotation.kind,
+        status: annotation.status,
+        createdAt: annotation.createdAt,
+        lastActionAt: annotation.lastActionAt,
+        eventCount: annotation.events.length,
+      })),
+    },
     versions: {
       totalRecords: versionMap.size,
       validRecords: versions.length,
@@ -141,9 +164,9 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
     },
     selfCheck: { healthy: issues.length === 0, issues },
     limitations: [
-      'read-only MCP inspection; no version, heuristic, scenario, or vote mutation authority',
+      'read-only MCP inspection; no version, heuristic, scenario, vote, flag, or note mutation authority',
       'local live collaboration document; Drive/WebSocket project transport is not implemented',
-      'counts and integrity are checked; policy text, heuristic guidance, scenario background/turn content/revision bodies, edit values, and notes are omitted',
+      'counts and integrity are checked; policy text, heuristic guidance, scenario background/turn content/revision bodies, annotation/voter bodies, edit values, and version notes are omitted',
     ],
   }
 }

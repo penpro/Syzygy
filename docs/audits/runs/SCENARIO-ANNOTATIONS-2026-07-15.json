@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "runId": "SCENARIO-ANNOTATIONS-2026-07-15",
+  "date": "2026-07-15",
+  "appVersionAtRun": "0.1.10",
+  "capabilities": ["P-20"],
+  "status": "implemented_unverified",
+  "commands": [
+    "npm run test:workspace",
+    "npm run test:mcp",
+    "npm run build",
+    "npm run audit",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "workspaceTestsPassed": 68,
+    "scenarioAnnotationModelTestsPassed": 5,
+    "seededDeliveryOrdersChecked": 80,
+    "rustMcpTestsPassed": 6,
+    "mcpToolsAdvertised": 14,
+    "frontendModulesTransformed": 999,
+    "structuralAuditChecksPassed": 36,
+    "externalNetworkUsed": false,
+    "realCredentialsUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "Scenario-level notes and scenario/turn-scoped flags retain immutable create/edit/resolve/reopen events with participant ID, display-name snapshot, timestamp, and exact parent.",
+    "Product edit/resolve/reopen operations require the exact current event, reject stale writes, and treat exact event replay idempotently.",
+    "Disconnected peers' first annotations survive in separate versioned discussion buckets across forty duplicate/reordered deliveries.",
+    "Concurrent edit and resolve children remain in history and converge one deterministic current lifecycle across another forty duplicate/reordered deliveries.",
+    "Colliding public annotation identity, malformed event/bucket graphs, and missing scenario or turn targets fail closed or surface as explicit integrity issues.",
+    "MCP research-state inspection returns annotation identity/kind/status/count/timestamps and integrity only; synthetic body and display-name canaries are omitted.",
+    "P-20 is implemented_unverified; no annotations UI, authentication, moderation, notification, or remote-provider claim is made."
+  ],
+  "notProved": [
+    "Authenticated participant identity, authorization, or a trusted distributed clock.",
+    "Visible flag/note controls, keyboard/pointer/accessibility behavior, moderation, notifications, or branch reconciliation UI.",
+    "Two-machine Drive/WebSocket collaboration or large-annotation-set performance.",
+    "Automatic policy mutation, model evaluation, labels, examples, or scenario-pack export."
+  ]
+}

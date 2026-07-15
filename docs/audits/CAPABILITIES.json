@@ -28,7 +28,7 @@
     { "id": "P-17", "phase": 6, "status": "planned", "claim": "Regeneration retains variants and lineage", "evidence": [] },
     { "id": "P-18", "phase": 6, "status": "planned", "claim": "Positive and negative examples converge", "evidence": [] },
     { "id": "P-19", "phase": 6, "status": "implemented_unverified", "claim": "Voting is per-user and idempotent", "evidence": ["frontend/src/workspace/scenarioVoteModel.ts", "frontend/src/workspace/scenarioVoteModel.test.ts", "docs/audits/runs/SCENARIO-VOTING-2026-07-15.json"] },
-    { "id": "P-20", "phase": 6, "status": "planned", "claim": "Flags and notes retain lifecycle metadata", "evidence": [] },
+    { "id": "P-20", "phase": 6, "status": "implemented_unverified", "claim": "Flags and notes retain lifecycle metadata", "evidence": ["frontend/src/workspace/scenarioAnnotationModel.ts", "frontend/src/workspace/scenarioAnnotationModel.test.ts", "docs/audits/runs/SCENARIO-ANNOTATIONS-2026-07-15.json"] },
     { "id": "P-21", "phase": 6, "status": "planned", "claim": "Context labels survive concurrent rename", "evidence": [] },
     { "id": "P-22", "phase": 6, "status": "planned", "claim": "Scenario branch graph survives export and import", "evidence": [] },
     { "id": "P-23", "phase": 3, "status": "implemented_unverified", "claim": "Historical attribution survives display-name changes", "evidence": ["frontend/src/workspace/policyVersionModel.ts", "frontend/src/workspace/policyVersionModel.test.ts", "docs/audits/runs/IMMUTABLE-POLICY-VERSIONS-2026-07-15.json"] },

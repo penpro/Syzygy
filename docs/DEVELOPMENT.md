@@ -27,6 +27,28 @@ npm run test:model-adapter-sdk # non-executing custom adapter profile/endpoint c
 cargo fmt --all -- --check # Rust formatting
 ```
 
+## Bounded command watchdog
+
+Long-running development and overnight commands run through the repository watchdog:
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+node ..\scripts\run-with-heartbeat.mjs --timeout-seconds 480 --heartbeat-seconds 30 -- npm test
+npm run test:watchdog
+```
+
+`--timeout-seconds` is mandatory. Heartbeats default to 30 seconds and the runner rejects any
+interval above 60 seconds, so a silent operation is inspected at least once per minute. It forwards
+ordinary output without creating a second log containing possible research content. At the deadline
+it terminates the child process tree and returns exit code 124; Ctrl+C returns 130. On Windows,
+process-tree cleanup uses `taskkill /t /f`, while Unix uses TERM followed by a one-second KILL
+fallback. The executable fixtures prove successful and failing exit propagation, a silent-command
+heartbeat, rejection above the maximum interval, and forced timeout cleanup.
+
+The watchdog does not make a hung operation successful and does not justify retrying indefinitely.
+Use the operation-specific clamp from the active run plan, inspect no slower than the heartbeat,
+and pivot after two identical failures or the slice timebox.
+
 ## Headless local-AI lifecycle proof
 
 ```powershell

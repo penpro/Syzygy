@@ -72,6 +72,22 @@ const installerText = `${text('frontend/src-tauri/installer/English.nsh')}\n${te
 record('installer identity', !/Aphelion|com\.localllm\.studio/i.test(installerText), 'Syzygy names and data path')
 record('icon source', existsSync(join(root, 'frontend/src-tauri/syzygy-icon.svg')), 'syzygy-icon.svg exists')
 
+const watchdogSource = text('scripts/run-with-heartbeat.mjs')
+const watchdogTestSource = text('scripts/run-with-heartbeat.test.mjs')
+record(
+  'development operations remain deadline-bounded with at-most-one-minute heartbeats',
+  frontendPackage.scripts?.['test:watchdog'] === 'node --test ../scripts/run-with-heartbeat.test.mjs' &&
+    watchdogSource.includes('DEFAULT_HEARTBEAT_SECONDS = 30') &&
+    watchdogSource.includes('MAX_HEARTBEAT_SECONDS = 60') &&
+    watchdogSource.includes('TIMEOUT_EXIT_CODE = 124') &&
+    watchdogSource.includes("spawnSync('taskkill'") &&
+    watchdogSource.includes("throw new Error('--timeout-seconds is required')") &&
+    watchdogTestSource.includes('rejects heartbeat intervals over one minute') &&
+    watchdogTestSource.includes('terminates a hung process tree at the deadline') &&
+    watchdogTestSource.includes('assert.equal(result.status, 124)'),
+  'mandatory deadlines, 30-second default/60-second maximum heartbeat, Windows process-tree cleanup, and executable timeout fixtures are present',
+)
+
 const provenance = text('docs/audits/EDITOR-PROVENANCE.md')
 const workspaceSources = filesBelow('frontend/src/workspace', ['.ts', '.tsx'])
   .filter((path) => !path.endsWith('.test.ts'))

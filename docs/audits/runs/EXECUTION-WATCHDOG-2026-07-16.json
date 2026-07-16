@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "runId": "EXECUTION-WATCHDOG-2026-07-16",
+  "date": "2026-07-16",
+  "appVersionAtRun": "0.1.10",
+  "status": "verified-development-infrastructure",
+  "commands": [
+    "npm run test:watchdog",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 60 --heartbeat-seconds 30 -- npm run test:watchdog",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 240 --heartbeat-seconds 30 -- npm run audit",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "watchdogTestsPassed": 6,
+    "structuralAuditChecksPassed": 40,
+    "defaultHeartbeatSeconds": 30,
+    "maximumHeartbeatSeconds": 60,
+    "timeoutExitCode": 124,
+    "externalNetworkUsed": false,
+    "modelEngineUsed": false,
+    "realCredentialsUsed": false
+  },
+  "proved": [
+    "The runner rejects a missing deadline and heartbeat intervals above 60 seconds.",
+    "A silent child produces a heartbeat and a hung child is terminated at its deadline with exit code 124.",
+    "Successful and failing child exit codes are preserved.",
+    "On Windows, npm is executed through npm-cli.js with the current Node binary rather than an ambient command shell.",
+    "The watchdog supervised its own npm test command and the full structural audit successfully.",
+    "Windows timeout cleanup targets the complete child process tree."
+  ],
+  "notProved": [
+    "Unix TERM-to-KILL cleanup on a live Unix host.",
+    "Tauri package-build timeout behavior.",
+    "Recovery of an operation after timeout; the runner only terminates and reports it.",
+    "Sanitization of arbitrary child output; output is forwarded and no secondary research-content log is created."
+  ]
+}

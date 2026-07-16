@@ -129,15 +129,18 @@ Drive/WebSocket transport remain separate gates.
 round-trip, attributed immutable turn revisions, branch lineage, independent concurrent field and
 turn additions, delete-versus-nested-edit, peer-colliding public scenario/turn IDs, exact record
 shapes, malformed order, and missing-parent inspection. Eighty seeded duplicate/reordered delivery
-checks must converge. This does not prove gallery UI, generation, voting, evaluation, scenario
-packs, or a remote collaboration provider.
+checks must converge. `ScenarioWorkspace.ui.test.ts` adds an engine-free product contract for
+loading/empty/error states, create/select/detail controls, ordered turn addition, vote controls,
+the unauthenticated-identity disclosure, deterministic stale-detail detection, and read-only
+integrity failure. This does not prove turn revision editing, generation, evaluation, annotations,
+labels, scenario packs, packaged pointer/focus behavior, or a remote collaboration provider.
 
 `scenarioVoteModel.test.ts` is the P-19 domain gate. It covers exact replay idempotency, attributed
 re-voting, abstention, withdrawal without history erasure, disconnected first-vote merge,
 concurrent same-participant re-votes, conflicting event identities, malformed buckets, namespace
 isolation, and orphan scenario targets. Eighty seeded duplicate/reordered deliveries must converge.
-This proves a shared vote ledger, not authenticated identity, a trusted distributed clock, voting
-UI, flags/notes, or remote transport.
+This proves a shared vote ledger, not authenticated identity, a trusted distributed clock,
+moderation, flags/notes UI, or remote transport.
 
 `scenarioAnnotationModel.test.ts` is the P-20 domain gate. It covers note editing, turn-scoped
 flags, resolve/reopen attribution, exact-current revision guards, replay idempotency, disconnected

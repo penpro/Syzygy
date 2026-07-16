@@ -345,6 +345,13 @@ Gate: P-05–P-08/P-14–P-23 pass under two-client concurrency; engine failure 
 state; reference graph survives delete/restore/export/import; jobs do not freeze editing.
 
 ### Phase 7 — policy assistance and heuristics (`L`)
+Progress: collaborative scenario/turn/vote domain models and MCP routes now have a first engine-free
+product caller. The panel creates, selects, edits, and changes status for stable scenarios, appends
+ordered turns, casts or withdraws attributed votes, observes the live Y.Doc, rejects stale detail
+saves, and disables writes on graph-integrity failure. Turn revision editing, labels, branches UI,
+flags/notes, generation/regeneration, variants, examples, links/spotlight, evaluation, packaged
+interaction, authenticated identity, and two-client product validation remain open.
+
 
 Deliver local-AI suggestion/discussion tasks, explainable heuristic results with cited spans and
 manual override, review/diff/accept/reject/partial-edit UI, deterministic diff and optional note.

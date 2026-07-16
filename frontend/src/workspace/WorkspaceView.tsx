@@ -3,6 +3,7 @@ import { ResearchEditor } from './ResearchEditor'
 import { RemoteResearchReview } from './RemoteResearchReview'
 import { PolicyVersionRail } from './PolicyVersionRail'
 import { ProjectArchiveControls } from './ProjectArchiveControls'
+import { ScenarioWorkspace } from './ScenarioWorkspace'
 
 export function WorkspaceView() {
   const projects = useStore((state) => state.projects)
@@ -51,11 +52,7 @@ export function WorkspaceView() {
         </div>
 
         <aside className="workspace-evaluate" aria-label="Scenario workspace">
-          <div className="workspace-panel-label mono">Scenarios</div>
-          <h2>Test cases will live here</h2>
-          <p>Private experimentation, shared scenario references, and evaluations will use the project’s reserved CRDT collections.</p>
-          <button className="btn" type="button" disabled>Add scenario</button>
-          <div className="workspace-contract mono">scenarios · heuristics · discussions</div>
+          <ScenarioWorkspace project={project} />
           <RemoteResearchReview project={project} />
         </aside>
       </div>

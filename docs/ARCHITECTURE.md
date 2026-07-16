@@ -153,15 +153,20 @@ under peer-specific internal keys so disconnected collisions survive merge and m
 fail closed. Independent scalar edits and turn insertions converge; turn revisions retain every
 attributed alternative and select a deterministic current value. A graph inspector detects invalid
 records, missing parents, and cycles. No visible gallery, generation, response evaluation, voting,
-or portable scenario-pack export is claimed.
+or portable scenario-pack export was previously claimed. `ScenarioWorkspace.tsx` now provides an
+engine-free product gallery with create/select/edit/status controls, ordered turn addition, and
+attributed vote/withdraw controls against the same live Y.Doc. It observes peer updates, refuses
+stale detail saves when any scenario edit identity changed, and makes graph-integrity failures
+read-only. Turn revision editing, generation, evaluation, annotations, labels, and scenario-pack
+export remain outside this slice.
 
 `scenarioVoteModel.ts` stores immutable vote events in peer-specific, version-prefixed buckets
 inside the reserved discussions collection. This avoids namespace collisions with future notes and
 flags while allowing disconnected first votes to merge without replacing one another. Projection
 deduplicates exact replay, fails closed on conflicting event identity, retains re-vote/withdrawal
 history, and chooses each participant's current event by timestamp then event identity. Caller-
-supplied participant identity and time are not authentication or a trusted clock; no voting UI is
-claimed.
+supplied participant identity and time are not authentication or a trusted clock; the product vote
+controls disclose that identity limitation.
 
 `scenarioAnnotationModel.ts` uses a separate version-prefixed discussion namespace for immutable
 flag/note lifecycle events. Create, edit, resolve, and reopen operations retain author/display-name-

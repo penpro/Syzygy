@@ -239,8 +239,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   attributed turn revisions, scenario edit history, and branch parents. Forty seeded concurrent
   field/turn-add deliveries and forty delete-versus-turn-edit deliveries converge; disconnected
   public scenario/turn ID collisions, malformed order, unknown fields, and missing parents fail
-  closed. This closes P-14/P-15 domain evidence only; gallery UI, generation, response variants,
-  votes/flags, evaluation, and portable scenario packs remain open.
+  closed. The product panel now exposes engine-free create/select/edit/status, ordered turn
+  addition, and integrity-error states. Turn revision UI, generation, response variants,
+  flags/notes/labels, evaluation, and portable scenario packs remain open.
 - The existing `inspect_research_state` MCP self-check now reports bounded scenario metadata and
   validates scenario records plus missing/cyclic branch ancestry alongside heuristics and immutable
   history. Scenario background, turn content, and revision bodies remain excluded, and the route
@@ -249,7 +250,7 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   namespaced discussion buckets. Replay is idempotent, re-votes/withdrawals retain history,
   disconnected first votes and concurrent same-participant re-votes converge across eighty seeded
   deliveries, and conflicting event IDs or orphan targets fail closed. MCP inspection exposes only
-  aggregate counts and event totals. This closes P-19 domain evidence, not voting UI or identity.
+  aggregate counts and event totals. Product vote/withdraw controls disclose that identity is unauthenticated.
 - Collaborative flags and notes now use their own versioned discussion namespace and immutable
   parent-linked lifecycle events. Edit, resolve, and reopen retain historical attribution; stale
   writes reject; disconnected creation and concurrent edit-versus-resolve converge across eighty
@@ -264,7 +265,7 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   monotonic Yjs revision and rejects a read that changes during validation; scenario creation
   requires that exact revision and live project identity. Pure tests prove stale zero-write and
   branch creation, while Rust/stdio/live harnesses lock the route. Turn mutation, generation, and
-  scenario UI remain unavailable.
+  turn revision editing and scenario generation remain unavailable.
 - The MCP scenario surface now has seventeenth-tool coverage: `add_scenario_turn` stores one
   explicit role/content turn and `revise_scenario_turn` retains attributed immutable revisions.
   Each mutation consumes the exact research revision from inspection or the prior mutation; stale

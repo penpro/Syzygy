@@ -112,7 +112,7 @@ editable in Settings and old attribution remains visually historical.
 Restore is a deliberate two-step action on a non-head checkpoint. **Prepare restore** reveals the
 exact short checkpoint ID, a cancel action, and **Restore as new version**. The copy states that the
 live draft is replaced, a new child is created on the current head, and existing versions remain.
-The UI must not imply that Drive CRDT transport, scenarios, or real-time presence already work.
+The UI must not imply that Drive CRDT transport, scenario generation/evaluation, or real-time presence already work.
 
 Portable project movement is available from both the empty workspace and an open project. **Export
 project** stays disabled until the live collaboration document is ready; **Import project** remains
@@ -120,6 +120,13 @@ available with no project open. Archives use the visible `.syzygy-project.json` 
 cancel/success/failure in accessible live text, and open imports locally after validating identity,
 checksums, size, and existing-install collisions. Copy must not imply that an imported archive is
 still connected to another researcher's Drive folder or that credentials/model settings moved with it.
+
+The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,
+empty, integrity-error, and mutation-error states; creates and selects stable scenarios; edits title,
+background, and workflow state; appends ordered role/content turns; and exposes support, oppose,
+abstain, and withdraw controls with aggregate counts. A stale detail form must reload instead of
+overwriting a newer shared scenario edit. When graph integrity fails, all mutation controls are
+disabled. Copy states that the installation researcher identity is not authenticated.
 
 The editor uses Plex Serif for document content and Plex Mono metadata stamps, with every surface,
 border, status, and selection derived from theme tokens so retained

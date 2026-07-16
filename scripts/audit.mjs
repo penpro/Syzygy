@@ -197,6 +197,27 @@ record(
 )
 
 const scenarioVoteSource = text('frontend/src/workspace/scenarioVoteModel.ts')
+const scenarioWorkspaceSource = text('frontend/src/workspace/ScenarioWorkspace.tsx')
+const scenarioWorkspaceTestSource = text('frontend/src/workspace/ScenarioWorkspace.ui.test.ts')
+record(
+  'scenario product workspace remains live, engine-free, stale-safe, and integrity-read-only',
+  scenarioWorkspaceSource.includes('subscribeAutomationProjectDocument(project.id') &&
+    scenarioWorkspaceSource.includes('scenarioDetailsRevision(current) !== editingHead') &&
+    scenarioWorkspaceSource.includes('if (!graph.healthy)') &&
+    scenarioWorkspaceSource.includes('createScenario(writableShared().scenarios') &&
+    scenarioWorkspaceSource.includes('addScenarioTurn(writableShared().scenarios') &&
+    scenarioWorkspaceSource.includes('castScenarioVote(types.discussions, types.scenarios') &&
+    scenarioWorkspaceSource.includes('identity is not authenticated') &&
+    scenarioWorkspaceTestSource.includes('offers engine-free creation from an honest empty state') &&
+    scenarioWorkspaceTestSource.includes('reports loading, integrity, and mutation failures accessibly') &&
+    scenarioWorkspaceTestSource.includes('changes the stale-edit revision when any scenario edit identity appears') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-14", "phase": 6, "status": "implemented_unverified"') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-15", "phase": 6, "status": "implemented_unverified"') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-19", "phase": 6, "status": "implemented_unverified"') &&
+    existsSync(join(root, 'docs/audits/runs/SCENARIO-WORKSPACE-2026-07-16.json')),
+  'live Y.Doc subscription, scenario CRUD/status, ordered turn add, vote/withdraw, stale-detail guard, graph-integrity write denial, accessible states, and truthful P-14/P-15/P-19 statuses are present',
+)
+
 const scenarioVoteTestSource = text('frontend/src/workspace/scenarioVoteModel.test.ts')
 record(
   'collaborative scenario votes remain idempotent, attributed, namespaced, and convergent',

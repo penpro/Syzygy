@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "runId": "SCENARIO-WORKSPACE-2026-07-16",
+  "date": "2026-07-16",
+  "appVersionAtRun": "0.1.10",
+  "capabilities": ["P-14", "P-15", "P-19"],
+  "status": "implemented_unverified",
+  "commands": [
+    "npm test -- src/workspace/ScenarioWorkspace.ui.test.ts src/workspace/scenarioModel.test.ts src/workspace/scenarioVoteModel.test.ts --reporter=verbose",
+    "npm run test:workspace",
+    "npm test",
+    "npm run build",
+    "npm run tauri build",
+    "npm run audit",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "focusedScenarioTestsPassed": 16,
+    "workspaceTestsPassed": 117,
+    "workspaceTestsExpectedFailure": 1,
+    "frontendTestsPassed": 227,
+    "frontendTestsExpectedFailure": 1,
+    "frontendTestsSkipped": 1,
+    "frontendModulesTransformed": 1010,
+    "structuralAuditChecksPassed": 43,
+    "packagedAppBuildPassed": true,
+    "packagedAppRecompiled": true,
+    "externalNetworkUsed": false,
+    "modelEngineUsed": false,
+    "realCredentialsUsed": false
+  },
+  "proved": [
+    "The workspace panel subscribes to the same live Y.Doc as the editor and refreshes on peer updates.",
+    "A researcher can create, select, edit title/background, and change workflow status without starting a model.",
+    "A researcher can append ordered system, user, or assistant turns through the existing attributed scenario domain.",
+    "Support, oppose, abstain, re-vote, and withdrawal use the existing immutable attributed vote ledger and show aggregate counts.",
+    "The product explicitly states that the installation researcher identity used for votes is not authenticated.",
+    "A detail form refuses to save when any scenario edit identity changed since the form loaded, independent of timestamp order.",
+    "Malformed or cyclic scenario graph state is reported accessibly and every scenario mutation control becomes read-only.",
+    "The complete workspace suite, frontend suite, production frontend build, 43-check structural audit, and packaged Tauri/NSIS build pass under the watchdog; packaging logged Compiling app v0.1.10."
+  ],
+  "notProved": [
+    "Two packaged clients editing the visible scenario panel over Drive or WebSocket transport.",
+    "Turn revision/edit/delete UI, branch creation UI, flags/notes UI, labels UI, generation, regeneration, variants, or evaluation.",
+    "Authenticated user identity, authorization, moderation, or a trusted distributed clock.",
+    "Packaged pointer/focus/screen-reader interaction, narrow-layout usability, or dark-theme visual review.",
+    "A signed updater release containing this development checkpoint."
+  ]
+}

@@ -20,6 +20,8 @@
 | `frontend/src-tauri/src/google_*.rs` | Penumbra original | OAuth/Drive implementation and ADR-0001 |
 | `frontend/src/workspace/schema.ts` | Penumbra original | Versioned project-manifest contract and fail-closed validator |
 | `frontend/src/workspace/projectModel.ts` | Penumbra original | Provider-neutral Yjs shared-type names and update helpers |
+| `frontend/src/workspace/projectArchive.ts` | Penumbra original | Checksummed, size-bounded manifest plus exact-Yjs-state archive with identity validation, collision refusal, local import rebinding, and IndexedDB orphan-state protection |
+| `frontend/src/workspace/ProjectArchiveControls.tsx` | Penumbra original | Accessible engine-free project import/export controls with live-document readiness, file-size gating, and explicit status/error states |
 | `frontend/src/workspace/heuristicsModel.ts` | Penumbra original | Typed collaborative heuristic records with nested CRDT fields, bounded validation, per-edit attribution, replay rejection, and deterministic read projection |
 | `frontend/src/workspace/scenarioModel.ts` | Penumbra original | Stable lifecycle scenarios, ordered multi-turn CRDT content, attributed immutable revisions/edits, branch inspection, and fail-closed peer-collision handling |
 | `frontend/src/workspace/scenarioVoteModel.ts` | Penumbra original | Namespaced immutable scenario vote events, idempotent replay, attributed re-vote/withdrawal history, deterministic participant projection, and orphan/collision inspection |

@@ -102,7 +102,12 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   read. The Lexical/Yjs editor owns the `root` shared type.
   `PolicyVersionRail.tsx` subscribes to that same live document, saves the exact semantic editor
   revision against the exact version head, and presents verified immutable checkpoints plus
-  deterministic parent diffs.
+  deterministic parent diffs. `projectArchive.ts` exports a size-bounded, SHA-256-protected
+  envelope containing only the project manifest and exact Yjs state. Import validates both project
+  and document identity, refuses manifest/document collisions and different orphaned IndexedDB
+  state, resets transport to local, persists before opening, and never carries settings, model
+  configuration, OAuth state, or provider credentials. `ProjectArchiveControls.tsx` exposes the
+  same engine-free import path with or without an existing project.
 - `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
   navigation, revision-guarded editor reads/writes, and bounded read-only research-state integrity
   inspection. `scenarioAutomation.ts` creates scenarios, adds/revises attributed turns, and casts
@@ -227,6 +232,7 @@ availability claim.
 | Settings, experts, ask threads | localStorage key `syzygy` (webview) |
 | Project manifests / active project / researcher attribution | localStorage key `syzygy` (webview, migration v3) |
 | Collaborative project updates | IndexedDB database `syzygy-project-v1:<projectId>` |
+| Portable project archive | User-chosen `.syzygy-project.json`; manifest plus exact checksummed Yjs state, no app/model/credential settings |
 | Sanitized diagnostic history (last 500 entries) | localStorage key `syzygy-diagnostic-log-v1` (webview) |
 | Google refresh token + client info | `<app-data>/google_auth.json` (Rust-only) |
 | Optional remote-model API keys | OS credential store under service `org.penumbra.syzygy.model-provider`; the collapsed Settings UI can set/replace/delete and read only presence; no generation workflow is enabled |

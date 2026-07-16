@@ -86,6 +86,16 @@ replace stale results with an alert and a disabled save action against unverifie
 It does **not** yet prove two-machine rich text convergence or Drive transport; those
 remain separate capability gates.
 
+Portable archives are covered by `projectArchive.test.ts` and
+`ProjectArchiveControls.ui.test.ts`. The domain fixture exports the exact Yjs state, reopens every
+reserved shared collection through IndexedDB without a network provider, and rejects corrupted
+hashes, future schemas, unknown envelope/manifest fields, project/document collisions, identity
+mismatch, oversized input, and different orphaned local state. The server-rendered UI contract
+requires import with no current project, disables export before the live document is ready, and
+announces errors. This is engine-free, fake-IndexedDB evidence; S-04 remains
+`implemented_unverified` until a packaged archive is exported on one clean installation and
+imported offline on a second clean installation.
+
 The editor structure slice is covered by `ResearchEditorFormatting.test.ts`,
 `editorStructure.test.ts`, `ResearchTableOfContents.ui.test.ts`, and `PolicyBlockNode.test.ts`.
 The first three prove supported heading/quote/mark structure, a shared pointer/keyboard reorder

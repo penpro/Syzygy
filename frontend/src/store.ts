@@ -5,7 +5,7 @@ import { uid, now } from './util'
 import { safeStorage } from './storage'
 import { mergePersisted, migratePersistedVersion, PERSISTED_STORE_VERSION } from './migrations'
 import { defaultSettings, defaultExperts } from './seed'
-import { createProjectManifest, type ResearchProjectManifest } from './workspace/schema'
+import { createProjectManifest, parseProjectManifest, type ResearchProjectManifest } from './workspace/schema'
 
 interface AppState {
   settings: Settings
@@ -28,6 +28,7 @@ interface AppState {
   renameProject: (id: string, title: string) => void
   openProject: (id: string) => void
   archiveProject: (id: string) => void
+  addImportedProject: (project: ResearchProjectManifest) => void
 
   // experts (rule sets for the Ask view)
   experts: Expert[]
@@ -94,6 +95,22 @@ export const useStore = create<AppState>()(
             activeProjectId: state.activeProjectId === id ? (nextProject?.id ?? null) : state.activeProjectId,
           }
         }),
+      addImportedProject: (value) => {
+        const project = parseProjectManifest(value)
+        if (project.transport.kind !== 'local' || project.archivedAt !== undefined) {
+          throw new Error('Imported projects must open as active local projects')
+        }
+        const state = get()
+        if (state.projects.some((candidate) =>
+          candidate.id === project.id || candidate.documentId === project.documentId)) {
+          throw new Error('This project already exists on this installation')
+        }
+        set({
+          projects: [{ ...project, transport: { kind: 'local' } }, ...state.projects],
+          activeProjectId: project.id,
+          view: 'workspace',
+        })
+      },
 
       // ---- experts (rule sets for the Ask view) ----
       experts: defaultExperts,

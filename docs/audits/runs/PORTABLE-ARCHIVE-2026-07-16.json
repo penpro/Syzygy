@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "runId": "PORTABLE-ARCHIVE-2026-07-16",
+  "date": "2026-07-16",
+  "appVersionAtRun": "0.1.10",
+  "capabilities": ["S-04"],
+  "status": "implemented_unverified",
+  "commands": [
+    "npm test -- src/workspace/projectArchive.test.ts src/workspace/ProjectArchiveControls.ui.test.ts --reporter=verbose",
+    "npm run test:workspace",
+    "npm test",
+    "npm run build",
+    "npm run tauri build",
+    "npm run audit",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "focusedArchiveTestsPassed": 8,
+    "workspaceTestsPassed": 113,
+    "workspaceTestsExpectedFailure": 1,
+    "frontendTestsPassed": 223,
+    "frontendTestsExpectedFailure": 1,
+    "frontendTestsSkipped": 1,
+    "frontendModulesTransformed": 1009,
+    "structuralAuditChecksPassed": 42,
+    "packagedAppBuildPassed": true,
+    "packagedAppRecompiled": true,
+    "externalNetworkUsed": false,
+    "modelEngineUsed": false,
+    "realCredentialsUsed": false
+  },
+  "proved": [
+    "Export is deterministic at a fixed timestamp and contains only the normalized project manifest plus the exact Yjs document update.",
+    "The envelope and Yjs update have independent SHA-256 checksums; unknown envelope or manifest fields, future schemas, malformed base64, mismatched lengths, and tampering fail closed.",
+    "The live document GUID and shared project/schema metadata must match the manifest at export and import.",
+    "Import preserves stable project/document identity and every reserved shared collection while removing archived state and resetting transport to local.",
+    "Existing project-ID or document-ID collisions are rejected without overwriting or silently forking.",
+    "Different orphaned IndexedDB state under the imported project key is rejected rather than merged silently.",
+    "A decoded archive persists and reopens from fake IndexedDB without a network provider or model engine.",
+    "The product exposes import with no project open, gates export on a synchronized live document, bounds file size, and renders accessible status/error feedback.",
+    "The complete workspace suite, complete frontend suite, production frontend build, 42-check structural audit, and packaged Tauri/NSIS build pass under the bounded operation watchdog; the log confirms Compiling app v0.1.10."
+  ],
+  "notProved": [
+    "The decisive two-clean-install test: export from one packaged installation, transfer the archive, disconnect networking, and import on a second packaged installation.",
+    "Crash or power-loss durability during archive persistence and manifest registration.",
+    "Large-project performance near the 25 MB Yjs update limit or 36 MB archive file limit.",
+    "Packaged save/open dialog interaction, screen-reader announcements, narrow-layout focus behavior, or dark-theme visual review.",
+    "Archive encryption, attachment-file inclusion, merge/fork workflows for an already-present project, or Drive/WebSocket transport restoration.",
+    "A signed updater release containing this development checkpoint."
+  ]
+}

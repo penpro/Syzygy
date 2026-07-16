@@ -113,6 +113,14 @@ Restore is a deliberate two-step action on a non-head checkpoint. **Prepare rest
 exact short checkpoint ID, a cancel action, and **Restore as new version**. The copy states that the
 live draft is replaced, a new child is created on the current head, and existing versions remain.
 The UI must not imply that Drive CRDT transport, scenarios, or real-time presence already work.
+
+Portable project movement is available from both the empty workspace and an open project. **Export
+project** stays disabled until the live collaboration document is ready; **Import project** remains
+available with no project open. Archives use the visible `.syzygy-project.json` suffix, report
+cancel/success/failure in accessible live text, and open imports locally after validating identity,
+checksums, size, and existing-install collisions. Copy must not imply that an imported archive is
+still connected to another researcher's Drive folder or that credentials/model settings moved with it.
+
 The editor uses Plex Serif for document content and Plex Mono metadata stamps, with every surface,
 border, status, and selection derived from theme tokens so retained
 

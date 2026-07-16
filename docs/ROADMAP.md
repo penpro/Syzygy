@@ -204,7 +204,7 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   converge. The workspace version rail now saves the exact active semantic revision under the exact
   current head, lists verified checkpoints, and shows author, note, time, hash, and current-head
   metadata. Store migration v3 makes the generated per-install participant ID durable. Safe
-  restore now has a product caller; archives, Drive/WebSocket transport, and packaged
+  restore now has a product caller; Drive/WebSocket transport and packaged
   pointer/keyboard validation remain open.
 - Exact-head version commits and restore-as-new-child are now implemented at the domain layer.
   Stale commits fail before insertion; concurrent restores retain both immutable branches while
@@ -216,6 +216,13 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   fixture receives root/version/head in one update. P-28/P-29 remain `implemented_unverified`;
   conflict reconciliation, exports, Drive/WebSocket convergence, crash-durability injection, and
   packaged interaction tests remain open.
+- Portable project archives now serialize the exact Yjs document plus the project manifest in a
+  size-bounded, SHA-256-protected open JSON envelope. Product controls export from a live project
+  and import even when no project exists; import verifies identity and checksums, refuses project
+  or document collisions and different orphaned IndexedDB state, strips the old transport binding,
+  and reopens locally without an engine or network provider. Headless fake-IndexedDB reopen and UI
+  contracts pass. S-04 remains `implemented_unverified` until two clean packaged installations
+  complete an offline file transfer and import.
 - The live MCP now advertises a thirteenth semantic tool, `inspect_research_state`. A lifecycle-
   safe registry points it at the same active Y.Doc as the editor. The tool validates heuristic
   records, immutable version hashes, project ownership, head shape, and complete ancestor lineage,
@@ -285,11 +292,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **41 capabilities**: **24 are
-`implemented_unverified`, 17 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **41 capabilities**: **25 are
+`implemented_unverified`, 16 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
-The next product-critical gaps remain the custom editor/domain nodes, portable local lifecycle,
-Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned
+The next product-critical gaps remain the custom editor/domain nodes, remaining crash/recovery local
+lifecycle, Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned
 evaluation. The definitive contracts and gates remain in `END-GOAL-PLAN.md` and
 `docs/audits/CAPABILITIES.json`.
 

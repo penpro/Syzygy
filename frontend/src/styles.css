@@ -2376,6 +2376,31 @@ input.workspace-title-input:focus {
   align-items: center;
   gap: 10px;
 }
+.project-archive-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.project-archive-controls,
+.workspace-empty-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.workspace-empty-actions { margin-top: 24px; }
+.project-archive-status {
+  max-width: 260px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.project-archive-status.error { color: var(--error); }
 .workspace-grid {
   display: grid;
   grid-template-columns: minmax(190px, 0.78fr) minmax(420px, 3.2fr) minmax(260px, 1.18fr);
@@ -2872,6 +2897,6 @@ input.workspace-title-input:focus {
   .workspace-editor-column { min-height: 70vh; }
   .workspace-evaluate { border: 1px solid var(--border); }
   .workspace-header { align-items: flex-start; }
-  .workspace-header-actions { display: none; }
+  .workspace-header-actions { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
   input.workspace-title-input { width: min(74vw, 560px); }
 }

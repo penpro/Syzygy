@@ -2,6 +2,7 @@ import { useStore } from '../store'
 import { ResearchEditor } from './ResearchEditor'
 import { RemoteResearchReview } from './RemoteResearchReview'
 import { PolicyVersionRail } from './PolicyVersionRail'
+import { ProjectArchiveControls } from './ProjectArchiveControls'
 
 export function WorkspaceView() {
   const projects = useStore((state) => state.projects)
@@ -16,7 +17,10 @@ export function WorkspaceView() {
         <div className="workspace-kicker mono">Research workspace</div>
         <h1 id="workspace-empty-title">Turn evidence into a policy you can test.</h1>
         <p>Create a local project now. Shared scenarios, Drive transport, evaluations, and versions will attach to this project without changing its identity.</p>
-        <button className="btn primary" type="button" onClick={() => createProject()}>Create research project</button>
+        <div className="workspace-empty-actions">
+          <button className="btn primary" type="button" onClick={() => createProject()}>Create research project</button>
+          <ProjectArchiveControls />
+        </div>
       </section>
     )
   }
@@ -34,6 +38,7 @@ export function WorkspaceView() {
           />
         </div>
         <div className="workspace-header-actions">
+          <ProjectArchiveControls project={project} />
           <span className="workspace-status mono">Local persistence · immutable history</span>
         </div>
       </header>

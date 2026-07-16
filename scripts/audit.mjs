@@ -99,6 +99,34 @@ record(
   missingWorkspaceProvenance.join(', ') || `${workspaceSources.length} source files registered`,
 )
 
+const projectArchiveSource = text('frontend/src/workspace/projectArchive.ts')
+const projectArchiveTestSource = text('frontend/src/workspace/projectArchive.test.ts')
+const projectArchiveUiSource = text('frontend/src/workspace/ProjectArchiveControls.tsx')
+const projectArchiveUiTestSource = text('frontend/src/workspace/ProjectArchiveControls.ui.test.ts')
+const projectStoreSource = text('frontend/src/store.ts')
+record(
+  'portable project archives remain bounded, identity-safe, engine-free, and evidence-honest',
+  projectArchiveSource.includes("PROJECT_ARCHIVE_FORMAT = 'syzygy-project-archive'") &&
+    projectArchiveSource.includes('PROJECT_ARCHIVE_MAX_FILE_BYTES = 36_000_000') &&
+    projectArchiveSource.includes("globalThis.crypto.subtle.digest('SHA-256', ownedBytes.buffer)") &&
+    projectArchiveSource.includes('assertDocumentIdentity(doc, manifest)') &&
+    projectArchiveSource.includes('Project archive manifest contains unsupported fields') &&
+    projectArchiveSource.includes("transport: { kind: 'local' }") &&
+    projectArchiveSource.includes('project.id === manifest.id || project.documentId === manifest.documentId') &&
+    projectArchiveSource.includes('Local storage already contains different state for this project') &&
+    projectArchiveTestSource.includes('round-trips every shared collection with stable identity and a local import binding') &&
+    projectArchiveTestSource.includes('persists an imported archive and reopens it from IndexedDB without a network provider') &&
+    projectArchiveTestSource.includes('refuses to merge an archive with different orphaned local state') &&
+    projectArchiveUiSource.includes('subscribeAutomationProjectDocument(project.id') &&
+    projectArchiveUiSource.includes('assertProjectArchiveImportAvailable(decoded.manifest, useStore.getState().projects)') &&
+    projectArchiveUiSource.includes('if (file.size > PROJECT_ARCHIVE_MAX_FILE_BYTES)') &&
+    projectArchiveUiTestSource.includes('keeps import available without an existing project') &&
+    projectStoreSource.includes('addImportedProject: (value) =>') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "S-04", "phase": 3, "status": "implemented_unverified"') &&
+    existsSync(join(root, 'docs/audits/runs/PORTABLE-ARCHIVE-2026-07-16.json')),
+  'checksummed exact-state envelope, bounded input, fail-closed manifest/document identity, local rebinding, collision/orphan refusal, offline IndexedDB reopen, accessible product controls, and truthful S-04 status are present',
+)
+
 const editorStructureSource = text('frontend/src/workspace/editorStructure.ts')
 const editorStructureTestSource = text('frontend/src/workspace/editorStructure.test.ts')
 const editorFormattingTestSource = text('frontend/src/workspace/ResearchEditorFormatting.test.ts')

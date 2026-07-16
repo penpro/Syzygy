@@ -282,7 +282,9 @@ valid graphs and reject invalid references.
 
 Progress: project-manifest schema v1, persisted-store migration v2, reserved provider-neutral Yjs
 collections, fail-closed manifest validation, and the first duplicate/reorder/round-trip harness
-exist. Archive format, content hashing, full domain schemas, property tests, and scale budgets remain.
+exist. The project archive envelope and content hashing now exist with bounded corruption,
+collision, and offline-reopen fixtures. Full domain schemas, property tests, cross-machine packaged
+import, and scale budgets remain.
 
 ### Phase 2 — clean-room editor vertical slice (`XL`)
 
@@ -307,6 +309,13 @@ recovery/backups/quota UI, stable participant identity, immutable versions, rest
 
 Gate: fault injection loses no acknowledged edit; export/import works offline with engine off;
 P-01/P-13/P-23/P-27–P-29/S-04 pass.
+
+Progress: create/open/rename/archive, stable participant identity, immutable versions, safe
+restore-as-new, and an engine-free portable archive product path exist. The archive is checksummed,
+identity-bound, stripped of prior transport on import, collision/orphan-state safe, and proven to
+reopen from fake IndexedDB without a network provider. Two-clean-install packaged transfer,
+attachment storage, crash/power-loss fault injection, recovery/backups/quota UI, and decisive
+S-04 verification remain open.
 
 ### Phase 4 — Drive projects and asynchronous CRDT (`XL`)
 
@@ -582,7 +591,7 @@ dialog. Product domain orchestration still must decide which frozen snapshots en
 
 ## 11. Recommended next slice
 
-Status snapshot on 2026-07-16: the 41-row ledger has 24 `implemented_unverified`, 17 `planned`,
+Status snapshot on 2026-07-16: the 41-row ledger has 25 `implemented_unverified`, 16 `planned`,
 and 0 `verified` capabilities. The shipped local editor, Drive research path, local engine, and MCP
 pilot are meaningful foundations, but none substitutes for the decisive two-install, convergence,
 portable-archive, workflow, accessibility, and adversarial gates below. MCP setup/onboarding is

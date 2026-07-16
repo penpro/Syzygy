@@ -407,6 +407,7 @@ const advertisedMcpTools = [
   'rename_scenario_label',
   'set_scenario_label_assignment',
   'save_active_policy_version',
+  'restore_active_policy_version',
   'replace_active_document',
   'append_active_document',
   'syzygy_installation',
@@ -468,6 +469,25 @@ record(
     mcpSource.includes('"save_active_policy_version" => live("project.savePolicyVersion"') &&
     text('scripts/mcp-live-harness.mjs').includes('dualRevisionCheckpoint: true'),
   'pre-hash and in-transaction document guards, exact head/parent checks, semantic block mapping, stale/mid-hash zero-write tests, fourteenth MCP route, and packaged-live assertion are present',
+)
+record(
+  'MCP policy restore remains target/document/head guarded, history-preserving, and rollback-safe',
+  versionAutomationSource.includes('targetVersionId: string') &&
+    versionAutomationSource.includes('readPolicyVersionLineage(versions, input.targetVersionId)') &&
+    versionAutomationSource.includes('readPolicyVersionHead(metadata) !== input.expectedHeadVersionId') &&
+    versionAutomationSource.includes('editor.replaceBlocks(input.expectedDocumentRevision, targetBlocks)') &&
+    versionAutomationSource.includes('editor.replaceBlocks(current.revision, before.blocks)') &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.restorePolicyVersion'") &&
+    versionAutomationTestSource.includes('restores the live semantic draft and creates its new immutable head in one Yjs transaction') &&
+    versionAutomationTestSource.includes('rolls the live draft and shared head back inside the same transaction when replacement fails') &&
+    versionAutomationTestSource.includes('rejects stale restore input before invoking the editor mutation') &&
+    mcpSource.includes('"restore_active_policy_version" => live("project.restorePolicyVersion"') &&
+    text('scripts/mcp-harness.mjs').includes("tool.name === 'restore_active_policy_version'") &&
+    text('scripts/mcp-live-harness.mjs').includes('policyRestoreRevisionGuarded: true') &&
+    text('scripts/mcp-live-harness.mjs').includes('staleRestoreDocumentRejected: true') &&
+    text('scripts/mcp-live-harness.mjs').includes('staleRestoreHeadRejected: true') &&
+    text('scripts/mcp-live-harness.mjs').includes('restoredReadbackMatchedCheckpoint: true'),
+  'exact target/document/head guards, atomic restore-as-new-head, rollback proof, twenty-fifth MCP route, stale zero-write assertions, and packaged readback are present',
 )
 const scenarioAutomationSource = text('frontend/src/workspace/scenarioAutomation.ts')
 const scenarioAutomationTestSource = text('frontend/src/workspace/scenarioAutomation.test.ts')

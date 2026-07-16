@@ -163,9 +163,13 @@ immutable branches and converge one Yjs head across forty delivery orders. The p
 and renders parent change notes plus bounded block details without a model. Product restore now
 uses a two-step confirmation, exact draft/head guards, semantic-block replacement, and rollback.
 A real two-peer Lexical/Yjs fixture proves root, immutable version, and head travel in one shared
-update, while the peer editor projection is checked after synchronization. Branch reconciliation,
-richer human notes, Drive/WebSocket proof, packaged interaction, crash injection, and archive
-interchange remain open.
+update, while the peer editor projection is checked after synchronization. The twenty-fifth MCP
+tool reuses that restore transaction with an inspected target, exact document revision, and exact
+head. A packaged single-profile proof checkpoints a temporary divergence, restores exact readback,
+and rejects stale document/head calls without adding a version. Branch reconciliation, richer
+human notes, Drive/WebSocket proof, packaged pointer/keyboard interaction, crash injection,
+authenticated identity, and archive interchange remain open, so P-28 remains
+`implemented_unverified`.
 
 ## 5. Target architecture
 

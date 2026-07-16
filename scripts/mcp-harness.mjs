@@ -82,7 +82,7 @@ async function proveStdioContract() {
   if (messages.length !== 6) throw new Error(`expected 6 MCP responses, received ${messages.length}`)
   if (byId.get(1)?.result?.protocolVersion !== '2025-11-25') throw new Error('MCP version negotiation failed')
   const tools = byId.get(2)?.result?.tools
-  if (!Array.isArray(tools) || tools.length < 24) throw new Error('MCP tool discovery is incomplete')
+  if (!Array.isArray(tools) || tools.length < 25) throw new Error('MCP tool discovery is incomplete')
   if (!tools.some((tool) => tool.name === 'workspace_walkthrough')) throw new Error('walkthrough tool is missing')
   if (!tools.some((tool) => tool.name === 'inspect_research_state')) throw new Error('research-state inspection tool is missing')
   if (!tools.some((tool) => tool.name === 'create_scenario')) throw new Error('scenario creation tool is missing')
@@ -96,6 +96,7 @@ async function proveStdioContract() {
   if (!tools.some((tool) => tool.name === 'rename_scenario_label')) throw new Error('scenario label rename tool is missing')
   if (!tools.some((tool) => tool.name === 'set_scenario_label_assignment')) throw new Error('scenario label assignment tool is missing')
   if (!tools.some((tool) => tool.name === 'save_active_policy_version')) throw new Error('policy-version checkpoint tool is missing')
+  if (!tools.some((tool) => tool.name === 'restore_active_policy_version')) throw new Error('policy-version restore tool is missing')
   if (JSON.stringify(byId.get(3)?.result) !== '{}') throw new Error('MCP ping failed')
   if (typeof byId.get(4)?.result?.isError !== 'boolean') throw new Error('live status tool result is malformed')
   const installation = byId.get(5)?.result?.structuredContent

@@ -234,7 +234,7 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   `inspect_research_state`; the document revision is rechecked inside the same final transaction
   that rechecks the head and inserts the content-addressed version. Four headless tests prove stale
   and mid-hash document changes create no version, while Rust routes the fourteenth semantic tool.
-  MCP restore, authenticated participant identity, and a packaged live mutation remain open.
+  Packaged MCP checkpoint and restore mutation now pass; authenticated participant identity remains open.
 - Collaborative scenario foundations now cover lifecycle CRUD, ordered multi-turn content,
   attributed turn revisions, scenario edit history, and branch parents. Forty seeded concurrent
   field/turn-add deliveries and forty delete-versus-turn-edit deliveries converge; disconnected
@@ -285,6 +285,14 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   and follow-up assignment also consume their exact current event. Stale project or lifecycle
   calls add nothing. Event bodies remain omitted and no label UI, moderation, or authenticated-
   identity claim is made.
+- MCP now advertises a twenty-fifth semantic tool, `restore_active_policy_version`. It requires
+  the exact inspected target version, live document revision, and current immutable head, then
+  reuses the product's rollback-aware restore transaction to replace exact semantic blocks and
+  append a new child head. The packaged live harness checkpoints a temporary divergence, restores
+  the earlier checkpoint, proves exact readback and healthy bounded inspection, and proves stale
+  document/head calls add no version. P-28 stays `implemented_unverified`: this is one Windows
+  profile with caller-supplied attribution, not authenticated identity, crash injection,
+  Drive/WebSocket convergence, or two-install evidence.
 - A clean-room public literature pass now constrains the adversarial-panel roadmap: preserve
   independent/minority artifacts, blind route identity, reverse judge order, audit frozen sources,
   compare against an equal-call baseline, and never treat agreement as truth. The source list,

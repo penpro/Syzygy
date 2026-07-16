@@ -117,6 +117,9 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   `versionAutomation.ts` maps the exact active semantic editor snapshot into an
   immutable version only after both the document revision and version head pass inside the final
   Yjs transaction. The bridge does not own persistence.
+  The MCP restore route reuses the same editor controller and restore transaction with exact
+  target-version, document-revision, and current-head guards; it does not introduce a second
+  persistence or history path.
 - `components/McpSetupModal.tsx` — Settings guide that asks Rust for the exact running executable
   and displays copy-ready MCP configuration and prompts; it never guesses an install path.
 - `components/RemoteProviderSettings.tsx` — collapsed advanced settings for OpenAI, Anthropic,
@@ -209,6 +212,11 @@ requires a two-step confirmation and never rewrites history. A two-peer Memory-p
 proves the Lexical root, version record, and head travel in one Yjs update; the peer's rendered
 Lexical projection catches up after that shared transaction. Drive/WebSocket restore and automatic
 conflict resolution remain unclaimed.
+
+The twenty-fifth MCP tool exposes that same restore-as-new-head transaction. The packaged live
+harness proves exact checkpoint readback after a temporary divergence, rejects stale document and
+stale head attempts without adding a version, and rechecks bounded research-state integrity. It
+does not authenticate caller identity or prove Drive/WebSocket restore convergence.
 
 The frontend `extensions/` folder owns provider-neutral model descriptors, a content-free
 provider-run provenance record, deterministic adversarial-run planning plus an evidence-gated

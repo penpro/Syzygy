@@ -177,7 +177,7 @@ node ..\scripts\mcp-harness.mjs --executable <absolute-Syzygy.exe>
 ```
 
 The harness compiles the real application binary, starts `app --mcp` over stdio, negotiates MCP
-`2025-11-25`, discovers its twenty-four tools, checks notification framing and ping, calls a typed live
+`2025-11-25`, discovers its twenty-five tools, checks notification framing and ping, calls a typed live
 status result, then calls `syzygy_installation` without a GUI. That self-description must contain
 absolute executable/install-folder paths plus configuration and a connection prompt derived from
 the executable. Separate frontend tests prove structured Lexical reads, replace/append behavior,
@@ -215,6 +215,16 @@ changes during hashing fails inside the final head transaction without inserting
 stale version head fails before mutation. The Rust tool route and compiled stdio discovery are
 separate gates. This grants checkpoint creation only—not document editing, restore, or identity
 authentication.
+`restore_active_policy_version` reuses the same product restore transaction. It requires an
+inspected target version, the exact latest document revision, and the exact current non-null head.
+The target semantic blocks become the live draft and a new immutable child of the current head in
+one guarded Yjs transaction; history is never rewritten. The transaction rolls draft/head back if
+editor replacement throws. The extended `--write-proof` live harness creates a checkpoint, creates
+and checkpoints a temporary divergence, restores the earlier checkpoint, reads the live document
+back exactly, and verifies the new head and bounded integrity state. Separate stale-document and
+stale-head calls must both fail without adding a version. This is a packaged single-profile proof,
+not authenticated identity, Drive/WebSocket convergence, crash durability, or two-install
+evidence.
 
 The packaged UI exposes the same Rust-generated values under **Settings → Connect an LLM → MCP
 setup guide**. Do not hard-code an installer location in React or documentation; installed paths

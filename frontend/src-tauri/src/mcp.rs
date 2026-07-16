@@ -92,7 +92,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, and immutable history. Read a project before editing or checkpointing it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. On any conflict, read again and reconcile. Never claim unavailable scenario gallery/voting/annotation/label UI, model generation, restore UI, Drive project transport, or real-time presence are available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, and immutable history. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. On any conflict, read again and reconcile. Never claim unavailable scenario gallery/voting/annotation/label UI, model generation, restore UI, Drive project transport, or real-time presence are available."
             })
         }
         "ping" => json!({}),
@@ -141,6 +141,7 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "rename_scenario_label" => live("project.renameScenarioLabel", arguments),
         "set_scenario_label_assignment" => live("project.setScenarioLabelAssignment", arguments),
         "save_active_policy_version" => live("project.savePolicyVersion", arguments),
+        "restore_active_policy_version" => live("project.restorePolicyVersion", arguments),
         "replace_active_document" => live("document.replace", arguments),
         "append_active_document" => live("document.append", arguments),
         "launch_syzygy" => launch_live_app(),
@@ -376,6 +377,24 @@ fn tool_definitions() -> Vec<Value> {
             ),
         ),
         tool(
+            "restore_active_policy_version",
+            "Restore an inspected immutable policy version into the active draft and append the restored state as a new attributed head. Requires the exact current document revision and exact current non-null version head. This never rewrites or deletes history.",
+            object_schema(
+                &[
+                    ("targetVersionId", string_schema("Exact immutable version ID from inspect_research_state.")),
+                    ("expectedDocumentRevision", string_schema("Exact revision from the latest read_active_project result.")),
+                    ("expectedHeadVersionId", string_schema("Exact non-null current head from inspect_research_state.")),
+                    ("participantId", string_schema("Stable caller-supplied participant ID; identity is not yet authenticated across installs.")),
+                    ("displayName", string_schema("Display name to freeze into this historical attribution record.")),
+                    ("note", string_schema("Optional human-visible restore note.")),
+                ],
+                &[
+                    "targetVersionId", "expectedDocumentRevision", "expectedHeadVersionId",
+                    "participantId", "displayName",
+                ],
+            ),
+        ),
+        tool(
             "replace_active_document",
             "Replace the active project's document from deterministic semantic text (# heading, ## heading, > quote, [policy:stable-id:draft|review|approved] statement, other lines as paragraphs). Requires the exact expectedRevision from read_active_project so concurrent changes cannot be overwritten blindly.",
             object_schema(
@@ -597,6 +616,7 @@ mod tests {
         assert!(names.contains(&"rename_scenario_label"));
         assert!(names.contains(&"set_scenario_label_assignment"));
         assert!(names.contains(&"save_active_policy_version"));
+        assert!(names.contains(&"restore_active_policy_version"));
         assert!(names.contains(&"replace_active_document"));
     }
 
@@ -846,6 +866,45 @@ mod tests {
         assert_eq!(
             response["result"]["structuredContent"]["params"]["expectedDocumentRevision"],
             "lexical-1"
+        );
+    }
+
+    #[test]
+    fn routes_policy_version_restore_with_document_head_and_target_guards() {
+        let response = dispatch_message(
+            &json!({
+                "jsonrpc": "2.0",
+                "id": "restore-version-1",
+                "method": "tools/call",
+                "params": {
+                    "name": "restore_active_policy_version",
+                    "arguments": {
+                        "targetVersionId": "a".repeat(64),
+                        "expectedDocumentRevision": "lexical-2",
+                        "expectedHeadVersionId": "b".repeat(64),
+                        "participantId": "participant-1",
+                        "displayName": "Researcher One"
+                    }
+                }
+            }),
+            &fake_live,
+        )
+        .unwrap();
+        assert_eq!(
+            response["result"]["structuredContent"]["method"],
+            "project.restorePolicyVersion"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["params"]["targetVersionId"],
+            "a".repeat(64)
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["params"]["expectedHeadVersionId"],
+            "b".repeat(64)
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["params"]["expectedDocumentRevision"],
+            "lexical-2"
         );
     }
 

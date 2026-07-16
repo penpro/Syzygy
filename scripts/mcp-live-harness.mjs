@@ -344,6 +344,71 @@ try {
     if (stateAfterSave.structuredContent.researchState.versions.headVersionId !== savedVersion.structuredContent.version.versionId) throw new Error('Saved version did not become the inspected head')
     if (stateAfterSave.structuredContent.researchState.versions.totalRecords !== researchState.structuredContent.researchState.versions.totalRecords + 1) throw new Error('Version checkpoint did not add exactly one immutable record')
     if (stateAfterSave.structuredContent.researchState.selfCheck.healthy !== true) throw new Error('Research-state integrity failed after version checkpoint')
+    const diverged = await session.tool('append_active_document', {
+      expectedRevision: readback.structuredContent.document.revision,
+      content: '## Temporary divergence\nThis block must disappear when the earlier checkpoint is restored.',
+    })
+    const divergentVersion = await session.tool('save_active_policy_version', {
+      expectedDocumentRevision: diverged.structuredContent.document.revision,
+      expectedHeadVersionId: savedVersion.structuredContent.version.versionId,
+      participantId: 'mcp-live-harness',
+      displayName: 'MCP live harness',
+      note: 'Temporary divergence before restore proof',
+    })
+    const restoredVersion = await session.tool('restore_active_policy_version', {
+      targetVersionId: savedVersion.structuredContent.version.versionId,
+      expectedDocumentRevision: diverged.structuredContent.document.revision,
+      expectedHeadVersionId: divergentVersion.structuredContent.version.versionId,
+      participantId: 'mcp-live-harness',
+      displayName: 'MCP live harness',
+      note: 'Packaged MCP restore proof',
+    })
+    const staleDocumentRestore = await session.tool('restore_active_policy_version', {
+      targetVersionId: savedVersion.structuredContent.version.versionId,
+      expectedDocumentRevision: diverged.structuredContent.document.revision,
+      expectedHeadVersionId: restoredVersion.structuredContent.version.versionId,
+      participantId: 'mcp-live-harness',
+      displayName: 'MCP live harness',
+    }, true)
+    if (!staleDocumentRestore.isError || !/Document revision conflict/.test(staleDocumentRestore.structuredContent?.error ?? '')) {
+      throw new Error('The live app did not reject stale-document MCP restore')
+    }
+    const staleHeadRestore = await session.tool('restore_active_policy_version', {
+      targetVersionId: savedVersion.structuredContent.version.versionId,
+      expectedDocumentRevision: restoredVersion.structuredContent.document.revision,
+      expectedHeadVersionId: divergentVersion.structuredContent.version.versionId,
+      participantId: 'mcp-live-harness',
+      displayName: 'MCP live harness',
+    }, true)
+    if (!staleHeadRestore.isError || !/Policy version head conflict/.test(staleHeadRestore.structuredContent?.error ?? '')) {
+      throw new Error('The live app did not reject stale-head MCP restore')
+    }
+    const restoredReadback = await session.tool('read_active_project')
+    const stateAfterRestore = await session.tool('inspect_research_state')
+    if (restoredVersion.structuredContent.previousDocumentRevision !== diverged.structuredContent.document.revision) {
+      throw new Error('Restore was not bound to the diverged document revision')
+    }
+    if (restoredVersion.structuredContent.version.parentVersionId !== divergentVersion.structuredContent.version.versionId) {
+      throw new Error('Restore did not append to the exact current immutable head')
+    }
+    if (restoredVersion.structuredContent.document.revision !== restoredReadback.structuredContent.document.revision) {
+      throw new Error('Restore result and live readback revisions differ')
+    }
+    if (restoredReadback.structuredContent.document.text !== readback.structuredContent.document.text) {
+      throw new Error('Restore did not recover the exact checkpointed semantic document')
+    }
+    if (restoredReadback.structuredContent.document.text.includes('Temporary divergence')) {
+      throw new Error('Temporary divergence survived the restore')
+    }
+    if (stateAfterRestore.structuredContent.researchState.versions.headVersionId !== restoredVersion.structuredContent.version.versionId) {
+      throw new Error('Restored version did not become the inspected head')
+    }
+    if (stateAfterRestore.structuredContent.researchState.versions.totalRecords !== researchState.structuredContent.researchState.versions.totalRecords + 3) {
+      throw new Error('Checkpoint, divergence, and restore did not add exactly three immutable versions')
+    }
+    if (stateAfterRestore.structuredContent.researchState.selfCheck.healthy !== true) {
+      throw new Error('Research-state integrity failed after packaged MCP restore')
+    }
     evidence.write = {
       projectId,
       reusedProject: !!existing,
@@ -363,6 +428,12 @@ try {
       staleScenarioAnnotationRejected: true,
       scenarioLabelLifecycleGuarded: true,
       staleScenarioLabelRejected: true,
+      restoredVersionId: restoredVersion.structuredContent.version.versionId,
+      policyRestoreRevisionGuarded: true,
+      staleRestoreDocumentRejected: true,
+      staleRestoreHeadRejected: true,
+      restoredReadbackMatchedCheckpoint: true,
+      finalVersionRecords: stateAfterRestore.structuredContent.researchState.versions.totalRecords,
       heuristicRecords: researchState.structuredContent.researchState.heuristics.totalRecords,
       versionRecords: researchState.structuredContent.researchState.versions.totalRecords,
       savedVersionId: savedVersion.structuredContent.version.versionId,

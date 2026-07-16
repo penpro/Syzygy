@@ -18,7 +18,7 @@ import type { ScenarioLabel, ScenarioLabelAssignment } from './workspace/scenari
 import type { ResearchScenario, ScenarioStatus, ScenarioTurn, ScenarioTurnRole } from './workspace/scenarioModel'
 import type { ScenarioVoteChoice } from './workspace/scenarioVoteModel'
 import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
-import { saveAutomationPolicyVersion } from './workspace/versionAutomation'
+import { restoreAutomationPolicyVersion, saveAutomationPolicyVersion } from './workspace/versionAutomation'
 
 interface AutomationRequest {
   id: string
@@ -169,6 +169,44 @@ export async function dispatchAutomationRequest(
           hasNote: saved.version.note !== null,
         },
         deterministicChangeNote: saved.changeNote,
+      }
+    }
+    case 'project.restorePolicyVersion': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const controller = getAutomationEditorController(project.id)
+      const restored = await restoreAutomationPolicyVersion(
+        getAutomationProjectDocument(project.id),
+        project.id,
+        {
+          targetVersionId: requiredString(params, 'targetVersionId'),
+          expectedDocumentRevision: requiredString(params, 'expectedDocumentRevision'),
+          expectedHeadVersionId: requiredString(params, 'expectedHeadVersionId'),
+          participantId: requiredString(params, 'participantId'),
+          displayName: requiredString(params, 'displayName'),
+          createdAt: Date.now(),
+          note: optionalString(params, 'note'),
+        },
+        controller,
+      )
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        previousDocumentRevision: restored.previousDocumentRevision,
+        document: restored.document,
+        version: {
+          versionId: restored.version.versionId,
+          parentVersionId: restored.version.parentVersionId,
+          participantId: restored.version.author.participantId,
+          displayName: restored.version.author.displayName,
+          createdAt: restored.version.createdAt,
+          blockCount: restored.version.policy.blocks.length,
+          scenarioCount: restored.version.scenarioIds.length,
+          hasNote: restored.version.note !== null,
+        },
+        deterministicChangeNote: restored.changeNote,
       }
     }
     case 'project.createScenario': {

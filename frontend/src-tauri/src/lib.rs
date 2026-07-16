@@ -23,6 +23,7 @@ use state::{Downloads, Engine, Granted, KnowledgeCache, MainModel, VisionEngine}
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use tauri::Manager;
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -55,20 +56,40 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::Destroyed = event {
-                automation::cleanup(window.app_handle());
-                if let Some(engine) = window.app_handle().try_state::<Engine>() {
-                    if let Some(mut child) =
-                        engine.0.lock().unwrap_or_else(|e| e.into_inner()).take()
-                    {
-                        let _ = child.kill();
+            match event {
+                tauri::WindowEvent::CloseRequested { api, .. } => {
+                    // This callback is synchronous. Do not let the window disappear until Windows
+                    // confirms llama-server exited and released its loaded DLLs/listener.
+                    if let Err(error) = engine::shutdown_engine_state(window.app_handle()) {
+                        api.prevent_close();
+                        log::error!(
+                            "Syzygy stayed open because local AI did not finish shutting down: {error}"
+                        );
+                        window
+                            .app_handle()
+                            .dialog()
+                            .message(format!(
+                                "Syzygy is still open because local AI did not release its resources. Try closing again.
+
+{error}"
+                            ))
+                            .title("Local AI did not finish closing")
+                            .kind(MessageDialogKind::Error)
+                            .show(|_| {});
+                    } else {
+                        automation::cleanup(window.app_handle());
                     }
                 }
-                if let Some(v) = window.app_handle().try_state::<VisionEngine>() {
-                    if let Some(mut child) = v.0.lock().unwrap_or_else(|e| e.into_inner()).take() {
-                        let _ = child.kill();
+                tauri::WindowEvent::Destroyed => {
+                    // Covers programmatic destruction paths that do not emit CloseRequested.
+                    automation::cleanup(window.app_handle());
+                    if let Err(error) = engine::shutdown_engine_state(window.app_handle()) {
+                        log::error!(
+                            "Local AI resource verification failed during window destruction: {error}"
+                        );
                     }
                 }
+                _ => {}
             }
         })
         .invoke_handler(tauri::generate_handler![

@@ -1,8 +1,46 @@
 //! Model/engine lifecycle: VRAM detection, listing/loading/deleting models, spawning llama-server.
 use crate::state::{model_dir, Engine, MainModel, VisionEngine, LLAMA_PORT};
+use serde::Serialize;
+use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use tauri::Manager;
+
+const PROCESS_EXIT_TIMEOUT: Duration = Duration::from_secs(8);
+const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(25);
+const PORT_RELEASE_TIMEOUT: Duration = Duration::from_secs(2);
+const PORT_PROBE_TIMEOUT: Duration = Duration::from_millis(100);
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessShutdownReport {
+    pub tracked: bool,
+    pub pid: Option<u32>,
+    pub exit_code: Option<i32>,
+    pub exited: bool,
+}
+
+impl ProcessShutdownReport {
+    fn not_tracked() -> Self {
+        Self {
+            tracked: false,
+            pid: None,
+            exit_code: None,
+            exited: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EngineShutdownReport {
+    pub text_engine: ProcessShutdownReport,
+    pub vision_engine: ProcessShutdownReport,
+    pub port_released: bool,
+    pub resources_released: bool,
+}
 
 /// The llama.cpp server binary name (`.exe` only on Windows).
 fn server_bin() -> &'static str {
@@ -74,33 +112,146 @@ pub(crate) fn spawn_engine(app: &tauri::AppHandle, model: &Path) -> Option<Child
     }
 }
 
-/// Stop the running model engine(s). Called before an in-app update so the installer can
-/// overwrite the engine binaries — otherwise the running llama-server keeps DLLs like
-/// ggml-base.dll locked and the update fails with "error opening file for writing."
-#[tauri::command]
-pub fn shutdown_engine(app: tauri::AppHandle) {
-    if let Some(mut child) = app
-        .state::<Engine>()
-        .0
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .take()
-    {
-        let _ = child.kill();
+fn stop_child_with_timeout(
+    label: &str,
+    child: &mut Child,
+    timeout: Duration,
+) -> Result<ProcessShutdownReport, String> {
+    let pid = child.id();
+    match child.try_wait() {
+        Ok(Some(status)) => {
+            return Ok(ProcessShutdownReport {
+                tracked: true,
+                pid: Some(pid),
+                exit_code: status.code(),
+                exited: true,
+            });
+        }
+        Ok(None) => {}
+        Err(error) => {
+            return Err(format!(
+                "Could not inspect {label} process {pid} before shutdown: {error}"
+            ));
+        }
     }
-    if let Some(mut child) = app
-        .state::<VisionEngine>()
-        .0
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .take()
-    {
-        let _ = child.kill();
+
+    child
+        .kill()
+        .map_err(|error| format!("Could not stop {label} process {pid}: {error}"))?;
+
+    let deadline = Instant::now() + timeout;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                log::info!("{label} process {pid} exited during shutdown");
+                return Ok(ProcessShutdownReport {
+                    tracked: true,
+                    pid: Some(pid),
+                    exit_code: status.code(),
+                    exited: true,
+                });
+            }
+            Ok(None) if Instant::now() < deadline => {
+                std::thread::sleep(PROCESS_POLL_INTERVAL);
+            }
+            Ok(None) => {
+                let retry = child
+                    .kill()
+                    .err()
+                    .map(|error| format!("; final terminate request also failed: {error}"))
+                    .unwrap_or_default();
+                return Err(format!(
+                    "{label} process {pid} was still running after {} seconds{retry}",
+                    timeout.as_secs()
+                ));
+            }
+            Err(error) => {
+                return Err(format!(
+                    "Could not verify {label} process {pid} exited: {error}"
+                ));
+            }
+        }
     }
+}
+
+fn stop_managed_child(
+    slot: &Mutex<Option<Child>>,
+    label: &str,
+) -> Result<ProcessShutdownReport, String> {
+    let mut guard = slot.lock().unwrap_or_else(|error| error.into_inner());
+    let Some(child) = guard.as_mut() else {
+        return Ok(ProcessShutdownReport::not_tracked());
+    };
+    let report = stop_child_with_timeout(label, child, PROCESS_EXIT_TIMEOUT)?;
+    // try_wait above reaped the process. Only discard the handle after that proof.
+    guard.take();
+    Ok(report)
+}
+
+fn engine_port_accepts_connections() -> bool {
+    let address = SocketAddr::from(([127, 0, 0, 1], LLAMA_PORT));
+    TcpStream::connect_timeout(&address, PORT_PROBE_TIMEOUT).is_ok()
+}
+
+pub(crate) fn wait_for_engine_port_release() -> Result<(), String> {
+    let deadline = Instant::now() + PORT_RELEASE_TIMEOUT;
+    while engine_port_accepts_connections() {
+        if Instant::now() >= deadline {
+            return Err(format!(
+                "Local AI port {LLAMA_PORT} is still accepting connections after shutdown. Another llama-server process may still be running."
+            ));
+        }
+        std::thread::sleep(PROCESS_POLL_INTERVAL);
+    }
+    Ok(())
+}
+
+pub(crate) fn stop_text_engine(app: &tauri::AppHandle) -> Result<ProcessShutdownReport, String> {
+    stop_managed_child(&app.state::<Engine>().0, "text engine")
+}
+
+pub(crate) fn stop_vision_engine(app: &tauri::AppHandle) -> Result<ProcessShutdownReport, String> {
+    stop_managed_child(&app.state::<VisionEngine>().0, "vision engine")
+}
+
+/// Stop and reap every model engine, then prove its loopback listener is gone. A successful
+/// process wait is the OS-level guarantee that mapped engine DLLs and GPU resources were released.
+pub(crate) fn shutdown_engine_state(
+    app: &tauri::AppHandle,
+) -> Result<EngineShutdownReport, String> {
+    // Always attempt both stops so one failure cannot strand the other process.
+    let text = stop_text_engine(app);
+    let vision = stop_vision_engine(app);
+    let mut failures = Vec::new();
+    if let Err(error) = &text {
+        failures.push(error.clone());
+    }
+    if let Err(error) = &vision {
+        failures.push(error.clone());
+    }
+    if !failures.is_empty() {
+        return Err(failures.join(" "));
+    }
+
+    wait_for_engine_port_release()?;
     *app.state::<MainModel>()
         .0
         .lock()
-        .unwrap_or_else(|e| e.into_inner()) = None;
+        .unwrap_or_else(|error| error.into_inner()) = None;
+
+    Ok(EngineShutdownReport {
+        text_engine: text.expect("checked above"),
+        vision_engine: vision.expect("checked above"),
+        port_released: true,
+        resources_released: true,
+    })
+}
+
+/// Stop the running model engine(s). Called before an in-app update so the installer can
+/// overwrite the engine binaries; otherwise llama-server keeps engine DLLs locked.
+#[tauri::command]
+pub fn shutdown_engine(app: tauri::AppHandle) -> Result<EngineShutdownReport, String> {
+    shutdown_engine_state(&app)
 }
 
 /// Live GPU memory (used, total) in MiB via nvidia-smi. None on non-NVIDIA.
@@ -206,15 +357,9 @@ pub fn start_engine(app: tauri::AppHandle, filename: String) -> Result<(), Strin
     if !model.exists() {
         return Err(format!("model not found: {filename}"));
     }
-    if let Some(mut old) = app
-        .state::<Engine>()
-        .0
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .take()
-    {
-        let _ = old.kill();
-    }
+    stop_text_engine(&app)?;
+    stop_vision_engine(&app)?;
+    wait_for_engine_port_release()?;
     *app.state::<MainModel>()
         .0
         .lock()
@@ -293,14 +438,87 @@ pub fn delete_model(app: tauri::AppHandle, filename: String) -> Result<(), Strin
         return Ok(());
     }
     // Possibly locked by the vision engine — free it and retry.
-    if let Some(mut v) = app
-        .state::<VisionEngine>()
-        .0
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .take()
-    {
-        let _ = v.kill();
-    }
+    stop_vision_engine(&app)?;
     std::fs::remove_file(&path).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn long_running_child() -> Child {
+        #[cfg(windows)]
+        {
+            let mut command = Command::new("cmd");
+            command.args(["/C", "ping -t 127.0.0.1"]);
+            command.stdout(Stdio::null()).stderr(Stdio::null());
+            command.spawn().expect("spawn long-running Windows child")
+        }
+        #[cfg(not(windows))]
+        {
+            Command::new("sh")
+                .args(["-c", "while :; do sleep 1; done"])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .expect("spawn long-running Unix child")
+        }
+    }
+
+    #[test]
+    fn shutdown_waits_until_the_child_is_reaped() {
+        let mut child = long_running_child();
+        let report =
+            stop_child_with_timeout("test engine", &mut child, Duration::from_secs(3)).unwrap();
+        assert!(report.tracked);
+        assert!(report.exited);
+        assert_eq!(report.pid, Some(child.id()));
+        assert!(child.try_wait().unwrap().is_some());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn shutdown_wait_releases_a_windows_file_lock() {
+        let nonce = format!(
+            "syzygy-engine-lock-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let original = std::env::temp_dir().join(format!("{nonce}.dll"));
+        let renamed = std::env::temp_dir().join(format!("{nonce}.released"));
+        std::fs::write(&original, b"lock probe").unwrap();
+
+        let script = "$f=[IO.File]::Open($env:SYZYGY_LOCK_PROBE,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read); Start-Sleep -Seconds 60";
+        let mut child = Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command", script])
+            .env("SYZYGY_LOCK_PROBE", &original)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("spawn lock-holder");
+
+        let lock_deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            match std::fs::rename(&original, &renamed) {
+                Ok(()) => {
+                    std::fs::rename(&renamed, &original).unwrap();
+                    if Instant::now() >= lock_deadline {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        panic!("lock-holder never acquired the file");
+                    }
+                    std::thread::sleep(Duration::from_millis(25));
+                }
+                Err(_) => break,
+            }
+        }
+
+        stop_child_with_timeout("lock-holder", &mut child, Duration::from_secs(3)).unwrap();
+        std::fs::rename(&original, &renamed)
+            .expect("the file must be replaceable immediately after verified process exit");
+        std::fs::remove_file(&renamed).unwrap();
+    }
 }

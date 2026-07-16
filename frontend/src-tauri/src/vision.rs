@@ -1,6 +1,9 @@
 //! Vision model support: presence check, swapping the loaded model between text and image
 //! mode on the main port, and reading folder images for the classify→PDF workflow.
-use crate::engine::{llama_server_path, spawn_engine};
+use crate::engine::{
+    llama_server_path, spawn_engine, stop_text_engine, stop_vision_engine,
+    wait_for_engine_port_release,
+};
 use crate::state::{model_dir, Engine, MainModel, VisionEngine, LLAMA_PORT};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -32,24 +35,9 @@ pub fn set_vision_mode(
         if !model.exists() || !mmproj.exists() {
             return Err("vision model files not found — download it in Settings".into());
         }
-        if let Some(mut old) = app
-            .state::<Engine>()
-            .0
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .take()
-        {
-            let _ = old.kill();
-        }
-        if let Some(mut old) = app
-            .state::<VisionEngine>()
-            .0
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .take()
-        {
-            let _ = old.kill();
-        }
+        stop_text_engine(&app)?;
+        stop_vision_engine(&app)?;
+        wait_for_engine_port_release()?;
         let exe = llama_server_path(&app).ok_or("engine binary not found")?;
         let port = LLAMA_PORT.to_string();
         let mut cmd = Command::new(&exe);
@@ -83,15 +71,7 @@ pub fn set_vision_mode(
             Err(e) => Err(format!("failed to start vision engine: {e}")),
         }
     } else {
-        if let Some(mut old) = app
-            .state::<VisionEngine>()
-            .0
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .take()
-        {
-            let _ = old.kill();
-        }
+        stop_vision_engine(&app)?;
         let main = app
             .state::<MainModel>()
             .0
@@ -103,15 +83,8 @@ pub fn set_vision_mode(
         if !model.exists() {
             return Err(format!("main model not found: {main}"));
         }
-        if let Some(mut old) = app
-            .state::<Engine>()
-            .0
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .take()
-        {
-            let _ = old.kill();
-        }
+        stop_text_engine(&app)?;
+        wait_for_engine_port_release()?;
         let child = spawn_engine(&app, &model);
         let ok = child.is_some();
         *app.state::<Engine>()

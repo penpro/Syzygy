@@ -149,8 +149,22 @@ export const modelDirPath = (): Promise<string | null> => invoke('model_dir_path
 /** Start (or restart) the engine on a downloaded model file. Rejects with a user-facing message. */
 export const startEngine = (filename: string): Promise<void> => invoke('start_engine', { filename })
 
-/** Stop the running engine(s) — e.g. before an in-app update overwrites the binaries. */
-export const shutdownEngine = (): Promise<void> => invoke('shutdown_engine')
+export interface ProcessShutdownReport {
+  tracked: boolean
+  pid: number | null
+  exitCode: number | null
+  exited: boolean
+}
+
+export interface EngineShutdownReport {
+  textEngine: ProcessShutdownReport
+  visionEngine: ProcessShutdownReport
+  portReleased: boolean
+  resourcesReleased: boolean
+}
+
+/** Stop and reap all engines, then verify the loopback port and loaded resources were released. */
+export const shutdownEngine = (): Promise<EngineShutdownReport> => invoke('shutdown_engine')
 
 /** All model files as `[name, sizeBytes, isMain]`. */
 export const modelFiles = (): Promise<ModelFile[]> => invoke('model_files')

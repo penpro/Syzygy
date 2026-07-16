@@ -84,10 +84,10 @@ export function ModelBar({ onNeedModel }: { onNeedModel: () => void }) {
     setBusy(true)
     setError('')
     if (localAiEnabled) {
-      updateSettings({ localAiEnabled: false })
-      setLoadedModel(null)
       try {
         await shutdownEngine()
+        updateSettings({ localAiEnabled: false })
+        setLoadedModel(null)
       } catch (cause) {
         setError((cause as { message?: string })?.message ?? 'Could not stop the local engine.')
       } finally {

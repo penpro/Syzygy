@@ -53,9 +53,9 @@ export function UpdateCheck() {
     setPhase('installing')
     setPct(0)
     try {
-      // Stop the bundled engine first so its DLLs aren't locked when the installer overwrites them.
-      await shutdownEngine().catch(() => {})
-      await new Promise((r) => setTimeout(r, 700))
+      // Do not begin overwriting files until Rust has reaped the engine and verified its listener
+      // is gone. A failure stays in this component's normal error state instead of being ignored.
+      await shutdownEngine()
       let total = 0
       let got = 0
       await update.downloadAndInstall((ev) => {

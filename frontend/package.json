@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test:watchdog": "node --test ../scripts/run-with-heartbeat.test.mjs",
+    "test:engine-shutdown": "cargo test --manifest-path src-tauri/Cargo.toml engine::tests:: -- --nocapture",
     "fetch-engine": "node ../scripts/fetch-engine.mjs",
     "test": "vitest run",
     "test:workspace": "vitest run src/workspace src/migrations.test.ts --reporter=verbose",

@@ -49,7 +49,7 @@ source of project truth.
 | Module | Owns |
 |---|---|
 | `lib.rs` | Wiring: managed state and command registration; it deliberately does not auto-start AI. |
-| `engine.rs` | Spawning/stopping llama.cpp (Vulkan), model files, VRAM detection. |
+| `engine.rs` | Spawning/stopping llama.cpp (Vulkan), bounded process reaping and loopback-release verification, model files, VRAM detection. |
 | `documents.rs` | Typst compile, document save/read, path granting (`Granted` allowlist). |
 | `knowledge.rs` | Folder knowledge: chunking granted folders, relevance retrieval. |
 | `google_auth.rs` | OAuth loopback + PKCE, collaboration-scope gate, token storage/refresh, cancel. See `GOOGLE-DRIVE.md`. |

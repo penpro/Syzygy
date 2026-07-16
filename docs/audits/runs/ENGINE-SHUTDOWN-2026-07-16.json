@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "runId": "ENGINE-SHUTDOWN-2026-07-16",
+  "date": "2026-07-16",
+  "appVersionAtRun": "0.1.10",
+  "runtimeStatus": "bounded-reap-and-resource-release-verified",
+  "commands": [
+    "npm run test:engine-shutdown",
+    "npm test -- --run src/localAi.test.ts src/localAi.ui.test.ts src/migrations.test.ts",
+    "npm run build",
+    "npm run audit",
+    "npm run tauri build",
+    "packaged Syzygy.exe normal-close exclusive-write probe",
+    "npm run tauri build immediately after normal close"
+  ],
+  "result": {
+    "passed": true,
+    "shutdownTestsPassed": 2,
+    "localAiRegressionTestsPassed": 11,
+    "packagedAppPid": 32136,
+    "trackedLlamaServerPid": 50640,
+    "exclusiveDllWriteDeniedWhileRunning": true,
+    "normalCloseCompletedWithinSeconds": 20,
+    "trackedLlamaServerAbsentAfterClose": true,
+    "exclusiveDllWriteAvailableAfterClose": true,
+    "immediatePackagedRebuildPassed": true,
+    "frontendBuildPassed": true,
+    "structuralAuditPassed": true,
+    "externalNetworkUsed": false
+  },
+  "proved": [
+    "Every tracked text or vision engine stop uses one bounded reaper that inspects the child, requests termination, polls for an observed exit, and retains the managed handle if verification fails.",
+    "The shutdown command returns a typed report only after both tracked processes are reaped and local port 11435 no longer accepts connections.",
+    "Normal window close runs the same verification synchronously before destruction; a failure prevents close, logs the concrete error, and displays a native error dialog.",
+    "The updater awaits verified shutdown and no longer swallows shutdown errors or relies on a fixed delay before overwriting files.",
+    "Turning local AI off persists the off state only after verified shutdown succeeds.",
+    "Model replacement, vision-mode swaps, and vision-model deletion use the same reaper instead of kill-and-drop calls.",
+    "The Windows unit fixture held a DLL-shaped file with incompatible sharing, proved it was locked, and required immediate replacement after the production reaper returned.",
+    "The packaged app started its own llama-server, denied build-style exclusive read/write access to ggml-base.dll while running, accepted a normal close request, removed both processes, and allowed that access immediately afterward.",
+    "A complete installer build succeeded immediately after the packaged normal-close proof."
+  ],
+  "notProved": [
+    "Cleanup after abrupt power loss, operating-system forced termination, kernel failure, or a process that Syzygy did not launch and does not own.",
+    "GPU-driver memory accounting reaches zero by a specific deadline; observed process exit is the operating-system resource-release boundary used here.",
+    "The native failure dialog was forced through its rare error branch in the packaged GUI.",
+    "Equivalent live packaged behavior on macOS or Linux; the process-reaping unit test is cross-platform, while the file-lock and packaged probes in this run are Windows-specific."
+  ]
+}

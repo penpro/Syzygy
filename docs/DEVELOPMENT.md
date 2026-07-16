@@ -54,6 +54,7 @@ and pivot after two identical failures or the slice timebox.
 ```powershell
 cd D:\PolicyPad\syzygy\frontend
 npm test -- --run src/localAi.test.ts src/localAi.ui.test.ts src/migrations.test.ts
+npm run test:engine-shutdown
 npm run build
 cargo check --manifest-path src-tauri/Cargo.toml --locked
 ```
@@ -66,6 +67,13 @@ saves default on while an explicit off choice survives restart. The frontend and
 ensure lifecycle ownership stays
 split correctly: Rust starts nothing during setup; React starts only after reading persisted state.
 These checks do not replace the packaged UI proof of setup skip, unload/reload, and VRAM-bar state.
+The Rust shutdown gate launches a real child process, terminates it through the production bounded
+reaper, and requires an observed exit. On Windows it also makes a child hold a DLL-shaped probe
+with delete/overwrite sharing disabled, proves the file is locked, then requires it to be
+replaceable immediately after shutdown returns. Normal window close and the updater use that same
+path; they do not rely on a fixed sleep. A successful shutdown report additionally requires the
+local-AI port to stop accepting connections. This proves tracked-process and OS file-lock release,
+not cleanup after a hard power loss or an externally launched untracked process.
 
 ## Headless workspace proof
 

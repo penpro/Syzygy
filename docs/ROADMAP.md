@@ -203,16 +203,19 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   display-name-at-save survive later name changes. Forty reordered/duplicate branch deliveries
   converge. The workspace version rail now saves the exact active semantic revision under the exact
   current head, lists verified checkpoints, and shows author, note, time, hash, and current-head
-  metadata. Store migration v3 makes the generated per-install participant ID durable. Restore,
-  archives, remote transport, and packaged pointer/keyboard validation remain open.
+  metadata. Store migration v3 makes the generated per-install participant ID durable. Safe
+  restore now has a product caller; archives, Drive/WebSocket transport, and packaged
+  pointer/keyboard validation remain open.
 - Exact-head version commits and restore-as-new-child are now implemented at the domain layer.
   Stale commits fail before insertion; concurrent restores retain both immutable branches while
   Yjs selects one deterministic head. A pure structured block diff and stable count note operate
   with the model engine off. The rail now renders that note and up to eight ordered block changes
-  for the selected checkpoint, with a server-rendered accessible-control harness. P-29 therefore
-  has a product caller but remains `implemented_unverified`; P-28 restore remains domain-only until
-  editor replacement plus head creation is atomic. Conflict reconciliation, exports, remote
-  convergence, and packaged interaction tests remain open.
+  for the selected checkpoint, with a server-rendered accessible-control harness. P-28 now has a
+  two-step product caller: exact semantic editor replacement and the new immutable child/head share
+  one Yjs transaction, synthetic partial failure rolls back, and a real two-peer Lexical/Yjs
+  fixture receives root/version/head in one update. P-28/P-29 remain `implemented_unverified`;
+  conflict reconciliation, exports, Drive/WebSocket convergence, crash-durability injection, and
+  packaged interaction tests remain open.
 - The live MCP now advertises a thirteenth semantic tool, `inspect_research_state`. A lifecycle-
   safe registry points it at the same active Y.Doc as the editor. The tool validates heuristic
   records, immutable version hashes, project ownership, head shape, and complete ancestor lineage,
@@ -224,7 +227,7 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   `inspect_research_state`; the document revision is rechecked inside the same final transaction
   that rechecks the head and inserts the content-addressed version. Four headless tests prove stale
   and mid-hash document changes create no version, while Rust routes the fourteenth semantic tool.
-  Restore, UI controls, authenticated participant identity, and a packaged live mutation remain open.
+  MCP restore, authenticated participant identity, and a packaged live mutation remain open.
 - Collaborative scenario foundations now cover lifecycle CRUD, ordered multi-turn content,
   attributed turn revisions, scenario edit history, and branch parents. Forty seeded concurrent
   field/turn-add deliveries and forty delete-versus-turn-edit deliveries converge; disconnected

@@ -210,11 +210,17 @@ export function readPolicyVersionHead(metadata: Y.Map<unknown>): string | null {
   return stored
 }
 
+export interface PolicyVersionTransactionMutation {
+  apply: () => void
+  rollback: () => void
+}
+
 export async function commitPolicyVersion(
   collection: Y.Map<unknown>,
   metadata: Y.Map<unknown>,
   input: CommitPolicyVersionInput,
   assertCurrentState?: () => void,
+  transactionMutation?: PolicyVersionTransactionMutation,
 ): Promise<PolicyVersion> {
   if (collection.doc !== metadata.doc) throw new Error('Policy versions and metadata must share one document')
   if (input.expectedHeadVersionId !== null && !sha256Pattern.test(input.expectedHeadVersionId)) {
@@ -231,8 +237,26 @@ export async function commitPolicyVersion(
     const existing = collection.get(prepared.versionId)
     if (existing !== undefined && existing !== prepared.canonical) throw new Error('Policy version hash collision or corrupt record')
     if (existing === undefined && collection.size >= MAX_VERSIONS) throw new Error('Policy version collection limit reached')
-    if (existing === undefined) collection.set(prepared.versionId, prepared.canonical)
-    metadata.set(POLICY_VERSION_HEAD_KEY, prepared.versionId)
+    try {
+      transactionMutation?.apply()
+      if (existing === undefined) collection.set(prepared.versionId, prepared.canonical)
+      metadata.set(POLICY_VERSION_HEAD_KEY, prepared.versionId)
+    } catch (cause) {
+      if (existing === undefined) collection.delete(prepared.versionId)
+      else collection.set(prepared.versionId, existing)
+      if (input.expectedHeadVersionId === null) metadata.delete(POLICY_VERSION_HEAD_KEY)
+      else metadata.set(POLICY_VERSION_HEAD_KEY, input.expectedHeadVersionId)
+      if (transactionMutation) {
+        try {
+          transactionMutation.rollback()
+        } catch (rollbackCause) {
+          throw new Error(
+            `Policy version transaction failed (${(cause as Error)?.message ?? 'unknown failure'}) and draft rollback failed: ${(rollbackCause as Error)?.message ?? 'unknown rollback failure'}`,
+          )
+        }
+      }
+      throw cause
+    }
   }
   if (collection.doc) collection.doc.transact(operation, 'syzygy-policy-version-head')
   else operation()

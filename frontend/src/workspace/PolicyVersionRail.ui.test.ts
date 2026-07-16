@@ -47,12 +47,16 @@ describe('policy version rail UI contract', () => {
       headVersionId: child.versionId,
       selectedVersionId: child.versionId,
       note: '',
-      busy: false,
+      busyAction: null,
       error: '',
       savedStatus: '',
+      restoreArmed: false,
       onSelect: noop,
       onNoteChange: noop,
       onSave: noop,
+      onBeginRestore: noop,
+      onCancelRestore: noop,
+      onRestore: noop,
     })
     expect(html).toContain('aria-label="Project versions"')
     expect(html).toContain('Version note')
@@ -61,7 +65,52 @@ describe('policy version rail UI contract', () => {
     expect(html).toContain('Current head')
     expect(html).toContain('1 change: 0 added, 0 removed, 1 changed, 0 moved; 0 unchanged.')
     expect(html).toContain('Changed rule.')
-    expect(html).toContain('Inspection is read-only')
+    expect(html).toContain('already the current history head')
+  })
+
+  it('renders a two-step restore that keeps immutable history explicit', () => {
+    const prepared = render({
+      ready: true,
+      versions: [root, child],
+      headVersionId: child.versionId,
+      selectedVersionId: root.versionId,
+      note: '',
+      busyAction: null,
+      error: '',
+      savedStatus: '',
+      restoreArmed: false,
+      onSelect: noop,
+      onNoteChange: noop,
+      onSave: noop,
+      onBeginRestore: noop,
+      onCancelRestore: noop,
+      onRestore: noop,
+    })
+    expect(prepared).toContain('aria-label="Restore selected checkpoint"')
+    expect(prepared).toContain('Existing versions stay unchanged')
+    expect(prepared).toContain('Prepare restore')
+    expect(prepared).not.toContain('Restore as new version')
+
+    const armed = render({
+      ready: true,
+      versions: [root, child],
+      headVersionId: child.versionId,
+      selectedVersionId: root.versionId,
+      note: '',
+      busyAction: null,
+      error: '',
+      savedStatus: '',
+      restoreArmed: true,
+      onSelect: noop,
+      onNoteChange: noop,
+      onSave: noop,
+      onBeginRestore: noop,
+      onCancelRestore: noop,
+      onRestore: noop,
+    })
+    expect(armed).toContain('Confirm restoring')
+    expect(armed).toContain('Restore as new version')
+    expect(armed).toContain('Cancel')
   })
 
   it('selects a version only from the supplied verified history and waits for the live project', () => {
@@ -81,12 +130,16 @@ describe('policy version rail UI contract', () => {
       headVersionId: null,
       selectedVersionId: null,
       note: '',
-      busy: false,
+      busyAction: null,
       error: '',
       savedStatus: '',
+      restoreArmed: false,
       onSelect: noop,
       onNoteChange: noop,
       onSave: noop,
+      onBeginRestore: noop,
+      onCancelRestore: noop,
+      onRestore: noop,
     })
     expect(html).toContain('Opening the live project')
     expect(html).toContain('disabled=""')
@@ -96,12 +149,16 @@ describe('policy version rail UI contract', () => {
       headVersionId: null,
       selectedVersionId: null,
       note: '',
-      busy: false,
+      busyAction: null,
       error: 'Version history contains an invalid checkpoint',
       savedStatus: '',
+      restoreArmed: false,
       onSelect: noop,
       onNoteChange: noop,
       onSave: noop,
+      onBeginRestore: noop,
+      onCancelRestore: noop,
+      onRestore: noop,
     })
     expect(blockedHtml).toContain('role="alert"')
     expect(blockedHtml).toContain('Version history contains an invalid checkpoint')

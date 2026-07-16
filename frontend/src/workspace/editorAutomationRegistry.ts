@@ -20,6 +20,7 @@ export interface AutomationEditorController {
   projectId: string
   read: () => AutomationEditorSnapshot
   replace: (expectedRevision: string, content: string) => AutomationEditorSnapshot
+  replaceBlocks: (expectedRevision: string, blocks: AutomationDocumentBlock[]) => AutomationEditorSnapshot
   append: (expectedRevision: string, content: string) => AutomationEditorSnapshot
 }
 

@@ -256,6 +256,8 @@ record(
     policyVersionSource.includes("collection.doc.transact(operation, 'syzygy-policy-version-head')") &&
     policyVersionSource.includes('Policy version head conflict') &&
     policyVersionSource.includes('Parent policy version changed during commit') &&
+    policyVersionSource.includes('if (existing === undefined) collection.delete(prepared.versionId)') &&
+    policyVersionTestSource.includes('preserves a canonical version that appears during commit preparation') &&
     policyVersionSource.includes('export async function readPolicyVersionLineage') &&
     policyVersionHistorySource.includes('return commitPolicyVersion(versions, metadata, commit)') &&
     policyVersionHistorySource.includes('export function diffPolicyVersions') &&
@@ -268,13 +270,18 @@ record(
     policyVersionHistoryTestSource.includes('produces a stable engine-free structured diff and change note') &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-28", "phase": 3, "status": "implemented_unverified"') &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-29", "phase": 3, "status": "implemented_unverified"'),
-  'exact-head atomic commit, bounded lineage verification, restore-as-new-child, retained concurrent branches, 40 delivery orders, pure deterministic diff/note, and truthful P-28/P-29 statuses are present',
+  'exact-head atomic commit, rollback preserves a version inserted during preparation, bounded lineage verification, restore-as-new-child, retained concurrent branches, 40 delivery orders, pure deterministic diff/note, and truthful P-28/P-29 statuses are present',
 )
 
 const policyVersionRailSource = text('frontend/src/workspace/PolicyVersionRail.tsx')
 const localProjectProviderSource = text('frontend/src/workspace/localProvider.ts')
 const localProjectProviderTestSource = text('frontend/src/workspace/localProvider.test.ts')
 const policyVersionRailTestSource = text('frontend/src/workspace/PolicyVersionRail.ui.test.ts')
+const restoreAutomationSource = text('frontend/src/workspace/versionAutomation.ts')
+const restoreAutomationTestSource = text('frontend/src/workspace/versionAutomation.test.ts')
+const restoreIntegrationTestSource = text('frontend/src/workspace/versionRestoreIntegration.test.ts')
+const editorAutomationSource = text('frontend/src/workspace/editorAutomation.ts')
+const editorAutomationTestSource = text('frontend/src/workspace/editorAutomation.test.ts')
 const migrationSource = text('frontend/src/migrations.ts')
 record(
   'product version rail remains live-document scoped, exact-revision guarded, and restore-honest',
@@ -284,9 +291,27 @@ record(
     policyVersionRailSource.includes('expectedHeadVersionId: readPolicyVersionHead(metadata)') &&
     policyVersionRailSource.includes('historyValid && automationEditorReady(project.id)') &&
     policyVersionRailSource.includes('assertVersionRailHistory(nextVersions, versionMap.size, nextHead)') &&
-    policyVersionRailSource.includes('Inspection is read-only') &&
-    !policyVersionRailSource.includes('restorePolicyVersion') &&
+    policyVersionRailSource.includes('restoreAutomationPolicyVersion(doc, project.id') &&
+    policyVersionRailSource.includes('Existing versions stay unchanged') &&
+    policyVersionRailSource.includes('Prepare restore') &&
     policyVersionRailTestSource.includes('renders accessible save controls') &&
+    policyVersionRailTestSource.includes('renders a two-step restore that keeps immutable history explicit') &&
+    restoreAutomationSource.includes('expectedDocumentRevision: string') &&
+    restoreAutomationSource.includes('editor.replaceBlocks(input.expectedDocumentRevision, targetBlocks)') &&
+    restoreAutomationSource.includes('editor.replaceBlocks(current.revision, before.blocks)') &&
+    policyVersionSource.includes('transactionMutation?.apply()') &&
+    policyVersionSource.includes('transactionMutation.rollback()') &&
+    restoreAutomationTestSource.includes('restores the live semantic draft and creates its new immutable head in one Yjs transaction') &&
+    restoreAutomationTestSource.includes('rolls the live draft and shared head back inside the same transaction') &&
+    restoreAutomationTestSource.includes('rejects stale restore input before invoking the editor mutation') &&
+    restoreIntegrationTestSource.includes('changedTypes.has(rightBinding.root)') &&
+    restoreIntegrationTestSource.includes('changedTypes.has(metadata)') &&
+    restoreIntegrationTestSource.includes('changedTypes.has(versions)') &&
+    restoreIntegrationTestSource.includes('expect(readBlocks(right)).toEqual(rootBlocks)') &&
+    editorAutomationSource.includes('replaceBlocks: (expectedRevision, blocks)') &&
+    editorAutomationSource.includes('MAX_SEMANTIC_BLOCK_CONTENT = 500_000') &&
+    editorAutomationTestSource.includes('without interpreting paragraph text as markup') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-28", "phase": 3, "status": "implemented_unverified"') &&
     policyVersionRailTestSource.includes("toThrow('invalid checkpoint')") &&
     policyVersionRailTestSource.includes("toThrow('head is missing')") &&
     policyVersionRailTestSource.includes("toThrow('missing parent')") &&
@@ -299,7 +324,7 @@ record(
     localProjectProviderTestSource.includes("expect(automationProjectDocumentReady('document-1')).toBe(true)") &&
     migrationSource.includes('PERSISTED_STORE_VERSION = 3') &&
     migrationSource.includes('storedVersion > PERSISTED_STORE_VERSION'),
-  'post-IndexedDB live Y.Doc publication, exact editor/head guards, verified-history rejection, accessible headless UI, durable attribution migration, engine-free diffs, and no product restore call are present',
+  'post-IndexedDB publication, exact draft/head guards, rollback-aware semantic replacement, two-step UI, one-update two-peer Yjs proof, durable attribution, and truthful P-28 status are present',
 )
 
 const tauriConfig = JSON.parse(text('frontend/src-tauri/tauri.conf.json'))

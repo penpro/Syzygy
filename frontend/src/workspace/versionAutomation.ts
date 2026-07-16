@@ -1,8 +1,15 @@
 import type * as Y from 'yjs'
-import type { AutomationEditorSnapshot } from './editorAutomationRegistry'
+import type { AutomationEditorController, AutomationEditorSnapshot } from './editorAutomationRegistry'
 import { deterministicChangeNote, diffPolicyVersions } from './policyVersionHistory'
 import { getProjectSharedTypes } from './projectModel'
-import { commitPolicyVersion, readPolicyVersion, type PolicyVersion, type VersionPolicyBlock } from './policyVersionModel'
+import {
+  commitPolicyVersion,
+  readPolicyVersion,
+  readPolicyVersionHead,
+  readPolicyVersionLineage,
+  type PolicyVersion,
+  type VersionPolicyBlock,
+} from './policyVersionModel'
 
 export interface SaveAutomationPolicyVersionInput {
   expectedDocumentRevision: string
@@ -19,12 +26,93 @@ export interface SaveAutomationPolicyVersionResult {
   changeNote: string | null
 }
 
+export interface RestoreAutomationPolicyVersionInput {
+  targetVersionId: string
+  expectedDocumentRevision: string
+  expectedHeadVersionId: string
+  participantId: string
+  displayName: string
+  createdAt: number
+  note?: string | null
+}
+
+export interface RestoreAutomationPolicyVersionResult {
+  previousDocumentRevision: string
+  document: AutomationEditorSnapshot
+  version: PolicyVersion
+  changeNote: string
+}
+
+type RestoreEditorController = Pick<AutomationEditorController, 'read' | 'replaceBlocks'>
+
 const versionBlock = (block: AutomationEditorSnapshot['blocks'][number]): VersionPolicyBlock => {
   if (block.kind === 'policy') {
     if (!block.policyId || !block.status) throw new Error('Live policy block is missing identity or status')
     return { kind: block.kind, text: block.text, policyId: block.policyId, status: block.status }
   }
   return { kind: block.kind, text: block.text }
+}
+
+export async function restoreAutomationPolicyVersion(
+  doc: Y.Doc,
+  projectId: string,
+  input: RestoreAutomationPolicyVersionInput,
+  editor: RestoreEditorController,
+): Promise<RestoreAutomationPolicyVersionResult> {
+  const before = editor.read()
+  if (before.projectId !== projectId) throw new Error('Live editor project identity does not match')
+  if (before.revision !== input.expectedDocumentRevision) throw new Error('Document revision conflict')
+  const { metadata, versions } = getProjectSharedTypes(doc)
+  if (metadata.get('projectId') !== projectId) throw new Error('Live collaboration document project identity does not match')
+  if (readPolicyVersionHead(metadata) !== input.expectedHeadVersionId) throw new Error('Policy version head conflict')
+  const parent = await readPolicyVersion(versions, input.expectedHeadVersionId)
+  if (!parent || parent.projectId !== projectId) throw new Error('Current policy version head is invalid')
+  const targetLineage = await readPolicyVersionLineage(versions, input.targetVersionId)
+  const target = targetLineage?.[0]
+  if (!target || target.projectId !== projectId) {
+    throw new Error('Restore target policy version not found or has invalid lineage')
+  }
+  const targetBlocks = target.policy.blocks.map((block) => ({ ...block }))
+  let draftMutationAttempted = false
+  const version = await commitPolicyVersion(
+    versions,
+    metadata,
+    {
+      projectId,
+      expectedHeadVersionId: input.expectedHeadVersionId,
+      blocks: targetBlocks,
+      scenarioIds: [...target.scenarioIds],
+      participantId: input.participantId,
+      displayName: input.displayName,
+      createdAt: input.createdAt,
+      note: input.note ?? `Restored ${target.versionId.slice(0, 12)}`,
+    },
+    () => {
+      const current = editor.read()
+      if (current.projectId !== projectId || current.revision !== input.expectedDocumentRevision) {
+        throw new Error('Document revision conflict')
+      }
+    },
+    {
+      apply: () => {
+        draftMutationAttempted = true
+        editor.replaceBlocks(input.expectedDocumentRevision, targetBlocks)
+      },
+      rollback: () => {
+        if (!draftMutationAttempted) return
+        const current = editor.read()
+        editor.replaceBlocks(current.revision, before.blocks)
+      },
+    },
+  )
+  const document = editor.read()
+  const changeNote = deterministicChangeNote(diffPolicyVersions(parent, version))
+  return {
+    previousDocumentRevision: input.expectedDocumentRevision,
+    document,
+    version,
+    changeNote,
+  }
 }
 
 export async function saveAutomationPolicyVersion(

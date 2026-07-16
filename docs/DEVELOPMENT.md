@@ -107,9 +107,13 @@ projections, parent validation, historical display-name attribution, and forty r
 delivery checks for independently created branches. Direct record tampering must fail closed. This
 proves the P-23/P-27 domain layer. `PolicyVersionRail.ui.test.ts` adds a server-rendered product
 contract for the save form, current-head metadata, selected checkpoint, deterministic change note,
-bounded changed-block list, and explicit read-only restore copy. `versionAutomation.test.ts` proves
-the UI's underlying exact editor-revision plus exact-head commit path. Packaged interaction,
-restore, and remote transport remain separate gates.
+bounded changed-block list, and two-step restore confirmation. `versionAutomation.test.ts` proves
+the exact editor-revision plus exact-head save path, one-transaction restore, rollback after a
+partial synthetic editor failure, and stale-input zero-mutation behavior.
+`versionRestoreIntegration.test.ts` binds real pinned Lexical/Yjs editors across the Memory
+provider and proves the restored root, immutable record, and head reach the peer in one Yjs update;
+the final peer Lexical projection is asserted separately. Packaged pointer interaction and
+Drive/WebSocket transport remain separate gates.
 
 `scenarioModel.test.ts` is the P-14/P-15 domain gate. It covers lifecycle CRUD, ordered multi-turn
 round-trip, attributed immutable turn revisions, branch lineage, independent concurrent field and
@@ -140,11 +144,12 @@ authentication, moderation, or remote transport.
 `policyVersionHistory.test.ts` extends that gate for P-28/P-29. It rejects stale expected heads
 before creating a version, restores an old snapshot only by creating a new child of the current
 head, retains both concurrent restore branches across forty reordered/duplicate deliveries, and
-produces the same structured diff/count note on repeated runs with no model dependency. This does
-not prove the semantic usefulness of a diff or safe product restore. The product rail is limited to
-save, list, select, and inspect because the current restore domain function does not also replace
-the active Lexical document. Do not enable restore until one harness proves both changes commit or
-neither does. Export and packaged interaction remain open.
+produces the same structured diff/count note on repeated runs with no model dependency. The product
+restore adds exact live-editor/head guards, semantic-block replacement without markup
+reinterpretation, rollback inside the transaction, a two-step accessible rail contract, and a
+two-peer one-update integration fixture. This does not prove Drive/WebSocket transport, packaged
+pointer/focus behavior, crash injection at the IndexedDB durability boundary, or the semantic
+usefulness of every diff. Export also remains open.
 
 ## Headless live-MCP contract proof
 

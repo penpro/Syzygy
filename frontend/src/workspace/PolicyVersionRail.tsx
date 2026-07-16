@@ -3,7 +3,7 @@ import type * as Y from 'yjs'
 import { useStore } from '../store'
 import { cx } from '../util'
 import { readAutomationEditor } from './editorAutomation'
-import { automationEditorReady } from './editorAutomationRegistry'
+import { automationEditorReady, getAutomationEditorController } from './editorAutomationRegistry'
 import { deterministicChangeNote, diffPolicyVersions, type PolicyVersionDiff } from './policyVersionHistory'
 import { getProjectSharedTypes } from './projectModel'
 import {
@@ -12,7 +12,7 @@ import {
   type PolicyVersion,
 } from './policyVersionModel'
 import type { ResearchProjectManifest } from './schema'
-import { saveAutomationPolicyVersion } from './versionAutomation'
+import { restoreAutomationPolicyVersion, saveAutomationPolicyVersion } from './versionAutomation'
 import { subscribeAutomationProjectDocument } from './workspaceAutomationRegistry'
 
 export interface VersionRailSelection {
@@ -67,24 +67,32 @@ export function PolicyVersionRailContent({
   headVersionId,
   selectedVersionId,
   note,
-  busy,
+  busyAction,
   error,
   savedStatus,
+  restoreArmed,
   onSelect,
   onNoteChange,
   onSave,
+  onBeginRestore,
+  onCancelRestore,
+  onRestore,
 }: {
   ready: boolean
   versions: PolicyVersion[]
   headVersionId: string | null
   selectedVersionId: string | null
   note: string
-  busy: boolean
+  busyAction: 'save' | 'restore' | null
   error: string
   savedStatus: string
+  restoreArmed: boolean
   onSelect: (versionId: string) => void
   onNoteChange: (note: string) => void
   onSave: () => void
+  onBeginRestore: () => void
+  onCancelRestore: () => void
+  onRestore: () => void
 }) {
   const ordered = [...versions].reverse()
   const selection = selectVersionRailEntry(versions, selectedVersionId)
@@ -112,8 +120,8 @@ export function PolicyVersionRailContent({
           placeholder="What changed?"
           onChange={(event) => onNoteChange(event.target.value)}
         />
-        <button className="btn sm" type="submit" disabled={!ready || busy}>
-          {busy ? 'Saving…' : 'Save current draft'}
+        <button className="btn sm" type="submit" disabled={!ready || busyAction !== null}>
+          {busyAction === 'save' ? 'Saving…' : 'Save current draft'}
         </button>
       </form>
 
@@ -170,9 +178,35 @@ export function PolicyVersionRailContent({
           {selection.diff && selection.diff.changes.length > 8 && (
             <p className="version-status">{selection.diff.changes.length - 8} more changes</p>
           )}
-          <p className="version-restore-note">
-            Inspection is read-only. Safe restore will arrive with one atomic live-draft and history operation.
-          </p>
+          {selection.version.versionId === headVersionId ? (
+            <p className="version-restore-note">This checkpoint is already the current history head.</p>
+          ) : (
+            <div className="version-restore" aria-label="Restore selected checkpoint">
+              <p>
+                Restore replaces the live draft and creates a new checkpoint on the current head.
+                Existing versions stay unchanged.
+              </p>
+              {restoreArmed ? (
+                <>
+                  <p className="version-restore-confirm" role="status">
+                    Confirm restoring {shortVersionId(selection.version.versionId)} as a new current version.
+                  </p>
+                  <div className="version-restore-actions">
+                    <button className="btn sm" type="button" disabled={busyAction !== null} onClick={onCancelRestore}>
+                      Cancel
+                    </button>
+                    <button className="btn sm" type="button" disabled={!ready || busyAction !== null} onClick={onRestore}>
+                      {busyAction === 'restore' ? 'Restoring…' : 'Restore as new version'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button className="btn sm" type="button" disabled={!ready || busyAction !== null} onClick={onBeginRestore}>
+                  Prepare restore
+                </button>
+              )}
+            </div>
+          )}
         </section>
       )}
     </aside>
@@ -188,9 +222,10 @@ export function PolicyVersionRail({ project }: { project: ResearchProjectManifes
   const [historyValid, setHistoryValid] = useState(false)
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null)
   const [note, setNote] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [busyAction, setBusyAction] = useState<'save' | 'restore' | null>(null)
   const [error, setError] = useState('')
   const [savedStatus, setSavedStatus] = useState('')
+  const [restoreArmed, setRestoreArmed] = useState(false)
 
   useEffect(
     () => subscribeAutomationProjectDocument(project.id, setDoc),
@@ -203,6 +238,7 @@ export function PolicyVersionRail({ project }: { project: ResearchProjectManifes
       setHeadVersionId(null)
       setHistoryValid(false)
       setSelectedVersionId(null)
+      setRestoreArmed(false)
       return
     }
     let active = true
@@ -249,8 +285,8 @@ export function PolicyVersionRail({ project }: { project: ResearchProjectManifes
   const ready = !!doc && historyValid && automationEditorReady(project.id)
 
   const save = async () => {
-    if (!doc || busy || !historyValid) return
-    setBusy(true)
+    if (!doc || busyAction || !historyValid) return
+    setBusyAction('save')
     setError('')
     setSavedStatus('')
     try {
@@ -271,7 +307,37 @@ export function PolicyVersionRail({ project }: { project: ResearchProjectManifes
     } catch (cause) {
       setError((cause as Error)?.message ?? 'Could not save the current draft.')
     } finally {
-      setBusy(false)
+      setBusyAction(null)
+    }
+  }
+
+  const restore = async () => {
+    if (!doc || busyAction || !historyValid || !selectedVersionId || selectedVersionId === headVersionId) return
+    setBusyAction('restore')
+    setError('')
+    setSavedStatus('')
+    try {
+      if (!researcherName.trim()) throw new Error('Add your researcher name in Settings before restoring a version.')
+      const controller = getAutomationEditorController(project.id)
+      const snapshot = controller.read()
+      const { metadata } = getProjectSharedTypes(doc)
+      const currentHead = readPolicyVersionHead(metadata)
+      if (!currentHead) throw new Error('Save the current draft before restoring a checkpoint.')
+      const restored = await restoreAutomationPolicyVersion(doc, project.id, {
+        targetVersionId: selectedVersionId,
+        expectedDocumentRevision: snapshot.revision,
+        expectedHeadVersionId: currentHead,
+        participantId: researcherId,
+        displayName: researcherName,
+        createdAt: Date.now(),
+      }, controller)
+      setSelectedVersionId(restored.version.versionId)
+      setSavedStatus(`Restored as a new current version. ${restored.changeNote}`)
+      setRestoreArmed(false)
+    } catch (cause) {
+      setError((cause as Error)?.message ?? 'Could not restore the selected checkpoint.')
+    } finally {
+      setBusyAction(null)
     }
   }
 
@@ -282,12 +348,19 @@ export function PolicyVersionRail({ project }: { project: ResearchProjectManifes
       headVersionId={headVersionId}
       selectedVersionId={selectedVersionId}
       note={note}
-      busy={busy}
+      busyAction={busyAction}
       error={error}
       savedStatus={savedStatus}
-      onSelect={setSelectedVersionId}
+      restoreArmed={restoreArmed}
+      onSelect={(versionId) => {
+        setSelectedVersionId(versionId)
+        setRestoreArmed(false)
+      }}
       onNoteChange={setNote}
       onSave={() => void save()}
+      onBeginRestore={() => setRestoreArmed(true)}
+      onCancelRestore={() => setRestoreArmed(false)}
+      onRestore={() => void restore()}
     />
   )
 }

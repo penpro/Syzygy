@@ -129,9 +129,10 @@ timestamp, and notes are stored as SHA-256-addressed strings and reverified on r
 tests cover tampering, detached results, idempotent replay, display-name changes, and forty
 reordered/duplicate branch deliveries. The product rail now saves the exact active semantic draft
 under an exact shared head and lists verified hashes, notes, authors, and times. Store migration v3
-persists one per-install attribution identity while preserving historical display names. Restore,
-branch reconciliation, remote convergence, packaged interaction, and archive interchange remain
-open.
+persists one per-install attribution identity while preserving historical display names. Product
+restore now replaces exact semantic blocks and appends a new current-head child in one guarded Yjs
+transaction with rollback evidence. Branch reconciliation, Drive/WebSocket convergence, packaged
+interaction, crash-durability injection, and archive interchange remain open.
 
 P-14/P-15 now have a Penumbra-original collaborative scenario domain service. Stable scenarios
 contain lifecycle state, background, ordered multi-turn content, attributed immutable turn
@@ -159,9 +160,11 @@ closed. Visible label controls, authentication, moderation, and remote-provider 
 P-28/P-29 now have exact-head commit, restore-as-new-child, and deterministic engine-free diff
 services. A stale head fails before creating an orphan; two concurrent restores preserve both
 immutable branches and converge one Yjs head across forty delivery orders. The product rail selects
-and renders parent change notes plus bounded block details without a model. Product restore remains
-intentionally absent because the current domain operation does not atomically replace the live
-Lexical draft; branch reconciliation, richer human notes, packaged interaction, and archive
+and renders parent change notes plus bounded block details without a model. Product restore now
+uses a two-step confirmation, exact draft/head guards, semantic-block replacement, and rollback.
+A real two-peer Lexical/Yjs fixture proves root, immutable version, and head travel in one shared
+update, while the peer editor projection is checked after synchronization. Branch reconciliation,
+richer human notes, Drive/WebSocket proof, packaged interaction, crash injection, and archive
 interchange remain open.
 
 ## 5. Target architecture

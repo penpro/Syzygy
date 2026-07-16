@@ -23,6 +23,7 @@ interface ActiveEditor {
 }
 
 const MAX_AUTOMATION_CONTENT = 200_000
+const MAX_SEMANTIC_BLOCK_CONTENT = 500_000
 
 export function registerAutomationEditor(projectId: string, editor: LexicalEditor): () => void {
   const registration: ActiveEditor = {
@@ -38,6 +39,7 @@ export function registerAutomationEditor(projectId: string, editor: LexicalEdito
     projectId,
     read: () => snapshot(registration),
     replace: (expectedRevision, content) => replaceRegisteredDocument(registration, expectedRevision, content),
+    replaceBlocks: (expectedRevision, blocks) => replaceRegisteredBlocks(registration, expectedRevision, blocks),
     append: (expectedRevision, content) => appendRegisteredDocument(registration, expectedRevision, content),
   })
   return () => {
@@ -63,15 +65,25 @@ function replaceRegisteredDocument(
   content: string,
 ): AutomationEditorSnapshot {
   validateMutation(expectedRevision, content)
+  return replaceRegisteredBlocks(registration, expectedRevision, parseBlocks(content), 'syzygy-mcp-replace')
+}
+
+function replaceRegisteredBlocks(
+  registration: ActiveEditor,
+  expectedRevision: string,
+  blocks: AutomationDocumentBlock[],
+  tag = 'syzygy-version-restore',
+): AutomationEditorSnapshot {
+  validateExpectedRevision(expectedRevision)
+  const normalized = normalizeBlocks(blocks)
   assertRevision(registration, expectedRevision)
-  const blocks = parseBlocks(content)
   registration.editor.update(
     () => {
       const root = $getRoot()
       root.clear()
-      blocks.forEach((block) => root.append(createNode(block)))
+      normalized.forEach((block) => root.append(createNode(block)))
     },
-    { discrete: true, tag: 'syzygy-mcp-replace' },
+    { discrete: true, tag },
   )
   return snapshot(registration)
 }
@@ -102,8 +114,37 @@ function appendRegisteredDocument(
   return snapshot(registration)
 }
 
-function validateMutation(expectedRevision: string, content: string): void {
+function validateExpectedRevision(expectedRevision: string): void {
   if (!expectedRevision.trim()) throw new Error('An expectedRevision from read_active_project is required')
+}
+
+function normalizeBlocks(blocks: AutomationDocumentBlock[]): AutomationDocumentBlock[] {
+  if (!Array.isArray(blocks) || blocks.length === 0 || blocks.length > 10_000) {
+    throw new Error('Document requires a bounded non-empty block list')
+  }
+  let contentLength = 0
+  return blocks.map((block) => {
+    if (!block || typeof block !== 'object' || !['heading1', 'heading2', 'quote', 'paragraph', 'policy'].includes(block.kind) ||
+      typeof block.text !== 'string' || block.text.includes('\u0000')) {
+      throw new Error('Document contains an invalid semantic block')
+    }
+    contentLength += block.text.length
+    if (contentLength > MAX_SEMANTIC_BLOCK_CONTENT) {
+      throw new Error(`Document content exceeds the ${MAX_SEMANTIC_BLOCK_CONTENT.toLocaleString()} character limit`)
+    }
+    if (block.kind === 'policy') {
+      if (!block.policyId || !/^[A-Za-z0-9][A-Za-z0-9._:@-]{0,199}$/.test(block.policyId) ||
+        !block.status || !['draft', 'review', 'approved'].includes(block.status)) {
+        throw new Error('Policy automation block requires identity and status')
+      }
+      return { kind: block.kind, text: block.text, policyId: block.policyId, status: block.status }
+    }
+    return { kind: block.kind, text: block.text }
+  })
+}
+
+function validateMutation(expectedRevision: string, content: string): void {
+  validateExpectedRevision(expectedRevision)
   if (typeof content !== 'string') throw new Error('Document content must be text')
   if (content.length > MAX_AUTOMATION_CONTENT) {
     throw new Error(`Document content exceeds the ${MAX_AUTOMATION_CONTENT.toLocaleString()} character limit`)

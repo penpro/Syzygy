@@ -192,9 +192,13 @@ head is one Yjs metadata pointer; a commit hashes its expected current head into
 parent link and rechecks the pointer inside the same Yjs transaction. Concurrent commits retain
 both immutable branches even though Yjs deterministically selects one displayed head. The module
 also produces a bounded structured block diff and deterministic count note without a model or
-network call. The rail exposes inspection and diffs, but product restore stays unavailable until
-the live editor replacement and new history head can be proven as one safe operation. There is no
-automatic conflict-resolution policy.
+network call. `versionAutomation.ts` now restores exact semantic blocks and creates a new immutable
+child of the current head inside one Yjs transaction after rechecking both the editor revision and
+head. Its transaction mutation restores the prior draft/head if the editor step throws. The rail
+requires a two-step confirmation and never rewrites history. A two-peer Memory-provider fixture
+proves the Lexical root, version record, and head travel in one Yjs update; the peer's rendered
+Lexical projection catches up after that shared transaction. Drive/WebSocket restore and automatic
+conflict resolution remain unclaimed.
 
 The frontend `extensions/` folder owns provider-neutral model descriptors, a content-free
 provider-run provenance record, deterministic adversarial-run planning plus an evidence-gated

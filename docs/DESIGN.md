@@ -109,10 +109,12 @@ evaluation panel. Versioning is live: the rail provides a compact optional note,
 bounded block-change list. Saving and diffing require no model. The researcher display name is
 editable in Settings and old attribution remains visually historical.
 
-Restore copy stays informational until the live draft and new immutable head can be changed as one
-safe operation. The UI must not imply that restore, Drive CRDT transport, scenarios, or real-time
-presence already work. The editor uses Plex Serif for document content and Plex Mono metadata
-stamps, with every surface, border, status, and selection derived from theme tokens so retained
+Restore is a deliberate two-step action on a non-head checkpoint. **Prepare restore** reveals the
+exact short checkpoint ID, a cancel action, and **Restore as new version**. The copy states that the
+live draft is replaced, a new child is created on the current head, and existing versions remain.
+The UI must not imply that Drive CRDT transport, scenarios, or real-time presence already work.
+The editor uses Plex Serif for document content and Plex Mono metadata stamps, with every surface,
+border, status, and selection derived from theme tokens so retained
 
 The first original research node is a **policy block**: an editable statement with a stable ID and
 `draft`, `review`, or `approved` state. Its paper treatment uses a quiet token-derived tint, ink

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "runId": "SAFE-RESTORE-2026-07-16",
+  "date": "2026-07-16",
+  "appVersionAtRun": "0.1.10",
+  "capabilities": ["P-28"],
+  "status": "implemented_unverified",
+  "commands": [
+    "npm test -- --run src/workspace/versionRestoreIntegration.test.ts src/workspace/versionAutomation.test.ts src/workspace/PolicyVersionRail.ui.test.ts src/workspace/editorAutomation.test.ts src/workspace/policyVersionModel.test.ts",
+    "npm run test:workspace",
+    "npm test",
+    "npm run build",
+    "npm run audit",
+    "npm run tauri build",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "focusedRestoreTestsPassed": 24,
+    "workspaceTestsPassed": 105,
+    "workspaceTestsExpectedFailure": 1,
+    "frontendTestsPassed": 215,
+    "frontendTestsExpectedFailure": 1,
+    "frontendTestsSkipped": 1,
+    "frontendModulesTransformed": 1007,
+    "structuralAuditChecksPassed": 41,
+    "packagedAppBuildPassed": true,
+    "packagedAppRecompiled": true,
+    "externalNetworkUsed": false,
+    "modelEngineUsed": false,
+    "realCredentialsUsed": false
+  },
+  "proved": [
+    "Restore requires the exact live editor revision, exact current immutable head, valid target lineage, project identity, and non-empty researcher attribution before mutation.",
+    "Restore replaces exact semantic blocks without reparsing paragraph or policy text as markup.",
+    "The restored snapshot is committed as a new immutable child of the current head; historical versions are never rewritten.",
+    "The editor-root mutation, new immutable version record, and head pointer are performed in one Yjs transaction.",
+    "A deliberately partial synthetic editor failure restores the prior draft and shared head before the transaction completes.",
+    "Stale document input invokes no editor mutation and creates no version.",
+    "Rollback preserves a canonical version record that appears during asynchronous commit preparation instead of deleting a collaborator's identical record.",
+    "A real two-peer pinned Lexical/Yjs Memory-provider fixture receives root, version record, and head in one shared update, then converges its rendered editor projection.",
+    "The product rail exposes a two-step Prepare restore / Restore as new version confirmation, a cancel action, and copy stating that existing versions remain unchanged.",
+    "The complete workspace suite, complete frontend suite, production frontend build, 41-check structural audit, and packaged Tauri build pass under the bounded operation watchdog; the log confirms Compiling app v0.1.10."
+  ],
+  "notProved": [
+    "Drive or WebSocket restore transport and two-install behavior.",
+    "Crash or power-loss injection at the IndexedDB durability boundary.",
+    "Instantaneous rendered-UI atomicity; the shared Yjs state is atomic and the peer Lexical projection catches up after that transaction.",
+    "Automatic reconciliation when another collaborator advances the document or history head; restore fails closed and requires retry.",
+    "Packaged pointer, focus, keyboard, screen-reader, narrow-layout, or dark-theme interaction.",
+    "MCP-triggered restore, authenticated participant identity, archive interchange, or a signed updater release."
+  ]
+}

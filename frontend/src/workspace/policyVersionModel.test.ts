@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
 import { applyProjectUpdate, createProjectDocument, encodeProjectState, getProjectSharedTypes, projectStateFingerprint } from './projectModel'
 import { createProjectManifest } from './schema'
-import { createPolicyVersion, listPolicyVersions, readPolicyVersion, type CreatePolicyVersionInput } from './policyVersionModel'
+import {
+  commitPolicyVersion,
+  createPolicyVersion,
+  listPolicyVersions,
+  readPolicyVersion,
+  readPolicyVersionHead,
+  type CreatePolicyVersionInput,
+} from './policyVersionModel'
 
 const manifest = createProjectManifest({ id: 'version-project', documentId: 'version-document', timestamp: 1 })
 const rootInput: CreatePolicyVersionInput = {
@@ -100,6 +107,46 @@ describe('immutable policy version model', () => {
       expectedFingerprint ||= projectStateFingerprint(merged)
       expect(projectStateFingerprint(merged)).toBe(expectedFingerprint)
     }
+  })
+
+  it('preserves a canonical version that appears during commit preparation when draft mutation rolls back', async () => {
+    const doc = createProjectDocument(manifest)
+    const { metadata, versions } = getProjectSharedTypes(doc)
+    const root = await commitPolicyVersion(versions, metadata, {
+      ...rootInput,
+      expectedHeadVersionId: null,
+    })
+    const candidateInput = {
+      ...rootInput,
+      expectedHeadVersionId: root.versionId,
+      createdAt: 99,
+      blocks: [...rootInput.blocks, { kind: 'paragraph' as const, text: 'Prepared concurrently.' }],
+    }
+    const peer = replica(doc)
+    const peerVersions = getProjectSharedTypes(peer).versions
+    const candidate = await createPolicyVersion(peerVersions, {
+      ...candidateInput,
+      parentVersionId: root.versionId,
+    })
+    const canonical = peerVersions.get(candidate.versionId)
+    expect(typeof canonical).toBe('string')
+
+    await expect(commitPolicyVersion(
+      versions,
+      metadata,
+      candidateInput,
+      () => versions.set(candidate.versionId, canonical),
+      {
+        apply: () => {
+          throw new Error('synthetic draft mutation failure')
+        },
+        rollback: () => undefined,
+      },
+    )).rejects.toThrow('synthetic draft mutation failure')
+
+    expect(versions.get(candidate.versionId)).toBe(canonical)
+    expect(versions.size).toBe(2)
+    expect(readPolicyVersionHead(metadata)).toBe(root.versionId)
   })
 
   it('rejects missing parents, duplicate scenario references, and non-canonical peer records', async () => {

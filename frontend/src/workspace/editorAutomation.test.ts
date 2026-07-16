@@ -8,7 +8,7 @@ import {
   registerAutomationEditor,
   replaceAutomationDocument,
 } from './editorAutomation'
-import { automationEditorReady } from './editorAutomationRegistry'
+import { automationEditorReady, getAutomationEditorController } from './editorAutomationRegistry'
 
 let unregister: (() => void) | undefined
 
@@ -62,6 +62,21 @@ describe('live editor automation contract', () => {
     const appended = appendAutomationDocument(replaced.revision, '## Test case\nAn unapproved edit is rejected.')
     expect(appended.blocks[appended.blocks.length - 2]).toEqual({ kind: 'heading2', text: 'Test case' })
     expect(appended.blocks[appended.blocks.length - 1]).toEqual({ kind: 'paragraph', text: 'An unapproved edit is rejected.' })
+  })
+
+  it('replaces exact semantic blocks without interpreting paragraph text as markup', () => {
+    registeredEditor()
+    const original = readAutomationEditor()
+    const replaced = getAutomationEditorController('project-test').replaceBlocks(original.revision, [
+      { kind: 'paragraph', text: '# Keep this literal paragraph' },
+      { kind: 'policy', policyId: 'policy-restore-1', status: 'approved', text: '> Keep this literal policy text' },
+    ])
+    expect(replaced.blocks).toEqual([
+      { kind: 'paragraph', text: '# Keep this literal paragraph' },
+      { kind: 'policy', policyId: 'policy-restore-1', status: 'approved', text: '> Keep this literal policy text' },
+    ])
+    expect(replaced.text).toContain('# Keep this literal paragraph')
+    expect(() => getAutomationEditorController().replaceBlocks(replaced.revision, [])).toThrow('bounded non-empty')
   })
 
   it('rejects a stale revision instead of overwriting a newer draft', () => {

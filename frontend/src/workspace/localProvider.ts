@@ -16,6 +16,7 @@ export class LocalProjectProvider implements ProjectCollaborationProvider {
   private readonly persistence: IndexeddbPersistence
   private readonly listeners = new Map<ProjectProviderEvent, Set<ProjectProviderListener>>()
   private connected = false
+  private connectionGeneration = 0
   private unregisterAutomation: (() => void) | null = null
 
   constructor(
@@ -30,14 +31,15 @@ export class LocalProjectProvider implements ProjectCollaborationProvider {
 
   connect(): void {
     if (this.connected) return
+    const generation = ++this.connectionGeneration
     this.connected = true
-    this.unregisterAutomation = registerAutomationProjectDocument(this.projectId, this.doc)
     this.emit('status', { status: 'connecting' })
     // Return void deliberately. Lexical's development StrictMode cleanup defers disconnecting
     // promise-returning providers and can disconnect a newer mount when the old promise settles.
     // A void lifecycle makes cleanup immediate; the readiness continuation is generation-safe.
     void this.persistence.whenSynced.then(() => {
-      if (!this.connected) return
+      if (!this.connected || generation !== this.connectionGeneration) return
+      this.unregisterAutomation = registerAutomationProjectDocument(this.projectId, this.doc)
       this.emit('sync', true)
       this.emit('status', { status: 'connected' })
     })
@@ -48,6 +50,7 @@ export class LocalProjectProvider implements ProjectCollaborationProvider {
   }
 
   disconnect(): void {
+    this.connectionGeneration += 1
     this.unregisterAutomation?.()
     this.unregisterAutomation = null
     if (!this.connected) return

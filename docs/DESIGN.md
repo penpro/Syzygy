@@ -104,10 +104,15 @@ stamps in mono small-caps).
 
 The first workspace implementation follows the approved structure without reproducing another
 product's interface: a narrow version rail, a centered paper document, and a private scenario/
-evaluation panel. Incomplete controls are visibly disabled and described as upcoming; the UI must
-not imply that versioning, Drive CRDT transport, scenarios, or real-time presence already work.
-The editor uses Plex Serif for document content and Plex Mono metadata stamps, with every surface,
-border, status, and selection derived from theme tokens so retained dark themes remain usable.
+evaluation panel. Versioning is live: the rail provides a compact optional note, an explicit
+**Save current draft** action, current-head marking, historical author/time/hash stamps, and a
+bounded block-change list. Saving and diffing require no model. The researcher display name is
+editable in Settings and old attribution remains visually historical.
+
+Restore copy stays informational until the live draft and new immutable head can be changed as one
+safe operation. The UI must not imply that restore, Drive CRDT transport, scenarios, or real-time
+presence already work. The editor uses Plex Serif for document content and Plex Mono metadata
+stamps, with every surface, border, status, and selection derived from theme tokens so retained
 
 The first original research node is a **policy block**: an editable statement with a stable ID and
 `draft`, `review`, or `approved` state. Its paper treatment uses a quiet token-derived tint, ink

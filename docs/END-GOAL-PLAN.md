@@ -127,8 +127,11 @@ P-23/P-27 now have a Penumbra-original immutable version domain service. Canonic
 policy snapshots, lineage, scenario references, participant identity, display-name-at-save,
 timestamp, and notes are stored as SHA-256-addressed strings and reverified on read. Headless
 tests cover tampering, detached results, idempotent replay, display-name changes, and forty
-reordered/duplicate branch deliveries. Save/restore UI, a shared head, deterministic diffs, and
-archive interchange remain open.
+reordered/duplicate branch deliveries. The product rail now saves the exact active semantic draft
+under an exact shared head and lists verified hashes, notes, authors, and times. Store migration v3
+persists one per-install attribution identity while preserving historical display names. Restore,
+branch reconciliation, remote convergence, packaged interaction, and archive interchange remain
+open.
 
 P-14/P-15 now have a Penumbra-original collaborative scenario domain service. Stable scenarios
 contain lifecycle state, background, ordered multi-turn content, attributed immutable turn
@@ -155,8 +158,11 @@ closed. Visible label controls, authentication, moderation, and remote-provider 
 
 P-28/P-29 now have exact-head commit, restore-as-new-child, and deterministic engine-free diff
 services. A stale head fails before creating an orphan; two concurrent restores preserve both
-immutable branches and converge one Yjs head across forty delivery orders. Restore/history UI,
-branch reconciliation, richer human change notes, and archive interchange remain open.
+immutable branches and converge one Yjs head across forty delivery orders. The product rail selects
+and renders parent change notes plus bounded block details without a model. Product restore remains
+intentionally absent because the current domain operation does not atomically replace the live
+Lexical draft; branch reconciliation, richer human notes, packaged interaction, and archive
+interchange remain open.
 
 ## 5. Target architecture
 

@@ -56,8 +56,13 @@ npm run test:workspace
 
 This fails unless project manifests reject malformed/future schemas, old persisted stores migrate
 idempotently, duplicate/out-of-order Yjs updates converge, concurrent offline collections survive,
-and acknowledged project state reopens from IndexedDB. It does **not** yet prove two-machine rich
-text convergence or Drive transport; those remain separate capability gates.
+and acknowledged project state reopens from IndexedDB. The local provider must remain absent from
+the live automation registry until that IndexedDB merge finishes. Migration tests also require
+store v3 to rewrite the generated researcher ID once, preserve an existing ID/name, and reject a
+future store version. The version-rail component contract separately requires corrupt history to
+replace stale results with an alert and a disabled save action against unverified state.
+It does **not** yet prove two-machine rich text convergence or Drive transport; those
+remain separate capability gates.
 
 The same suite includes `heuristicsModel.test.ts`. Forty seeded delivery orders prove concurrent
 field edits retain both values and attribution events, and another forty prove concurrent additions
@@ -70,7 +75,11 @@ The suite also includes `policyVersionModel.test.ts`. It requires canonical sema
 snapshots, SHA-256 address verification on every read, idempotent identical saves, detached
 projections, parent validation, historical display-name attribution, and forty reordered/duplicate
 delivery checks for independently created branches. Direct record tampering must fail closed. This
-proves the P-23/P-27 domain layer, not a version rail, restore workflow, diff UI, or remote transport.
+proves the P-23/P-27 domain layer. `PolicyVersionRail.ui.test.ts` adds a server-rendered product
+contract for the save form, current-head metadata, selected checkpoint, deterministic change note,
+bounded changed-block list, and explicit read-only restore copy. `versionAutomation.test.ts` proves
+the UI's underlying exact editor-revision plus exact-head commit path. Packaged interaction,
+restore, and remote transport remain separate gates.
 
 `scenarioModel.test.ts` is the P-14/P-15 domain gate. It covers lifecycle CRUD, ordered multi-turn
 round-trip, attributed immutable turn revisions, branch lineage, independent concurrent field and
@@ -102,7 +111,10 @@ authentication, moderation, or remote transport.
 before creating a version, restores an old snapshot only by creating a new child of the current
 head, retains both concurrent restore branches across forty reordered/duplicate deliveries, and
 produces the same structured diff/count note on repeated runs with no model dependency. This does
-not prove the future history rail, user interaction, export, or semantic usefulness of a diff.
+not prove the semantic usefulness of a diff or safe product restore. The product rail is limited to
+save, list, select, and inspect because the current restore domain function does not also replace
+the active Lexical document. Do not enable restore until one harness proves both changes commit or
+neither does. Export and packaged interaction remain open.
 
 ## Headless live-MCP contract proof
 

@@ -1,6 +1,7 @@
 import { useStore } from '../store'
 import { ResearchEditor } from './ResearchEditor'
 import { RemoteResearchReview } from './RemoteResearchReview'
+import { PolicyVersionRail } from './PolicyVersionRail'
 
 export function WorkspaceView() {
   const projects = useStore((state) => state.projects)
@@ -33,17 +34,12 @@ export function WorkspaceView() {
           />
         </div>
         <div className="workspace-header-actions">
-          <span className="workspace-status mono">Local persistence</span>
-          <button className="btn" type="button" disabled title="Immutable project snapshots arrive in the versioning slice">Snapshot</button>
+          <span className="workspace-status mono">Local persistence · immutable history</span>
         </div>
       </header>
 
       <div className="workspace-grid">
-        <aside className="workspace-rail" aria-label="Project versions">
-          <div className="workspace-panel-label mono">Versions</div>
-          <div className="workspace-rail-node active"><span>Draft</span><small>Live local state</small></div>
-          <div className="workspace-coming">Immutable snapshots and diffs are the next project slice.</div>
-        </aside>
+        <PolicyVersionRail project={project} />
 
         <div className="workspace-editor-column">
           <ResearchEditor key={project.documentId} project={project} />

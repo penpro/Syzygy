@@ -230,6 +230,37 @@ record(
   'exact-head atomic commit, bounded lineage verification, restore-as-new-child, retained concurrent branches, 40 delivery orders, pure deterministic diff/note, and truthful P-28/P-29 statuses are present',
 )
 
+const policyVersionRailSource = text('frontend/src/workspace/PolicyVersionRail.tsx')
+const localProjectProviderSource = text('frontend/src/workspace/localProvider.ts')
+const localProjectProviderTestSource = text('frontend/src/workspace/localProvider.test.ts')
+const policyVersionRailTestSource = text('frontend/src/workspace/PolicyVersionRail.ui.test.ts')
+const migrationSource = text('frontend/src/migrations.ts')
+record(
+  'product version rail remains live-document scoped, exact-revision guarded, and restore-honest',
+  policyVersionRailSource.includes('subscribeAutomationProjectDocument(project.id, setDoc)') &&
+    policyVersionRailSource.includes('readAutomationEditor(project.id)') &&
+    policyVersionRailSource.includes('expectedDocumentRevision: snapshot.revision') &&
+    policyVersionRailSource.includes('expectedHeadVersionId: readPolicyVersionHead(metadata)') &&
+    policyVersionRailSource.includes('historyValid && automationEditorReady(project.id)') &&
+    policyVersionRailSource.includes('assertVersionRailHistory(nextVersions, versionMap.size, nextHead)') &&
+    policyVersionRailSource.includes('Inspection is read-only') &&
+    !policyVersionRailSource.includes('restorePolicyVersion') &&
+    policyVersionRailTestSource.includes('renders accessible save controls') &&
+    policyVersionRailTestSource.includes("toThrow('invalid checkpoint')") &&
+    policyVersionRailTestSource.includes("toThrow('head is missing')") &&
+    policyVersionRailTestSource.includes("toThrow('missing parent')") &&
+    localProjectProviderSource.includes('void this.persistence.whenSynced.then') &&
+    localProjectProviderSource.indexOf('void this.persistence.whenSynced.then') <
+      localProjectProviderSource.indexOf(
+        'this.unregisterAutomation = registerAutomationProjectDocument(this.projectId, this.doc)',
+      ) &&
+    localProjectProviderTestSource.includes("expect(automationProjectDocumentReady('document-1')).toBe(false)") &&
+    localProjectProviderTestSource.includes("expect(automationProjectDocumentReady('document-1')).toBe(true)") &&
+    migrationSource.includes('PERSISTED_STORE_VERSION = 3') &&
+    migrationSource.includes('storedVersion > PERSISTED_STORE_VERSION'),
+  'post-IndexedDB live Y.Doc publication, exact editor/head guards, verified-history rejection, accessible headless UI, durable attribution migration, engine-free diffs, and no product restore call are present',
+)
+
 const tauriConfig = JSON.parse(text('frontend/src-tauri/tauri.conf.json'))
 record(
   'bundle identity',
@@ -276,7 +307,11 @@ const researchInspectionTestSource = text('frontend/src/workspace/researchStateI
 const automationRegistrySource = text('frontend/src/workspace/workspaceAutomationRegistry.ts')
 record(
   'MCP research-state inspection remains live, bounded, content-minimized, and read-only',
-  automationRegistrySource.includes('if (documents.get(projectId) === doc) documents.delete(projectId)') &&
+  automationRegistrySource.includes('if (documents.get(projectId) !== doc) return') &&
+    automationRegistrySource.includes('documents.delete(projectId)') &&
+    automationRegistrySource.includes('notify(projectId, null)') &&
+    text('frontend/src/workspace/workspaceAutomationRegistry.test.ts')
+      .includes('notifies product subscribers across registration, replacement, and final cleanup') &&
     text('frontend/src/workspace/localProvider.ts').includes('registerAutomationProjectDocument(this.projectId, this.doc)') &&
     text('frontend/src/automationBridge.ts').includes("case 'project.readResearchState'") &&
     researchInspectionSource.includes('MAX_RETURNED_ITEMS = 200') &&

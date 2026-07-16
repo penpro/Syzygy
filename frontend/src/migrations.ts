@@ -6,6 +6,19 @@ import type { Settings, Expert, Ask } from './types'
 import { defaultExperts } from './seed'
 import { isResearchProjectManifest, type ResearchProjectManifest } from './workspace/schema'
 
+export const PERSISTED_STORE_VERSION = 3
+
+/**
+ * Zustand rewrites storage only when its numbered migration runs. Version 3 makes the generated
+ * per-install researcher identity durable for saves created before attribution existed.
+ */
+export function migratePersistedVersion(persisted: unknown, storedVersion: number): unknown {
+  if (!Number.isInteger(storedVersion) || storedVersion < 0 || storedVersion > PERSISTED_STORE_VERSION) {
+    throw new Error('Invalid or unsupported persisted store version')
+  }
+  return persisted ?? {}
+}
+
 /** The persisted data slices the migrations touch (the rest of the save passes through as-is). */
 interface PersistedData {
   settings: Settings

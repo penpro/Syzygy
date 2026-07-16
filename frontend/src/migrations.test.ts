@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mergePersisted } from './migrations'
+import { mergePersisted, migratePersistedVersion, PERSISTED_STORE_VERSION } from './migrations'
 import { defaultSettings } from './seed'
 import { createProjectManifest } from './workspace/schema'
 
@@ -13,6 +13,14 @@ const current = {
 }
 
 describe('persisted-store migrations', () => {
+  it('rewrites the v2 save once for durable attribution and rejects future store versions', () => {
+    const saved = { settings: defaultSettings }
+    expect(PERSISTED_STORE_VERSION).toBe(3)
+    expect(migratePersistedVersion(saved, 2)).toBe(saved)
+    expect(migratePersistedVersion(null, 2)).toEqual({})
+    expect(() => migratePersistedVersion(saved, 4)).toThrow('unsupported persisted store version')
+  })
+
   it('defaults legacy saves to local AI on but preserves an explicit opt-out', () => {
     const legacySettings = { ...defaultSettings } as Partial<typeof defaultSettings>
     delete legacySettings.localAiEnabled
@@ -20,6 +28,18 @@ describe('persisted-store migrations', () => {
     const optedOut = mergePersisted({ settings: { ...defaultSettings, localAiEnabled: false }, experts: [], asks: [] }, current)
     expect(legacy.settings.localAiEnabled).toBe(true)
     expect(optedOut.settings.localAiEnabled).toBe(false)
+  })
+
+  it('backfills a stable research identity and preserves an existing collaborator identity', () => {
+    const legacySettings = { ...defaultSettings } as Partial<typeof defaultSettings>
+    delete legacySettings.researcherId
+    delete legacySettings.researcherName
+    const migrated = mergePersisted({ settings: legacySettings, experts: [], asks: [] }, current)
+    expect(migrated.settings.researcherId).toBe(defaultSettings.researcherId)
+    expect(migrated.settings.researcherName).toBe('Local researcher')
+    const preserved = mergePersisted({ settings: { ...defaultSettings, researcherName: 'Ada' }, experts: [], asks: [] }, current)
+    expect(preserved.settings.researcherId).toBe(defaultSettings.researcherId)
+    expect(preserved.settings.researcherName).toBe('Ada')
   })
 
   it('backfills project collections into a pre-workspace save idempotently', () => {

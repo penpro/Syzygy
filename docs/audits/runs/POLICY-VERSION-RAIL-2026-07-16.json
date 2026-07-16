@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "runId": "POLICY-VERSION-RAIL-2026-07-16",
+  "date": "2026-07-16",
+  "appVersionAtRun": "0.1.10",
+  "capabilities": ["P-23", "P-27", "P-29"],
+  "status": "implemented_unverified",
+  "commands": [
+    "npm test -- --run src/workspace/PolicyVersionRail.ui.test.ts src/workspace/versionAutomation.test.ts src/migrations.test.ts src/workspace/workspaceAutomationRegistry.test.ts src/workspace/localProvider.test.ts",
+    "npm run test:workspace",
+    "npm test",
+    "npm run build",
+    "npm run audit",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "focusedTestsPassed": 15,
+    "workspaceTestsPassed": 93,
+    "frontendTestsPassed": 203,
+    "frontendTestsSkipped": 1,
+    "frontendModulesTransformed": 1005,
+    "structuralAuditChecksPassed": 39,
+    "externalNetworkUsed": false,
+    "modelEngineUsed": false,
+    "realCredentialsUsed": false
+  },
+  "proved": [
+    "The product version rail subscribes to the same lifecycle-owned live Y.Doc as the Lexical editor instead of opening a second document or mirror.",
+    "Save current draft reads the exact semantic editor revision, requires the exact current version head, and rechecks the editor revision inside the final immutable-head transaction.",
+    "The rail lists verified content-addressed checkpoints with current-head, note, historical display name, time, and bounded hash metadata.",
+    "Selecting a checkpoint renders the deterministic parent change note and at most eight ordered block changes without loading or calling a model.",
+    "The server-rendered component contract includes an accessible version region, labeled optional-note input, explicit save action, selected state, current-head copy, and an honest read-only restore notice.",
+    "Store migration v3 rewrites version-2 saves once so the generated per-install participant ID becomes durable, preserves existing researcher identity/name, and rejects future store versions.",
+    "Live-document subscription tests cover initial absence, registration, strict-mode-safe replacement, final cleanup, and subscriber removal.",
+    "The local provider remains absent from the UI/MCP live-document registry until IndexedDB synchronization has completed, and disconnect removes it again.",
+    "The product rail rejects invalid stored records, a missing current head, and a selected checkpoint whose immutable parent is absent; failed verification clears stale rail state and disables saving."
+  ],
+  "notProved": [
+    "Packaged pointer, keyboard, focus, narrow-layout, or dark-theme interaction for the version rail.",
+    "Safe product restore; the domain restore creates a new immutable head but does not replace the active Lexical document, so restore remains unavailable in the UI.",
+    "Authenticated or cryptographically signed participant identity; the per-install ID and editable display name are attribution metadata only.",
+    "Two-machine or Drive-backed version convergence, non-head branch reconciliation, archive export, or portable verification.",
+    "Semantic usefulness of the deterministic diff for every document structure; non-policy prose still lacks stable block identity.",
+    "A release/updater build containing this development checkpoint."
+  ]
+}

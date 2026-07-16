@@ -1,5 +1,5 @@
 import type { Settings, Expert } from './types'
-import { now } from './util'
+import { now, uid } from './util'
 
 export const defaultSettings: Settings = {
   baseUrl: 'http://127.0.0.1:11435/v1',
@@ -11,6 +11,8 @@ export const defaultSettings: Settings = {
   autoExpandReasoning: false,
   keepLoaded: false,
   localAiEnabled: true,
+  researcherId: uid(),
+  researcherName: 'Local researcher',
   proofread: false,
   seenTutorial: false,
   seenWelcome: false,

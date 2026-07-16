@@ -249,6 +249,17 @@ export function SettingsPanel({
         </div>
 
         <RemoteProviderSettings />
+        <label className="field">
+          <span>Researcher name</span>
+          <input
+            value={settings.researcherName}
+            maxLength={200}
+            onChange={(event) => updateSettings({ researcherName: event.target.value })}
+          />
+          <em className="hint">
+            This name is saved with new versions and collaborative research actions. Earlier attribution stays unchanged.
+          </em>
+        </label>
 
         <div className="field">
           <span>Your data</span>

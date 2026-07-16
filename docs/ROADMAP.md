@@ -198,13 +198,18 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   SHA-256 address. Readback re-canonicalizes and rehashes; direct tampering fails closed, returned
   values are detached, parent links are validated, and the author's stable participant ID plus
   display-name-at-save survive later name changes. Forty reordered/duplicate branch deliveries
-  converge. This closes P-23/P-27 domain evidence only; save/restore UI, head selection, diffs,
-  archives, and remote-provider validation remain open.
+  converge. The workspace version rail now saves the exact active semantic revision under the exact
+  current head, lists verified checkpoints, and shows author, note, time, hash, and current-head
+  metadata. Store migration v3 makes the generated per-install participant ID durable. Restore,
+  archives, remote transport, and packaged pointer/keyboard validation remain open.
 - Exact-head version commits and restore-as-new-child are now implemented at the domain layer.
   Stale commits fail before insertion; concurrent restores retain both immutable branches while
   Yjs selects one deterministic head. A pure structured block diff and stable count note operate
-  with the model engine off. This closes P-28/P-29 headless evidence only; the version rail,
-  conflict reconciliation, richer notes, exports, and interaction tests remain open.
+  with the model engine off. The rail now renders that note and up to eight ordered block changes
+  for the selected checkpoint, with a server-rendered accessible-control harness. P-29 therefore
+  has a product caller but remains `implemented_unverified`; P-28 restore remains domain-only until
+  editor replacement plus head creation is atomic. Conflict reconciliation, exports, remote
+  convergence, and packaged interaction tests remain open.
 - The live MCP now advertises a thirteenth semantic tool, `inspect_research_state`. A lifecycle-
   safe registry points it at the same active Y.Doc as the editor. The tool validates heuristic
   records, immutable version hashes, project ownership, head shape, and complete ancestor lineage,

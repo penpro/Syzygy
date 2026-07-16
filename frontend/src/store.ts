@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import type { ChatMessage, Settings, AppView, Expert, Ask } from './types'
 import { uid, now } from './util'
 import { safeStorage } from './storage'
-import { mergePersisted } from './migrations'
+import { mergePersisted, migratePersistedVersion, PERSISTED_STORE_VERSION } from './migrations'
 import { defaultSettings, defaultExperts } from './seed'
 import { createProjectManifest, type ResearchProjectManifest } from './workspace/schema'
 
@@ -171,7 +171,8 @@ export const useStore = create<AppState>()(
     {
       name: 'syzygy',
       storage: createJSONStorage(() => safeStorage),
-      version: 2,
+      version: PERSISTED_STORE_VERSION,
+      migrate: migratePersistedVersion,
       partialize: (s) => ({
         settings: s.settings,
         view: s.view,

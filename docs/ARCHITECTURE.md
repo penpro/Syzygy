@@ -79,8 +79,8 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   slice are sibling views.
 - `store.ts` — one zustand store, persisted to localStorage under key **`syzygy`**
   (`storage.ts` wraps quota/corruption; `migrations.ts` is the only place save-shape
-  changes are reconciled). Slices: `settings` (including the persisted local-AI lifecycle choice),
-  engine runtime, `experts`, `asks`.
+  changes are reconciled). Slices: `settings` (including local-AI lifecycle and stable per-install
+  researcher attribution), engine runtime, `experts`, `asks`.
 - `tauri.ts` — **the single typed boundary** to the Rust core. Every command has a wrapper
   here; components never import `invoke` directly. The wrapper auto-logs every backend
   failure to the diagnostic log (`log.ts`).
@@ -100,6 +100,9 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   while `policyVersionModel.ts`
   stores canonical version envelopes as SHA-256-addressed strings whose hash is rechecked on every
   read. The Lexical/Yjs editor owns the `root` shared type.
+  `PolicyVersionRail.tsx` subscribes to that same live document, saves the exact semantic editor
+  revision against the exact version head, and presents verified immutable checkpoints plus
+  deterministic parent diffs.
 - `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
   navigation, revision-guarded editor reads/writes, and bounded read-only research-state integrity
   inspection. `scenarioAutomation.ts` creates scenarios, adds/revises attributed turns, and casts
@@ -121,6 +124,8 @@ The frontend `workspace/` folder also defines one collaboration-provider lifecyc
 the current product persistence provider; a deterministic Memory provider exists only to prove
 two active documents converge through live edits, partitions, and reconnects. Future Drive and
 WebSocket implementations must pass the same contract before their capability status changes.
+The local provider publishes its document to the UI/MCP automation registry only after IndexedDB
+synchronization and uses a connection generation guard so stale lifecycle continuations fail closed.
 Its `nodes/PolicyBlockNode.ts` is the first original domain editor node: stable identity and
 review state live with editable Lexical content and survive JSON/MCP serialization and two-editor
 convergence. Pointer and keyboard interaction gates remain open.
@@ -171,15 +176,21 @@ provider proof is claimed.
 snapshot, parent hash, sorted scenario references, participant ID, display-name snapshot,
 timestamp, and optional note. The canonical envelope is stored under its SHA-256 identifier;
 readback reparses, re-canonicalizes, and rehashes it, so direct or remote replacement fails closed.
-Returned structures are detached copies. This is a domain/history foundation only: the editor
-does not yet expose save, rail, restore, or deterministic diff controls.
+Returned structures are detached copies. The product version rail now subscribes through the
+lifecycle-safe live-document registry, commits the exact semantic editor revision under exact-head
+guards, lists hashes/notes/author snapshots, and renders bounded parent diffs. Failed or pending
+history verification clears stale rail state and disables checkpoint creation; the product never
+offers a save action against an unverified immutable-history view. Per-install identity is persisted
+through store migration v3; changing its display name does not rewrite old versions.
 
 `policyVersionHistory.ts` adds exact-head commits and restore-as-new-version semantics. The mutable
 head is one Yjs metadata pointer; a commit hashes its expected current head into the new immutable
 parent link and rechecks the pointer inside the same Yjs transaction. Concurrent commits retain
 both immutable branches even though Yjs deterministically selects one displayed head. The module
 also produces a bounded structured block diff and deterministic count note without a model or
-network call. There is still no product history UI or automatic conflict-resolution policy.
+network call. The rail exposes inspection and diffs, but product restore stays unavailable until
+the live editor replacement and new history head can be proven as one safe operation. There is no
+automatic conflict-resolution policy.
 
 The frontend `extensions/` folder owns provider-neutral model descriptors, a content-free
 provider-run provenance record, deterministic adversarial-run planning plus an evidence-gated
@@ -206,7 +217,7 @@ availability claim.
 | What | Where |
 |---|---|
 | Settings, experts, ask threads | localStorage key `syzygy` (webview) |
-| Project manifests / active project | localStorage key `syzygy` (webview, migration v2) |
+| Project manifests / active project / researcher attribution | localStorage key `syzygy` (webview, migration v3) |
 | Collaborative project updates | IndexedDB database `syzygy-project-v1:<projectId>` |
 | Sanitized diagnostic history (last 500 entries) | localStorage key `syzygy-diagnostic-log-v1` (webview) |
 | Google refresh token + client info | `<app-data>/google_auth.json` (Rust-only) |

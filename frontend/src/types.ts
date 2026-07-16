@@ -18,6 +18,7 @@ export interface Settings {
   contextLength: number
   autoExpandReasoning: boolean
   keepLoaded: boolean // pin the model in VRAM (keep_alive -1) instead of idle-unloading
+  localAiEnabled: boolean // load the bundled local model at startup; false leaves projects + remote APIs available
   proofread: boolean // re-run each reply through the model to fix spelling/grammar
   seenTutorial: boolean // the "how it works" architecture modal has been shown
   seenWelcome: boolean // the first-run welcome tour was dismissed with "don't show again"

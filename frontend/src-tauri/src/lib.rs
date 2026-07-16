@@ -1,5 +1,5 @@
 //! Syzygy Tauri backend. Domain logic lives in the modules below; this file wires up
-//! state, auto-starts the engine on launch, and registers the command handlers.
+//! state and command handlers. The persisted frontend preference owns engine startup.
 mod automation;
 pub mod credential_vault;
 mod documents;
@@ -19,9 +19,8 @@ mod state;
 mod updates;
 mod vision;
 
-use state::{model_dir, Downloads, Engine, Granted, KnowledgeCache, MainModel, VisionEngine};
+use state::{Downloads, Engine, Granted, KnowledgeCache, MainModel, VisionEngine};
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::Manager;
 
@@ -52,46 +51,6 @@ pub fn run() {
                 // MCP is an optional local interoperability surface. A locked/unwritable temp
                 // directory must not prevent the primary desktop workspace from opening.
                 log::warn!("Live MCP bridge unavailable: {error}");
-            }
-            // Auto-start the engine on the largest non-projector model already downloaded
-            // (the user's main model is bigger than any bundled vision model); else the
-            // frontend shows the first-run setup wizard.
-            let handle = app.handle().clone();
-            if let Some(dir) = model_dir(&handle) {
-                if let Ok(entries) = std::fs::read_dir(&dir) {
-                    let mut best: Option<(u64, PathBuf)> = None;
-                    for e in entries.flatten() {
-                        let p = e.path();
-                        let is_gguf = p.extension().map_or(false, |x| x == "gguf");
-                        let name = p
-                            .file_name()
-                            .map(|n| n.to_string_lossy().to_lowercase())
-                            .unwrap_or_default();
-                        if is_gguf && !name.contains("mmproj") {
-                            let sz = e.metadata().map(|m| m.len()).unwrap_or(0);
-                            if best.as_ref().map_or(true, |(b, _)| sz > *b) {
-                                best = Some((sz, p));
-                            }
-                        }
-                    }
-                    if let Some((_, model)) = best {
-                        if let Some(fname) =
-                            model.file_name().map(|n| n.to_string_lossy().to_string())
-                        {
-                            *handle
-                                .state::<MainModel>()
-                                .0
-                                .lock()
-                                .unwrap_or_else(|e| e.into_inner()) = Some(fname);
-                        }
-                        let child = engine::spawn_engine(&handle, &model);
-                        *handle
-                            .state::<Engine>()
-                            .0
-                            .lock()
-                            .unwrap_or_else(|e| e.into_inner()) = child;
-                    }
-                }
             }
             Ok(())
         })

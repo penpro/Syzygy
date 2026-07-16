@@ -6,7 +6,7 @@ import { ModelBar } from './ModelBar'
 // surface is a Tauri drag region and the controls call the window API. getCurrentWindow() is
 // resolved lazily so a non-Tauri context (browser dev) doesn't fault.
 // (The inherited mode tabs were removed; Syzygy has a single Ask surface, so the nav is gone.)
-export function TitleBar() {
+export function TitleBar({ onNeedModel }: { onNeedModel: () => void }) {
   const win = () => getCurrentWindow()
   return (
     <div className="topbar" data-tauri-drag-region>
@@ -15,7 +15,7 @@ export function TitleBar() {
         <span className="brand-word">SYZYGY</span>
       </div>
       <div className="topbar-spacer" data-tauri-drag-region />
-      <ModelBar />
+      <ModelBar onNeedModel={onNeedModel} />
       <div className="titlebar-controls">
         <button className="tb-btn" aria-label="Minimize" title="Minimize" onClick={() => win().minimize()}>
           <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true">

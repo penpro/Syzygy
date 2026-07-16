@@ -27,6 +27,24 @@ npm run test:model-adapter-sdk # non-executing custom adapter profile/endpoint c
 cargo fmt --all -- --check # Rust formatting
 ```
 
+## Headless local-AI lifecycle proof
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm test -- --run src/localAi.test.ts src/localAi.ui.test.ts src/migrations.test.ts
+npm run build
+cargo check --manifest-path src-tauri/Cargo.toml --locked
+```
+
+The policy tests fail unless an explicit opt-out selects no model, an opted-in install without a
+text model requests setup, the saved model is preferred, and the largest text model—not a vision
+projector—is the fallback. Server-rendered component checks require the explicit first-run escape
+and an accessible off switch in the title-bar statistics surface. Migration coverage proves legacy
+saves default on while an explicit off choice survives restart. The frontend and Rust compile gates
+ensure lifecycle ownership stays
+split correctly: Rust starts nothing during setup; React starts only after reading persisted state.
+These checks do not replace the packaged UI proof of setup skip, unload/reload, and VRAM-bar state.
+
 ## Headless workspace proof
 
 Run the editor/project scaffold without opening a webview:

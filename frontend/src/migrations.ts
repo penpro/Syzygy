@@ -18,7 +18,7 @@ interface PersistedData {
 /**
  * Merge a persisted save over the current defaults, migrating old shapes:
  * - experts: seed built-ins on first run; backfill newly shipped built-ins by id
- * - settings: deep-merge so new fields keep defaults; guard against a broken baseUrl
+ * - settings: deep-merge so new fields (including localAiEnabled) keep defaults; guard against a broken baseUrl
  */
 export function mergePersisted<S extends PersistedData>(persisted: unknown, current: S): S {
   const p = (persisted ?? {}) as Partial<PersistedData>

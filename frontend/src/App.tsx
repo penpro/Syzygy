@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { listModels } from './tauri'
+import { modelFiles, startEngine } from './tauri'
+import { decideLocalAiStartup } from './localAi'
 import { startCrashReports, crashReportsAvailable } from './crashReports'
 import { useStore } from './store'
 import { Sidebar } from './components/Sidebar'
@@ -27,6 +28,8 @@ export default function App() {
   const sidebarCollapsed = useStore((s) => !!s.settings.sidebarCollapsed)
   const [showSettings, setShowSettings] = useState(false)
   const [needsSetup, setNeedsSetup] = useState(false)
+  const [setupChecked, setSetupChecked] = useState(false)
+  const [showStartupSplash, setShowStartupSplash] = useState(false)
   const [showModelPicker, setShowModelPicker] = useState(false) // reopenable model-download wizard (Settings → Manage models)
   const [showTutorial, setShowTutorial] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
@@ -56,16 +59,41 @@ export default function App() {
     }
   }, [])
 
-  // First run: if no model has been downloaded yet, show the setup wizard.
-  // Once a model exists, run the welcome tour until it's dismissed with "don't show again".
+  // The native shell starts no model until the persisted preference is read.
+  // It then stays engine-free, offers setup, or starts the saved/downloaded model.
   useEffect(() => {
-    listModels()
-      .then((models) => {
-        setNeedsSetup(models.length === 0)
-        if (models.length > 0 && !useStore.getState().settings.seenWelcome) setShowWelcome(true)
-      })
-      .catch(() => setNeedsSetup(false)) // not running under Tauri (browser dev) — skip
-  }, [])
+    let disposed = false
+    const boot = async () => {
+      try {
+        const files = await modelFiles()
+        if (disposed) return
+        const settings = useStore.getState().settings
+        const decision = decideLocalAiStartup(settings.localAiEnabled, settings.model, files)
+        if (decision.kind === 'setup') {
+          setNeedsSetup(true)
+        } else if (decision.kind === 'start') {
+          try {
+            await startEngine(decision.filename)
+            if (disposed) return
+            updateSettings({ model: decision.filename })
+            useStore.getState().setLoadedModel(decision.filename)
+            setShowStartupSplash(true)
+          } catch {
+            // The header remains available for a retry; never trap the project UI behind a splash.
+          }
+          if (!useStore.getState().settings.seenWelcome) setShowWelcome(true)
+        }
+      } catch {
+        // Browser-only development has no Tauri model directory; leave the workspace usable.
+      } finally {
+        if (!disposed) setSetupChecked(true)
+      }
+    }
+    void boot()
+    return () => {
+      disposed = true
+    }
+  }, [updateSettings])
 
   useEffect(() => {
     const r = document.documentElement
@@ -76,7 +104,7 @@ export default function App() {
 
   return (
     <>
-      <TitleBar />
+      <TitleBar onNeedModel={() => setShowModelPicker(true)} />
       <StorageBanner />
       <div className="app">
       <a className="skip-link" href="#main-view">
@@ -132,21 +160,24 @@ export default function App() {
         />
       )}
 
-      {needsSetup && (
+      {setupChecked && needsSetup && (
         <SetupWizard
           onReady={() => {
             setNeedsSetup(false)
             // brand-new user just finished setup — greet them with the welcome tour
             if (!useStore.getState().settings.seenWelcome) setShowWelcome(true)
           }}
+          onSkip={() => {
+            updateSettings({ localAiEnabled: false })
+            setNeedsSetup(false)
+            if (!useStore.getState().settings.seenWelcome) setShowWelcome(true)
+          }}
         />
       )}
       </div>
       <ResizeHandles />
-      {/* First-run setup runs standalone — the splash must not sit on top of it waiting to load a
-          model that doesn't exist yet. The splash only covers the model load, so it mounts once a
-          model is present (either already, or after setup completes), never during setup itself. */}
-      {!needsSetup && <SplashScreen />}
+      {/* The splash mounts only after an opted-in startup process has actually spawned. */}
+      {setupChecked && !needsSetup && showStartupSplash && <SplashScreen />}
     </>
   )
 }

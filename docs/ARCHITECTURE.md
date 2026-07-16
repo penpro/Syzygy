@@ -4,7 +4,7 @@
 
 ## What Syzygy is
 
-A **local-first AI document workspace**: a Tauri v2 desktop app pairing a fully-local LLM
+A **local-first AI document workspace**: a Tauri v2 desktop app pairing an optional fully-local LLM
 (bundled llama.cpp engine on the user's GPU) with real file/folder access and optional
 Google Drive collaboration. Forked from **Aphelion** (`penpro/Aphelion`), Penumbra's
 local-AI studio; the roleplay surface was removed and the document/collaboration surface
@@ -25,8 +25,9 @@ under Penumbra ownership and the repository's MIT license.
 The current app has no backend server. It is a static **Vite React SPA** rendered in a Tauri
 webview, plus a **Rust core**. Anything "backend" is one of two calls:
 
-1. **AI** → direct `fetch` from the webview to the bundled llama.cpp server on
-   `http://127.0.0.1:11435/v1` (OpenAI-compatible; hidden process; loopback only).
+1. **Local AI, when enabled** → direct `fetch` from the webview to the bundled llama.cpp server on
+   `http://127.0.0.1:11435/v1` (OpenAI-compatible; hidden process; loopback only). The persisted
+   `localAiEnabled` setting is read before startup; API-only and no-AI sessions spawn no engine.
 2. **OS / files / network** → `invoke('command')` into the Rust core.
 
 Future collaboration providers may include an optional self-hosted real-time relay. Local use
@@ -47,7 +48,7 @@ source of project truth.
 
 | Module | Owns |
 |---|---|
-| `lib.rs` | Wiring: managed state, engine auto-start, command registration. |
+| `lib.rs` | Wiring: managed state and command registration; it deliberately does not auto-start AI. |
 | `engine.rs` | Spawning/stopping llama.cpp (Vulkan), model files, VRAM detection. |
 | `documents.rs` | Typst compile, document save/read, path granting (`Granted` allowlist). |
 | `knowledge.rs` | Folder knowledge: chunking granted folders, relevance retrieval. |
@@ -78,7 +79,8 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   slice are sibling views.
 - `store.ts` — one zustand store, persisted to localStorage under key **`syzygy`**
   (`storage.ts` wraps quota/corruption; `migrations.ts` is the only place save-shape
-  changes are reconciled). Slices: `settings`, engine runtime, `experts`, `asks`.
+  changes are reconciled). Slices: `settings` (including the persisted local-AI lifecycle choice),
+  engine runtime, `experts`, `asks`.
 - `tauri.ts` — **the single typed boundary** to the Rust core. Every command has a wrapper
   here; components never import `invoke` directly. The wrapper auto-logs every backend
   failure to the diagnostic log (`log.ts`).

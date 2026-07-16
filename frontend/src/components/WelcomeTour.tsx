@@ -20,12 +20,12 @@ export function WelcomeTour({
     {
       icon: <SyzygySplashMark width={180} />,
       title: 'Welcome to Syzygy',
-      body: 'A local-first AI workspace: the model runs entirely on your own GPU. Conversations stay local unless you turn on Shared mode; then Syzygy reads and logs exchanges in the Drive workspace you selected.',
+      body: 'A local-first research workspace. Use a model on your own GPU, connect a remote provider when you choose, or work on projects without AI. Shared mode reads and logs exchanges in the Drive workspace you selected.',
     },
     {
       icon: '🧭',
       title: 'Ask the right expert',
-      body: 'Your question is quietly routed to a tuned expert — Code, Writing, Photography, and more — or you can choose one yourself. Edit the built-ins or add your own; it’s the same local model, wearing the right hat. The engine status, loaded model, and VRAM sit at the top right, so you always know what’s running.',
+      body: 'When local AI is on, your question is routed to a tuned expert — Code, Writing, Photography, and more — or you can choose one yourself. Edit the built-ins or add your own. Local-model status and VRAM sit at the top right, beside the switch that unloads or restarts it.',
     },
     {
       icon: '📁',
@@ -42,9 +42,9 @@ export function WelcomeTour({
       title: 'Local-first, by design',
       body: (
         <>
-          Models, samplers, and updates all live in <b>Settings</b>. The AI itself is fully local — once a model is
-          downloaded you can unplug the network and it keeps answering. Syzygy only reaches the internet for the
-          things you explicitly ask for: model downloads, update checks, and Google Drive collaboration.{' '}
+          Models, providers, samplers, and updates live in <b>Settings</b>. A downloaded local model can keep answering
+          without a network connection. Remote providers and Google Drive use the network only when you choose those
+          features.{' '}
           <button
             type="button"
             className="welcome-arch"

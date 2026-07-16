@@ -13,6 +13,15 @@ const current = {
 }
 
 describe('persisted-store migrations', () => {
+  it('defaults legacy saves to local AI on but preserves an explicit opt-out', () => {
+    const legacySettings = { ...defaultSettings } as Partial<typeof defaultSettings>
+    delete legacySettings.localAiEnabled
+    const legacy = mergePersisted({ settings: legacySettings, experts: [], asks: [] }, current)
+    const optedOut = mergePersisted({ settings: { ...defaultSettings, localAiEnabled: false }, experts: [], asks: [] }, current)
+    expect(legacy.settings.localAiEnabled).toBe(true)
+    expect(optedOut.settings.localAiEnabled).toBe(false)
+  })
+
   it('backfills project collections into a pre-workspace save idempotently', () => {
     const legacy = { settings: defaultSettings, experts: [], asks: [] }
     const once = mergePersisted(legacy, current)

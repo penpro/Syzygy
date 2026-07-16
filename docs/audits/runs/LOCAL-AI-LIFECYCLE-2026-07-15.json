@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "runId": "LOCAL-AI-LIFECYCLE-2026-07-15",
+  "date": "2026-07-15",
+  "capabilities": ["S-03"],
+  "status": "implemented_unverified",
+  "commands": [
+    "npm test -- --run src/localAi.test.ts src/localAi.ui.test.ts src/migrations.test.ts",
+    "npm run build",
+    "cargo check --manifest-path frontend/src-tauri/Cargo.toml --locked"
+  ],
+  "results": {
+    "focusedTests": "9 passed",
+    "frontendBuild": "passed; 1004 modules transformed",
+    "nativeCompile": "passed"
+  },
+  "proved": [
+    "An explicit local-AI opt-out produces a disabled startup decision even when model files exist.",
+    "Opted-in startup with no text model requests setup; vision projector files do not satisfy it.",
+    "A saved text model is preferred and the largest downloaded text model is the deterministic fallback.",
+    "Legacy saves default local AI on and an explicit false value survives idempotent persisted-state merging.",
+    "The setup escape and accessible header-off state render from the production components without a browser.",
+    "The TypeScript production bundle and Rust native lifecycle compile together after native auto-start removal."
+  ],
+  "notProved": [
+    "Packaged first-run pointer and keyboard interaction for Continue without local AI.",
+    "A process/VRAM observation proving restart with local AI off spawns no llama-server.",
+    "Packaged unload/reload interaction and memory release on supported GPUs.",
+    "Clean-install first generation; the existing S-03 decisive gate remains open."
+  ]
+}

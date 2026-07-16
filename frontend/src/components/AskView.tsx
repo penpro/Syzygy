@@ -95,7 +95,7 @@ export function AskView() {
     if (el) el.scrollTop = el.scrollHeight
   }, [ask?.messages, busy])
 
-  const modelName = friendlyModelName(loadedModel || settings.model)
+  const modelName = settings.localAiEnabled ? friendlyModelName(loadedModel || settings.model) : 'Local AI'
 
   if (!ask) {
     return (
@@ -168,6 +168,10 @@ export function AskView() {
 
   // Swap the loaded model: image mode loads the vision model; text mode reloads the main model.
   const switchMode = async (next: 'text' | 'image') => {
+    if (!settings.localAiEnabled) {
+      setError('Local AI is off. Turn it on from the switch beside the VRAM meter.')
+      return
+    }
     if (next === mode || swapping || busy) return
     const vm = findVisionModel(settings.visionModel)
     if (next === 'image' && !vm) {
@@ -189,6 +193,10 @@ export function AskView() {
   }
 
   const sendChat = async (text: string) => {
+    if (!settings.localAiEnabled) {
+      setError('Local AI is off. Turn it on from the switch beside the VRAM meter.')
+      return
+    }
     if ((!text.trim() && pending.length === 0 && pendingText.length === 0) || busy || swapping) return
     if (pending.length && mode === 'text') {
       setError('Switch to 👁 Image mode to analyze the attached image(s).')
@@ -534,10 +542,10 @@ export function AskView() {
           ✎ Experts
         </button>
         <div className="seg" title="Text uses your main model; Image swaps in the vision model (reloads on switch)">
-          <button type="button" className={cx('seg-btn', mode === 'text' && 'sel')} disabled={swapping || busy} onClick={() => switchMode('text')}>
+          <button type="button" className={cx('seg-btn', mode === 'text' && 'sel')} disabled={!settings.localAiEnabled || swapping || busy} onClick={() => switchMode('text')}>
             💬 Text
           </button>
-          <button type="button" className={cx('seg-btn', mode === 'image' && 'sel')} disabled={swapping || busy} onClick={() => switchMode('image')}>
+          <button type="button" className={cx('seg-btn', mode === 'image' && 'sel')} disabled={!settings.localAiEnabled || swapping || busy} onClick={() => switchMode('image')}>
             {swapping ? '⏳' : '👁 Image'}
           </button>
         </div>
@@ -575,21 +583,31 @@ export function AskView() {
         />
         <button
           className="btn sm ghost"
+          disabled={!settings.localAiEnabled}
           onClick={() => {
             setDocPrefill(null)
             setShowDoc(true)
           }}
-          title="Generate a document (PDF or text / code) and save it to your folder"
+          title={
+            settings.localAiEnabled
+              ? 'Generate a document (PDF or text / code) and save it to your folder'
+              : 'Turn on local AI to generate a document'
+          }
         >
           📄 Document
         </button>
         <button
           className="btn sm ghost"
+          disabled={!settings.localAiEnabled}
           onClick={() => {
             setFinderCriterion('')
             setShowFinder(true)
           }}
-          title="Scan a folder of images, keep the ones matching a description, build a PDF"
+          title={
+            settings.localAiEnabled
+              ? 'Scan a folder of images, keep the ones matching a description, build a PDF'
+              : 'Turn on local AI to search images'
+          }
         >
           🔎 Images→PDF
         </button>
@@ -671,6 +689,11 @@ export function AskView() {
         {mode === 'image' && !swapping && (
           <div className="muted xs" style={{ padding: '2px 14px' }}>
             👁 Image mode — drop or attach an image and ask about it. Switch back to 💬 Text for your main model.
+          </div>
+        )}
+        {!settings.localAiEnabled && (
+          <div className="muted" role="status" style={{ padding: '6px 14px' }}>
+            Local AI is off. Projects and configured remote API reviews remain available.
           </div>
         )}
         {error && (
@@ -758,7 +781,7 @@ export function AskView() {
           </div>
         </div>
       )}
-      <MessageInput disabled={busy || swapping} streaming={busy} onSend={send} onStop={() => abortRef.current?.abort()} />
+      <MessageInput disabled={!settings.localAiEnabled || busy || swapping} streaming={busy} onSend={send} onStop={() => abortRef.current?.abort()} />
 
       {managing && <ExpertEditor onClose={() => setManaging(false)} />}
       {showDoc && (

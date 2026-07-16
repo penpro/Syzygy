@@ -97,6 +97,10 @@ pub fn shutdown_engine(app: tauri::AppHandle) {
     {
         let _ = child.kill();
     }
+    *app.state::<MainModel>()
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = None;
 }
 
 /// Live GPU memory (used, total) in MiB via nvidia-smi. None on non-NVIDIA.

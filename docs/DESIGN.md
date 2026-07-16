@@ -86,6 +86,12 @@ Three layers, all CSS:
 - Errors: say what failed, why, and the one action that fixes it (see the consent-
   checkbox helper modal for tone).
 
+Local inference is a reversible resource choice, not an onboarding requirement. First run offers
+**Continue without local AI** alongside model download. The title bar places a labeled, accessible
+switch beside VRAM; off means the model is unloaded and the Ask composer explains that projects
+and configured remote-provider reviews remain available. Turning it on with no downloaded model
+opens model setup. Never describe an API-only or no-AI session as degraded.
+
 ## Reference
 
 The approved mockup (brand sheet: logo variants, research-editor concept, design tokens,

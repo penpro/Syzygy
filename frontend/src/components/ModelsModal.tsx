@@ -34,7 +34,7 @@ export function ModelsModal({ onClose, onGetMore }: { onClose: () => void; onGet
     setBusy(name)
     try {
       await startEngine(name)
-      updateSettings({ model: name })
+      updateSettings({ model: name, localAiEnabled: true })
       setLoadedModel(name)
       for (let i = 0; i < 120; i++) {
         await new Promise((r) => setTimeout(r, 1500))

@@ -39,6 +39,13 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current validation tranche
 
+- The current post-0.1.10 local-inference slice makes the bundled engine optional without making
+  projects or remote providers conditional on it. First run can continue without a download; a
+  persisted title-bar switch beside VRAM unloads/reloads the real text and vision processes; native
+  startup now waits for the frontend's migrated preference. Focused policy/migration tests, the
+  production frontend build, and `cargo check --locked` pass. Packaged pointer/keyboard interaction
+  and restart process/VRAM proof remain open, so S-03 stays `implemented_unverified`.
+
 - The reauthorized Windows account now passes the headless collaborator-created native Google
   Doc→local-model canary proof without a mirror. S-01 is `implemented_unverified` pending the
   planned second-account/second-install reproduction.

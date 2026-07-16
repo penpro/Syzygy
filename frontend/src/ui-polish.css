@@ -763,3 +763,62 @@ select:focus {
   display: flex;
   gap: 8px;
 }
+
+/* Local inference is an explicit, reversible resource choice in the title bar. */
+.ts-ai-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-3);
+  color: var(--muted);
+  cursor: pointer;
+}
+.ts-ai-toggle:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.ts-ai-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.ts-ai-toggle:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+.ts-ai-toggle.on {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  color: var(--text);
+}
+.ts-switch {
+  display: inline-flex;
+  align-items: center;
+  width: 24px;
+  height: 13px;
+  padding: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 16%, transparent);
+}
+.ts-switch i {
+  display: block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--muted);
+  transform: translateX(0);
+  transition: transform 140ms ease, background 140ms ease;
+}
+.ts-ai-toggle.on .ts-switch {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.ts-ai-toggle.on .ts-switch i {
+  background: var(--accent);
+  transform: translateX(11px);
+}
+.ts-engine-error {
+  color: var(--danger);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}

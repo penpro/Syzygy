@@ -118,7 +118,10 @@ The first original research node is a **policy block**: an editable statement wi
 `draft`, `review`, or `approved` state. Its paper treatment uses a quiet token-derived tint, ink
 border, colored left rule, and mono status stamp. The status is descriptive, not a truth claim or
 access-control decision. A toolbar action adds a block; later review controls and keyboard/pointer
-reordering must preserve the same node contract.
+reordering must preserve the same node contract. The toolbar now exposes matching Move up/down
+buttons and Alt+Shift+Arrow shortcuts, with unavailable directions disabled. A compact horizontal
+outline derives from the live Heading 1/2 nodes, announces its empty state, scrolls on narrow
+surfaces, and focuses the selected heading. All outline states use theme tokens.
 
 ## MCP connection guide
 

@@ -33,6 +33,8 @@
 | `frontend/src/workspace/memoryProvider.ts` | Penumbra original | Deterministic two-editor live/partition convergence transport used only by the headless contract suite |
 | `frontend/src/workspace/nodes/PolicyBlockNode.ts` | Penumbra original | Stable-identity editable policy statement node with review state and strict JSON round-trip |
 | `frontend/src/workspace/ResearchEditor.tsx` | Penumbra original | Original Syzygy editor composition, formatting toolbar, and local provider wiring |
+| `frontend/src/workspace/editorStructure.ts` | Penumbra original | Live heading projection plus shared pointer/keyboard policy-reorder command and availability guards |
+| `frontend/src/workspace/ResearchTableOfContents.tsx` | Penumbra original | Accessible navigation derived from live editor headings without duplicate state |
 | `frontend/src/workspace/WorkspaceView.tsx` | Penumbra original | Original three-column research workspace scaffold |
 | `frontend/src/workspace/PolicyVersionRail.tsx` | Penumbra original | Live-document subscribed exact-revision checkpoint UI, historical metadata rail, and deterministic engine-free parent-diff presentation |
 | `frontend/src/workspace/RemoteResearchReview.tsx` | Penumbra original | Optional single-provider review UI with native disclosure, cancellation, and non-mutating result presentation |

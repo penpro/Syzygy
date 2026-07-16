@@ -128,7 +128,11 @@ The local provider publishes its document to the UI/MCP automation registry only
 synchronization and uses a connection generation guard so stale lifecycle continuations fail closed.
 Its `nodes/PolicyBlockNode.ts` is the first original domain editor node: stable identity and
 review state live with editable Lexical content and survive JSON/MCP serialization and two-editor
-convergence. Pointer and keyboard interaction gates remain open.
+convergence. `editorStructure.ts` owns one semantic reorder command shared by toolbar buttons and
+Alt+Shift+Arrow shortcuts, while `ResearchTableOfContents.tsx` derives navigation directly from
+live heading nodes rather than storing a second outline. Reordering is enabled for the current
+single IndexedDB document; the explicit partitioned move-versus-edit expected-failure fixture must
+pass before any remote provider may claim structural-edit safety.
 
 `heuristicsModel.ts` is the first non-editor shared research domain service. Each heuristic is a
 nested Y.Map so concurrent edits to different fields merge instead of replacing an opaque object;

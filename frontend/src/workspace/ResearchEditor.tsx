@@ -16,15 +16,20 @@ import {
   COMMAND_PRIORITY_LOW,
   FORMAT_TEXT_COMMAND,
   REDO_COMMAND,
-  SELECTION_CHANGE_COMMAND,
   UNDO_COMMAND,
 } from 'lexical'
-import { $createHeadingNode, HeadingNode, QuoteNode } from '@lexical/rich-text'
+import { $createHeadingNode, $createQuoteNode, HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { useEffect, useMemo, useState } from 'react'
 import type { ResearchProjectManifest } from './schema'
 import { createLocalProviderFactory } from './localProvider'
 import { registerAutomationEditor } from './editorAutomation'
+import {
+  MOVE_POLICY_BLOCK_COMMAND,
+  readPolicyMoveAvailability,
+  registerPolicyReorderCommands,
+} from './editorStructure'
 import { $createPolicyBlockNode, PolicyBlockNode } from './nodes/PolicyBlockNode'
+import { ResearchTableOfContents } from './ResearchTableOfContents'
 
 const editorTheme = {
   heading: {
@@ -44,23 +49,34 @@ function Toolbar() {
   const [editor] = useLexicalComposerContext()
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
+  const [moveAvailability, setMoveAvailability] = useState({ up: false, down: false })
 
   useEffect(() => {
     const removeUndo = editor.registerCommand(CAN_UNDO_COMMAND, (value) => (setCanUndo(value), false), COMMAND_PRIORITY_LOW)
     const removeRedo = editor.registerCommand(CAN_REDO_COMMAND, (value) => (setCanRedo(value), false), COMMAND_PRIORITY_LOW)
-    const removeSelection = editor.registerCommand(SELECTION_CHANGE_COMMAND, () => false, COMMAND_PRIORITY_LOW)
     return () => {
       removeUndo()
       removeRedo()
-      removeSelection()
     }
   }, [editor])
 
-  const setBlock = (kind: 'paragraph' | 'h1' | 'h2') => {
+  useEffect(() => {
+    const update = (editorState = editor.getEditorState()) => setMoveAvailability(readPolicyMoveAvailability(editorState))
+    const removeUpdate = editor.registerUpdateListener(({ editorState }) => update(editorState))
+    const removeCommands = registerPolicyReorderCommands(editor)
+    update()
+    return () => { removeUpdate(); removeCommands() }
+  }, [editor])
+
+  const setBlock = (kind: 'paragraph' | 'h1' | 'h2' | 'quote') => {
     editor.update(() => {
       const selection = $getSelection()
       if (!selection) return
-      $setBlocksType(selection, () => (kind === 'paragraph' ? $createParagraphNode() : $createHeadingNode(kind)))
+      $setBlocksType(selection, () => {
+        if (kind === 'paragraph') return $createParagraphNode()
+        if (kind === 'quote') return $createQuoteNode()
+        return $createHeadingNode(kind)
+      })
     })
   }
 
@@ -69,6 +85,7 @@ function Toolbar() {
       <button type="button" onClick={() => setBlock('paragraph')}>Body</button>
       <button type="button" onClick={() => setBlock('h1')}>Heading 1</button>
       <button type="button" onClick={() => setBlock('h2')}>Heading 2</button>
+      <button type="button" onClick={() => setBlock('quote')}>Quote</button>
       <button
         type="button"
         onClick={() => {
@@ -86,6 +103,22 @@ function Toolbar() {
       <button type="button" aria-label="Underline" onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline')}><u>U</u></button>
       <span className="research-toolbar-rule" aria-hidden="true" />
       <button type="button" disabled={!canUndo} onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}>Undo</button>
+      <span className="research-toolbar-rule" aria-hidden="true" />
+      <button
+        type="button"
+        aria-label="Move selected policy block up"
+        title="Move selected policy block up (Alt+Shift+Up)"
+        disabled={!moveAvailability.up}
+        onClick={() => editor.dispatchCommand(MOVE_POLICY_BLOCK_COMMAND, 'up')}
+      >Move ↑</button>
+      <button
+        type="button"
+        aria-label="Move selected policy block down"
+        title="Move selected policy block down (Alt+Shift+Down)"
+        disabled={!moveAvailability.down}
+        onClick={() => editor.dispatchCommand(MOVE_POLICY_BLOCK_COMMAND, 'down')}
+      >Move ↓</button>
+      <span className="research-toolbar-rule" aria-hidden="true" />
       <button type="button" disabled={!canRedo} onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}>Redo</button>
       <span className="research-save-state mono">Local changes persist automatically</span>
     </div>
@@ -118,6 +151,7 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
       <LexicalComposer initialConfig={initialConfig}>
         <AutomationEditorRegistration projectId={project.id} />
         <Toolbar />
+        <ResearchTableOfContents />
         <div className="research-paper">
           <RichTextPlugin
             contentEditable={<ContentEditable className="research-editor" aria-label="Collaborative policy document" />}

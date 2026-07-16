@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "runId": "EDITOR-STRUCTURE-2026-07-16",
+  "date": "2026-07-16",
+  "appVersionAtRun": "0.1.10",
+  "capabilities": ["P-09", "P-10", "P-34"],
+  "status": "implemented_unverified",
+  "commands": [
+    "npm test -- --run src/workspace/nodes/PolicyBlockNode.test.ts src/workspace/editorStructure.test.ts src/workspace/ResearchEditorFormatting.test.ts src/workspace/ResearchTableOfContents.ui.test.ts",
+    "npm run test:workspace",
+    "npm test",
+    "npm run build",
+    "npm run tauri build",
+    "npm run audit",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "focusedTestsPassed": 8,
+    "focusedTestsExpectedFailure": 1,
+    "workspaceTestsPassed": 98,
+    "workspaceTestsExpectedFailure": 1,
+    "frontendTestsPassed": 208,
+    "frontendTestsExpectedFailure": 1,
+    "frontendTestsSkipped": 1,
+    "frontendModulesTransformed": 1007,
+    "structuralAuditChecksPassed": 41,
+    "packagedAppBuildPassed": true,
+    "packagedAppRecompiled": true,
+    "externalNetworkUsed": false,
+    "modelEngineUsed": false,
+    "realCredentialsUsed": false
+  },
+  "proved": [
+    "The product toolbar exposes headings, a quote block, bold, italic, underline, undo, redo, and policy-block creation through the original Lexical editor.",
+    "One semantic move command is used by labeled toolbar controls and guarded Alt+Shift+Arrow keyboard commands.",
+    "Move direction availability is derived from the current selection and unavailable controls are disabled.",
+    "The document outline is derived from live Heading 1 and Heading 2 nodes rather than persisted as duplicate state.",
+    "Outline controls select the current heading, substitute an untitled label, and render an honest empty state.",
+    "Supported heading, paragraph, quote, Unicode, policy identity/status, and text-mark structures survive a JSON editor-state round trip.",
+    "Connected policy reordering and partitioned non-structural status-versus-text edits converge in the deterministic two-editor harness.",
+    "The workspace suite, complete frontend suite, production frontend build, 41-check structural audit, and packaged Tauri build pass under the bounded operation watchdog; the log confirms Compiling app v0.1.10."
+  ],
+  "notProved": [
+    "Remote-safe structural editing: the explicit expected-failure fixture demonstrates that moving one policy block while a disconnected peer edits that same block can lose the edit in the current Lexical Yjs root representation.",
+    "Packaged pointer, keyboard, focus, screen-reader, narrow-layout, reduced-motion, or dark-theme interaction.",
+    "Drag-and-drop reordering; the current pointer interaction is the toolbar move control.",
+    "Formatting support for lists, links, code blocks, tables, images, paste sanitation, or a 100-page stress budget.",
+    "Drive or WebSocket collaboration transport.",
+    "A release/updater build containing this development checkpoint."
+  ]
+}

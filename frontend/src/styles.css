@@ -2686,6 +2686,64 @@ input.workspace-title-input:focus {
   margin-left: auto;
   padding: 0 4px;
 }
+.research-outline {
+  display: flex;
+  width: min(100%, 820px);
+  min-height: 38px;
+  margin: 14px auto 0;
+  padding: 7px 10px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+}
+.research-outline-label {
+  flex: 0 0 auto;
+  color: var(--text-2);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.research-outline ol {
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  align-items: center;
+  gap: 3px;
+  overflow-x: auto;
+}
+.research-outline li { list-style: none; }
+.research-outline button {
+  max-width: 210px;
+  padding: 4px 7px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.research-outline button:hover,
+.research-outline button:focus-visible {
+  border-color: var(--border-2);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.research-outline button.nested::before {
+  margin-right: 4px;
+  color: var(--faint);
+  content: '↳';
+}
+.research-outline-empty {
+  color: var(--faint);
+  font-size: 11px;
+}
 .research-paper {
   position: relative;
   width: min(100%, 820px);

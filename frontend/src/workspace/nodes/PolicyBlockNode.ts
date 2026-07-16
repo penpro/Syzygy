@@ -1,7 +1,5 @@
 import {
   $applyNodeReplacement,
-  $copyNode,
-  $isElementNode,
   type EditorConfig,
   type LexicalNode,
   type NodeKey,
@@ -112,26 +110,16 @@ export function $isPolicyBlockNode(node: LexicalNode | null | undefined): node i
   return node instanceof PolicyBlockNode
 }
 
-function $copyTree(node: LexicalNode): LexicalNode {
-  const copy = $copyNode(node)
-  if ($isElementNode(node) && $isElementNode(copy)) {
-    copy.append(...node.getChildren().map($copyTree))
-  }
-  return copy
-}
-
 /**
- * Move through stable-domain identity by recreating the adjacent subtree in swapped order.
- * New Lexical keys plus the preserved policyId express an explicit CRDT delete/insert while
- * retaining the research-domain identity that comments, reviews, and provenance can reference.
+ * Move the existing live node without also copying its adjacent sibling. Lexical's Yjs binding
+ * still serializes a root move as delete/insert, so the expected-failure partition fixture remains
+ * the gate before remote transports may claim move-versus-edit safety. Current product use is the
+ * single local IndexedDB provider.
  */
 export function $movePolicyBlock(node: PolicyBlockNode, direction: 'up' | 'down'): PolicyBlockNode | null {
   const sibling = direction === 'up' ? node.getPreviousSibling() : node.getNextSibling()
-  const parent = node.getParent()
-  if (!sibling || !parent) return null
-  const index = Math.min(node.getIndexWithinParent(), sibling.getIndexWithinParent())
-  const policyCopy = $copyTree(node) as PolicyBlockNode
-  const siblingCopy = $copyTree(sibling)
-  parent.splice(index, 2, direction === 'up' ? [policyCopy, siblingCopy] : [siblingCopy, policyCopy])
-  return policyCopy
+  if (!sibling || !node.getParent()) return null
+  if (direction === 'up') sibling.insertBefore(node)
+  else sibling.insertAfter(node)
+  return node
 }

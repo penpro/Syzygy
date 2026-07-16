@@ -92,8 +92,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   reorder, serialize, restore, malformed identity, partitioned concurrent edits, and connected
   reorder convergence. The first apparent reorder failure was a harness defect: it compared
   Lexical node-map enumeration rather than root document order. The corrected oracle passes and
-  is documented in the run evidence. P-03 is `implemented_unverified`; P-10 still requires real
-  pointer and keyboard controls plus interaction testing.
+  is documented in the run evidence. P-03 is `implemented_unverified`. The product now has one
+  semantic reorder command shared by pointer controls and Alt+Shift+Arrow shortcuts, plus a live
+  heading-derived outline and formatting fixtures. P-09/P-10/P-34 are therefore
+  `implemented_unverified`; P-10 remains blocked from remote-safe claims by the explicit expected-
+  failure move-versus-edit partition fixture.
 - The first remote-model execution boundary is now headlessly testable with a bounded product caller.
   Rust constructs and normalizes an OpenAI Responses one-shot request, requires matching content
   disclosure, forces `store:false`, accepts only HTTPS or literal loopback test endpoints, bounds
@@ -279,8 +282,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **41 capabilities**: **21 are
-`implemented_unverified`, 20 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **41 capabilities**: **24 are
+`implemented_unverified`, 17 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, portable local lifecycle,
 Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned

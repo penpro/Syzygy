@@ -291,9 +291,11 @@ undo, paste sanitation, accessibility, Yjs binding, and local persistence.
 Gate: P-02–P-10/P-34/P-35 pass; 100-page stress budget passes; bundle contains no Tiptap,
 PolicyPad, Firebase, Next, or copied template code; every theme is reviewed.
 
-Progress: an original Lexical/Yjs policy surface, basic headings/marks/undo, local IndexedDB
-persistence, and the three-panel workspace shell exist. Custom research nodes, formatting fixtures,
-reorder, table of contents, stress tests, cross-theme visual review, and Drive collaboration remain.
+Progress: an original Lexical/Yjs policy surface, heading/quote/mark fixtures, undo, local IndexedDB
+persistence, the three-panel workspace shell, shared pointer/keyboard policy reordering, and a
+live heading-derived table of contents exist. The partitioned move-versus-edit fixture remains an
+explicit expected failure, so remote-safe structural edits, more custom research nodes, stress
+tests, cross-theme visual review, and Drive collaboration remain.
 
 ### Phase 3 — local project lifecycle (`L`)
 
@@ -577,7 +579,7 @@ dialog. Product domain orchestration still must decide which frozen snapshots en
 
 ## 11. Recommended next slice
 
-Status snapshot on 2026-07-14: the 41-row ledger has 10 `implemented_unverified`, 31 `planned`,
+Status snapshot on 2026-07-16: the 41-row ledger has 24 `implemented_unverified`, 17 `planned`,
 and 0 `verified` capabilities. The shipped local editor, Drive research path, local engine, and MCP
 pilot are meaningful foundations, but none substitutes for the decisive two-install, convergence,
 portable-archive, workflow, accessibility, and adversarial gates below. MCP setup/onboarding is
@@ -589,8 +591,9 @@ Do not use the web port or upstream source as an implementation input. First:
    SBOM/license/sample-fixture/reviewer gates;
 2. maintain the now-pinned Lexical/Yjs dependency and source ledger;
 3. add the extension contract harness and truthful MCP self-description (landed; keep it green);
-4. maintain the policy block's passing root-document-order convergence test, then extend the
-   formatting fixture and add pointer/keyboard controls plus move-vs-edit partition cases;
+4. maintain the policy block's passing root-document-order convergence test, the formatting,
+   pointer/keyboard, and outline fixtures, then make the expected-failure move-versus-edit
+   partition case pass before enabling reorder on a remote provider;
 5. maintain the now-landed two-editor `MemoryProvider` live/partition/reconnect suite and require
    Drive/WebSocket providers to pass the same contract;
 6. render it in paper and all retained dark themes;

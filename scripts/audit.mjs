@@ -99,6 +99,31 @@ record(
   missingWorkspaceProvenance.join(', ') || `${workspaceSources.length} source files registered`,
 )
 
+const editorStructureSource = text('frontend/src/workspace/editorStructure.ts')
+const editorStructureTestSource = text('frontend/src/workspace/editorStructure.test.ts')
+const editorFormattingTestSource = text('frontend/src/workspace/ResearchEditorFormatting.test.ts')
+const editorOutlineSource = text('frontend/src/workspace/ResearchTableOfContents.tsx')
+const editorOutlineTestSource = text('frontend/src/workspace/ResearchTableOfContents.ui.test.ts')
+const policyBlockTestSource = text('frontend/src/workspace/nodes/PolicyBlockNode.test.ts')
+const editorLedgerSource = text('docs/audits/CAPABILITIES.json')
+record(
+  'editor formatting, live outline, and bounded local reorder stay evidence honest',
+  editorStructureSource.includes("createCommand<PolicyMoveDirection>('syzygy-move-policy-block')") &&
+    editorStructureSource.includes('KEY_ARROW_UP_COMMAND') &&
+    editorStructureSource.includes('KEY_ARROW_DOWN_COMMAND') &&
+    editorStructureSource.includes('$isHeadingNode(node)') &&
+    editorStructureTestSource.includes('uses one command for pointer controls and guarded keyboard reorder') &&
+    editorFormattingTestSource.includes('round-trips headings, paragraphs, quotes, policy identity, Unicode, and supported marks') &&
+    editorOutlineSource.includes('readResearchHeadings(editorState)') &&
+    editorOutlineSource.includes('aria-label="Document outline"') &&
+    editorOutlineTestSource.includes('renders an honest empty state and substitutes an untitled label') &&
+    policyBlockTestSource.includes("it.fails('preserves a concurrent text edit when that policy block moves during a partition'") &&
+    editorLedgerSource.includes('"id": "P-09", "phase": 2, "status": "implemented_unverified"') &&
+    editorLedgerSource.includes('"id": "P-10", "phase": 2, "status": "implemented_unverified"') &&
+    editorLedgerSource.includes('"id": "P-34", "phase": 2, "status": "implemented_unverified"'),
+  'shared pointer/keyboard command, live heading projection, formatting and UI fixtures, explicit remote-safety expected failure, and truthful P-09/P-10/P-34 statuses are present',
+)
+
 const heuristicsModelSource = text('frontend/src/workspace/heuristicsModel.ts')
 const heuristicsModelTestSource = text('frontend/src/workspace/heuristicsModel.test.ts')
 record(

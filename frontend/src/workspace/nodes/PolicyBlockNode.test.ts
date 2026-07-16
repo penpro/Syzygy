@@ -185,10 +185,57 @@ describe('policy block node', () => {
     expect(inspect(left).map(({ id }) => id)).toEqual([...beforeReorder].reverse())
     await new Promise((resolve) => setTimeout(resolve, 10))
     expect(inspect(right).map(({ id }) => id)).toEqual([...beforeReorder].reverse())
-
     unbindLeft()
     unbindRight()
     await Promise.all([leftProvider.destroy(), rightProvider.destroy()])
+  })
+
+  it.fails('preserves a concurrent text edit when that policy block moves during a partition', async () => {
+    const hub = new MemoryProjectHub()
+    const leftProvider = new MemoryProjectProvider(new Y.Doc({ guid: 'policy-move-partition' }), hub)
+    const rightProvider = new MemoryProjectProvider(new Y.Doc({ guid: 'policy-move-partition' }), hub)
+    const left = editor()
+    const right = editor()
+    const unbindLeft = bind(left, leftProvider)
+    const unbindRight = bind(right, rightProvider)
+    try {
+      leftProvider.connect()
+      rightProvider.connect()
+      left.update(() => {
+        $getRoot().append(
+          $createPolicyBlockNode('policy-a').append($createTextNode('Original A')),
+          $createPolicyBlockNode('policy-b').append($createTextNode('Original B')),
+        )
+      }, { discrete: true })
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      leftProvider.disconnect()
+      rightProvider.disconnect()
+      left.update(() => {
+        const moved = $policyBlocksInDocument().find((node) => node.getPolicyId() === 'policy-b')
+        if (!moved) throw new Error('Move fixture policy is missing')
+        $movePolicyBlock(moved, 'up')
+      }, { discrete: true })
+      right.update(() => {
+        const edited = $policyBlocksInDocument().find((node) => node.getPolicyId() === 'policy-b')
+        const text = edited?.getFirstChildOrThrow()
+        if (!$isTextNode(text)) throw new Error('Edit fixture policy text is missing')
+        text.setTextContent('Edited during a concurrent move')
+      }, { discrete: true })
+
+      leftProvider.connect()
+      rightProvider.connect()
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      const inspect = (target: LexicalEditor) => target.getEditorState().read(() =>
+        $policyBlocksInDocument().map((node) => ({ id: node.getPolicyId(), text: node.getTextContent() })),
+      )
+      expect(inspect(left)).toEqual(inspect(right))
+      expect(inspect(left)).toContainEqual({ id: 'policy-b', text: 'Edited during a concurrent move' })
+    } finally {
+      unbindLeft()
+      unbindRight()
+      await Promise.all([leftProvider.destroy(), rightProvider.destroy()])
+    }
   })
 
 })

@@ -86,6 +86,14 @@ replace stale results with an alert and a disabled save action against unverifie
 It does **not** yet prove two-machine rich text convergence or Drive transport; those
 remain separate capability gates.
 
+The editor structure slice is covered by `ResearchEditorFormatting.test.ts`,
+`editorStructure.test.ts`, `ResearchTableOfContents.ui.test.ts`, and `PolicyBlockNode.test.ts`.
+The first three prove supported heading/quote/mark structure, a shared pointer/keyboard reorder
+command, and a live-derived accessible outline. The policy fixture intentionally includes one
+`it.fails` partition case: moving a block on one peer while another peer edits that same block can
+lose the edit in Lexical's Yjs root delete/insert representation. That expected failure is a
+release gate for remote collaboration, not a passing convergence claim.
+
 The same suite includes `heuristicsModel.test.ts`. Forty seeded delivery orders prove concurrent
 field edits retain both values and attribution events, and another forty prove concurrent additions
 plus delete-versus-edit converge without resurrection. Invalid identity and conflicting edit-ID

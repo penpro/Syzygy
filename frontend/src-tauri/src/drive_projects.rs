@@ -2,11 +2,13 @@
 //! Each coalesced update is an immutable file. Concurrent writers therefore never replace one
 //! another; Yjs is the merge authority and local IndexedDB remains the offline durability layer.
 
-use crate::google_drive::{selected_workspace_access, DriveWorkspace};
+use crate::google_drive::{
+    collaboration_access, folder_metadata, selected_workspace_access, DriveWorkspace,
+};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 const FILES_ENDPOINT: &str = "https://www.googleapis.com/drive/v3/files";
 const UPLOAD_ENDPOINT: &str = "https://www.googleapis.com/upload/drive/v3/files";
@@ -17,6 +19,8 @@ const MAX_UPDATE_BYTES: usize = 4 * 1024 * 1024;
 const MAX_PULL_BYTES: usize = 32 * 1024 * 1024;
 const MAX_UPDATE_FILES: usize = 5_000;
 const MAX_KNOWN_IDS: usize = 10_000;
+const MAX_PROJECT_ROOTS: usize = 200;
+const MAX_DISCOVERED_PROJECTS: usize = 1_000;
 
 fn esc(value: &str) -> String {
     value.replace('\\', "\\\\").replace('\'', "\\'")
@@ -297,6 +301,7 @@ pub struct DriveProjectDescriptor {
     title: String,
     created_at: u64,
     workspace_id: String,
+    workspace_name: String,
 }
 
 impl DriveProjectDescriptor {
@@ -308,10 +313,130 @@ impl DriveProjectDescriptor {
             title: manifest.title,
             created_at: manifest.created_at,
             workspace_id: workspace.id.clone(),
+            workspace_name: workspace.name.clone(),
         }
     }
 }
 
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DriveProjectCatalog {
+    projects: Vec<DriveProjectDescriptor>,
+    workspace_count: usize,
+    skipped_root_count: usize,
+}
+
+#[derive(Clone, Debug)]
+struct ProjectRoot {
+    id: String,
+    parent_ids: Vec<String>,
+}
+
+async fn list_project_roots(token: &str) -> Result<Vec<ProjectRoot>, String> {
+    let query = format!(
+        "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+        esc(PROJECTS_FOLDER)
+    );
+    let mut page_token: Option<String> = None;
+    let mut roots = Vec::new();
+    loop {
+        let mut request = reqwest::Client::new()
+            .get(FILES_ENDPOINT)
+            .bearer_auth(token)
+            .query(&[
+                ("q", query.as_str()),
+                ("fields", "nextPageToken,files(id,parents)"),
+                ("pageSize", "200"),
+                ("supportsAllDrives", "true"),
+                ("includeItemsFromAllDrives", "true"),
+            ]);
+        if let Some(value) = page_token.as_deref() {
+            request = request.query(&[("pageToken", value)]);
+        }
+        let response = request.send().await.map_err(|error| {
+            format!("Drive project catalog failed before Google responded: {error}")
+        })?;
+        let value = response_json(response, "catalog listing").await?;
+        if let Some(files) = value["files"].as_array() {
+            for file in files {
+                let Some(id) = file["id"].as_str() else {
+                    continue;
+                };
+                let parent_ids = file["parents"]
+                    .as_array()
+                    .map(|parents| {
+                        parents
+                            .iter()
+                            .filter_map(|parent| parent.as_str().map(str::to_string))
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
+                roots.push(ProjectRoot {
+                    id: id.to_string(),
+                    parent_ids,
+                });
+                if roots.len() > MAX_PROJECT_ROOTS {
+                    return Err(
+                        "Drive contains too many Syzygy project roots to inspect safely.".into(),
+                    );
+                }
+            }
+        }
+        page_token = value["nextPageToken"].as_str().map(str::to_string);
+        if page_token.is_none() {
+            break;
+        }
+    }
+    Ok(roots)
+}
+
+fn unique_roots_by_workspace(roots: Vec<ProjectRoot>) -> (Vec<(String, String)>, usize) {
+    let mut grouped: HashMap<String, Vec<String>> = HashMap::new();
+    let mut skipped = 0;
+    for root in roots {
+        if root.parent_ids.len() != 1 {
+            skipped += 1;
+            continue;
+        }
+        grouped
+            .entry(root.parent_ids[0].clone())
+            .or_default()
+            .push(root.id);
+    }
+    let mut unique = Vec::new();
+    for (workspace_id, root_ids) in grouped {
+        if root_ids.len() != 1 {
+            skipped += root_ids.len();
+            continue;
+        }
+        unique.push((workspace_id, root_ids[0].clone()));
+    }
+    unique.sort();
+    (unique, skipped)
+}
+
+async fn projects_in_root(
+    token: &str,
+    root_id: &str,
+    workspace: &DriveWorkspace,
+) -> Result<Vec<DriveProjectDescriptor>, String> {
+    let folders = list_children(token, root_id).await?;
+    let mut projects = Vec::new();
+    for folder in folders
+        .into_iter()
+        .filter(|file| file.name.starts_with("project-"))
+    {
+        let Some(manifest_id) = find_child(token, &folder.id, MANIFEST_FILE, None).await? else {
+            continue;
+        };
+        let manifest: StoredProjectManifest =
+            serde_json::from_str(&read_text_file(token, &manifest_id).await?)
+                .map_err(|_| "A Drive project manifest is malformed.".to_string())?;
+        manifest.validate()?;
+        projects.push(DriveProjectDescriptor::from_manifest(manifest, workspace));
+    }
+    Ok(projects)
+}
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct StoredProjectUpdate {
@@ -550,6 +675,51 @@ pub async fn google_drive_project_list(
     Ok(projects)
 }
 
+/// Discover Syzygy project roots across folders visible to the connected account. This explicit
+/// browse operation does not change the selected workspace or grant project mutation authority.
+/// Joining one result separately selects its exact parent workspace.
+#[tauri::command]
+pub async fn google_drive_project_discover(
+    app: tauri::AppHandle,
+) -> Result<DriveProjectCatalog, String> {
+    let token = collaboration_access(&app).await?;
+    let (roots, mut skipped_root_count) =
+        unique_roots_by_workspace(list_project_roots(&token).await?);
+    let mut projects = Vec::new();
+    let mut workspace_count = 0;
+    for (workspace_id, root_id) in roots {
+        let workspace = match folder_metadata(&token, &workspace_id).await {
+            Ok(workspace) => workspace,
+            Err(_) => {
+                skipped_root_count += 1;
+                continue;
+            }
+        };
+        match projects_in_root(&token, &root_id, &workspace).await {
+            Ok(mut discovered) => {
+                workspace_count += 1;
+                projects.append(&mut discovered);
+                if projects.len() > MAX_DISCOVERED_PROJECTS {
+                    return Err(
+                        "Drive contains too many shared Syzygy projects to inspect safely.".into(),
+                    );
+                }
+            }
+            Err(_) => skipped_root_count += 1,
+        }
+    }
+    projects.sort_by(|left, right| {
+        left.workspace_name
+            .cmp(&right.workspace_name)
+            .then(left.title.cmp(&right.title))
+            .then(left.project_id.cmp(&right.project_id))
+    });
+    Ok(DriveProjectCatalog {
+        projects,
+        workspace_count,
+        skipped_root_count,
+    })
+}
 #[tauri::command]
 pub async fn google_drive_project_push(
     app: tauri::AppHandle,
@@ -762,5 +932,28 @@ mod tests {
             created_at: 1,
         };
         assert!(manifest.validate().is_err());
+    }
+    #[test]
+    fn cross_workspace_discovery_rejects_ambiguous_or_orphan_roots() {
+        let (roots, skipped) = unique_roots_by_workspace(vec![
+            ProjectRoot {
+                id: "root-a".into(),
+                parent_ids: vec!["workspace-a".into()],
+            },
+            ProjectRoot {
+                id: "root-b1".into(),
+                parent_ids: vec!["workspace-b".into()],
+            },
+            ProjectRoot {
+                id: "root-b2".into(),
+                parent_ids: vec!["workspace-b".into()],
+            },
+            ProjectRoot {
+                id: "orphan".into(),
+                parent_ids: vec![],
+            },
+        ]);
+        assert_eq!(roots, vec![("workspace-a".into(), "root-a".into())]);
+        assert_eq!(skipped, 3);
     }
 }

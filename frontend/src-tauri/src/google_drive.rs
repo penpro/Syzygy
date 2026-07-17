@@ -192,7 +192,7 @@ pub async fn find_folder_by_name(
     }))
 }
 
-async fn folder_metadata(token: &str, id: &str) -> Result<DriveWorkspace, String> {
+pub(crate) async fn folder_metadata(token: &str, id: &str) -> Result<DriveWorkspace, String> {
     let url = format!("{FILES_ENDPOINT}/{id}");
     let value = drive_get_json(
         token,
@@ -251,11 +251,18 @@ pub fn google_drive_workspace(app: tauri::AppHandle) -> Option<DriveWorkspace> {
 pub(crate) async fn selected_workspace_access(
     app: &tauri::AppHandle,
 ) -> Result<(String, DriveWorkspace), String> {
-    require_collaboration_access(app)?;
-    let token = access_token(app).await?;
+    let token = collaboration_access(app).await?;
     let saved = read_workspace(app).ok_or("Choose a Drive workspace before sharing projects.")?;
     let workspace = folder_metadata(&token, &saved.id).await?;
     Ok((token, workspace))
+}
+
+/// Return a fresh collaboration token without widening any product read/write boundary. This is
+/// used by explicit workspace discovery surfaces that enumerate only Syzygy-owned project roots;
+/// normal research operations continue to require `selected_workspace_access`.
+pub(crate) async fn collaboration_access(app: &tauri::AppHandle) -> Result<String, String> {
+    require_collaboration_access(app)?;
+    access_token(app).await
 }
 
 /// List folders the connected account can choose as the collaboration workspace. This command

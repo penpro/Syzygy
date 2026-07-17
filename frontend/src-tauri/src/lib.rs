@@ -140,6 +140,7 @@ pub fn run() {
             google_drive::google_drive_select_workspace,
             drive_projects::google_drive_project_publish,
             drive_projects::google_drive_project_list,
+            drive_projects::google_drive_project_discover,
             drive_projects::google_drive_project_pull,
             drive_projects::google_drive_project_push,
             google_drive::google_drive_mirror_dir,

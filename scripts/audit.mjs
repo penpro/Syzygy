@@ -439,18 +439,26 @@ record(
 )
 const driveDiscoverySource = text('frontend/src/workspace/driveProjectDiscovery.ts')
 const driveDiscoveryTestSource = text('frontend/src/workspace/driveProjectDiscovery.test.ts')
+const driveProjectNativeSource = text('frontend/src-tauri/src/drive_projects.rs')
+const driveProjectControlsSource = text('frontend/src/workspace/DriveProjectControls.tsx')
 record(
-  'Drive project discovery remains workspace-identifiable, observable, bounded, and content-free',
+  'Drive project discovery remains exact-folder, observable, bounded, and content-minimized',
   driveDiscoverySource.includes('MAX_DIAGNOSTIC_PROJECTS = 200') &&
     driveDiscoverySource.includes('descriptor.workspaceId !== workspace.id') &&
     driveDiscoverySource.includes('Shared-project discovery checked folder') &&
     driveDiscoveryTestSource.includes('distinguishes same-name Drive folders') &&
     driveDiscoveryTestSource.includes("not.toContain('Secret project title')") &&
-    text('frontend/src/workspace/DriveProjectControls.tsx').includes('Shared-project refresh failed:') &&
+    driveProjectNativeSource.includes('MAX_PROJECT_ROOTS: usize = 200') &&
+    driveProjectNativeSource.includes('MAX_DISCOVERED_PROJECTS: usize = 1_000') &&
+    driveProjectNativeSource.includes('google_drive_project_discover') &&
+    driveProjectNativeSource.includes('unique_roots_by_workspace') &&
+    driveProjectControlsSource.includes('googleDriveProjectDiscover') &&
+    driveProjectControlsSource.includes('googleDriveSelectWorkspace(descriptor.workspaceId)') &&
+    driveProjectControlsSource.includes('Shared-project refresh failed:') &&
     text('frontend/src/components/GoogleDriveButton.tsx').includes('driveWorkspaceOptionLabel(option)') &&
     text('frontend/src/automationBridge.ts').includes("case 'drive.inspectProjectDiscovery'") &&
     mcpSource.includes('"inspect_drive_project_discovery" => live("drive.inspectProjectDiscovery"'),
-  'same-name folder codes, explicit refresh outcomes, 200-identity cap, no titles/content/tokens/file IDs, MCP/LAN route, and hostile workspace mismatch fixture are present',
+  'selected-folder MCP diagnostics, bounded cross-workspace Syzygy-root catalog, duplicate/orphan rejection, explicit exact-parent Join, no token/file-ID diagnostic disclosure, and hostile workspace fixtures are present',
 )
 const researchInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
 const researchInspectionTestSource = text('frontend/src/workspace/researchStateInspection.test.ts')

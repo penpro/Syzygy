@@ -19,7 +19,7 @@ describe('Drive project controls UI contract', () => {
     const html = renderToStaticMarkup(createElement(DriveProjectControls))
     expect(html).toContain('Shared Drive projects')
     expect(html).toContain('Refresh')
-    expect(html).toContain('same selected Drive workspace')
+    expect(html).toContain('Joining selects the exact shared folder')
   })
 
   it('keeps sharing disabled until the local collaborative document is ready', () => {

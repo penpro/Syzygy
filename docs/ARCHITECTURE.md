@@ -89,7 +89,10 @@ packaged MCP surface before succeeding.
 **Security posture:** the model only ever sees selected text; the webview never sees OAuth
 credentials/tokens (they live in Rust + app-data); local file access is allowlisted via
 `Granted`. Google's collaboration token has Drive-wide technical authority, but every product
-operation is constrained in Rust to a locally selected workspace folder ID and descendants.
+operation is constrained in Rust to a locally selected workspace folder ID and descendants. The
+explicit shared-project catalog is the narrow exception: it enumerates only bounded app-owned
+`.syzygy-projects` roots visible to the account and grants no mutation authority. Choosing **Join**
+validates and persists that result's exact parent before normal selected-workspace operations begin.
 That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/ADR-0001-*`.
 
 ## Frontend layout (`frontend/src/`)
@@ -127,10 +130,11 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   state, resets transport to local, persists before opening, and never carries settings, model
   configuration, OAuth state, or provider credentials. `ProjectArchiveControls.tsx` exposes the
   same engine-free import path with or without an existing project.
-- `workspace/driveProjectDiscovery.ts` — one selected-workspace discovery path shared by product
-  refresh and MCP/LAN diagnostics. It produces explicit checked-folder/count results and a bounded,
-  content-free diagnostic projection.
-- `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
+- `workspace/driveProjectDiscovery.ts` keeps the selected-workspace refresh used by MCP/LAN
+  diagnostics. It produces explicit checked-folder/count results and a bounded, content-free
+  diagnostic projection. The product browser separately calls the native bounded cross-workspace
+  Syzygy-root catalog; Join persists the exact parent workspace before constructing the Drive-bound
+  project.- `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
   navigation, revision-guarded editor reads/writes, and bounded read-only research-state integrity
   inspection. `scenarioAutomation.ts` creates scenarios, adds/revises attributed turns, and casts
   immutable participant vote events, and manages parent-linked flag/note lifecycle only against

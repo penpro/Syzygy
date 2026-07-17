@@ -1,0 +1,34 @@
+{
+  "capability": "two-physical-install Drive project discovery diagnosis",
+  "date": "2026-07-17",
+  "releasedVersion": "0.1.14",
+  "transport": "authenticated encrypted LAN MCP control plane",
+  "nodes": [
+    {
+      "nodeId": "office-primary",
+      "appVersion": "0.1.14",
+      "driveConnected": true,
+      "selectedFolderCode": "L7ybUosw",
+      "visibleProjectCount": 1
+    },
+    {
+      "nodeId": "office-secondary",
+      "appVersion": "0.1.14",
+      "driveConnected": false,
+      "selectedFolderCode": null,
+      "visibleProjectCount": 0
+    }
+  ],
+  "finding": "The shared project was published and enumerable on the primary. The secondary had no persisted Drive workspace, so selected-workspace discovery stopped before contacting the project listing endpoint.",
+  "fixContract": [
+    "Browse shared projects explicitly catalogs only bounded app-owned .syzygy-projects roots visible to the connected account.",
+    "Catalog discovery works without a previously selected local workspace.",
+    "Join validates and persists the result's exact parent workspace before registering the Drive-bound project.",
+    "Selected-workspace research reads, writes, publishing, polling, sync, and MCP diagnostics remain fail-closed."
+  ],
+  "privacy": [
+    "No OAuth token, refresh token, Drive file ID, project title, document content, pairing key, or LAN address is recorded.",
+    "The short folder code and project count are the content-minimized diagnostic values exposed by the released MCP contract."
+  ],
+  "remainingGate": "Build the patch, update both physical installations, discover and Join from a secondary with no selected workspace, then prove equal project/document identity and converged Yjs state."
+}

@@ -124,14 +124,15 @@ still connected to another researcher's Drive folder or that credentials/model s
 
 Drive sharing is an explicit project action. The sidebar keeps **Browse shared projects** visible even while another project is open; it switches to discovery without archiving, deleting, or changing that project. **Share to Drive** is disabled until the live local
 document is ready, publishes its exact Yjs state into the selected workspace, and then remounts the
-same project identity on the Drive provider. With no project open, **Shared Drive projects** lists
-published manifests and offers **Join** unless the project/document identity already exists. Same-name
-Drive folders must show a short folder code in the picker and browser. Every refresh reports the exact
-folder code, check time, and project count or a visible sanitized error; an empty list may never look
-like a button that did nothing. The header reports connecting, synced time, error, or offline-copy state. Shared titles are read-only in
+same project identity on the Drive provider. With no project open, **Shared Drive projects** explicitly
+searches bounded Syzygy-owned roots visible to the connected Google account; it must work before a
+workspace has been selected locally. Each row shows the exact parent folder name and short code and
+offers **Join** unless the project/document identity already exists. Join validates and selects that
+exact folder before adding the project. Every refresh reports check time, project/folder counts, skipped
+ambiguous or unreadable roots, or a visible sanitized error; an empty list may never look like a button
+that did nothing. The header reports connecting, synced time, error, or offline-copy state. Shared titles are read-only in
 this first transport slice because manifest rename has not been given a conflict-safe contract.
 The UI must not describe polling as real-time presence.
-
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,
 empty, integrity-error, and mutation-error states; creates and selects stable scenarios; edits title,
 background, and workflow state; appends ordered role/content turns; and exposes support, oppose,

@@ -15,6 +15,7 @@ function descriptor(index: number, workspaceId = workspace.id): DriveProjectDesc
     title: `Secret project title ${index}`,
     createdAt: index,
     workspaceId,
+    workspaceName: workspace.name,
   }
 }
 

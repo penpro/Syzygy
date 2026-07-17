@@ -362,6 +362,13 @@ export interface DriveProjectDescriptor {
   title: string
   createdAt: number
   workspaceId: string
+  workspaceName: string
+}
+
+export interface DriveProjectCatalog {
+  projects: DriveProjectDescriptor[]
+  workspaceCount: number
+  skippedRootCount: number
 }
 
 export interface DriveProjectUpdate {
@@ -385,6 +392,10 @@ export const googleDriveProjectPublish = (
 
 export const googleDriveProjectList = (): Promise<DriveProjectDescriptor[]> =>
   invoke('google_drive_project_list')
+
+/** Explicitly browse Syzygy-owned project roots across Drive folders visible to this account. */
+export const googleDriveProjectDiscover = (): Promise<DriveProjectCatalog> =>
+  invoke('google_drive_project_discover')
 
 export const googleDriveProjectPull = (
   projectId: string,

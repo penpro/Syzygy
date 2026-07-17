@@ -84,7 +84,9 @@ coalesces local Yjs updates, appends them, polls unseen Drive file IDs, validate
 SHA-256/size bounds in Rust, and gives the decoded updates to Yjs as the merge authority. IndexedDB
 remains the local offline cache.
 
-**Browse shared projects** is always available from the project sidebar and opens discovery without archiving the current project. The picker and browser show a short folder code so same-name Drive folders are distinguishable across installations; every refresh reports that code, check time, and project count or a visible sanitized error. **Share to Drive** publishes the current full Yjs state before changing the persisted transport
+**Browse shared projects** is always available from the project sidebar and opens discovery without archiving the current project. Its explicit catalog query can locate only app-owned `.syzygy-projects` roots across Drive folders visible to the connected account, even when no workspace has been selected locally. Results show the parent folder name and short code; **Join** first validates and persists that exact parent as the single selected workspace, then registers the shared manifest. Ambiguous duplicate roots, orphan roots, unreadable roots, and global root/project counts over the documented bounds fail or are reported as skipped rather than silently rebinding a workspace. Selected-workspace research reads, writes, sync, publishing, polling, and MCP diagnostics remain unchanged and fail closed outside that one persisted folder.
+
+**Share to Drive** publishes the current full Yjs state before changing the persisted transport
 binding. **Join** constructs the same project/document identity from the remote manifest and pulls
 before registering the document for UI/MCP automation. The product reports connecting, synced,
 error, and disconnected states; it does not claim presence or sub-second real-time delivery.

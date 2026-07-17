@@ -523,7 +523,11 @@ nonzero if cleanup fails. Pair it with `driveProjectProvider.test.ts`: the live 
 Google transport path, while the deterministic frontend fixture proves actual Yjs merge, equal
 state vectors after partition/reconnect, and a non-destructive shared-project discovery transition
 from an existing active project. The sidebar control must remain available whenever any project is
-open. Neither test alone claims real-time cursors or the unresolved
+open. The two-physical-install diagnostic must additionally prove the secondary can discover and join
+an accessible project with no previously selected workspace; the catalog must select the exact parent
+folder before the provider starts. The 2026-07-17 v0.1.14 reproduction established the prior failure
+mode: the primary reported folder code `L7ybUosw` and one project while the secondary reported
+`workspace: null` and zero projects. Neither test alone claims real-time cursors or the unresolved
 partitioned structural move-versus-edit case.
 
 ## Release (the iteration loop)

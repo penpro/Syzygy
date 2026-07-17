@@ -35,8 +35,8 @@
 | `frontend/src/workspace/driveProjectProvider.ts` | Penumbra original | Append-only Drive-backed Yjs provider with IndexedDB durability, partition/reconnect merge, and post-pull automation publication |
 | `frontend/src/workspace/driveProjectStatus.ts` | Penumbra original | Content-free per-project Drive transport lifecycle registry for honest product status |
 | `frontend/src/workspace/driveProjectDiscovery.ts` | Penumbra original | Selected-workspace folder-code labeling, explicit refresh outcomes, and bounded content-free MCP/LAN project identity diagnostics |
-| `frontend/src/workspace/DriveProjectControls.tsx` | Penumbra original | Explicit selected-workspace share/join controls with identity collision and readiness guards |
-| `frontend/src-tauri/src/drive_projects.rs` | Penumbra original | Strict selected-workspace project manifest/update transport and real Google cleanup canary |
+| `frontend/src/workspace/DriveProjectControls.tsx` | Penumbra original | Explicit share plus bounded account-visible project catalog whose Join selects the exact parent workspace under identity/readiness guards |
+| `frontend/src-tauri/src/drive_projects.rs` | Penumbra original | Strict selected-workspace manifest/update transport, bounded app-root catalog with duplicate/orphan rejection, and real Google cleanup canary |
 | `frontend/src/workspace/collaborationProvider.ts` | Penumbra original | Provider-neutral lifecycle shared by local and test/future transports |
 | `frontend/src/workspace/memoryProvider.ts` | Penumbra original | Deterministic two-editor live/partition convergence transport used only by the headless contract suite |
 | `frontend/src/workspace/nodes/PolicyBlockNode.ts` | Penumbra original | Stable-identity editable policy statement node with review state and strict JSON round-trip |

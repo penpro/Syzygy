@@ -17,6 +17,7 @@ test('runbook retains the unattended recovery contract', () => {
     'If the user is interacting and the goal is paused, the supervisor does nothing',
     'The supervisor notifies the user only when recovery occurred',
     'The supervisor automation is deleted when the goal is complete',
+    'Never group long operations behind',
   ]) {
     assert.ok(runbook.includes(phrase), `missing runbook clause: ${phrase}`)
   }
@@ -47,6 +48,7 @@ test('supervisor prompt is quiet, read-only, and recovery-capable', () => {
     'Never wait unattended for a permission request',
     'Do not emit routine healthy updates',
     'delete this supervisor automation',
+    'Never allow multiple long commands behind one grouped or parallel orchestration wait',
   ]) assert.ok(prompt.includes(phrase), `missing supervisor clause: ${phrase}`)
 })
 

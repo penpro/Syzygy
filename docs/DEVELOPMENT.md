@@ -245,6 +245,27 @@ The packaged UI exposes the same Rust-generated values under **Settings → Conn
 setup guide**. Do not hard-code an installer location in React or documentation; installed paths
 vary by OS, installer choice, and portable/dev execution.
 
+## Headless LAN MCP control-plane proof
+
+Run the LAN suites through the bounded-command watchdog. No command may exceed a one-minute
+heartbeat interval:
+
+```powershell
+cd D:\PolicyPad\syzygy
+node scripts\run-with-heartbeat.mjs --timeout-seconds 60 --heartbeat-seconds 15 -- node --test scripts\lan-bridge.test.mjs
+node scripts\run-with-heartbeat.mjs --timeout-seconds 90 --heartbeat-seconds 15 -- node scripts\lan-mcp-harness.mjs
+node scripts\run-with-heartbeat.mjs --timeout-seconds 90 --heartbeat-seconds 15 -- node scripts\lan-packaged-agent-harness.mjs
+```
+
+The unit suite proves pairing-key/node/nonce binding, directional session keys, authenticated
+AES-GCM framing, replay and tamper rejection, bounded node identities, and the one-minute request
+ceiling. The two-node harness proves discovery, read-only fleet probing, independent per-node
+mutation routing, invalid-key rejection, and disconnect cleanup. The packaged harness is the
+cross-language gate: compiled Rust `Syzygy --lan-agent` must authenticate to the Node coordinator,
+discover at least twenty-five native tools, and return exact installation self-description through
+the encrypted route. `docs/audits/runs/LAN-MCP-CONTROL-PLANE-2026-07-16.json` records the evidence
+and explicitly does not claim two-physical-machine or project-convergence proof.
+
 ## Headless remote-provider boundary proof
 
 Run the remote-provider transport checks without a real API key or internet access:

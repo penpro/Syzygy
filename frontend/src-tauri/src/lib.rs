@@ -8,6 +8,7 @@ mod engine;
 pub mod google_auth;
 pub mod google_drive;
 mod knowledge;
+pub mod lan_agent;
 pub mod mcp;
 mod mcp_setup;
 pub mod model_provider;

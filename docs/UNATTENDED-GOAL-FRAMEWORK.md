@@ -17,8 +17,10 @@ The worker owns repository changes and must:
 2. keep one plan step in progress at a time;
 3. run every long operation through `scripts/run-with-heartbeat.mjs` with a 30-second heartbeat
    and an operation-specific absolute deadline;
-4. inspect or poll a running operation at least once per minute;
-5. create small verified Git checkpoints after coherent slices;
+4. run exactly one long operation per orchestration/tool call, with the watchdog as the
+   outermost child and its yielded session polled directly;
+5. inspect or poll a running operation at least once per minute;
+6. create small verified Git checkpoints after coherent slices;
 6. record commands, results, proved claims, and explicit non-claims in an audit-run artifact; and
 7. mark completion only after the acceptance criteria pass and no required work remains.
 
@@ -70,6 +72,8 @@ Use the repository runner from the working directory appropriate to the command:
 ```powershell
 node ..\scripts\run-with-heartbeat.mjs --timeout-seconds <deadline> --heartbeat-seconds 30 -- <command> <arguments>
 ```
+
+Never group long operations behind `Promise.all`, a parallel orchestration wrapper, or another outer wait. That hides child heartbeats from the supervisor. Parallel calls are allowed only for fast operations whose complete group has a short bounded return. Long commands each get one tool call and one directly polled session.
 
 Every planned operation names its deadline before it starts. A heartbeat interval above 60 seconds
 is forbidden by the runner. A timeout terminates the child process tree and returns exit code 124;

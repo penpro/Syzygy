@@ -299,9 +299,17 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   derived requirements, and falsification gates are in
   `docs/audits/LITERATURE-NOTES-2026-07-15.md`; it is requirements evidence, not a quality claim.
 
+- The LAN MCP control plane development slice keeps every GUI automation listener on loopback and
+  adds a packaged outbound `Syzygy --lan-agent`, an authenticated encrypted coordinator, a stdio
+  MCP host wrapper, and bounded two-node harnesses. Node and Rust tests prove challenge binding,
+  directional session keys, AES-GCM tamper/replay rejection, wrong-key rejection, per-node routing,
+  disconnect cleanup, and cross-language discovery of all twenty-five native tools. This is S-07
+  `implemented_unverified`: the decisive two-physical-install private-LAN run is still required, and
+  the control plane does not claim Yjs/IndexedDB project synchronization.
+
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **41 capabilities**: **25 are
+The machine-readable end-goal ledger currently contains **42 capabilities**: **26 are
 `implemented_unverified`, 16 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, remaining crash/recovery local

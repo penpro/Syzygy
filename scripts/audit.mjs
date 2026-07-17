@@ -884,10 +884,31 @@ record(
   'ephemeral IPv4 loopback, 256-bit bearer, origin rejection, bounded body',
 )
 
+const lanAgentSource = text('frontend/src-tauri/src/lan_agent.rs')
+const lanCoordinatorSource = text('scripts/lan-mcp-coordinator.mjs')
+record(
+  'LAN MCP control plane remains outbound, authenticated, encrypted, replay-safe, and bounded',
+  text('frontend/src-tauri/src/main.rs').includes('"--lan-agent"') &&
+    lanAgentSource.includes('.arg("--mcp")') &&
+    lanAgentSource.includes('Aes256Gcm') &&
+    lanAgentSource.includes('Hkdf::<Sha256>') &&
+    lanAgentSource.includes('HmacSha256') &&
+    lanAgentSource.includes('MAX_REQUEST_MS: u64 = 60_000') &&
+    lanCoordinatorSource.includes("option(options, '--listen', '127.0.0.1')") &&
+    lanCoordinatorSource.includes('isPrivateListenAddress') &&
+    lanCoordinatorSource.includes('verifyAgentProof') &&
+    lanCoordinatorSource.includes('STALE_AFTER_MS') &&
+    lanCoordinatorSource.includes("name: 'lan_probe'") &&
+    existsSync(join(root, 'scripts/lan-mcp-host.mjs')) &&
+    existsSync(join(root, 'scripts/lan-mcp-harness.mjs')) &&
+    existsSync(join(root, 'scripts/lan-packaged-agent-harness.mjs')) &&
+    existsSync(join(root, 'docs/audits/runs/LAN-MCP-CONTROL-PLANE-2026-07-16.json')),
+  'packaged outbound agent preserves loopback GUI ownership; HMAC/HKDF/AES-GCM, replay counters, deadlines, heartbeats, two-node routing, and packaged interoperability evidence are present',
+)
 const ledger = JSON.parse(text('docs/audits/CAPABILITIES.json'))
 const expectedIds = [
   ...Array.from({ length: 35 }, (_, index) => `P-${String(index + 1).padStart(2, '0')}`),
-  ...Array.from({ length: 6 }, (_, index) => `S-${String(index + 1).padStart(2, '0')}`),
+  ...Array.from({ length: 7 }, (_, index) => `S-${String(index + 1).padStart(2, '0')}`),
 ]
 const actualIds = ledger.capabilities.map((item) => item.id)
 const uniqueIds = new Set(actualIds)

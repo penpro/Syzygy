@@ -49,6 +49,7 @@
     { "id": "S-03", "phase": 0, "status": "implemented_unverified", "claim": "Clean install reaches local generation without a paid API key", "evidence": ["frontend/src/localAi.ts", "frontend/src/localAi.test.ts", "frontend/src/migrations.test.ts", "frontend/src-tauri/src/engine.rs", "scripts/fetch-engine.mjs", "docs/audits/runs/LOCAL-AI-LIFECYCLE-2026-07-15.json"] },
     { "id": "S-04", "phase": 3, "status": "implemented_unverified", "claim": "Portable archive imports on a disconnected machine", "evidence": ["frontend/src/workspace/projectArchive.ts", "frontend/src/workspace/projectArchive.test.ts", "frontend/src/workspace/ProjectArchiveControls.tsx", "frontend/src/workspace/ProjectArchiveControls.ui.test.ts", "docs/audits/runs/PORTABLE-ARCHIVE-2026-07-16.json"] },
     { "id": "S-05", "phase": 4, "status": "implemented_unverified", "claim": "Collaboration transport is replaceable", "evidence": ["frontend/src/workspace/localProvider.ts", "frontend/src/workspace/projectModel.test.ts"] },
-    { "id": "S-06", "phase": 9, "status": "planned", "claim": "Network trace matches active feature and copy", "evidence": [] }
+    { "id": "S-06", "phase": 9, "status": "planned", "claim": "Network trace matches active feature and copy", "evidence": [] },
+    { "id": "S-07", "phase": 4, "status": "implemented_unverified", "claim": "One authenticated LAN MCP host drives multiple installed applications", "evidence": ["frontend/src-tauri/src/lan_agent.rs", "scripts/lan-mcp-coordinator.mjs", "scripts/lan-mcp-host.mjs", "scripts/lan-bridge.test.mjs", "scripts/lan-mcp-harness.mjs", "scripts/lan-packaged-agent-harness.mjs", "docs/LAN-MCP.md", "docs/audits/runs/LAN-MCP-CONTROL-PLANE-2026-07-16.json"] }
   ]
 }

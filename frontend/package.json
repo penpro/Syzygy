@@ -1,7 +1,7 @@
 {
   "name": "syzygy",
   "private": true,
-  "version": "0.1.10",
+  "version": "0.1.11",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -28,6 +28,9 @@
     "test:credentials": "cargo test --manifest-path src-tauri/Cargo.toml credential_vault::tests:: -- --nocapture",
     "test:credentials:live": "cargo run --manifest-path src-tauri/Cargo.toml --bin credential-harness",
     "test:mcp": "node ../scripts/mcp-harness.mjs",
+    "test:mcp:lan:unit": "node --test ../scripts/lan-bridge.test.mjs",
+    "test:mcp:lan": "node ../scripts/lan-mcp-harness.mjs",
+    "test:mcp:lan:packaged": "node ../scripts/lan-packaged-agent-harness.mjs",
     "test:mcp:live": "node ../scripts/mcp-live-harness.mjs --write-proof",
     "audit": "node ../scripts/audit.mjs",
     "test:drive-live": "cargo run --manifest-path src-tauri/Cargo.toml --bin drive-harness --",

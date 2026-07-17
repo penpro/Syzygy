@@ -1,0 +1,40 @@
+{
+  "capability": "authenticated encrypted LAN MCP control plane",
+  "date": "2026-07-16",
+  "status": "implemented-development-slice",
+  "protocol": "syzygy-lan-v1",
+  "evidence": {
+    "nodeUnitTests": 5,
+    "rustUnitTests": 2,
+    "simulatedAuthenticatedNodes": 2,
+    "packagedAgentAuthenticated": true,
+    "crossLanguageEncryption": true,
+    "nativeToolCount": 25,
+    "invalidPairingKeyRejected": true,
+    "wildcardAndPublicBindRejected": true,
+    "replayRejected": true,
+    "tamperRejected": true,
+    "disconnectCleanup": true,
+    "readOnlyFleetProbe": true,
+    "isolatedPerNodeCalls": true
+  },
+  "bounds": {
+    "heartbeatMilliseconds": 15000,
+    "staleAfterMilliseconds": 45000,
+    "maximumRequestMilliseconds": 60000,
+    "maximumEncryptedLineBytes": 12582912
+  },
+  "commands": [
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 60 --heartbeat-seconds 15 -- node --test scripts/lan-bridge.test.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 90 --heartbeat-seconds 15 -- node scripts/lan-mcp-harness.mjs",
+    "cargo test --manifest-path frontend/src-tauri/Cargo.toml lan_agent::tests:: -- --nocapture",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 90 --heartbeat-seconds 15 -- node scripts/lan-packaged-agent-harness.mjs"
+  ],
+  "nonClaims": [
+    "No two-physical-computer run has been recorded yet.",
+    "The control plane does not synchronize IndexedDB or Yjs project state.",
+    "Node IDs and the shared pairing key are not authenticated human identity or role authorization.",
+    "No automatic startup, service installation, discovery broadcast, or key rotation UI is shipped.",
+    "No public-network exposure is supported or recommended."
+  ]
+}

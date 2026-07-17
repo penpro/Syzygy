@@ -39,6 +39,8 @@ passes.
 |---|---|---:|---:|
 | <test/build/harness> | `node ..\scripts\run-with-heartbeat.mjs ...` | <seconds> | 30 seconds |
 
+One long operation per tool call. Put the watchdog at the outermost command boundary and poll its
+yielded session directly. Never place long commands inside a grouped/parallel wait.
 ## Recovery note
 
 - Last verified Git checkpoint: <commit and evidence>

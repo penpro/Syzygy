@@ -117,6 +117,7 @@ Every row needs evidence in `docs/audits/CAPABILITIES.json` before becoming `ver
 | S-04 | portable export | disconnected second machine imports archive |
 | S-05 | replaceable transport | same Yjs fixture converges on every provider |
 | S-06 | data minimization | network trace matches active feature/copy |
+| S-07 | private-LAN multi-install control | two physical installed applications authenticate, remain isolated, and pass bounded routed MCP probes |
 
 P-04 now has a Penumbra-original typed Yjs domain service and deterministic headless evidence for
 concurrent add, independent field edit, attributed edit history, and delete-versus-edit without
@@ -602,7 +603,7 @@ dialog. Product domain orchestration still must decide which frozen snapshots en
 
 ## 11. Recommended next slice
 
-Status snapshot on 2026-07-16: the 41-row ledger has 25 `implemented_unverified`, 16 `planned`,
+Status snapshot on 2026-07-16: the 42-row ledger has 26 `implemented_unverified`, 16 `planned`,
 and 0 `verified` capabilities. The shipped local editor, Drive research path, local engine, and MCP
 pilot are meaningful foundations, but none substitutes for the decisive two-install, convergence,
 portable-archive, workflow, accessibility, and adversarial gates below. MCP setup/onboarding is

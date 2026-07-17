@@ -38,6 +38,14 @@ random-token authenticated ephemeral loopback bridge owned by the GUI, which emi
 requests into the live webview. It never edits browser storage or a local mirror as a second
 source of project truth.
 
+The optional development LAN control plane keeps that bridge loopback-only. Each installed
+`Syzygy --lan-agent` process spawns its own local stdio MCP and makes an outbound, pairing-key-
+authenticated encrypted connection to a repository-side coordinator. The coordinator is a stdio
+MCP server for one test host and namespaces calls by installation. Protocol `syzygy-lan-v1` uses
+fresh challenge nonces, HMAC-SHA-256 proof, HKDF-SHA-256 direction keys, AES-256-GCM frames, replay
+counters, bounded requests, and heartbeat eviction. It controls installations; it is not a project
+persistence provider. See `LAN-MCP.md`.
+
 ```
  you ──▶ webview (React) ──▶ 127.0.0.1:11435 llama.cpp ──▶ GGUF on GPU
               │
@@ -60,6 +68,7 @@ source of project truth.
 | `vision.rs` | Optional vision-model engine swap (image describe/search). |
 | `automation.rs` | Ephemeral authenticated loopback bridge into semantic live-webview actions. |
 | `mcp.rs` | Embedded stdio MCP mode, tool schemas, and JSON-RPC protocol routing. |
+| `lan_agent.rs` | Packaged outbound encrypted agent that proxies the installed stdio MCP to an authenticated private-LAN coordinator without rebinding the GUI bridge. |
 | `mcp_setup.rs` | Running-executable discovery plus copy-ready JSON/TOML configuration and connection prompts shared by the UI and MCP. |
 | `platform_contracts.rs` | Machine-readable provider-run, adversarial-review, and researcher-plugin schemas/status exposed to headless MCP clients. |
 | `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses one-shot/SSE plus Anthropic Messages, Gemini Interactions, and xAI Responses one-shot wire contracts have fake-server evidence with bounded controls and sanitized normalization. |
@@ -253,6 +262,7 @@ availability claim.
 | Models (GGUF) | `<app-data>/models/` |
 | Optional Drive mirror folder | `<Documents>/Syzygy` (manual sync with Drive folder "Syzygy") |
 | Ephemeral MCP bridge descriptor | OS temp `syzygy-automation-v1.json` (port/token/PID/version only; removed on shutdown) |
+| LAN pairing key | User-chosen 32-byte base64url key file; never stored in app settings, repository, Drive, command-line arguments, or coordinator descriptors |
 
 ## Key invariants
 
@@ -280,6 +290,8 @@ availability claim.
 - **Project metadata and collaborative content have different owners.** Zustand/localStorage holds
   manifest/navigation identity; Yjs/IndexedDB holds collaborative editor and domain state. No
   derived plain-text copy is a second mutable source of truth.
+- **LAN control never rebinds the GUI bridge.** The GUI remains IPv4-loopback-only; an explicit
+  packaged agent makes the outbound encrypted connection and native MCP guards remain authoritative.
 - **MCP automation is semantic and live.** Document mutations require a read revision and fail
   closed on concurrent change; the MCP receives no ambient Drive, filesystem, or model authority.
   Setup data is generated from `current_exe` in Rust and reused by the app and the

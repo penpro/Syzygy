@@ -175,6 +175,23 @@ MCP host
   `published-zero-imports-no-runtime`, and the harness rejects any host import or runtime claim;
   it returns no key, provider account, project content, or Drive credential.
 
+## Private-LAN multi-install control
+
+The development LAN control plane lets one MCP host drive multiple installed Syzygy applications
+without exposing their GUI bridges. The primary host runs `scripts/lan-mcp-host.mjs`; every
+installation joins through its packaged `Syzygy --lan-agent` mode. The coordinator exposes
+`lan_nodes`, `lan_node_tools`, `lan_call`, and read-only `lan_probe`. Calls retain the selected
+installation's native tool schemas, revision conflicts, disclosure prompts, and mutation guards.
+
+The LAN stream is pairing-key authenticated and encrypted; it has 15-second heartbeats, 45-second
+stale eviction, replay counters, bounded frames, and a one-minute absolute operation ceiling. It
+must bind one explicit private address and must never be router-forwarded or exposed publicly. The
+GUI automation descriptor and bearer listener remain in the local user's temp directory and on
+`127.0.0.1` respectively.
+
+This is a control-plane claim, not a project-convergence claim. See `LAN-MCP.md` for setup, threat
+model, commands, and current non-claims.
+
 ## Executable evidence
 
 Run the cross-layer headless contract harness:

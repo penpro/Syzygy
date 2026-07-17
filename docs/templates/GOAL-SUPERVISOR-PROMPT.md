@@ -24,6 +24,8 @@ progress for two consecutive one-minute checks, recover:
 Require every long command to use [PROJECT]'s bounded-command watchdog with a heartbeat no slower
 than 30 seconds and an operation-specific absolute deadline. Poll active commands at least once per
 minute. After two materially identical failures, pivot instead of repeating indefinitely.
+Never allow multiple long commands behind one grouped or parallel orchestration wait. Require one
+long operation per tool call and poll that watchdog session directly.
 
 Never wait unattended for a permission request. Skip the unauthorized operation, record it, and
 continue independent in-scope work. Report a genuine block only after the same condition repeats

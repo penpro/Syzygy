@@ -68,7 +68,7 @@ jobs:
           tagName: ${{ github.event.inputs.tag || github.ref_name }}
           releaseName: Syzygy ${{ github.event.inputs.tag || github.ref_name }}
           releaseBody: |
-            Syzygy runs AI entirely on your own machine — offline, private, free.
+            Syzygy is local-first: run local models, connect optional AI providers, or work without AI. Drive collaboration is available when you enable it.
             Download the build for your OS under **Assets**:
             • **Windows** — `-setup.exe`  • **macOS** — `.dmg`  • **Linux** — `.AppImage` or `.deb`
 

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "runId": "UNATTENDED-GOAL-FRAMEWORK-2026-07-16",
+  "date": "2026-07-16",
+  "appVersionAtRun": "0.1.10",
+  "status": "reusable-development-protocol",
+  "commands": [
+    "npm run test:goal-framework",
+    "npm run test:watchdog",
+    "npm run audit",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "frameworkContractTestsPassed": 4,
+    "watchdogTestsPassed": 6,
+    "defaultCommandHeartbeatSeconds": 30,
+    "maximumCommandHeartbeatSeconds": 60,
+    "staleSupervisorChecksBeforeRecovery": 2,
+    "supervisorCheckIntervalSeconds": 60,
+    "externalNetworkUsed": false,
+    "modelEngineUsed": false,
+    "realCredentialsUsed": false
+  },
+  "proved": [
+    "The repository contains a complete worker/supervisor protocol, a fill-in goal template, and a reusable supervisor heartbeat prompt.",
+    "The structural tests fail if the runbook loses its two-check recovery trigger, last-verified-checkpoint rule, paused-user behavior, unattended-permission behavior, quiet notification policy, or supervisor cleanup rule.",
+    "The goal template requires objective, non-goals, authority boundary, falsifiable gates, checkpoint evidence, per-operation deadlines, recovery state, and completion cleanup.",
+    "The supervisor template is read-only with respect to repository work, targets only the stale operation, preserves unrelated work, skips unattended permission waits, and deletes itself after completion.",
+    "The framework test binds its timing claims to the executable watchdog's 30-second default and 60-second maximum heartbeat.",
+    "The completed Syzygy engine-shutdown slice used bounded commands, focused checkpoints, headless tests, packaged process/DLL proof, machine-readable evidence, a pushed commit, and removal of the obsolete supervisor."
+  ],
+  "notProved": [
+    "A scheduler or model will always deliver a heartbeat on time under host suspension, network loss, application termination, or service outage.",
+    "The supervisor has exercised every recovery branch; stale-operation termination, unattended permission skipping, repeated-block classification, and cross-platform process inspection need dedicated injected end-to-end fixtures.",
+    "A Git checkpoint makes incorrect work correct; it only provides a bounded, inspectable recovery point whose evidence must still be challenged.",
+    "The suggested operation deadlines fit every machine or future repository; they are initial ceilings that must be revised from measured evidence."
+  ]
+}

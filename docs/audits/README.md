@@ -8,6 +8,7 @@ These artifacts separate product claims from implementation evidence.
 - `THREAT-MODEL.md` — assets, trust boundaries, controls, residual risks, and blockers.
 - `DECISIONS/` — architecture decisions with rejected alternatives and falsification tests.
 - `runs/` — sanitized live/headless run summaries, including Drive and workspace proofs.
+- `../UNATTENDED-GOAL-FRAMEWORK.md` — reusable bounded worker/supervisor and recovery protocol.
 
 ## Reproduce the current automated claims
 

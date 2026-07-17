@@ -35,6 +35,7 @@ Long-running development and overnight commands run through the repository watch
 cd D:\PolicyPad\syzygy\frontend
 node ..\scripts\run-with-heartbeat.mjs --timeout-seconds 480 --heartbeat-seconds 30 -- npm test
 npm run test:watchdog
+npm run test:goal-framework
 ```
 
 `--timeout-seconds` is mandatory. Heartbeats default to 30 seconds and the runner rejects any
@@ -48,6 +49,12 @@ heartbeat, rejection above the maximum interval, and forced timeout cleanup.
 The watchdog does not make a hung operation successful and does not justify retrying indefinitely.
 Use the operation-specific clamp from the active run plan, inspect no slower than the heartbeat,
 and pivot after two identical failures or the slice timebox.
+
+Long unattended goals use the complete
+[worker/supervisor framework](UNATTENDED-GOAL-FRAMEWORK.md), not the command watchdog alone. Start
+from the checked-in goal and supervisor templates; the independent supervisor stays read-only,
+recovers after two silent one-minute checks, resumes from the last verified Git checkpoint, and
+removes itself when the goal finishes.
 
 ## Headless local-AI lifecycle proof
 

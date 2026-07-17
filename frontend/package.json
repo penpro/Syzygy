@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test:watchdog": "node --test ../scripts/run-with-heartbeat.test.mjs",
+    "test:goal-framework": "node --test ../scripts/goal-framework.test.mjs",
     "test:engine-shutdown": "cargo test --manifest-path src-tauri/Cargo.toml engine::tests:: -- --nocapture",
     "fetch-engine": "node ../scripts/fetch-engine.mjs",
     "test": "vitest run",

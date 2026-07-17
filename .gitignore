@@ -26,3 +26,6 @@ src-tauri/bin/
 .env
 .env.*
 !.env.example
+
+# Detached local build-supervisor checkpoints and output
+.syzygy-dev-runs/

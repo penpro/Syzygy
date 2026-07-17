@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-07-17",
+  "status": "implemented_unverified",
+  "scope": "Repository-local detached development build supervision",
+  "properties": [
+    "A launcher returns a run ID while a detached worker owns the complete plan.",
+    "Atomic state checkpoints and an ignored output log allow status, follow, and cancel to reconnect after a terminal or agent transport interruption.",
+    "Every child operation uses the existing shell-free watchdog with a 30-second heartbeat and a mandatory step deadline; each profile also has a total deadline.",
+    "Every production child has a 60–300 second real-output stall clamp in addition to its absolute deadline.",
+    "The package profile requests normal Syzygy shutdown, waits for app and owned llama-server exit, and limits forced recovery to captured Syzygy-owned process IDs.",
+    "An unrelated llama-server is never killed automatically.",
+    "Packaging fails unless build output proves Compiling app v and the packaged MCP smoke harness passes."
+  ],
+  "fixtures": [
+    "Detached success survives launcher exit and records both completed checkpoints.",
+    "A nonzero child stops the plan and leaves the later step queued.",
+    "A hung child exits through watchdog code 124 and does not advance.",
+    "Explicit cancellation terminates the detached worker tree and records a terminal cancelled checkpoint.",
+    "A heartbeat-only child is terminated by stall exit 125 before its absolute deadline and does not advance."
+  ],
+  "remainingEvidence": [
+    "Exercise scoped forced recovery against a deliberately unresponsive packaged GUI without unrelated llama-server processes."
+  ],
+  "validation": {
+    "runId": "20260717-061559-9776e3",
+    "profile": "package",
+    "status": "succeeded",
+    "elapsedSeconds": 121,
+    "checks": [
+      "frontend tests",
+      "repository audit",
+      "Rust check",
+      "resource shutdown",
+      "Tauri installer with Compiling app v",
+      "packaged MCP smoke with 25 tools"
+    ]
+  }
+}

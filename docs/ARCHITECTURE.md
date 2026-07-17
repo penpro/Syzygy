@@ -52,6 +52,13 @@ persistence provider. See `LAN-MCP.md`.
               └─ invoke() ──▶ Rust core ── files, engine mgmt, Google APIs
 ```
 
+Development builds are supervised outside the shipped runtime by
+`scripts/supervised-build.mjs`. A short launcher starts one detached worker; atomic state and an
+ignored output log under `.syzygy-dev-runs/` let a terminal, Codex session, or another local tool
+reconnect without owning the build process. Every child gate still runs through the shell-free
+repository watchdog, and package builds must verify app/model shutdown, asset re-embedding, and the
+packaged MCP surface before succeeding.
+
 ## Rust core modules (`frontend/src-tauri/src/`)
 
 | Module | Owns |

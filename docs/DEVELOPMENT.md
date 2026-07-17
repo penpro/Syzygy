@@ -50,6 +50,37 @@ The watchdog does not make a hung operation successful and does not justify retr
 Use the operation-specific clamp from the active run plan, inspect no slower than the heartbeat,
 and pivot after two identical failures or the slice timebox.
 
+### Detached supervised build
+
+Use the repository build supervisor for edit/check/package cycles instead of manually chaining
+watchdog commands through one terminal or agent call:
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm run check:supervised           # detached tests, frontend build, audit, cargo check
+npm run build:supervised           # detached tests, audit, cargo check, shutdown, installer, MCP smoke
+npm run build:status               # latest run; add -- <run-id> for a specific run
+npm run build:follow -- <run-id>   # reconnect to live output
+npm run build:cancel -- <run-id>   # explicitly stop the worker and its active process tree
+```
+
+The launcher returns immediately with a run ID. The detached worker owns the entire plan, so losing
+a PTY, tool yield, or Codex sampling turn does not abandon the build. Atomic `state.json`
+checkpoints and `output.log` live in the ignored `.syzygy-dev-runs/<run-id>/` folder. Only one
+active run is allowed; a dead worker is marked interrupted before a replacement starts. The check
+profile has a 30-minute total deadline. The package profile has a 40-minute total deadline. Every
+child step also uses `run-with-heartbeat.mjs` with a mandatory operation-specific deadline and a
+30-second heartbeat. Production steps also stop after 60–300 seconds without real child output,
+with the longest silence allowance reserved for Rust linking and installer generation. Child stdin
+is closed, so an unattended prompt fails instead of waiting.
+
+Before native packaging, the supervisor snapshots process ownership, requests a normal Syzygy
+window close, and waits for both the app and its captured `llama-server` child to exit. If normal
+close exceeds 60 seconds it terminates only the captured Syzygy process tree and verifies exit. It
+refuses to kill an unrelated `llama-server`. Success also requires `Compiling app v` in the
+Tauri output and a packaged MCP smoke pass. Run `npm run test:build-supervisor` for detached
+success, fail-fast checkpoint, explicit cancellation, child-output stall, and process-tree timeout fixtures.
+
 Long unattended goals use the complete
 [worker/supervisor framework](UNATTENDED-GOAL-FRAMEWORK.md), not the command watchdog alone. Start
 from the checked-in goal and supervisor templates; the independent supervisor stays read-only,

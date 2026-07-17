@@ -74,6 +74,8 @@ record('icon source', existsSync(join(root, 'frontend/src-tauri/syzygy-icon.svg'
 
 const watchdogSource = text('scripts/run-with-heartbeat.mjs')
 const watchdogTestSource = text('scripts/run-with-heartbeat.test.mjs')
+const buildSupervisorSource = text('scripts/supervised-build.mjs')
+const buildSupervisorTestSource = text('scripts/supervised-build.test.mjs')
 record(
   'development operations remain deadline-bounded with at-most-one-minute heartbeats',
   frontendPackage.scripts?.['test:watchdog'] === 'node --test ../scripts/run-with-heartbeat.test.mjs' &&
@@ -84,8 +86,24 @@ record(
     watchdogSource.includes("throw new Error('--timeout-seconds is required')") &&
     watchdogTestSource.includes('rejects heartbeat intervals over one minute') &&
     watchdogTestSource.includes('terminates a hung process tree at the deadline') &&
-    watchdogTestSource.includes('assert.equal(result.status, 124)'),
-  'mandatory deadlines, 30-second default/60-second maximum heartbeat, Windows process-tree cleanup, and executable timeout fixtures are present',
+    watchdogTestSource.includes('assert.equal(result.status, 124)') &&
+    frontendPackage.scripts?.['build:supervised'] === 'node ../scripts/supervised-build.mjs start --profile package' &&
+    frontendPackage.scripts?.['test:build-supervisor'] === 'node --test ../scripts/supervised-build.test.mjs' &&
+    buildSupervisorSource.includes('HEARTBEAT_SECONDS = 30') &&
+    buildSupervisorSource.includes('STALL_EXIT_CODE = 125') &&
+    buildSupervisorSource.includes('stallSeconds: 300') &&
+    buildSupervisorSource.includes('detached: true') &&
+    buildSupervisorSource.includes('writeJsonAtomic') &&
+    buildSupervisorSource.includes('CloseMainWindow()') &&
+    buildSupervisorSource.includes('Unowned llama-server process detected') &&
+    buildSupervisorSource.includes("requiredOutput: 'Compiling app v'") &&
+    buildSupervisorSource.includes("id: 'packaged-mcp-smoke'") &&
+    buildSupervisorTestSource.includes('a detached run survives its launcher') &&
+    buildSupervisorTestSource.includes('explicit cancellation terminates the detached worker tree') &&
+    buildSupervisorTestSource.includes('a child-output stall clamp terminates a heartbeat-only operation') &&
+    buildSupervisorTestSource.includes('a step deadline terminates the hung tree') &&
+    text('.gitignore').includes('.syzygy-dev-runs/'),
+  'mandatory deadlines, at-most-30-second heartbeats, 60–300-second child-output stall clamps, detached atomic checkpoints, scoped app/model shutdown, asset re-embed proof, packaged MCP smoke, and executable timeout fixtures are present',
 )
 
 const provenance = text('docs/audits/EDITOR-PROVENANCE.md')

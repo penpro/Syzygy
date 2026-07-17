@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-07-17",
+  "status": "implemented_unverified",
+  "observedFailure": "A second v0.1.13 installation refreshed the shared-project browser without showing the project visible on the primary installation.",
+  "diagnosis": {
+    "confirmedProductDefect": "The workspace picker and shared-project browser displayed only a Drive folder name, so same-name folders were indistinguishable across installations.",
+    "unconfirmedPhysicalCause": "The two installations may have selected different Drive folder IDs; the update also stopped the opt-in LAN agents, so the second installation could not be remotely inspected in this session."
+  },
+  "implementation": [
+    "Every selected Drive workspace now has a visible short folder code derived from, but not equal to, its full Drive folder ID.",
+    "The picker adds folder code and modified date so same-name folders can be distinguished.",
+    "Every refresh reports the folder code, checked time, and exact project count or a visible sanitized error.",
+    "The explicit inspect_drive_project_discovery MCP tool performs a selected-workspace metadata refresh and returns at most 200 project/document identities without OAuth data, Drive file IDs, project titles, or document content.",
+    "The LAN coordinator can route that native tool independently on each authenticated installation."
+  ],
+  "automatedEvidence": {
+    "frontendTests": 7,
+    "rustMcpTests": 13,
+    "sameNameFoldersDistinguished": true,
+    "workspaceMismatchRejected": true,
+    "listingSkippedWithoutWorkspace": true,
+    "diagnosticIdentityCap": 200,
+    "secretTitleCanaryExcluded": true,
+    "mcpRouteReadOnly": true
+  },
+  "remainingEvidence": [
+    "Install the resulting build on both physical computers.",
+    "Restart both opt-in LAN agents after the installer closes their prior executable trees.",
+    "Call inspect_drive_project_discovery through lan_call on both nodes and require identical folderCode and project/document identity sets before claiming the two-install Drive gate."
+  ],
+  "packageValidation": {
+    "version": "0.1.14",
+    "runId": "20260717-072113-b51d8a",
+    "status": "succeeded",
+    "elapsedSeconds": 154,
+    "assetReembedMarker": "Compiling app v0.1.14",
+    "packagedMcpTools": 26,
+    "protocolClean": true
+  }
+}

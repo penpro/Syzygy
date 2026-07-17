@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import * as Y from 'yjs'
 import {
-  googleDriveProjectList,
   googleDriveProjectPublish,
   googleDriveWorkspace,
   type DriveProjectDescriptor,
@@ -9,6 +8,7 @@ import {
 } from '../tauri'
 import { useStore } from '../store'
 import { bytesToBase64 } from './driveProjectProvider'
+import { driveWorkspaceLabel, refreshDriveProjectDiscovery } from './driveProjectDiscovery'
 import { subscribeDriveProjectStatus, type DriveProjectSyncStatus } from './driveProjectStatus'
 import type { ResearchProjectManifest } from './schema'
 import {
@@ -16,6 +16,10 @@ import {
   getAutomationProjectDocument,
   subscribeAutomationProjectDocument,
 } from './workspaceAutomationRegistry'
+
+function errorText(value: unknown): string {
+  return (value as { message?: string })?.message ?? String(value)
+}
 
 function syncLabel(status: DriveProjectSyncStatus | null): string {
   if (!status) return 'Drive shared · starting sync'
@@ -58,20 +62,23 @@ export function DriveProjectControls({ project }: { project?: ResearchProjectMan
   const refresh = useCallback(async () => {
     setBusy(true)
     setError('')
+    setMessage('')
     try {
-      const selected = await googleDriveWorkspace()
-      setWorkspace(selected)
-      if (!selected) {
-        setAvailable([])
+      const result = await refreshDriveProjectDiscovery()
+      setWorkspace(result.workspace)
+      setAvailable(result.descriptors)
+      if (!result.workspace) {
         setMessage('Link Google Drive and choose a shared workspace in Settings first.')
         return
       }
-      const descriptors = await googleDriveProjectList()
-      setAvailable(descriptors)
-      setMessage(descriptors.length === 0 ? 'No shared Syzygy projects are published in this workspace yet.' : '')
+      const label = driveWorkspaceLabel(result.workspace)
+      const checked = new Date(result.diagnostic.checkedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      setMessage(result.descriptors.length === 0
+        ? `Checked ${label} at ${checked}. No shared Syzygy projects were found.`
+        : `Found ${result.descriptors.length} shared project${result.descriptors.length === 1 ? '' : 's'} in ${label} at ${checked}.`)
     } catch (value) {
       setAvailable([])
-      setError(String(value))
+      setError(`Shared-project refresh failed: ${errorText(value)}`)
     } finally {
       setBusy(false)
     }
@@ -102,9 +109,9 @@ export function DriveProjectControls({ project }: { project?: ResearchProjectMan
       }
       bindProjectToDrive(project.id, selected.id)
       setWorkspace(selected)
-      setMessage('Shared to Drive. This project now merges edits from every joined installation.')
+      setMessage(`Shared to ${driveWorkspaceLabel(selected)}. This project now merges edits from every joined installation.`)
     } catch (value) {
-      setError(String(value))
+      setError(errorText(value))
     } finally {
       setBusy(false)
     }
@@ -122,7 +129,7 @@ export function DriveProjectControls({ project }: { project?: ResearchProjectMan
         transport: { kind: 'drive', workspaceId: descriptor.workspaceId },
       })
     } catch (value) {
-      setError(String(value))
+      setError(errorText(value))
     }
   }
 
@@ -148,7 +155,7 @@ export function DriveProjectControls({ project }: { project?: ResearchProjectMan
       <div className="drive-project-browser-heading">
         <div>
           <div className="workspace-panel-label mono">Shared Drive projects</div>
-          <p>{workspace ? `Join a project from ${workspace.name}.` : 'Use the same selected Drive workspace on each computer.'}</p>
+          <p>{workspace ? `Join a project from ${driveWorkspaceLabel(workspace)}.` : 'Use the same selected Drive workspace on each computer.'}</p>
         </div>
         <button className="btn sm" type="button" disabled={busy} onClick={() => void refresh()}>{busy ? 'Checking…' : 'Refresh'}</button>
       </div>

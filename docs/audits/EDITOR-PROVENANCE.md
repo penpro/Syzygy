@@ -34,6 +34,7 @@
 | `frontend/src/workspace/localProvider.ts` | Penumbra original | Local IndexedDB provider implementing the Lexical/Yjs provider boundary |
 | `frontend/src/workspace/driveProjectProvider.ts` | Penumbra original | Append-only Drive-backed Yjs provider with IndexedDB durability, partition/reconnect merge, and post-pull automation publication |
 | `frontend/src/workspace/driveProjectStatus.ts` | Penumbra original | Content-free per-project Drive transport lifecycle registry for honest product status |
+| `frontend/src/workspace/driveProjectDiscovery.ts` | Penumbra original | Selected-workspace folder-code labeling, explicit refresh outcomes, and bounded content-free MCP/LAN project identity diagnostics |
 | `frontend/src/workspace/DriveProjectControls.tsx` | Penumbra original | Explicit selected-workspace share/join controls with identity collision and readiness guards |
 | `frontend/src-tauri/src/drive_projects.rs` | Penumbra original | Strict selected-workspace project manifest/update transport and real Google cleanup canary |
 | `frontend/src/workspace/collaborationProvider.ts` | Penumbra original | Provider-neutral lifecycle shared by local and test/future transports |

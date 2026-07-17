@@ -409,6 +409,7 @@ const advertisedMcpTools = [
   'launch_syzygy',
   'workspace_walkthrough',
   'list_projects',
+  'inspect_drive_project_discovery',
   'create_project',
   'open_project',
   'rename_project',
@@ -435,6 +436,21 @@ record(
   'embedded MCP entry and tools',
   mainSource.includes('"--mcp"') && advertisedMcpTools.every((name) => mcpSource.includes(`"${name}"`)),
   `${advertisedMcpTools.filter((name) => mcpSource.includes(`"${name}"`)).length}/${advertisedMcpTools.length} semantic tools registered`,
+)
+const driveDiscoverySource = text('frontend/src/workspace/driveProjectDiscovery.ts')
+const driveDiscoveryTestSource = text('frontend/src/workspace/driveProjectDiscovery.test.ts')
+record(
+  'Drive project discovery remains workspace-identifiable, observable, bounded, and content-free',
+  driveDiscoverySource.includes('MAX_DIAGNOSTIC_PROJECTS = 200') &&
+    driveDiscoverySource.includes('descriptor.workspaceId !== workspace.id') &&
+    driveDiscoverySource.includes('Shared-project discovery checked folder') &&
+    driveDiscoveryTestSource.includes('distinguishes same-name Drive folders') &&
+    driveDiscoveryTestSource.includes("not.toContain('Secret project title')") &&
+    text('frontend/src/workspace/DriveProjectControls.tsx').includes('Shared-project refresh failed:') &&
+    text('frontend/src/components/GoogleDriveButton.tsx').includes('driveWorkspaceOptionLabel(option)') &&
+    text('frontend/src/automationBridge.ts').includes("case 'drive.inspectProjectDiscovery'") &&
+    mcpSource.includes('"inspect_drive_project_discovery" => live("drive.inspectProjectDiscovery"'),
+  'same-name folder codes, explicit refresh outcomes, 200-identity cap, no titles/content/tokens/file IDs, MCP/LAN route, and hostile workspace mismatch fixture are present',
 )
 const researchInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
 const researchInspectionTestSource = text('frontend/src/workspace/researchStateInspection.test.ts')

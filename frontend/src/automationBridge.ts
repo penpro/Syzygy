@@ -17,6 +17,7 @@ import type { ScenarioAnnotation, ScenarioAnnotationKind } from './workspace/sce
 import type { ScenarioLabel, ScenarioLabelAssignment } from './workspace/scenarioLabelModel'
 import type { ResearchScenario, ScenarioStatus, ScenarioTurn, ScenarioTurnRole } from './workspace/scenarioModel'
 import type { ScenarioVoteChoice } from './workspace/scenarioVoteModel'
+import { refreshDriveProjectDiscovery } from './workspace/driveProjectDiscovery'
 import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
 import { restoreAutomationPolicyVersion, saveAutomationPolicyVersion } from './workspace/versionAutomation'
 
@@ -90,6 +91,10 @@ export async function dispatchAutomationRequest(
         activeProjectId: state.activeProjectId,
         projects: state.projects.map((project) => summarizeProject(project, state.activeProjectId)),
       }
+    case 'drive.inspectProjectDiscovery': {
+      const result = await refreshDriveProjectDiscovery()
+      return { discovery: result.diagnostic }
+    }
     case 'project.create': {
       const title = requiredString(params, 'title')
       const projectId = state.createProject(title)

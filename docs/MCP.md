@@ -7,8 +7,9 @@ window, which remains the owner of project navigation, Lexical editor state, Yjs
 
 This is an automation and interoperability surface, not a claim that unfinished research
 features exist. `syzygy_status`, `workspace_walkthrough`, and `inspect_research_state` explicitly
-report the difference between usable domain foundations and the still-disabled version controls,
-scenario UI, evaluation, Drive project transport, and real-time presence slices. Guarded scenario/
+report the difference between usable domain foundations and unfinished model-generation, evaluation,
+and real-time-presence slices. `inspect_drive_project_discovery` is a separate explicit, content-free
+selected-workspace metadata read for comparing physical installations. Guarded scenario/
 branch/turn mutation, aggregate voting, and flag/note lifecycle are narrow automation surfaces.
 
 ## Connect an MCP host
@@ -52,6 +53,7 @@ Recommended first instruction to an MCP-capable model:
 | `syzygy_platform_contracts` | no | Provider-run, custom-adapter, public adversarial-run, and plugin schemas, honest runtime status, and self-check commands; works without the GUI |
 | `workspace_walkthrough` | no | State-aware explanation of the current use case and next step |
 | `list_projects` | no | Stable IDs, titles, archive state, transport, active project |
+| `inspect_drive_project_discovery` | no | Explicitly refreshes selected-workspace shared-project metadata; returns short folder code, bounded project/document identities, count, truncation, and time without tokens, Drive file IDs, titles, or document content |
 | `create_project` | yes | Creates and opens a local project with a non-empty title |
 | `open_project` | navigation | Opens a non-archived project by stable ID |
 | `rename_project` | yes | Changes project metadata only |
@@ -109,8 +111,11 @@ MCP host
 - This protects against remote/LAN callers and blind browser requests. It is not a sandbox from
   malware already executing as the same OS user; such a process can already access the user's
   local app data and input devices.
-- MCP tools do not receive ambient Drive, filesystem, or local-model authority. Future tools for
-  those systems need their own typed proposal/confirmation contracts.
+- MCP tools do not receive ambient filesystem or local-model authority. Drive access is absent unless
+  the caller explicitly invokes `inspect_drive_project_discovery`; that narrow read uses the selected
+  workspace boundary and returns only bounded project identity metadata. It exposes no OAuth token,
+  Drive file ID, title, or document content and cannot mutate Drive or project state. Future tools for
+  broader Drive, filesystem, or model actions need their own typed proposal/confirmation contracts.
 - `inspect_research_state` is read-only and content-minimized. It checks the same live Y.Doc owned
   by the editor/local provider, caps returned items, and has no scenario/label/heuristic/version/document mutation
   path. Titles, attribution, IDs, counts, and timestamps are metadata and may be returned; policy
@@ -209,7 +214,7 @@ It fails unless:
 2. replace/append operations change the same editor and reject a stale revision;
 3. the loopback parser accepts an authenticated request and rejects browser origins;
 4. MCP initialization negotiates the current `2025-11-25` protocol revision;
-5. all twenty-one semantic tools are discoverable and route to their intended live operation;
+5. all twenty-six semantic tools are discoverable and route to their intended live operation, including the bounded Drive project-discovery diagnostic;
 6. self-description returns absolute paths and copy-ready configuration without a GUI;
 7. platform contracts parse, keep provider-run/adversarial/plugin schemas strict, and do not
    overstate unimplemented runtimes; and

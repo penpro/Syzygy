@@ -92,7 +92,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, and immutable history. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. On any conflict, read again and reconcile. Never claim unavailable scenario gallery/voting/annotation/label UI, model generation, restore UI, Drive project transport, or real-time presence are available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, and immutable history. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. On any conflict, read again and reconcile. Never claim model generation or real-time collaborator presence is available."
             })
         }
         "ping" => json!({}),
@@ -122,6 +122,7 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
     let operation = match name {
         "syzygy_status" => live("app.inspect", json!({})),
         "list_projects" => live("project.list", json!({})),
+        "inspect_drive_project_discovery" => live("drive.inspectProjectDiscovery", json!({})),
         "workspace_walkthrough" => live("workspace.walkthrough", json!({})),
         "create_project" => live("project.create", arguments),
         "open_project" => live("project.open", arguments),
@@ -198,6 +199,11 @@ fn tool_definitions() -> Vec<Value> {
         tool(
             "list_projects",
             "List live Syzygy research projects, including stable IDs, titles, archive state, transport, and which project is active.",
+            object_schema(&[], &[]),
+        ),
+        tool(
+            "inspect_drive_project_discovery",
+            "Refresh the selected Drive workspace's shared-project manifests and return only its short folder code, project/document identities, count, truncation state, and check time. This explicit read returns no OAuth token, Drive file ID, project title, or document content.",
             object_schema(&[], &[]),
         ),
         tool(
@@ -605,6 +611,7 @@ mod tests {
         assert!(names.contains(&"syzygy_platform_contracts"));
         assert!(names.contains(&"read_active_project"));
         assert!(names.contains(&"inspect_research_state"));
+        assert!(names.contains(&"inspect_drive_project_discovery"));
         assert!(names.contains(&"create_scenario"));
         assert!(names.contains(&"add_scenario_turn"));
         assert!(names.contains(&"revise_scenario_turn"));
@@ -644,6 +651,25 @@ mod tests {
             "project-123"
         );
         assert_eq!(response["result"]["isError"], false);
+    }
+
+    #[test]
+    fn routes_drive_project_discovery_read_only() {
+        let response = dispatch_message(
+            &json!({
+                "jsonrpc": "2.0",
+                "id": "drive-discovery-1",
+                "method": "tools/call",
+                "params": { "name": "inspect_drive_project_discovery", "arguments": {} }
+            }),
+            &fake_live,
+        )
+        .unwrap();
+        assert_eq!(
+            response["result"]["structuredContent"]["method"],
+            "drive.inspectProjectDiscovery"
+        );
+        assert_eq!(response["result"]["structuredContent"]["params"], json!({}));
     }
 
     #[test]

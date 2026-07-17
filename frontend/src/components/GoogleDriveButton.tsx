@@ -14,6 +14,7 @@ import {
   type DriveWorkspace,
   type DriveWorkspaceOption,
 } from '../tauri'
+import { driveWorkspaceLabel, driveWorkspaceOptionLabel } from '../workspace/driveProjectDiscovery'
 
 /** The Drive folder every Syzygy instance shares (mirrored locally at Documents/Syzygy). */
 export const DRIVE_FOLDER = 'Syzygy'
@@ -88,8 +89,8 @@ export function GoogleDriveButton() {
         if (syzygyFolders.length === 1) {
           const selected = await googleDriveSelectWorkspace(syzygyFolders[0].id)
           setWorkspace(selected)
-          logInfo('drive', `Selected Drive workspace: ${selected.name}`)
-          showFlash('✅ Linked', `Linked as ${who}; workspace: ${selected.name}`)
+          logInfo('drive', `Selected Drive workspace: ${driveWorkspaceLabel(selected)}`)
+          showFlash('✅ Linked', `Linked as ${who}; workspace: ${driveWorkspaceLabel(selected)}`)
         } else {
           setWorkspaceOptions(options)
           setSelectedWorkspaceId(options[0]?.id ?? '')
@@ -160,8 +161,8 @@ export function GoogleDriveButton() {
       const selected = await googleDriveSelectWorkspace(selectedWorkspaceId)
       setWorkspace(selected)
       setShowWorkspace(false)
-      logInfo('drive', `Selected Drive workspace: ${selected.name}`)
-      showFlash('✅ Folder selected', `Direct Drive workspace: ${selected.name}`)
+      logInfo('drive', `Selected Drive workspace: ${driveWorkspaceLabel(selected)}`)
+      showFlash('✅ Folder selected', `Direct Drive workspace: ${driveWorkspaceLabel(selected)}`)
     } catch (e) {
       const msg = errorText(e)
       logError('drive', `Workspace selection failed: ${msg}`)
@@ -263,7 +264,7 @@ export function GoogleDriveButton() {
           <select value={selectedWorkspaceId} onChange={(event) => setSelectedWorkspaceId(event.target.value)}>
             {workspaceOptions.map((option) => (
               <option key={option.id} value={option.id}>
-                {option.name}
+                {driveWorkspaceOptionLabel(option)}
               </option>
             ))}
           </select>
@@ -335,11 +336,11 @@ export function GoogleDriveButton() {
       <span className="row" style={{ gap: 4, alignItems: 'center' }}>
         <button
           className="btn sm ghost"
-          title={`Linked as ${email} — choose the Drive folder used for direct collaboration`}
+          title={`Linked as ${email} — selected ${workspace ? driveWorkspaceLabel(workspace) : 'no Drive folder'}`}
           disabled={busy}
           onClick={openWorkspacePicker}
         >
-          📁 {workspace?.name ?? 'Choose Drive folder'}
+          📁 {workspace ? driveWorkspaceLabel(workspace) : 'Choose Drive folder'}
         </button>
         <button
           className="btn sm ghost"

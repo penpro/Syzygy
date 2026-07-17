@@ -62,6 +62,7 @@ persistence provider. See `LAN-MCP.md`.
 | `knowledge.rs` | Folder knowledge: chunking granted folders, relevance retrieval. |
 | `google_auth.rs` | OAuth loopback + PKCE, collaboration-scope gate, token storage/refresh, cancel. See `GOOGLE-DRIVE.md`. |
 | `google_drive.rs` | Selected-workspace boundary, recursive direct retrieval/native export, confirmed native-Sheet value writes, and optional mirror sync. See `GOOGLE-DRIVE.md`. |
+| `drive_projects.rs` | Append-only Drive project manifests and coalesced Yjs update records, strict identity/integrity bounds, and the live cleanup canary. |
 | `downloads.rs` | Resumable model downloads. |
 | `updates.rs` | App version for the in-app updater. |
 | `state.rs` | Shared state types (`Engine`, `Granted`, `KnowledgeCache`, …). |
@@ -137,10 +138,12 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
 
 ## Persistence map
 
-The frontend `workspace/` folder also defines one collaboration-provider lifecycle. IndexedDB is
-the current product persistence provider; a deterministic Memory provider exists only to prove
-two active documents converge through live edits, partitions, and reconnects. Future Drive and
-WebSocket implementations must pass the same contract before their capability status changes.
+The frontend `workspace/` folder defines one collaboration-provider lifecycle. IndexedDB remains
+the local durability layer. Local projects use it alone; Drive-bound projects add an append-only
+remote provider that polls immutable coalesced Yjs updates in the selected workspace and merges
+them through Yjs. A deterministic Memory provider remains the fast provider-contract fixture. The
+Drive provider publishes to the UI/MCP automation registry only after local reopen plus its initial
+remote pull, and a live canary proves the underlying Google create/list/readback/cleanup path.
 The local provider publishes its document to the UI/MCP automation registry only after IndexedDB
 synchronization and uses a connection generation guard so stale lifecycle continuations fail closed.
 Its `nodes/PolicyBlockNode.ts` is the first original domain editor node: stable identity and

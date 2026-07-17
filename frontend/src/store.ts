@@ -29,6 +29,8 @@ interface AppState {
   openProject: (id: string) => void
   archiveProject: (id: string) => void
   addImportedProject: (project: ResearchProjectManifest) => void
+  bindProjectToDrive: (id: string, workspaceId: string) => void
+  addSharedProject: (project: ResearchProjectManifest) => void
 
   // experts (rule sets for the Ask view)
   experts: Expert[]
@@ -107,6 +109,37 @@ export const useStore = create<AppState>()(
         }
         set({
           projects: [{ ...project, transport: { kind: 'local' } }, ...state.projects],
+          activeProjectId: project.id,
+          view: 'workspace',
+        })
+      },
+
+      bindProjectToDrive: (id, workspaceId) => {
+        if (!workspaceId.trim()) throw new Error('A selected Drive workspace is required')
+        const state = get()
+        const project = state.projects.find((candidate) => candidate.id === id)
+        if (!project || project.archivedAt !== undefined) throw new Error('Project is not available to share')
+        if (project.transport.kind === 'drive' && project.transport.workspaceId !== workspaceId) {
+          throw new Error('This project is already bound to a different Drive workspace')
+        }
+        set({
+          projects: state.projects.map((candidate) => candidate.id === id
+            ? { ...candidate, transport: { kind: 'drive', workspaceId }, updatedAt: now() }
+            : candidate),
+        })
+      },
+      addSharedProject: (value) => {
+        const project = parseProjectManifest(value)
+        if (project.transport.kind !== 'drive' || project.archivedAt !== undefined) {
+          throw new Error('Shared projects must be active Drive projects')
+        }
+        const state = get()
+        if (state.projects.some((candidate) =>
+          candidate.id === project.id || candidate.documentId === project.documentId)) {
+          throw new Error('This project already exists on this installation')
+        }
+        set({
+          projects: [project, ...state.projects],
           activeProjectId: project.id,
           view: 'workspace',
         })

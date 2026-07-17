@@ -22,6 +22,7 @@ import { $createHeadingNode, $createQuoteNode, HeadingNode, QuoteNode } from '@l
 import { useEffect, useMemo, useState } from 'react'
 import type { ResearchProjectManifest } from './schema'
 import { createLocalProviderFactory } from './localProvider'
+import { createDriveProviderFactory } from './driveProjectProvider'
 import { registerAutomationEditor } from './editorAutomation'
 import {
   MOVE_POLICY_BLOCK_COMMAND,
@@ -45,7 +46,7 @@ const editorTheme = {
   },
 }
 
-function Toolbar() {
+function Toolbar({ shared }: { shared: boolean }) {
   const [editor] = useLexicalComposerContext()
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
@@ -120,7 +121,7 @@ function Toolbar() {
       >Move ↓</button>
       <span className="research-toolbar-rule" aria-hidden="true" />
       <button type="button" disabled={!canRedo} onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}>Redo</button>
-      <span className="research-save-state mono">Local changes persist automatically</span>
+      <span className="research-save-state mono">{shared ? 'Drive shared · local copy persists' : 'Local changes persist automatically'}</span>
     </div>
   )
 }
@@ -132,7 +133,11 @@ function AutomationEditorRegistration({ projectId }: { projectId: string }) {
 }
 
 export function ResearchEditor({ project }: { project: ResearchProjectManifest }) {
-  const providerFactory = useMemo(() => createLocalProviderFactory(project), [project.documentId])
+  const transportKey = project.transport.kind === 'drive' ? `drive:${project.transport.workspaceId}` : 'local'
+  const providerFactory = useMemo(
+    () => project.transport.kind === 'drive' ? createDriveProviderFactory(project) : createLocalProviderFactory(project),
+    [project.documentId, project.id, transportKey],
+  )
   const initialConfig = useMemo(
     () => ({
       namespace: `syzygy-project-${project.documentId}`,
@@ -150,7 +155,7 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
     <LexicalCollaboration>
       <LexicalComposer initialConfig={initialConfig}>
         <AutomationEditorRegistration projectId={project.id} />
-        <Toolbar />
+        <Toolbar shared={project.transport.kind === 'drive'} />
         <ResearchTableOfContents />
         <div className="research-paper">
           <RichTextPlugin

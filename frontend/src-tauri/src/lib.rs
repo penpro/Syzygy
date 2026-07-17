@@ -4,6 +4,7 @@ mod automation;
 pub mod credential_vault;
 mod documents;
 mod downloads;
+pub mod drive_projects;
 mod engine;
 pub mod google_auth;
 pub mod google_drive;
@@ -137,6 +138,10 @@ pub fn run() {
             google_drive::google_drive_workspace,
             google_drive::google_drive_list_workspaces,
             google_drive::google_drive_select_workspace,
+            drive_projects::google_drive_project_publish,
+            drive_projects::google_drive_project_list,
+            drive_projects::google_drive_project_pull,
+            drive_projects::google_drive_project_push,
             google_drive::google_drive_mirror_dir,
             google_drive::google_drive_sync_folder,
             google_drive::google_drive_mirror_append_log,

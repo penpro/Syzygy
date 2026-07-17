@@ -83,8 +83,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - The same slice adds a provider-neutral collaboration lifecycle and a deterministic two-editor
   Memory transport. Its headless suite proves bidirectional live document/domain updates,
   partition isolation, offline edits, reconnect merging, awareness cleanup, and identical final
-  state. This is evidence for the provider contract, not a claim that Drive or WebSocket
-  collaboration has shipped.
+  state. The Drive implementation now uses that lifecycle for append-only selected-workspace updates;
+  WebSocket collaboration remains unimplemented.
 - The first original product node is now implemented but not yet interaction-verified: a Lexical
   `PolicyBlockNode` with stable
   identity, editable text, draft/review/approved state, strict JSON import, theme-token UI, and a
@@ -336,9 +336,10 @@ collaborators are not required to download large project folders.
    command have landed; next build the provider settings/task workflow and streaming event bridge.
    Build the adversarial benchmark before
    claiming panel quality; implement a no-authority WASI host before loading third-party code.
-4. **Real collaboration on the folder** — Yjs doc persisted in the synced folder;
-   merge-on-sync instead of last-write-wins; presence later. Drive is transport #1;
-   self-hosted y-websocket-compatible and P2P transports are siblings behind the same abstraction.
+4. **Harden collaboration beyond the first Drive transport** — append-only Yjs Drive sharing,
+   share/join UI, deterministic partition convergence, and a real Drive canary have landed. Next:
+   packaged two-install convergence, bounded compaction, conflict-safe shared rename, and presence.
+   Self-hosted y-websocket-compatible and P2P transports remain siblings behind the abstraction.
 5. **Independent research workflows on top** — scenarios, structured policy blocks,
    heuristics, evaluation, versions, and review, designed and prompted from scratch for
    Syzygy's local model.

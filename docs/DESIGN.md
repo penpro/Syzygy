@@ -112,7 +112,7 @@ editable in Settings and old attribution remains visually historical.
 Restore is a deliberate two-step action on a non-head checkpoint. **Prepare restore** reveals the
 exact short checkpoint ID, a cancel action, and **Restore as new version**. The copy states that the
 live draft is replaced, a new child is created on the current head, and existing versions remain.
-The UI must not imply that Drive CRDT transport, scenario generation/evaluation, or real-time presence already work.
+The UI identifies local versus Drive-shared projects precisely; scenario generation/evaluation and real-time presence remain unclaimed.
 
 Portable project movement is available from both the empty workspace and an open project. **Export
 project** stays disabled until the live collaboration document is ready; **Import project** remains
@@ -120,6 +120,15 @@ available with no project open. Archives use the visible `.syzygy-project.json` 
 cancel/success/failure in accessible live text, and open imports locally after validating identity,
 checksums, size, and existing-install collisions. Copy must not imply that an imported archive is
 still connected to another researcher's Drive folder or that credentials/model settings moved with it.
+
+
+Drive sharing is an explicit project action. **Share to Drive** is disabled until the live local
+document is ready, publishes its exact Yjs state into the selected workspace, and then remounts the
+same project identity on the Drive provider. With no project open, **Shared Drive projects** lists
+published manifests and offers **Join** unless the project/document identity already exists. The
+header reports connecting, synced time, error, or offline-copy state. Shared titles are read-only in
+this first transport slice because manifest rename has not been given a conflict-safe contract.
+The UI must not describe polling as real-time presence.
 
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,
 empty, integrity-error, and mutation-error states; creates and selects stable scenarios; edits title,
@@ -150,7 +159,7 @@ explanations stay in plain Plex Sans. Copy success is expressed in text, errors 
 and all cards, borders, states, and narrow-layout behavior use theme tokens.
 
 The copy must distinguish configuration from capability. A successful setup does not imply that
-unfinished versions, scenarios, Drive project transport, evaluation, or presence are available.
+unfinished evaluation or presence features are available. Drive project sharing is controlled in the Workspace UI and is not ambient MCP authority.
 It must also say that MCP does not automatically gain Drive, filesystem, or local-model authority.
 
 ## Future provider, panel, and plugin surfaces

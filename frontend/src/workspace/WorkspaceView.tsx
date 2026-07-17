@@ -1,4 +1,5 @@
 import { useStore } from '../store'
+import { DriveProjectControls } from './DriveProjectControls'
 import { ResearchEditor } from './ResearchEditor'
 import { RemoteResearchReview } from './RemoteResearchReview'
 import { PolicyVersionRail } from './PolicyVersionRail'
@@ -17,30 +18,37 @@ export function WorkspaceView() {
       <section className="workspace-empty" aria-labelledby="workspace-empty-title">
         <div className="workspace-kicker mono">Research workspace</div>
         <h1 id="workspace-empty-title">Turn evidence into a policy you can test.</h1>
-        <p>Create a local project now. Shared scenarios, Drive transport, evaluations, and versions will attach to this project without changing its identity.</p>
+        <p>Create a private local project, or join a project shared through the selected Google Drive workspace.</p>
         <div className="workspace-empty-actions">
           <button className="btn primary" type="button" onClick={() => createProject()}>Create research project</button>
           <ProjectArchiveControls />
         </div>
+        <DriveProjectControls />
       </section>
     )
   }
+
+  const shared = project.transport.kind === 'drive'
+  const editorKey = project.transport.kind === 'drive' ? project.documentId + ':drive:' + project.transport.workspaceId : project.documentId + ':local'
 
   return (
     <section className="workspace-shell">
       <header className="workspace-header">
         <div>
-          <div className="workspace-kicker mono">Local project · schema v{project.schemaVersion}</div>
+          <div className="workspace-kicker mono">{shared ? 'Drive shared project' : 'Local project'} · schema v{project.schemaVersion}</div>
           <input
             className="workspace-title-input"
             aria-label="Project title"
             value={project.title}
+            readOnly={shared}
+            title={shared ? 'Shared project titles are fixed in this transport version.' : undefined}
             onChange={(event) => renameProject(project.id, event.target.value)}
           />
         </div>
         <div className="workspace-header-actions">
+          <DriveProjectControls project={project} />
           <ProjectArchiveControls project={project} />
-          <span className="workspace-status mono">Local persistence · immutable history</span>
+          {!shared && <span className="workspace-status mono">Local persistence · immutable history</span>}
         </div>
       </header>
 
@@ -48,7 +56,7 @@ export function WorkspaceView() {
         <PolicyVersionRail project={project} />
 
         <div className="workspace-editor-column">
-          <ResearchEditor key={project.documentId} project={project} />
+          <ResearchEditor key={editorKey} project={project} />
         </div>
 
         <aside className="workspace-evaluate" aria-label="Scenario workspace">

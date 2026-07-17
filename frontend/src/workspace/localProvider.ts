@@ -23,6 +23,7 @@ export class LocalProjectProvider implements ProjectCollaborationProvider {
     readonly doc: Y.Doc,
     storageKey: string,
     private readonly projectId = doc.guid,
+    private readonly registerAutomation = true,
   ) {
     this.awareness = new Awareness(doc)
     this.persistence = new IndexeddbPersistence(storageKey, doc)
@@ -39,7 +40,9 @@ export class LocalProjectProvider implements ProjectCollaborationProvider {
     // A void lifecycle makes cleanup immediate; the readiness continuation is generation-safe.
     void this.persistence.whenSynced.then(() => {
       if (!this.connected || generation !== this.connectionGeneration) return
-      this.unregisterAutomation = registerAutomationProjectDocument(this.projectId, this.doc)
+      if (this.registerAutomation) {
+        this.unregisterAutomation = registerAutomationProjectDocument(this.projectId, this.doc)
+      }
       this.emit('sync', true)
       this.emit('status', { status: 'connected' })
     })

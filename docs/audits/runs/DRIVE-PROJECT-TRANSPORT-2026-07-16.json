@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-07-16",
+  "capabilities": ["P-12", "S-05"],
+  "status": "implemented_unverified",
+  "implementation": {
+    "remoteFormat": "selected workspace/.syzygy-projects/project-<id>/{manifest.json,updates/*.json}",
+    "mergeAuthority": "Yjs",
+    "localDurability": "IndexedDB",
+    "delivery": "three-second polling plus debounced append",
+    "identityPolicy": "stable projectId/documentId with one persisted workspace binding"
+  },
+  "automatedEvidence": [
+    {
+      "command": "npm exec -- vitest run src/workspace/driveProjectProvider.test.ts src/workspace/driveProjectStore.test.ts src/workspace/DriveProjectControls.ui.test.ts --reporter verbose",
+      "result": "3 files, 7 tests passed",
+      "proves": "partition/reconnect state-vector convergence, fail-closed malformed updates, store binding, and visible share/join/status controls"
+    },
+    {
+      "command": "cargo test drive_projects --manifest-path src-tauri/Cargo.toml",
+      "result": "2 native tests passed and drive-project-harness compiled",
+      "proves": "identity, schema, size, base64, SHA-256, and tamper rejection"
+    },
+    {
+      "command": "npm run test:drive-project-live",
+      "result": {
+        "passed": true,
+        "workspace": "Syzygy",
+        "projectListed": true,
+        "updatesRoundTripped": true,
+        "cleanupSucceeded": true
+      },
+      "proves": "real Google Drive create/list/readback/cleanup with two logical writers"
+    }
+  ],
+  "falsificationLimits": [
+    "The packaged build has not yet been exercised as one joined project on two physical installations.",
+    "Drive polling is not real-time presence.",
+    "The existing policy-block move-versus-concurrent-edit expected-failure remains unresolved and is not reclassified by this evidence.",
+    "Shared manifest rename and update compaction are not implemented."
+  ],
+  "sensitiveData": "No OAuth token, Drive file ID, research content, or canary payload is committed."
+}

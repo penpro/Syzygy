@@ -245,6 +245,19 @@ pub fn google_drive_workspace(app: tauri::AppHandle) -> Option<DriveWorkspace> {
     read_workspace(&app)
 }
 
+/// Return a fresh collaboration token and the exact persisted workspace after revalidating its
+/// folder identity. Drive-backed project transport never accepts an arbitrary folder id from the
+/// webview.
+pub(crate) async fn selected_workspace_access(
+    app: &tauri::AppHandle,
+) -> Result<(String, DriveWorkspace), String> {
+    require_collaboration_access(app)?;
+    let token = access_token(app).await?;
+    let saved = read_workspace(app).ok_or("Choose a Drive workspace before sharing projects.")?;
+    let workspace = folder_metadata(&token, &saved.id).await?;
+    Ok((token, workspace))
+}
+
 /// List folders the connected account can choose as the collaboration workspace. This command
 /// is intentionally unavailable to legacy app-file-only grants.
 #[tauri::command]

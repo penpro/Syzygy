@@ -3031,3 +3031,53 @@ input.workspace-title-input:focus {
   .workspace-header-actions { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
   input.workspace-title-input { width: min(74vw, 560px); }
 }
+
+
+.drive-project-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.drive-project-browser {
+  width: min(720px, 100%);
+  margin-top: 28px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+}
+.drive-project-browser-heading,
+.drive-project-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.drive-project-browser-heading p,
+.drive-project-message {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.drive-project-row {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.drive-project-row > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+.drive-project-row span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+}
+.drive-project-message.error,
+.workspace-status.error {
+  color: var(--error);
+}

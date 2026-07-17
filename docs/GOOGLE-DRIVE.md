@@ -74,6 +74,26 @@ never treated as evidence.
 The local model sees only the resulting text labels/passages. It never receives an OAuth token or
 an ambient Drive tool.
 
+
+## Shared research projects (`drive_projects.rs`)
+
+The selected workspace now contains an app-owned `.syzygy-projects` folder. Each published project
+has an immutable schema-v1 `manifest.json` and an `updates/` folder of content-addressed,
+append-only update envelopes. A writer never replaces another writer's project state. The frontend
+coalesces local Yjs updates, appends them, polls unseen Drive file IDs, validates base64/identity/
+SHA-256/size bounds in Rust, and gives the decoded updates to Yjs as the merge authority. IndexedDB
+remains the local offline cache.
+
+**Share to Drive** publishes the current full Yjs state before changing the persisted transport
+binding. **Join** constructs the same project/document identity from the remote manifest and pulls
+before registering the document for UI/MCP automation. The product reports connecting, synced,
+error, and disconnected states; it does not claim presence or sub-second real-time delivery.
+
+`npm run test:drive-project-live` creates a temporary project through the real Google endpoints,
+appends two logical-writer records, lists/reads them back, and trashes the project folder. The
+2026-07-16 run passed listing, round-trip, and cleanup. The deterministic frontend provider fixture
+separately proves Yjs state-vector equality after offline edits and reconnect.
+
 ## The folder mirror (what makes Drive a first-class destination)
 
 > **Current behavior:** Shared-folder Ask reads directly, logs transcripts through Drive, and can
@@ -134,10 +154,12 @@ typed Sheet action is exposed by v0.1.7.
 ## Known limitations / next steps
 
 - Sync is manual + event-triggered; no watcher/interval yet.
-- Last-write-wins whole files — fine for docs, not for concurrent editing. Real-time
-  collab needs CRDT state (Yjs) in the folder with merge instead of LWW.
-- Conflicting simultaneous writes to the same file lose the older write silently.
-- One selected workspace at a time; per-project provider bindings are Phase 4 work.
+- The optional human-readable mirror remains last-write-wins; shared research projects do not use
+  it and instead merge append-only Yjs updates.
+- Drive project delivery is polling-based (currently three seconds), not presence or sub-second
+  real-time collaboration.
+- One selected workspace at a time. Each project binding records that workspace ID and fails closed
+  if code attempts to rebind it silently. Shared manifest rename and compaction are not yet exposed.
 - Native Google Docs and Slides remain read-only research sources in Ask. Native Sheet support is
   currently literal rectangular value replacement from one starting cell; formatting, formulas,
   named-tab selection, structural edits, and conflict-aware revision controls are not yet exposed.

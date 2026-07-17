@@ -98,8 +98,9 @@ the live automation registry until that IndexedDB merge finishes. Migration test
 store v3 to rewrite the generated researcher ID once, preserve an existing ID/name, and reject a
 future store version. The version-rail component contract separately requires corrupt history to
 replace stale results with an alert and a disabled save action against unverified state.
-It does **not** yet prove two-machine rich text convergence or Drive transport; those
-remain separate capability gates.
+`driveProjectProvider.test.ts` now proves two logical installations converge through the Drive
+provider contract, including independent offline edits and reconnect. This remains distinct from a
+two-physical-install packaged gate and from the known policy-block move-versus-edit expected failure.
 
 Portable archives are covered by `projectArchive.test.ts` and
 `ProjectArchiveControls.ui.test.ts`. The domain fixture exports the exact Yjs state, reopens every
@@ -473,6 +474,24 @@ npm run test:drive-write-live
 The harness creates a temporary native Sheet in the selected workspace, writes a deterministic
 20×10 grid, reads all 200 cells back independently, compares them, and trashes the probe. It uses
 the normal Rust-owned grant, prints no token or cell content, and exits nonzero if cleanup fails.
+
+
+## Headless Drive shared-project proof
+
+After linking Drive and choosing a workspace, run the real transport canary:
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm run test:drive-project-live
+```
+
+The bounded harness uses the normal stored grant and selected workspace. It creates one temporary
+project, appends records from two logical writers, independently lists and reads both records, and
+trashes the temporary project folder. It prints no token, file ID, or research content and exits
+nonzero if cleanup fails. Pair it with `driveProjectProvider.test.ts`: the live canary proves the
+Google transport path, while the deterministic frontend fixture proves actual Yjs merge and equal
+state vectors after partition/reconnect. Neither alone claims real-time cursors or the unresolved
+partitioned structural move-versus-edit case.
 
 ## Release (the iteration loop)
 

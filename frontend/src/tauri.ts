@@ -355,6 +355,54 @@ export const googleDriveListWorkspaces = (): Promise<DriveWorkspaceOption[]> => 
 export const googleDriveSelectWorkspace = (folderId: string): Promise<DriveWorkspace> =>
   invoke('google_drive_select_workspace', { folderId })
 
+export interface DriveProjectDescriptor {
+  schemaVersion: 1
+  projectId: string
+  documentId: string
+  title: string
+  createdAt: number
+  workspaceId: string
+}
+
+export interface DriveProjectUpdate {
+  id: string
+  updateBase64: string
+}
+
+export interface DriveProjectPullResult {
+  updates: DriveProjectUpdate[]
+}
+
+export const googleDriveProjectPublish = (
+  projectId: string,
+  documentId: string,
+  title: string,
+  createdAt: number,
+  initialUpdateBase64: string,
+): Promise<DriveProjectDescriptor> => invoke('google_drive_project_publish', {
+  projectId, documentId, title, createdAt, initialUpdateBase64,
+})
+
+export const googleDriveProjectList = (): Promise<DriveProjectDescriptor[]> =>
+  invoke('google_drive_project_list')
+
+export const googleDriveProjectPull = (
+  projectId: string,
+  documentId: string,
+  knownUpdateIds: string[],
+): Promise<DriveProjectPullResult> => invoke('google_drive_project_pull', {
+  projectId, documentId, knownUpdateIds,
+})
+
+export const googleDriveProjectPush = (
+  projectId: string,
+  documentId: string,
+  clientId: string,
+  updateBase64: string,
+): Promise<{ updateId: string }> => invoke('google_drive_project_push', {
+  projectId, documentId, clientId, updateBase64,
+})
+
 /** The local mirror of the shared Drive folder (Documents/Syzygy), created + granted on demand. */
 export const googleDriveMirrorDir = (): Promise<string> => invoke('google_drive_mirror_dir')
 

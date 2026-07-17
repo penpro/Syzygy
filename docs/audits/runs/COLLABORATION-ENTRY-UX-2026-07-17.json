@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-07-17",
+  "subject": "collaboration-entry-ux",
+  "result": "passed_with_visual_qa_blocked",
+  "implementationClaims": [
+    "Drive connection and exact-folder selection are reachable from the research workspace without opening Ask.",
+    "The global sidebar exposes a permanent Drive destination and a Drive & shared projects action.",
+    "Every open local project distinguishes ongoing Drive collaboration from an independent offline archive.",
+    "Local project transport changes only after the existing full-state Drive publish succeeds."
+  ],
+  "automatedEvidence": {
+    "focusedHeadlessUi": {
+      "testFilesPassed": 4,
+      "testsPassed": 9
+    },
+    "supervisedCheckRun": "20260717-085959-454ef1",
+    "fullFrontend": {
+      "testFilesPassed": 55,
+      "testFilesSkipped": 1,
+      "testsPassed": 242,
+      "expectedFailures": 1,
+      "testsSkipped": 1
+    },
+    "productionFrontendBuild": "passed",
+    "repositoryAudit": "passed",
+    "nativeCompile": "passed",
+    "supervisedPackageRun": {
+      "runId": "20260717-090321-c6310a",
+      "appVersion": "0.1.16",
+      "installer": "Syzygy_0.1.16_x64-setup.exe",
+      "packagedMcpToolCount": 26,
+      "result": "passed"
+    }
+  },
+  "visualEvidence": {
+    "status": "not_run",
+    "reason": "The in-app browser runtime was blocked before launch by the Windows ACL sandbox helper. No fallback browser was substituted."
+  },
+  "nonClaims": [
+    "This does not prove a real Google publish, Join, or two-install convergence.",
+    "Export offline copy is not live synchronization.",
+    "The LAN MCP control plane does not synchronize project Yjs state."
+  ]
+}

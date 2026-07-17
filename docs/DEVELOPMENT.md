@@ -530,9 +530,21 @@ mode: the primary reported folder code `L7ybUosw` and one project while the seco
 `workspace: null` and zero projects. Neither test alone claims real-time cursors or the unresolved
 partitioned structural move-versus-edit case.
 
+The collaboration-entry UI has a separate engine-free headless contract:
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm test -- src/components/Sidebar.ui.test.ts src/workspace/DriveProjectControls.ui.test.ts src/workspace/ProjectArchiveControls.ui.test.ts src/workspace/WorkspaceView.ui.test.ts
+```
+
+It proves that Drive setup is reachable outside Ask, a local project exposes live sharing, and
+portable export/import is labeled as an offline non-syncing copy. It does not prove Google
+transport.
+
 ## Release (the iteration loop)
 
 1. Land the work; checks green.
+
 2. `npm run bump patch` (syncs package.json, package-lock ×2, tauri.conf.json,
    Cargo.toml, Cargo.lock — all five must stay in lockstep).
 3. Commit → `git push origin main` → `git tag vX.Y.Z` → `git push origin vX.Y.Z`.

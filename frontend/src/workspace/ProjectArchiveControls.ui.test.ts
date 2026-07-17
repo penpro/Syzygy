@@ -30,19 +30,19 @@ describe('portable project archive UI contract', () => {
   it('offers export and import with an accessible archive label', () => {
     const html = render()
     expect(html).toContain('aria-label="Portable project archive"')
-    expect(html).toContain('Export project')
-    expect(html).toContain('Import project')
+    expect(html).toContain('Export offline copy')
+    expect(html).toContain('Import offline copy')
   })
 
   it('keeps import available without an existing project', () => {
     const html = render({ project: null, documentReady: false })
-    expect(html).not.toContain('Export project')
-    expect(html).toContain('Import project')
+    expect(html).not.toContain('Export offline copy')
+    expect(html).toContain('Import offline copy')
   })
 
   it('disables export until the live document is ready and reports failures', () => {
     const preparing = render({ documentReady: false })
-    expect(preparing).toContain('Export project</button>')
+    expect(preparing).toContain('Export offline copy</button>')
     expect(preparing).toContain('disabled=""')
     expect(preparing).toContain('Preparing project data…')
 

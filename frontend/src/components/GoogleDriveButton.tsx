@@ -26,8 +26,8 @@ const SCOPE_PROBLEM = /insufficient|scope|checkbox|drive access|collaboration ac
 const errorText = (error: unknown) => (error as { message?: string })?.message ?? String(error)
 
 /**
- * Compact Google Drive control for the Ask top bar (lives next to the folder grant).
- * Auth + a create-folder smoke test for now; the shared-folder sync layer builds on this.
+ * Reusable Google Drive connection, workspace-selection, and optional-mirror control.
+ * It appears in Ask and the research collaboration surfaces so OAuth is never AI-menu-only.
  * The OAuth flow and tokens live entirely in the Rust core — this only sees the email.
  */
 export function GoogleDriveButton() {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import * as Y from 'yjs'
 import {
+  googleOauthConnection,
   googleDriveProjectDiscover,
   googleDriveProjectPublish,
   googleDriveSelectWorkspace,
@@ -66,6 +67,15 @@ export function DriveProjectControls({ project }: { project?: ResearchProjectMan
     setError('')
     setMessage('')
     try {
+      const connection = await googleOauthConnection()
+      if (!connection?.collaborationAccess) {
+        setWorkspace(null)
+        setAvailable([])
+        setMessage(connection
+          ? 'Re-link Google Drive with collaboration access, then refresh shared projects.'
+          : 'Link Google Drive above, then refresh to find shared projects.')
+        return
+      }
       const [selected, catalog] = await Promise.all([
         googleDriveWorkspace(),
         googleDriveProjectDiscover(),
@@ -98,7 +108,7 @@ export function DriveProjectControls({ project }: { project?: ResearchProjectMan
     setMessage('')
     try {
       const selected = await googleDriveWorkspace()
-      if (!selected) throw new Error('Link Google Drive and choose a shared workspace in Settings first.')
+      if (!selected) throw new Error('Link Google Drive above and choose a shared folder first.')
       const doc = getAutomationProjectDocument(project.id)
       const descriptor = await googleDriveProjectPublish(
         project.id,
@@ -152,8 +162,8 @@ export function DriveProjectControls({ project }: { project?: ResearchProjectMan
   if (project) {
     return (
       <div className="drive-project-controls">
-        <button className="btn sm" type="button" disabled={busy || !documentReady} onClick={() => void share()}>
-          {busy ? 'Sharing…' : 'Share to Drive'}
+        <button className="btn primary sm" type="button" disabled={busy || !documentReady} onClick={() => void share()}>
+          {busy ? 'Sharing…' : 'Share this project'}
         </button>
         {!documentReady && <span className="workspace-status mono">Preparing local project…</span>}
         {message && <span className="drive-project-message">{message}</span>}

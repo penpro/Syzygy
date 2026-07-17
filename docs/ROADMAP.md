@@ -339,7 +339,12 @@ collaborators are not required to download large project folders.
 4. **Harden collaboration beyond the first Drive transport** — append-only Yjs Drive sharing,
    share/join UI, deterministic partition convergence, and a real Drive canary have landed. Next:
    packaged two-install convergence, bounded compaction, conflict-safe shared rename, and presence.
-   The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state. v0.1.14 added same-name folder codes and the bounded MCP/LAN diagnostic; the two-physical-install run then proved the client had no selected workspace rather than a failed project upload. The next patch lets the explicit browser find bounded Syzygy-owned roots before selection and makes Join persist the exact parent folder. Packaged two-install discovery, Join, and convergence still decide the gate.   Self-hosted y-websocket-compatible and P2P transports remain siblings behind the abstraction.
+   The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.
+   v0.1.14 added same-name folder codes and the bounded MCP/LAN diagnostic; the two-physical-install
+   run then proved the client had no selected workspace rather than a failed project upload.
+   v0.1.15 added bounded cross-workspace discovery and exact-parent Join. The current follow-up makes
+   Drive setup globally reachable and separates live sharing from offline-copy handoff in product
+   copy. Packaged two-install Join and convergence still decide the gate. Self-hosted y-websocket-compatible and P2P transports remain siblings behind the abstraction.
 5. **Independent research workflows on top** — scenarios, structured policy blocks,
    heuristics, evaluation, versions, and review, designed and prompted from scratch for
    Syzygy's local model.

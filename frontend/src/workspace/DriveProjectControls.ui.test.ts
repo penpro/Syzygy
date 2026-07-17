@@ -24,7 +24,7 @@ describe('Drive project controls UI contract', () => {
 
   it('keeps sharing disabled until the local collaborative document is ready', () => {
     const html = renderToStaticMarkup(createElement(DriveProjectControls, { project: localProject }))
-    expect(html).toContain('Share to Drive')
+    expect(html).toContain('Share this project')
     expect(html).toContain('Preparing local project')
     expect(html).toContain('disabled')
   })

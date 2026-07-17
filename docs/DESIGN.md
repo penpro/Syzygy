@@ -115,15 +115,23 @@ live draft is replaced, a new child is created on the current head, and existing
 The UI identifies local versus Drive-shared projects precisely; scenario generation/evaluation and real-time presence remain unclaimed.
 
 Portable project movement is available from both the empty workspace and an open project. **Export
-project** stays disabled until the live collaboration document is ready; **Import project** remains
-available with no project open. Archives use the visible `.syzygy-project.json` suffix, report
+offline copy** stays disabled until the live collaboration document is ready; **Import offline
+copy** remains available with no project open. Archives use the visible `.syzygy-project.json` suffix, report
 cancel/success/failure in accessible live text, and open imports locally after validating identity,
 checksums, size, and existing-install collisions. Copy must not imply that an imported archive is
 still connected to another researcher's Drive folder or that credentials/model settings moved with it.
+The project sharing strip explicitly says offline copies do not keep syncing.
 
 
-Drive sharing is an explicit project action. The sidebar keeps **Browse shared projects** visible even while another project is open; it switches to discovery without archiving, deleting, or changing that project. **Share to Drive** is disabled until the live local
-document is ready, publishes its exact Yjs state into the selected workspace, and then remounts the
+Drive connection belongs to the research workspace as well as Ask. The sidebar keeps a permanent
+**Drive** destination plus **Drive & shared projects** in the project list; both switch to the
+project/collaboration home without archiving, deleting, or changing an existing project. That home
+shows account link, exact folder selection, optional mirror Sync, offline import, and shared-project
+discovery together.
+
+Drive sharing is an explicit project action. Every open local project shows a persistent
+**Project sharing** strip that distinguishes ongoing Drive collaboration from an independent offline
+copy. **Share this project** is disabled until the live local document is ready, publishes its exact Yjs state into the selected workspace, and then remounts the
 same project identity on the Drive provider. With no project open, **Shared Drive projects** explicitly
 searches bounded Syzygy-owned roots visible to the connected Google account; it must work before a
 workspace has been selected locally. Each row shows the exact parent folder name and short code and
@@ -133,6 +141,8 @@ ambiguous or unreadable roots, or a visible sanitized error; an empty list may n
 that did nothing. The header reports connecting, synced time, error, or offline-copy state. Shared titles are read-only in
 this first transport slice because manifest rename has not been given a conflict-safe contract.
 The UI must not describe polling as real-time presence.
+Live offline/LAN project synchronization is not implemented; the portable archive is a handoff that
+creates independent local state after import.
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,
 empty, integrity-error, and mutation-error states; creates and selects stable scenarios; edits title,
 background, and workflow state; appends ordered role/content turns; and exposes support, oppose,

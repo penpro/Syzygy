@@ -2376,6 +2376,58 @@ input.workspace-title-input:focus {
   align-items: center;
   gap: 10px;
 }
+.workspace-connection-card {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.workspace-connection-card > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+.workspace-connection-card p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12px;
+}
+.local-project-sharing {
+  flex: 0 0 auto;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 4%, var(--panel));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.project-sharing-copy {
+  display: grid;
+  max-width: 720px;
+  gap: 3px;
+}
+.project-sharing-copy strong {
+  color: var(--text);
+  font-size: 13px;
+}
+.project-sharing-copy p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.project-sharing-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .project-archive-file {
   position: absolute;
   width: 1px;
@@ -3030,6 +3082,9 @@ input.workspace-title-input:focus {
   .workspace-header { align-items: flex-start; }
   .workspace-header-actions { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
   input.workspace-title-input { width: min(74vw, 560px); }
+  .workspace-connection-card,
+  .local-project-sharing { align-items: flex-start; flex-direction: column; }
+  .project-sharing-actions { justify-content: flex-start; }
 }
 
 

@@ -38,11 +38,11 @@ export function ProjectArchiveControlsContent({
     <div className="project-archive-controls" aria-label="Portable project archive">
       {project && (
         <button className="btn" type="button" disabled={busy || !documentReady} onClick={onExport}>
-          Export project
+          Export offline copy
         </button>
       )}
       <button className="btn" type="button" disabled={busy} onClick={onChooseImport}>
-        Import project
+        Import offline copy
       </button>
       {(status || (project && !documentReady)) && !error && (
         <span className="project-archive-status mono" role="status" aria-live="polite">

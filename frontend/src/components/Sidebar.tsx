@@ -27,7 +27,7 @@ export function ProjectList({
   return (
     <div className="project-list">
       <button className="sidebar-empty-action" type="button" onClick={browseSharedProjects}>
-        Browse shared projects
+        Drive & shared projects
       </button>
       {activeProjects.length === 0 && (
         <button className="sidebar-empty-action" type="button" onClick={createProject}>
@@ -168,6 +168,10 @@ export function Sidebar({
       <div className="side-foot">
         <DownloadIndicator />
         <div className="foot-row">
+          <button className="foot-icon" title="Drive collaboration and shared projects" onClick={browseSharedProjects}>
+            <span className="foot-text-icon" aria-hidden="true">☁</span>
+            <span>Drive</span>
+          </button>
           <button className="foot-icon" title="Open Ask" onClick={() => setView('ask')}>
             <span className="foot-text-icon" aria-hidden="true">?</span>
             <span>Ask</span>

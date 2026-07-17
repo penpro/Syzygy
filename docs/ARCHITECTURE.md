@@ -111,7 +111,9 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
 - `components/` — Ask surface (`AskView`, `ExpertPicker/Editor`, `MessageInput`,
   `DocumentModal`, `FolderGrant`, `ImageFinderModal`), shell (`TitleBar`, `Sidebar`,
   `SettingsPanel`, `SetupWizard`, `SplashScreen`, `UpdateCheck`, `ModelsModal`,
-  `LogModal`), Drive (`GoogleDriveButton`), brand (`SyzygyMark`).
+  `LogModal`), Drive (`GoogleDriveButton`, reused by Ask, the global Drive/project destination,
+  and local-project sharing), brand (`SyzygyMark`). Drive connection is therefore not coupled to
+  an AI thread.
 - `workspace/` — schema-versioned project manifests, provider-neutral Yjs shared types,
   the local IndexedDB collaboration provider, an original Lexical policy editor, and the
   research workspace shell. Reserved Yjs collections hold scenarios, heuristics, immutable

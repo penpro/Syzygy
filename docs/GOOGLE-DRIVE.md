@@ -84,12 +84,20 @@ coalesces local Yjs updates, appends them, polls unseen Drive file IDs, validate
 SHA-256/size bounds in Rust, and gives the decoded updates to Yjs as the merge authority. IndexedDB
 remains the local offline cache.
 
-**Browse shared projects** is always available from the project sidebar and opens discovery without archiving the current project. Its explicit catalog query can locate only app-owned `.syzygy-projects` roots across Drive folders visible to the connected account, even when no workspace has been selected locally. Results show the parent folder name and short code; **Join** first validates and persists that exact parent as the single selected workspace, then registers the shared manifest. Ambiguous duplicate roots, orphan roots, unreadable roots, and global root/project counts over the documented bounds fail or are reported as skipped rather than silently rebinding a workspace. Selected-workspace research reads, writes, sync, publishing, polling, and MCP diagnostics remain unchanged and fail closed outside that one persisted folder.
+**Drive & shared projects** is always available from the project sidebar, with a second permanent
+**Drive** footer destination. Both open the collaboration home without archiving the current project.
+The same reusable connection control used by Ask is present there, so linking an account, choosing
+the exact folder, unlinking, and optional mirror Sync are not coupled to an AI menu. Direct access
+does not create a local mirror; only **Sync** does.
 
-**Share to Drive** publishes the current full Yjs state before changing the persisted transport
-binding. **Join** constructs the same project/document identity from the remote manifest and pulls
+The explicit catalog query can locate only app-owned `.syzygy-projects` roots across Drive folders visible to the connected account, even when no workspace has been selected locally. Results show the parent folder name and short code; **Join** first validates and persists that exact parent as the single selected workspace, then registers the shared manifest. Ambiguous duplicate roots, orphan roots, unreadable roots, and global root/project counts over the documented bounds fail or are reported as skipped rather than silently rebinding a workspace. Selected-workspace research reads, writes, sync, publishing, polling, and MCP diagnostics remain unchanged and fail closed outside that one persisted folder.
+
+Every local project shows a project-sharing strip. **Share this project** publishes the current full
+Yjs state before changing the persisted transport binding. **Join** constructs the same project/document identity from the remote manifest and pulls
 before registering the document for UI/MCP automation. The product reports connecting, synced,
 error, and disconnected states; it does not claim presence or sub-second real-time delivery.
+**Export offline copy** is separate: another installation can import it locally, but the copies have
+no ongoing synchronization.
 
 The explicit MCP tool `inspect_drive_project_discovery` invokes the same refresh through the live
 webview for LAN testing. It returns at most 200 project/document identities plus a short folder code,

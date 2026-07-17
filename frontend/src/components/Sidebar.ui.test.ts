@@ -26,7 +26,7 @@ describe('Sidebar project discovery', () => {
       browseSharedProjects: () => {},
     }))
 
-    expect(html).toContain('Browse shared projects')
+    expect(html).toContain('Drive &amp; shared projects')
     expect(html).toContain('Open research project')
   })
 })

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-07-17",
+  "status": "implemented_unverified",
+  "regression": "The v0.1.12 shared-project browser was reachable only when activeProjectId was null, but the product exposed no transition to that state after a project existed.",
+  "fix": {
+    "control": "Always-visible Browse shared projects sidebar action",
+    "stateTransition": "activeProjectId becomes null and view becomes workspace",
+    "preservation": "Existing projects and their archive state remain unchanged",
+    "statusCorrection": "MCP app inspection now reports Drive-backed project sharing as available"
+  },
+  "requiredEvidence": [
+    "driveProjectStore.test.ts proves the non-destructive transition",
+    "DriveProjectControls.ui.test.ts proves the discovery surface",
+    "production frontend and Tauri builds must pass",
+    "packaged two-install join remains the decisive physical gate"
+  ]
+}

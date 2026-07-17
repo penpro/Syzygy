@@ -27,6 +27,7 @@ interface AppState {
   createProject: (title?: string) => string
   renameProject: (id: string, title: string) => void
   openProject: (id: string) => void
+  browseSharedProjects: () => void
   archiveProject: (id: string) => void
   addImportedProject: (project: ResearchProjectManifest) => void
   bindProjectToDrive: (id: string, workspaceId: string) => void
@@ -85,6 +86,7 @@ export const useStore = create<AppState>()(
           ),
         })),
       openProject: (id) => set({ activeProjectId: id, view: 'workspace' }),
+      browseSharedProjects: () => set({ activeProjectId: null, view: 'workspace' }),
       archiveProject: (id) =>
         set((state) => {
           const archivedAt = now()

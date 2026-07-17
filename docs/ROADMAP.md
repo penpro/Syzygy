@@ -339,6 +339,7 @@ collaborators are not required to download large project folders.
 4. **Harden collaboration beyond the first Drive transport** — append-only Yjs Drive sharing,
    share/join UI, deterministic partition convergence, and a real Drive canary have landed. Next:
    packaged two-install convergence, bounded compaction, conflict-safe shared rename, and presence.
+   The v0.1.13 hotfix keeps shared-project discovery reachable from every active-project state and corrects MCP capability reporting.
    Self-hosted y-websocket-compatible and P2P transports remain siblings behind the abstraction.
 5. **Independent research workflows on top** — scenarios, structured policy blocks,
    heuristics, evaluation, versions, and review, designed and prompted from scratch for

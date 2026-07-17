@@ -489,8 +489,10 @@ The bounded harness uses the normal stored grant and selected workspace. It crea
 project, appends records from two logical writers, independently lists and reads both records, and
 trashes the temporary project folder. It prints no token, file ID, or research content and exits
 nonzero if cleanup fails. Pair it with `driveProjectProvider.test.ts`: the live canary proves the
-Google transport path, while the deterministic frontend fixture proves actual Yjs merge and equal
-state vectors after partition/reconnect. Neither alone claims real-time cursors or the unresolved
+Google transport path, while the deterministic frontend fixture proves actual Yjs merge, equal
+state vectors after partition/reconnect, and a non-destructive shared-project discovery transition
+from an existing active project. The sidebar control must remain available whenever any project is
+open. Neither test alone claims real-time cursors or the unresolved
 partitioned structural move-versus-edit case.
 
 ## Release (the iteration loop)

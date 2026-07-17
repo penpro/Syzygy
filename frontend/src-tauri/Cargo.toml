@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.1.12"
+version = "0.1.13"
 description = "Syzygy local-first collaborative research workspace"
 authors = ["Penumbra"]
 license = "MIT"

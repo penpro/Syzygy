@@ -1,10 +1,53 @@
 import { useState } from 'react'
 import { useStore } from '../store'
+import type { AppView } from '../types'
+import type { ResearchProjectManifest } from '../workspace/schema'
 import { DownloadIndicator } from './DownloadIndicator'
 import { TipRotator } from './TipRotator'
 import { useConfirm } from './ConfirmDialog'
 import { UI_ICONS } from '../uiIcons'
 import { cx, timeAgo } from '../util'
+
+export function ProjectList({
+  projects,
+  activeProjectId,
+  view,
+  createProject,
+  openProject,
+  browseSharedProjects,
+}: {
+  projects: ResearchProjectManifest[]
+  activeProjectId: string | null
+  view: AppView
+  createProject: () => string
+  openProject: (id: string) => void
+  browseSharedProjects: () => void
+}) {
+  const activeProjects = projects.filter((project) => !project.archivedAt)
+  return (
+    <div className="project-list">
+      <button className="sidebar-empty-action" type="button" onClick={browseSharedProjects}>
+        Browse shared projects
+      </button>
+      {activeProjects.length === 0 && (
+        <button className="sidebar-empty-action" type="button" onClick={createProject}>
+          Create your first project
+        </button>
+      )}
+      {activeProjects.map((project) => (
+        <button
+          type="button"
+          key={project.id}
+          className={cx('project-row', view === 'workspace' && project.id === activeProjectId && 'active')}
+          onClick={() => openProject(project.id)}
+        >
+          <span className="project-row-mark" aria-hidden="true">§</span>
+          <span>{project.title.trim() || 'Untitled research project'}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
 
 export function Sidebar({
   collapsed,
@@ -24,6 +67,7 @@ export function Sidebar({
   const activeProjectId = useStore((s) => s.activeProjectId)
   const createProject = useStore((s) => s.createProject)
   const openProject = useStore((s) => s.openProject)
+  const browseSharedProjects = useStore((s) => s.browseSharedProjects)
   const asks = useStore((s) => s.asks)
   const activeAskId = useStore((s) => s.activeAskId)
   const createAsk = useStore((s) => s.createAsk)
@@ -50,24 +94,14 @@ export function Sidebar({
             ＋
           </button>
         </div>
-        <div className="project-list">
-          {projects.filter((project) => !project.archivedAt).length === 0 && (
-            <button className="sidebar-empty-action" type="button" onClick={() => createProject()}>
-              Create your first project
-            </button>
-          )}
-          {projects.filter((project) => !project.archivedAt).map((project) => (
-            <button
-              type="button"
-              key={project.id}
-              className={cx('project-row', view === 'workspace' && project.id === activeProjectId && 'active')}
-              onClick={() => openProject(project.id)}
-            >
-              <span className="project-row-mark" aria-hidden="true">§</span>
-              <span>{project.title.trim() || 'Untitled research project'}</span>
-            </button>
-          ))}
-        </div>
+        <ProjectList
+          projects={projects}
+          activeProjectId={activeProjectId}
+          view={view}
+          createProject={createProject}
+          openProject={openProject}
+          browseSharedProjects={browseSharedProjects}
+        />
       </div>
       <div className="side-section grow">
         <div className="side-head">

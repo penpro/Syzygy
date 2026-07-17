@@ -17,6 +17,14 @@ afterEach(() => {
 })
 
 describe('Drive project store binding', () => {
+  it('opens shared-project discovery without archiving or changing existing projects', () => {
+    useStore.setState({ projects: [localProject], activeProjectId: localProject.id, view: 'ask' })
+    useStore.getState().browseSharedProjects()
+    expect(useStore.getState().projects).toEqual([localProject])
+    expect(useStore.getState().activeProjectId).toBeNull()
+    expect(useStore.getState().view).toBe('workspace')
+  })
+
   it('binds an existing local identity to exactly one selected workspace', () => {
     useStore.setState({ projects: [localProject] })
     useStore.getState().bindProjectToDrive(localProject.id, 'workspace-1')

@@ -71,6 +71,7 @@ export async function dispatchAutomationRequest(
             'local project identity',
             'local collaborative rich-text draft',
             'automatic IndexedDB persistence',
+            'Drive-backed project sharing with append-only Yjs merge and local offline persistence',
             'revision-guarded semantic MCP reads and writes',
             'read-only MCP integrity inspection for scenarios, votes, annotations, labels, heuristics, and immutable version history',
             'dual-revision-guarded MCP creation of immutable policy checkpoints',
@@ -79,7 +80,6 @@ export async function dispatchAutomationRequest(
           unavailable: [
             'version save, restore, and diff controls in the product UI; MCP restore remains unavailable',
             'scenario gallery/editing/voting UI and evaluation workflows',
-            'Drive-backed project CRDT transport',
             'real-time collaborator presence',
           ],
         },

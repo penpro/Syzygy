@@ -111,6 +111,14 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   TSX test discovery, focused suites, and production build pass. Packaged two-install pointer
   interaction remains unverified, so status is `implemented_unverified`.
   Evidence: `docs/audits/runs/SCENARIO-SPOTLIGHT-2026-07-18.json`.
+- P-07 now has a Penumbra-original collaborative response-revision domain. Human and model revisions
+  retain author/display-name snapshots, exact parents, timestamps, and provider/model/run provenance.
+  Stale edits fail before mutation; concurrent siblings remain inspectable and converge to one
+  deterministic projection; replay is idempotent; malformed graphs and disconnected root collisions
+  fail closed. Focused tests and the production build pass. A product editor and packaged two-client
+  interaction remain open, so status is `implemented_unverified`.
+  Evidence: `docs/audits/runs/SCENARIO-RESPONSE-2026-07-18.json`.
+
 - The first remote-model execution boundary is now headlessly testable with a bounded product caller.
   Rust constructs and normalizes an OpenAI Responses one-shot request, requires matching content
   disclosure, forces `store:false`, accepts only HTTPS or literal loopback test endpoints, bounds

@@ -202,6 +202,14 @@ plus `scenarioId`, and immutable checkpoints restore the live projection rather 
 of scenario content. Missing targets remain visible. Packaged two-install pointer interaction is not
 yet claimed.
 
+`scenarioResponseModel.ts` stores response revisions in its own versioned, peer-namespaced section
+of the shared discussions map, so existing Drive archives and Yjs transport carry them without a
+new top-level save shape. Every revision retains response/scenario identity, exact parent, content,
+author ID and display-name snapshot, timestamp, and human or provider/model/run provenance. Exact-
+current guards reject stale edits; concurrent sibling edits both survive and select a deterministic
+current projection. Reused identities, malformed graphs, and disconnected root collisions fail
+closed. This is the P-07 domain contract; no editable product panel is claimed yet.
+
 `heuristicsModel.ts` is the first non-editor shared research domain service. Each heuristic is a
 nested Y.Map so concurrent edits to different fields merge instead of replacing an opaque object;
 a nested edit map retains unique author/time/changed-field/value events. Reads validate and

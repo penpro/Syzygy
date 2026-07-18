@@ -189,6 +189,8 @@ const scenarioVersionAutomationTestSource = text('frontend/src/workspace/version
 const scenarioSpotlightSource = text('frontend/src/workspace/nodes/ScenarioSpotlightNode.tsx')
 const scenarioSpotlightTestSource = text('frontend/src/workspace/nodes/ScenarioSpotlightNode.test.ts')
 const scenarioVersionModelSource = text('frontend/src/workspace/policyVersionModel.ts')
+const scenarioResponseSource = text('frontend/src/workspace/scenarioResponseModel.ts')
+const scenarioResponseTestSource = text('frontend/src/workspace/scenarioResponseModel.test.ts')
 record(
   'scenario references retain stable identity across rename, collaboration, automation, and checkpoints',
   scenarioReferenceSource.includes("type: 'scenario-reference'") &&
@@ -226,6 +228,21 @@ record(
     editorLedgerSource.includes('"id": "P-06", "phase": 6, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-SPOTLIGHT-2026-07-18.json')),
   'stable-ID-only live projection, toolbar embed, link collapse, undo/redo, Yjs convergence, semantic marker, immutable restore, and truthful P-06 status are present',
+)
+record(
+  'editable scenario responses retain attributed revision history and model provenance',
+  scenarioResponseSource.includes('SCENARIO_RESPONSE_SCHEMA_VERSION = 1') &&
+    scenarioResponseSource.includes("RESPONSE_BUCKET_PREFIX = 'scenario-responses:v1:'") &&
+    scenarioResponseSource.includes('parentRevisionId: string | null') &&
+    scenarioResponseSource.includes("sourceKind === 'human'") &&
+    scenarioResponseSource.includes('Scenario response revision conflict') &&
+    scenarioResponseTestSource.includes('retains model provenance and every human edit attribution snapshot') &&
+    scenarioResponseTestSource.includes('retains concurrent sibling edits and converges deterministically') &&
+    scenarioResponseTestSource.includes('disconnected peers collide on response identity') &&
+    scenarioResponseTestSource.includes('detects hostile bucket mutation') &&
+    editorLedgerSource.includes('"id": "P-07", "phase": 6, "status": "implemented_unverified"') &&
+    existsSync(join(root, 'docs/audits/runs/SCENARIO-RESPONSE-2026-07-18.json')),
+  'versioned peer-namespaced events, exact-parent edits, human/model provenance, replay safety, concurrent sibling retention, collision failure, and truthful P-07 status are present',
 )
 
 const heuristicsModelSource = text('frontend/src/workspace/heuristicsModel.ts')

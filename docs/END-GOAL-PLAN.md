@@ -131,6 +131,13 @@ presentation transition through undo/redo and two-editor Yjs updates. Exact sema
 immutable checkpoint restore are covered headlessly. Packaged two-install pointer interaction
 remains open, so the capability is `implemented_unverified`.
 
+P-07 now has an original collaborative response-revision domain. Every human/model revision retains
+author and display-name snapshots, timestamp, exact parent, and provider/model/run provenance.
+Exact-current guards reject stale edits, concurrent siblings remain retained and deterministic,
+and malformed or colliding identity graphs fail closed. The visible editable response surface and
+packaged two-client interaction remain open, so the capability is `implemented_unverified`.
+
+
 P-04 now has a Penumbra-original typed Yjs domain service and deterministic headless evidence for
 concurrent add, independent field edit, attributed edit history, and delete-versus-edit without
 resurrection. This closes the data-model convergence slice only; the visible block editor,

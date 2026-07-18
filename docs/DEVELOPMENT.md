@@ -161,6 +161,13 @@ and two-editor Yjs embed/collapse convergence. The semantic editor suite require
 fixtures retain the stable spotlight identity. Vitest discovery explicitly includes both
 `.test.ts` and `.test.tsx`; the repository audit fails if either extension is dropped. The
 production TypeScript/Vite build is part of the same gate. Packaged pointer insertion and the
+physical two-install LAN/Drive run remain separate environment checks.
+
+`scenarioResponseModel.test.ts` is the P-07 domain gate. It proves immutable author/display-name
+snapshots, exact-parent edits, model provider/model/run provenance, replay safety, stale rejection,
+two-peer concurrent sibling retention, deterministic convergence, disconnected root collision
+failure, and hostile bucket validation. It does not prove a product editing panel, authenticated
+identity, or packaged two-client interaction.
 
 The same suite includes `heuristicsModel.test.ts`. Forty seeded delivery orders prove concurrent
 field edits retain both values and attribution events, and another forty prove concurrent additions

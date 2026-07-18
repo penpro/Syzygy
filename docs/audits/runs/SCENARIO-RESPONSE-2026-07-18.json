@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "capability": "P-07",
+  "date": "2026-07-18",
+  "status": "implemented_unverified",
+  "claim": "Editable shared responses retain author and version metadata.",
+  "verified": [
+    "Model-created revisions retain provider, model, run, author, display-name, and timestamp provenance",
+    "Human edits retain their own attribution snapshot and exact parent revision",
+    "Stale edits fail before mutation",
+    "Exact replay is idempotent and conflicting revision reuse fails closed",
+    "Concurrent sibling edits from two Yjs peers are both retained and converge deterministically",
+    "Disconnected response-root identity collisions and malformed provenance fail closed",
+    "Hostile bucket mutation is reported by the integrity inspector",
+    "Production TypeScript and Vite build passes"
+  ],
+  "headlessResults": {
+    "focusedTestFiles": 1,
+    "focusedTestsPassed": 5,
+    "focusedTestsFailed": 0,
+    "productionBuild": "passed",
+    "repositoryAudit": "passed"
+  },
+  "limitations": [
+    "No visible editable response panel is implemented yet.",
+    "Authenticated identity and packaged physical two-client interaction are not proven.",
+    "No provider call is performed by this domain model."
+  ],
+  "sources": [
+    "frontend/src/workspace/scenarioResponseModel.ts",
+    "frontend/src/workspace/scenarioResponseModel.test.ts"
+  ]
+}

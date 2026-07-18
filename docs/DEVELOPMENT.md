@@ -155,8 +155,12 @@ release gate for remote collaboration, not a passing convergence claim.
 round-trip, rejects missing identity, proves rename-safe live label resolution, and converges the
 reference across two Yjs-bound editors. `editorAutomation.test.ts` separately proves that the
 `[scenario:<stable-id>]` MCP/checkpoint marker reconstructs a semantic node and reports its ID.
-The production TypeScript/Vite build is part of the same gate. Packaged pointer insertion and the
-still-blocked physical two-install LAN/Drive run remain separate environment checks.
+`ScenarioSpotlightNode.test.ts` is the P-06 gate: stable-ID-only JSON, embed-to-link undo/redo,
+and two-editor Yjs embed/collapse convergence. The semantic editor suite requires exact
+`[spotlight:<stable-id>]` round-trip and rejects copied spotlight text; policy-version and restore
+fixtures retain the stable spotlight identity. Vitest discovery explicitly includes both
+`.test.ts` and `.test.tsx`; the repository audit fails if either extension is dropped. The
+production TypeScript/Vite build is part of the same gate. Packaged pointer insertion and the
 
 The same suite includes `heuristicsModel.test.ts`. Forty seeded delivery orders prove concurrent
 field edits retain both values and attribution events, and another forty prove concurrent additions

@@ -56,6 +56,7 @@ function indexedBlocks(blocks: VersionPolicyBlock[]): Map<string, { identity: st
     let matchKey: string
     let identity: string
     if (block.kind === 'policy') matchKey = identity = `policy:${block.policyId}`
+    else if (block.kind === 'spotlight') matchKey = identity = `spotlight:${block.scenarioId}`
     else {
       const value = blockValue(block)
       const occurrence = occurrences.get(value) ?? 0

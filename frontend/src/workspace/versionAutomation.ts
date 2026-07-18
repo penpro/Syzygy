@@ -50,6 +50,10 @@ const versionBlock = (block: AutomationEditorSnapshot['blocks'][number]): Versio
     if (!block.policyId || !block.status) throw new Error('Live policy block is missing identity or status')
     return { kind: block.kind, text: block.text, policyId: block.policyId, status: block.status }
   }
+  if (block.kind === 'spotlight') {
+    if (!block.scenarioId || block.text !== '') throw new Error('Live scenario spotlight is missing stable identity')
+    return { kind: 'spotlight', text: '', scenarioId: block.scenarioId }
+  }
   return { kind: block.kind, text: block.text }
 }
 

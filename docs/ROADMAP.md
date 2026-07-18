@@ -102,8 +102,15 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   titles resolve reactively from the project Y.Doc; missing targets stay visible. JSON reload,
   rename-safe rendering, two-editor Yjs convergence, MCP semantic-marker round-trip, and production
   build gates pass. Immutable checkpoints now retain the reference ID set. Packaged pointer
-  interaction remains unverified, and P-06 spotlight/embed behavior remains planned.
+  interaction remains unverified.
   Evidence: `docs/audits/runs/SCENARIO-REFERENCE-2026-07-17.json`.
+- P-06 now has a Penumbra-original block-level `ScenarioSpotlightNode`. The toolbar embeds the
+  selected scenario as a live Y.Doc projection and the card collapses back to its stable link.
+  Persisted/editor/version state contains only `scenarioId`; automation round-trips the exact
+  `[spotlight:<stable-id>]` marker. Undo/redo, two-editor Yjs convergence, immutable restore,
+  TSX test discovery, focused suites, and production build pass. Packaged two-install pointer
+  interaction remains unverified, so status is `implemented_unverified`.
+  Evidence: `docs/audits/runs/SCENARIO-SPOTLIGHT-2026-07-18.json`.
 - The first remote-model execution boundary is now headlessly testable with a bounded product caller.
   Rust constructs and normalizes an OpenAI Responses one-shot request, requires matching content
   disclosure, forces `store:false`, accepts only HTTPS or literal loopback test endpoints, bounds

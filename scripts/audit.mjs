@@ -24,9 +24,15 @@ function filesBelow(path, extensions) {
 
 const lock = JSON.parse(text('frontend/package-lock.json'))
 const frontendPackage = JSON.parse(text('frontend/package.json'))
+const vitestConfigSource = text('frontend/vitest.config.ts')
 const packageNames = Object.keys(lock.packages ?? {}).map((key) => key.replace(/^node_modules\//, ''))
 const forbiddenPackages = packageNames.filter((name) => /(^|\/)(@?tiptap|firebase|policy-?pad)(\/|$)/i.test(name))
 record('forbidden dependencies', forbiddenPackages.length === 0, forbiddenPackages.join(', ') || 'none')
+record(
+  'frontend test discovery includes TypeScript and TSX fixtures',
+  vitestConfigSource.includes("include: ['src/**/*.test.{ts,tsx}']"),
+  'the default Vitest gate discovers both .test.ts and .test.tsx files',
+)
 
 const expectedEditorDependencies = {
   lexical: '0.47.0',
@@ -180,6 +186,9 @@ const scenarioEditorAutomationSource = text('frontend/src/workspace/editorAutoma
 const scenarioEditorAutomationTestSource = text('frontend/src/workspace/editorAutomation.test.ts')
 const scenarioVersionAutomationSource = text('frontend/src/workspace/versionAutomation.ts')
 const scenarioVersionAutomationTestSource = text('frontend/src/workspace/versionAutomation.test.ts')
+const scenarioSpotlightSource = text('frontend/src/workspace/nodes/ScenarioSpotlightNode.tsx')
+const scenarioSpotlightTestSource = text('frontend/src/workspace/nodes/ScenarioSpotlightNode.test.ts')
+const scenarioVersionModelSource = text('frontend/src/workspace/policyVersionModel.ts')
 record(
   'scenario references retain stable identity across rename, collaboration, automation, and checkpoints',
   scenarioReferenceSource.includes("type: 'scenario-reference'") &&
@@ -199,6 +208,24 @@ record(
     editorLedgerSource.includes('"id": "P-05", "phase": 6, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-REFERENCE-2026-07-17.json')),
   'stable-ID-only node, live rename-safe projection, missing-target state, toolbar insertion, Yjs/JSON/semantic-marker fixtures, immutable reference retention, and truthful P-05 status are present',
+)
+record(
+  'scenario spotlights remain shared, undoable, live, and exact across automation and versions',
+  scenarioSpotlightSource.includes("type: 'scenario-spotlight'") &&
+    scenarioSpotlightSource.includes('scenarioId: this.__scenarioId') &&
+    scenarioSpotlightSource.includes('$unembedScenarioSpotlight') &&
+    scenarioSpotlightSource.includes('$createScenarioReferenceNode(node.getScenarioId())') &&
+    researchEditorSource.includes('Spotlight scenario') &&
+    researchEditorSource.includes('ScenarioSpotlightNode') &&
+    scenarioSpotlightTestSource.includes('undo/redo restores each presentation') &&
+    scenarioSpotlightTestSource.includes('converges embed and unembed across two Yjs-bound editors') &&
+    scenarioEditorAutomationSource.includes('[spotlight:') &&
+    scenarioEditorAutomationTestSource.includes('round-trips scenario spotlights as exact stable semantic blocks') &&
+    scenarioVersionModelSource.includes("block.kind === 'spotlight'") &&
+    scenarioVersionAutomationTestSource.includes("{ kind: 'spotlight', text: '', scenarioId: 'scenario-access' }") &&
+    editorLedgerSource.includes('"id": "P-06", "phase": 6, "status": "implemented_unverified"') &&
+    existsSync(join(root, 'docs/audits/runs/SCENARIO-SPOTLIGHT-2026-07-18.json')),
+  'stable-ID-only live projection, toolbar embed, link collapse, undo/redo, Yjs convergence, semantic marker, immutable restore, and truthful P-06 status are present',
 )
 
 const heuristicsModelSource = text('frontend/src/workspace/heuristicsModel.ts')

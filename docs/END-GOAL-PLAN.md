@@ -123,7 +123,13 @@ P-05 now has an original inline Lexical node and product insertion control. Only
 serialized; the visible title is derived from the shared scenario collection, and missing targets
 remain inspectable. Headless JSON, rename, semantic-marker, immutable-reference, and two-editor Yjs
 gates pass. Packaged pointer interaction remains open, so the capability is
-`implemented_unverified`; P-06 spotlight/embed behavior is still planned.
+`implemented_unverified`.
+
+P-06 now has an original block-level Lexical node and product control. It persists only the stable
+scenario ID, renders live scenario fields, collapses to the inline link, and preserves the
+presentation transition through undo/redo and two-editor Yjs updates. Exact semantic markers and
+immutable checkpoint restore are covered headlessly. Packaged two-install pointer interaction
+remains open, so the capability is `implemented_unverified`.
 
 P-04 now has a Penumbra-original typed Yjs domain service and deterministic headless evidence for
 concurrent add, independent field edit, attributed edit history, and delete-versus-edit without
@@ -360,7 +366,7 @@ Progress: collaborative scenario/turn/vote domain models and MCP routes now have
 product caller. The panel creates, selects, edits, and changes status for stable scenarios, appends
 ordered turns, casts or withdraws attributed votes, observes the live Y.Doc, rejects stale detail
 saves, and disables writes on graph-integrity failure. Turn revision editing, labels, branches UI,
-flags/notes, generation/regeneration, variants, examples, links/spotlight, evaluation, packaged
+flags/notes, generation/regeneration, variants, examples, evaluation, packaged
 interaction, authenticated identity, and two-client product validation remain open.
 
 

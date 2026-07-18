@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "capability": "P-06",
+  "date": "2026-07-18",
+  "status": "implemented_unverified",
+  "claim": "A scenario spotlight is shared, undoable, and stores only stable scenario identity.",
+  "verified": [
+    "Strict stable-ID-only Lexical JSON round-trip and missing-ID rejection",
+    "Embed-to-inline-link collapse with undo and redo",
+    "Two Yjs-bound editors converge after embed and collapse",
+    "Live scenario projection reads title, status, background, and turns without copying them into editor state",
+    "Semantic automation round-trips [spotlight:<stable-id>] as an exact block",
+    "Immutable checkpoints and restore retain the spotlight scenario ID",
+    "Default Vitest discovery includes both .test.ts and .test.tsx",
+    "Production TypeScript and Vite build passes"
+  ],
+  "headlessResults": {
+    "focusedTestFiles": 6,
+    "focusedTestsPassed": 35,
+    "focusedTestsFailed": 0,
+    "productionBuild": "passed",
+    "repositoryAudit": "passed"
+  },
+  "limitations": [
+    "Packaged pointer interaction has not been exercised on two physical installations.",
+    "This evidence does not claim real-time presence or prove the Drive transport path."
+  ],
+  "sources": [
+    "frontend/src/workspace/nodes/ScenarioSpotlightNode.tsx",
+    "frontend/src/workspace/nodes/ScenarioSpotlightNode.test.ts",
+    "frontend/src/workspace/editorAutomation.test.ts",
+    "frontend/src/workspace/versionAutomation.test.ts",
+    "frontend/src/workspace/policyVersionModel.test.ts"
+  ]
+}

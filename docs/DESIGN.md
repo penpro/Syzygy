@@ -166,8 +166,14 @@ A **scenario link** is inserted from a labeled toolbar selector and rendered as 
 chip. The chip stores no title snapshot: it resolves the current title from the shared project and
 shows a token-derived danger treatment plus stable ID when the target is missing. Renaming a
 scenario therefore updates every open chip without changing document history. The control is
-disabled while scenario data is loading or empty; spotlight/embed behavior remains a separate
-future action.
+disabled while scenario data is loading or empty.
+
+**Spotlight scenario** uses the same labeled selection and inserts a full-width paper card showing
+the live scenario title, state, background, and turns. The card uses theme-token borders and quiet
+panel tints, preserves long content, exposes its stable ID, and shows the same danger treatment for
+a missing target. **Collapse to scenario link** changes presentation without copying scenario
+content; the action is collaborative and undoable. The card must never imply that its projection is
+an independent scenario copy.
 
 ## MCP connection guide
 

@@ -32,6 +32,7 @@ import {
 } from './editorStructure'
 import { $createPolicyBlockNode, PolicyBlockNode } from './nodes/PolicyBlockNode'
 import { $createScenarioReferenceNode, ScenarioReferenceNode } from './nodes/ScenarioReferenceNode'
+import { $createScenarioSpotlightNode, ScenarioSpotlightNode } from './nodes/ScenarioSpotlightNode'
 import { ResearchTableOfContents } from './ResearchTableOfContents'
 import { ScenarioReferenceProvider, useScenarioReferenceState } from './ScenarioReferenceContext'
 
@@ -135,6 +136,18 @@ function Toolbar({ shared }: { shared: boolean }) {
         >
           Insert scenario link
         </button>
+        <button
+          type="button"
+          disabled={!scenarioId}
+          onClick={() => {
+            editor.update(
+              () => $getRoot().append($createScenarioSpotlightNode(scenarioId)),
+              { tag: 'syzygy-scenario-embed' },
+            )
+          }}
+        >
+          Spotlight scenario
+        </button>
       </span>
       <span className="research-toolbar-rule" aria-hidden="true" />
       <button type="button" aria-label="Bold" onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}><b>B</b></button>
@@ -179,7 +192,7 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
   const initialConfig = useMemo(
     () => ({
       namespace: `syzygy-project-${project.documentId}`,
-      nodes: [HeadingNode, QuoteNode, PolicyBlockNode, ScenarioReferenceNode],
+      nodes: [HeadingNode, QuoteNode, PolicyBlockNode, ScenarioReferenceNode, ScenarioSpotlightNode],
       editorState: null,
       theme: editorTheme,
       onError(error: Error) {

@@ -13,10 +13,11 @@ const manifest = createProjectManifest({ id: 'automation-version-project', docum
 const snapshot: AutomationEditorSnapshot = {
   projectId: manifest.id,
   revision: 'lexical-session-1-abcd1234',
-  text: '# Policy\n[policy:rule-1:review] Cite evidence.',
+  text: '# Policy\n[policy:rule-1:review] Cite evidence.\n[spotlight:scenario-access]',
   blocks: [
     { kind: 'heading1', text: 'Policy' },
     { kind: 'policy', policyId: 'rule-1', status: 'review', text: 'Cite evidence.' },
+    { kind: 'spotlight', text: '', scenarioId: 'scenario-access' },
   ],
   scenarioIds: ['scenario-access'],
 }
@@ -104,7 +105,7 @@ describe('automation policy version checkpoint', () => {
       ...input, expectedDocumentRevision: changed.revision, expectedHeadVersionId: root.version.versionId, createdAt: 20,
     }, () => changed)
     expect(child.version.parentVersionId).toBe(root.version.versionId)
-    expect(child.changeNote).toBe('1 change: 1 added, 0 removed, 0 changed, 0 moved; 2 unchanged.')
+    expect(child.changeNote).toBe('1 change: 1 added, 0 removed, 0 changed, 0 moved; 3 unchanged.')
   })
 
   it('restores the live semantic draft and creates its new immutable head in one Yjs transaction', async () => {
@@ -155,7 +156,7 @@ describe('automation policy version checkpoint', () => {
     expect(restored.version.policy.blocks).toEqual(root.version.policy.blocks)
     expect(restored.version.scenarioIds).toEqual(root.version.scenarioIds)
     expect(restored.document.blocks).toEqual(root.version.policy.blocks)
-    expect(restored.changeNote).toBe('1 change: 0 added, 0 removed, 1 changed, 0 moved; 1 unchanged.')
+    expect(restored.changeNote).toBe('2 changes: 1 added, 0 removed, 1 changed, 0 moved; 1 unchanged.')
     expect(readPolicyVersionHead(metadata)).toBe(restored.version.versionId)
     expect(versions.size).toBe(3)
     expect(observed).toEqual([{

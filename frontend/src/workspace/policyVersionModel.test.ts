@@ -45,6 +45,22 @@ describe('immutable policy version model', () => {
     expect(created.note).toBe('Initial review\ncheckpoint')
   })
 
+  it('preserves a scenario spotlight by stable identity and rejects copied scenario content', async () => {
+    const doc = createProjectDocument(manifest)
+    const versions = getProjectSharedTypes(doc).versions
+    const spotlight = { kind: 'spotlight' as const, text: '', scenarioId: 'scenario-a' }
+    const created = await createPolicyVersion(versions, {
+      ...rootInput,
+      blocks: [...rootInput.blocks, spotlight],
+      scenarioIds: ['scenario-a'],
+    })
+    expect(created.policy.blocks[created.policy.blocks.length - 1]).toEqual(spotlight)
+    await expect(createPolicyVersion(versions, {
+      ...rootInput,
+      blocks: [...rootInput.blocks, { ...spotlight, text: 'stale copied scenario' }],
+    })).rejects.toThrow('empty text')
+  })
+
   it('detects storage mutation and returns detached snapshots', async () => {
     const doc = createProjectDocument(manifest)
     const versions = getProjectSharedTypes(doc).versions

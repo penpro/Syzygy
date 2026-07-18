@@ -3,6 +3,7 @@ import { createEditor, $createParagraphNode, $createTextNode, $getRoot } from 'l
 import { HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { PolicyBlockNode } from './nodes/PolicyBlockNode'
 import { ScenarioReferenceNode } from './nodes/ScenarioReferenceNode'
+import { ScenarioSpotlightNode } from './nodes/ScenarioSpotlightNode'
 import {
   appendAutomationDocument,
   readAutomationEditor,
@@ -21,7 +22,7 @@ afterEach(() => {
 function registeredEditor(projectId = 'project-test') {
   const editor = createEditor({
     namespace: `automation-${projectId}`,
-    nodes: [HeadingNode, QuoteNode, PolicyBlockNode, ScenarioReferenceNode],
+    nodes: [HeadingNode, QuoteNode, PolicyBlockNode, ScenarioReferenceNode, ScenarioSpotlightNode],
     onError(error) {
       throw error
     },
@@ -93,6 +94,25 @@ describe('live editor automation contract', () => {
       { kind: 'paragraph', text: 'Evaluate [scenario:scenario-access] before approval.' },
     ])
   })
+  it('round-trips scenario spotlights as exact stable semantic blocks', () => {
+    registeredEditor()
+    const original = readAutomationEditor()
+    const replaced = replaceAutomationDocument(
+      original.revision,
+      '[spotlight:scenario-access]',
+    )
+    expect(replaced.text).toBe('[spotlight:scenario-access]')
+    expect(replaced.scenarioIds).toEqual(['scenario-access'])
+    expect(replaced.blocks).toEqual([
+      { kind: 'spotlight', text: '', scenarioId: 'scenario-access' },
+    ])
+    const restored = getAutomationEditorController().replaceBlocks(replaced.revision, replaced.blocks)
+    expect(restored.blocks).toEqual(replaced.blocks)
+    expect(() => getAutomationEditorController().replaceBlocks(restored.revision, [
+      { kind: 'spotlight', text: 'stale copy', scenarioId: 'scenario-access' },
+    ])).toThrow('empty text')
+  })
+
 
   it('rejects a stale revision instead of overwriting a newer draft', () => {
     registeredEditor()

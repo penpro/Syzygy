@@ -193,6 +193,14 @@ Y.Doc used by the scenario gallery, so renames update the rendered chip without 
 state. Missing targets are shown explicitly. The semantic editor/MCP form is
 `[scenario:<stable-id>]`; parsing recreates the node, snapshots expose a sorted unique ID set, and
 immutable policy checkpoints retain that set.
+`nodes/ScenarioSpotlightNode.tsx` is the block-level companion. It also persists only the stable
+scenario ID and projects title, workflow state, background, and ordered turns from the live project
+Y.Doc. Embedding appends one shared Lexical block; collapsing replaces it with the inline reference
+inside the same collaborative history, so undo/redo and remote Yjs updates preserve the transition.
+The exact automation/version form is `[spotlight:<stable-id>]`; semantic blocks carry empty text
+plus `scenarioId`, and immutable checkpoints restore the live projection rather than a stale copy
+of scenario content. Missing targets remain visible. Packaged two-install pointer interaction is not
+yet claimed.
 
 `heuristicsModel.ts` is the first non-editor shared research domain service. Each heuristic is a
 nested Y.Map so concurrent edits to different fields merge instead of replacing an opaque object;

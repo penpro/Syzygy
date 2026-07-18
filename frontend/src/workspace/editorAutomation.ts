@@ -9,6 +9,7 @@ import {
 } from './editorAutomationRegistry'
 import { $createPolicyBlockNode, $isPolicyBlockNode } from './nodes/PolicyBlockNode'
 import { $createScenarioReferenceNode, ScenarioReferenceNode } from './nodes/ScenarioReferenceNode'
+import { $createScenarioSpotlightNode, $isScenarioSpotlightNode } from './nodes/ScenarioSpotlightNode'
 
 export type {
   AutomationBlockKind,
@@ -125,7 +126,7 @@ function normalizeBlocks(blocks: AutomationDocumentBlock[]): AutomationDocumentB
   }
   let contentLength = 0
   return blocks.map((block) => {
-    if (!block || typeof block !== 'object' || !['heading1', 'heading2', 'quote', 'paragraph', 'policy'].includes(block.kind) ||
+    if (!block || typeof block !== 'object' || !['heading1', 'heading2', 'quote', 'paragraph', 'policy', 'spotlight'].includes(block.kind) ||
       typeof block.text !== 'string' || block.text.includes('\u0000')) {
       throw new Error('Document contains an invalid semantic block')
     }
@@ -139,6 +140,13 @@ function normalizeBlocks(blocks: AutomationDocumentBlock[]): AutomationDocumentB
         throw new Error('Policy automation block requires identity and status')
       }
       return { kind: block.kind, text: block.text, policyId: block.policyId, status: block.status }
+    }
+    if (block.kind === 'spotlight') {
+      if (block.text !== '' || !block.scenarioId ||
+        !/^[A-Za-z0-9][A-Za-z0-9._:@-]{0,199}$/.test(block.scenarioId)) {
+        throw new Error('Scenario spotlight automation block requires stable identity and empty text')
+      }
+      return { kind: 'spotlight', text: '', scenarioId: block.scenarioId }
     }
     return { kind: block.kind, text: block.text }
   })
@@ -163,10 +171,16 @@ function assertRevision(registration: ActiveEditor, expectedRevision: string): v
 
 function snapshot(registration: ActiveEditor): AutomationEditorSnapshot {
   const editorState = registration.editor.getEditorState()
-  const { blocks, scenarioIds } = editorState.read(() => ({
-    blocks: $getRoot().getChildren().map(readBlock),
-    scenarioIds: $nodesOfType(ScenarioReferenceNode).map((node) => node.getScenarioId()).sort(),
-  }))
+  const { blocks, scenarioIds } = editorState.read(() => {
+    const blocks = $getRoot().getChildren().map(readBlock)
+    return {
+      blocks,
+      scenarioIds: [
+        ...$nodesOfType(ScenarioReferenceNode).map((node) => node.getScenarioId()),
+        ...blocks.flatMap((block) => block.kind === 'spotlight' ? [block.scenarioId!] : []),
+      ].sort(),
+    }
+  })
   const serialized = JSON.stringify(editorState.toJSON())
   return {
     projectId: registration.projectId,
@@ -178,6 +192,9 @@ function snapshot(registration: ActiveEditor): AutomationEditorSnapshot {
 }
 
 function readBlock(node: LexicalNode): AutomationDocumentBlock {
+  if ($isScenarioSpotlightNode(node)) {
+    return { kind: 'spotlight', text: '', scenarioId: node.getScenarioId() }
+  }
   if ($isPolicyBlockNode(node)) {
     return {
       kind: 'policy',
@@ -196,6 +213,7 @@ function readBlock(node: LexicalNode): AutomationDocumentBlock {
 function formatBlock(block: AutomationDocumentBlock): string {
   if (block.kind === 'policy') return `[policy:${block.policyId}:${block.status}] ${block.text}`
   if (block.kind === 'heading1') return `# ${block.text}`
+  if (block.kind === 'spotlight') return `[spotlight:${block.scenarioId}]`
   if (block.kind === 'heading2') return `## ${block.text}`
   if (block.kind === 'quote') return `> ${block.text}`
   return block.text
@@ -205,6 +223,10 @@ function parseBlocks(content: string): AutomationDocumentBlock[] {
   const normalized = content.replace(/\r\n/g, '\n')
   const lines = normalized.split('\n')
   const blocks = lines.map<AutomationDocumentBlock>((line) => {
+    const spotlight = /^\[spotlight:([A-Za-z0-9][A-Za-z0-9._:@-]{0,199})\]$/.exec(line)
+    if (spotlight) {
+      return { kind: 'spotlight', scenarioId: spotlight[1], text: '' }
+    }
     const policy = /^\[policy:([A-Za-z0-9][A-Za-z0-9._-]{0,199}):(draft|review|approved)\] (.*)$/.exec(line)
     if (policy) {
       return { kind: 'policy', policyId: policy[1], status: policy[2] as 'draft' | 'review' | 'approved', text: policy[3] }
@@ -218,6 +240,10 @@ function parseBlocks(content: string): AutomationDocumentBlock[] {
 }
 
 function createNode(block: AutomationDocumentBlock): LexicalNode {
+  if (block.kind === 'spotlight') {
+    if (!block.scenarioId) throw new Error('Scenario spotlight automation block requires stable identity')
+    return $createScenarioSpotlightNode(block.scenarioId)
+  }
   let node: ElementNode
   if (block.kind === 'policy') {
     if (!block.policyId || !block.status) throw new Error('Policy automation block requires identity and status')

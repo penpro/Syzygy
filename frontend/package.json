@@ -1,7 +1,7 @@
 {
   "name": "syzygy",
   "private": true,
-  "version": "0.1.17",
+  "version": "0.1.18",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -36,6 +36,7 @@
     "test:mcp": "node ../scripts/mcp-harness.mjs",
     "test:mcp:lan:unit": "node --test ../scripts/lan-bridge.test.mjs",
     "test:mcp:lan:host": "node --test ../scripts/lan-agent-supervisor.test.mjs",
+    "test:mcp:lan:dev": "node --test ../scripts/lan-dev-mode.test.mjs",
     "test:mcp:lan": "node ../scripts/lan-mcp-harness.mjs",
     "test:mcp:lan:packaged": "node ../scripts/lan-packaged-agent-harness.mjs",
     "test:mcp:lan:drive-live": "node ../scripts/lan-drive-live-harness.mjs",

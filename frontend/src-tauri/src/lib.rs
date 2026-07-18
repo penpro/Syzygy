@@ -10,6 +10,7 @@ pub mod google_auth;
 pub mod google_drive;
 mod knowledge;
 pub mod lan_agent;
+mod lan_dev_coordinator;
 mod lan_runtime;
 pub mod mcp;
 mod mcp_setup;
@@ -42,6 +43,7 @@ pub fn run() {
         .manage(Downloads(Mutex::new(HashMap::new())))
         .manage(Granted(Mutex::new(HashSet::new())))
         .manage(automation::AutomationState::default())
+        .manage(lan_dev_coordinator::LanDevCoordinatorRuntime::default())
         .manage(lan_runtime::LanAgentRuntime::default())
         .manage(provider_runtime::ProviderRuntimeState::default())
         .setup(|app| {
@@ -56,6 +58,10 @@ pub fn run() {
                 // MCP is an optional local interoperability surface. A locked/unwritable temp
                 // directory must not prevent the primary desktop workspace from opening.
                 log::warn!("Live MCP bridge unavailable: {error}");
+            }
+            if let Err(error) = lan_dev_coordinator::start_saved(app.handle()) {
+                // Developer mode is optional and must never block the local research workspace.
+                log::warn!("Private LAN developer coordinator unavailable: {error}");
             }
             if let Err(error) = lan_runtime::start_saved(app.handle()) {
                 // Invalid or unavailable opt-in LAN settings must not block the local workspace.
@@ -85,10 +91,31 @@ pub fn run() {
                             .kind(MessageDialogKind::Error)
                             .show(|_| {});
                     } else {
+                        let mut lan_errors = Vec::new();
                         if let Err(error) = lan_runtime::shutdown(window.app_handle()) {
-                            log::error!("Private LAN test connection did not shut down cleanly: {error}");
+                            lan_errors.push(format!("Connection: {error}"));
                         }
-                        automation::cleanup(window.app_handle());
+                        if let Err(error) = lan_dev_coordinator::shutdown(window.app_handle()) {
+                            lan_errors.push(format!("Host: {error}"));
+                        }
+                        if lan_errors.is_empty() {
+                            automation::cleanup(window.app_handle());
+                        } else {
+                            api.prevent_close();
+                            let details = lan_errors.join("\n");
+                            log::error!("Syzygy stayed open because the LAN developer network did not finish shutting down: {details}");
+                            window
+                                .app_handle()
+                                .dialog()
+                                .message(format!(
+                                    "Syzygy is still open because the LAN developer network did not release its processes. Try closing again.
+
+{details}"
+                                ))
+                                .title("Developer network did not finish closing")
+                                .kind(MessageDialogKind::Error)
+                                .show(|_| {});
+                        }
                     }
                 }
                 tauri::WindowEvent::Destroyed => {
@@ -96,6 +123,11 @@ pub fn run() {
                     automation::cleanup(window.app_handle());
                     if let Err(error) = lan_runtime::shutdown(window.app_handle()) {
                         log::error!("Private LAN test connection did not shut down cleanly: {error}");
+                    }
+                    if let Err(error) = lan_dev_coordinator::shutdown(window.app_handle()) {
+                        log::error!(
+                            "Private LAN developer coordinator did not shut down cleanly: {error}"
+                        );
                     }
                     if let Err(error) = engine::shutdown_engine_state(window.app_handle()) {
                         log::error!(
@@ -162,6 +194,8 @@ pub fn run() {
             automation::automation_respond,
             lan_runtime::lan_agent_settings,
             lan_runtime::lan_agent_configure,
+            lan_dev_coordinator::lan_dev_coordinator_settings,
+            lan_dev_coordinator::lan_dev_coordinator_configure,
             mcp_setup::mcp_connection_info,
             provider_runtime::provider_generate,
             provider_runtime::provider_cancel,

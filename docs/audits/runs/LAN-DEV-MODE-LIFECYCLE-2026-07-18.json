@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-07-18",
+  "subject": "app-owned-lan-developer-coordinator-lifecycle",
+  "result": "passed_headless_physical_reinstall_pending",
+  "implementationClaims": [
+    "The primary installed app can persistently opt in to hosting the private LAN developer coordinator without keeping a PowerShell window open.",
+    "App startup launches the coordinator before the local outbound agent, and app shutdown stops the agent before the coordinator.",
+    "The coordinator exposes only an authenticated loopback MCP attachment in addition to its explicit private agent listener.",
+    "Graceful shutdown closes agent and control listeners plus active control sockets; Rust waits for exit and uses a bounded kill-and-reap fallback.",
+    "The repository MCP host attaches to an app-owned coordinator when present and retains its previous self-owned fallback for diagnostics."
+  ],
+  "automatedEvidence": {
+    "developerLifecycleHarness": {
+      "testsPassed": 1,
+      "invalidPairingKeyRejected": true,
+      "mcpAttachmentAuthenticated": true,
+      "agentListenerReleased": true,
+      "controlListenerReleased": true,
+      "attachmentProcessExited": true,
+      "repositoryHostAttachedWithoutOwningCoordinator": true
+    },
+    "coordinatorRust": {
+      "testsPassed": 2,
+      "privateAddressValidation": true,
+      "adjacentLoopbackControlPort": true,
+      "pairingKeyContentsExcludedFromArguments": true
+    },
+    "settingsUi": {
+      "testsPassed": 1,
+      "hostTogglePresent": true,
+      "powershellMarkedDiagnosticOnly": true
+    },
+    "typescriptCompile": "passed",
+    "supervisedCheckRun": {
+      "runId": "20260718-043509-f0e2d8",
+      "fullFrontendTestFilesPassed": 57,
+      "fullFrontendTestsPassed": 247,
+      "productionFrontendBuild": "passed",
+      "repositoryAudit": "passed",
+      "nativeCompile": "passed"
+    },
+    "supervisedPackageRun": {
+      "runId": "20260718-043625-59726a",
+      "appVersion": "0.1.18",
+      "assetReembedCompileObserved": true,
+      "installerBuilt": true,
+      "packagedMcpToolCount": 29,
+      "scopedPreflightVerifiedNoCapturedSyzygyProcess": true,
+      "result": "passed"
+    }
+  },
+  "bounds": {
+    "rustSupervisorPollMilliseconds": 2000,
+    "rustRestartBackoffMilliseconds": [1000, 2000, 5000, 10000],
+    "rustGracefulShutdownMilliseconds": 2000,
+    "controlAuthenticationDeadlineMilliseconds": 5000,
+    "testAbsoluteDeadlineMilliseconds": 15000
+  },
+  "nonClaims": [
+    "The new build has not yet been installed and exercised on both physical computers.",
+    "The LAN control plane does not itself synchronize research data.",
+    "Node.js remains a prerequisite on the computer hosting this development-mode coordinator.",
+    "The pairing key authenticates an installation connection; it is not human identity, roles, or per-tool authorization.",
+    "No public-network exposure, automatic firewall mutation, discovery broadcast, or key rotation UI is claimed."
+  ]
+}

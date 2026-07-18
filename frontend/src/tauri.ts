@@ -61,6 +61,21 @@ export interface LanAgentReport {
   lastError: string | null
 }
 
+export interface LanDevCoordinatorConfig {
+  enabled: boolean
+  listen: string
+  port: number
+  keyFile: string
+}
+
+export interface LanDevCoordinatorReport {
+  config: LanDevCoordinatorConfig
+  running: boolean
+  pid: number | null
+  controlPort: number | null
+  lastError: string | null
+}
+
 export type RemoteProviderId = 'openai' | 'anthropic' | 'gemini' | 'xai'
 
 /** True only inside the installed/dev Tauri webview, never in the browser-only UI preview. */
@@ -467,6 +482,15 @@ export const lanAgentSettings = (): Promise<LanAgentReport> => invoke('lan_agent
 /** Save and apply the outbound LAN test connection; disabled config stops and reaps its child. */
 export const lanAgentConfigure = (config: LanAgentConfig): Promise<LanAgentReport> =>
   invoke('lan_agent_configure', { config })
+
+/** Current app-owned private-LAN developer coordinator. Key contents remain native-only. */
+export const lanDevCoordinatorSettings = (): Promise<LanDevCoordinatorReport> =>
+  invoke('lan_dev_coordinator_settings')
+
+/** Save/apply host mode; disabled config stops and reaps the coordinator before returning. */
+export const lanDevCoordinatorConfigure = (
+  config: LanDevCoordinatorConfig,
+): Promise<LanDevCoordinatorReport> => invoke('lan_dev_coordinator_configure', { config })
 
 /** Pick the pairing-key file without reading its contents into the webview. */
 export async function pickLanPairingKeyFile(): Promise<string | null> {

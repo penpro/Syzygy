@@ -311,6 +311,14 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   harness produces its evidence record. Presence, bounded compaction, shared rename, and non-Drive
   transports remain open.
 
+- The app-owned LAN developer-host slice removes the primary PowerShell babysitting requirement. A
+  Settings toggle now persists and supervises the embedded coordinator, starts it before the local
+  outbound agent, and stops the agent before a graceful coordinator drain with a bounded kill-and-reap
+  fallback. The coordinator adds a pairing-key-authenticated loopback MCP attachment; the repository
+  host attaches to it without binding a duplicate server. A headless lifecycle harness proves wrong-key
+  rejection, MCP negotiation, process exit, and release of both listener ports. Physical proof remains
+  pending until this build is installed on both office computers.
+
 ## Current completion snapshot
 
 The machine-readable end-goal ledger currently contains **42 capabilities**: **26 are

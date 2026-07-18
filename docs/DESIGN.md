@@ -177,10 +177,16 @@ It must also say that MCP does not automatically gain Drive, filesystem, or loca
 
 Settings also includes **Private LAN test connection** as an opt-in advanced control. It asks for
 a plain-language computer label, one explicit private coordinator address and port, and a pairing-
-key file chosen through the native file picker. The status must distinguish saved configuration,
-a running outbound agent, and actionable failure. Copy says that Syzygy opens no LAN listener and
-that the connection controls this installation but does not itself synchronize research data.
-Disabling or reconfiguring it must stop the old agent before the UI reports the new state.
+key file chosen through the native file picker. The status distinguishes saved configuration, a
+running outbound agent, a running app-owned host, recovery, and actionable failure.
+
+The default client state says that the installation makes an outbound encrypted connection and opens
+no LAN listener. The optional **Host the collaboration developer network on this computer** toggle says
+that the primary opens one encrypted private listener and one authenticated loopback MCP attachment,
+requires Node.js, starts and supervises the server with Syzygy, and stops/reaps it during shutdown.
+PowerShell is explicitly diagnostic-only. Both modes must say that the control network does not itself
+synchronize research data. Disabling or reconfiguring stops the old process before reporting new state;
+app shutdown stops the outbound agent before the host coordinator.
 
 ## Future provider, panel, and plugin surfaces
 

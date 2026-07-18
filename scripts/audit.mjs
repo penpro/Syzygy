@@ -944,8 +944,11 @@ record(
 
 const lanAgentSource = text('frontend/src-tauri/src/lan_agent.rs')
 const lanRuntimeSource = text('frontend/src-tauri/src/lan_runtime.rs')
+const lanDevCoordinatorSource = text('frontend/src-tauri/src/lan_dev_coordinator.rs')
 const lanCoordinatorSource = text('scripts/lan-mcp-coordinator.mjs')
 const lanHostSource = text('scripts/lan-mcp-host.mjs')
+const lanAttachSource = text('scripts/lan-mcp-attach.mjs')
+const lanDevModeTestSource = text('scripts/lan-dev-mode.test.mjs')
 const lanSupervisorSource = text('scripts/lan-agent-supervisor.mjs')
 const lanDriveHarnessSource = text('scripts/lan-drive-live-harness.mjs')
 const lanSettingsSource = text('frontend/src/components/LanAgentSettings.tsx')
@@ -967,19 +970,34 @@ record(
     lanRuntimeSource.includes('pub fn shutdown') &&
     lanRuntimeSource.includes('key_path.is_absolute()') &&
     lanHostSource.includes('superviseLanAgent') &&
+    lanHostSource.includes('attaching to the coordinator already owned by Syzygy developer mode') &&
+    lanDevCoordinatorSource.includes('Command::new("node")') &&
+    lanDevCoordinatorSource.includes('.stdin(Stdio::piped())') &&
+    lanDevCoordinatorSource.includes('drop(child.stdin.take())') &&
+    lanDevCoordinatorSource.includes('.wait()') &&
+    lanCoordinatorSource.includes("controlServer.listen({ host: '127.0.0.1'") &&
+    lanCoordinatorSource.includes('controlServer.close(resolve)') &&
+    lanAttachSource.includes("const CONTROL_PROTOCOL = 'syzygy-lan-control-v1'") &&
+    lanAttachSource.includes("createHmac('sha256', pairingKey)") &&
+    lanDevModeTestSource.includes('releases both listeners') &&
     lanSupervisorSource.includes('RESTART_DELAYS_MS') &&
     lanSettingsSource.includes('Private LAN test connection') &&
     lanSettingsSource.includes('pickLanPairingKeyFile') &&
+    lanSettingsSource.includes('Host the collaboration developer network on this computer') &&
+    lanSettingsSource.includes('PowerShell is diagnostic-only') &&
     lanDriveHarnessSource.includes("'--mutate'") &&
     lanDriveHarnessSource.includes('Math.min(timeoutMs, 60_000)') &&
     lanDriveHarnessSource.includes('staleRevisionRejected') &&
     existsSync(join(root, 'scripts/lan-mcp-host.mjs')) &&
+    existsSync(join(root, 'scripts/lan-mcp-attach.mjs')) &&
+    existsSync(join(root, 'scripts/lan-dev-mode.test.mjs')) &&
     existsSync(join(root, 'scripts/lan-mcp-harness.mjs')) &&
     existsSync(join(root, 'scripts/lan-packaged-agent-harness.mjs')) &&
     existsSync(join(root, 'scripts/lan-drive-live-harness.mjs')) &&
     existsSync(join(root, 'docs/audits/runs/LAN-MCP-CONTROL-PLANE-2026-07-16.json')) &&
-    existsSync(join(root, 'docs/audits/runs/LAN-COLLABORATION-SUPERVISION-2026-07-17.json')),
-  'packaged outbound agents preserve loopback GUI ownership; authenticated transport, persistent opt-in lifecycle, bounded supervision, exact Drive collaboration actions, and physical convergence gating are present',
+    existsSync(join(root, 'docs/audits/runs/LAN-COLLABORATION-SUPERVISION-2026-07-17.json')) &&
+    existsSync(join(root, 'docs/audits/runs/LAN-DEV-MODE-LIFECYCLE-2026-07-18.json')),
+  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, and physical convergence gating are present',
 )
 const ledger = JSON.parse(text('docs/audits/CAPABILITIES.json'))
 const expectedIds = [

@@ -40,18 +40,23 @@ source of project truth. The explicit `inspect_drive_project_discovery` diagnost
 webview to refresh only selected-workspace project-manifest metadata; it returns a short folder
 code and bounded project/document identities, never OAuth data, Drive file IDs, titles, or content.
 
-The optional development LAN control plane keeps that bridge loopback-only. Each installed
-`Syzygy --lan-agent` process spawns its own local stdio MCP and makes an outbound, pairing-key-
-authenticated encrypted connection to a repository-side coordinator. The coordinator is a stdio
-MCP server for one test host and namespaces calls by installation. Protocol `syzygy-lan-v1` uses
-fresh challenge nonces, HMAC-SHA-256 proof, HKDF-SHA-256 direction keys, AES-256-GCM frames, replay
-counters, bounded requests, and heartbeat eviction. The primary host supervises its packaged agent
-with bounded restart backoff so installer-driven shutdown cannot strand a coordinator without its
-local node. An installation can also opt in under Settings; Rust persists only the node label,
-explicit private coordinator address/port, and pairing-key **path**, starts an outbound child from
-the current executable on launch, and stops/reaps it on disable, reconfiguration, or app shutdown.
-Key contents never cross into the webview or persisted configuration. This runtime controls
-installations; it is not a project persistence provider. See `LAN-MCP.md`.
+The optional development LAN control plane keeps every GUI bridge loopback-only. On the primary
+computer, the Settings host toggle launches the Penumbra-owned Node coordinator embedded in the
+installed binary. It binds one explicit private address for encrypted outbound agents and a separate
+pairing-key-authenticated control attachment on `127.0.0.1` at the adjacent port. Rust owns and
+supervises that process with bounded restart backoff, starts it before the primary outbound agent, and
+persists only listen address/port and pairing-key **path**. Host mode currently requires Node.js on the
+primary computer.
+
+Each `Syzygy --lan-agent` process spawns its installation's local stdio MCP and makes an outbound,
+pairing-key-authenticated encrypted connection. Protocol `syzygy-lan-v1` uses fresh challenge nonces,
+HMAC-SHA-256 proof, HKDF-SHA-256 direction keys, AES-256-GCM frames, replay counters, bounded requests,
+and heartbeat eviction. The repository MCP wrapper authenticates to the loopback control attachment;
+when app host mode is absent it can still own the coordinator and primary agent as a diagnostic fallback.
+At app shutdown the outbound agent stops first, then closing the owned coordinator input asks Node to
+close both listeners and active control sockets. Rust waits up to two seconds before a kill-and-reap
+fallback. Key contents never enter the webview, persisted configuration, or process arguments. This
+runtime controls installations; it is not a project persistence provider. See `LAN-MCP.md`.
 
 ```
  you ──▶ webview (React) ──▶ 127.0.0.1:11435 llama.cpp ──▶ GGUF on GPU
@@ -290,6 +295,7 @@ availability claim.
 | Ephemeral MCP bridge descriptor | OS temp `syzygy-automation-v1.json` (port/token/PID/version only; removed on shutdown) |
 | LAN pairing key | User-chosen 32-byte base64url key file; never stored in app settings, repository, Drive, command-line arguments, or coordinator descriptors |
 | Optional LAN agent settings | `<app-config>/lan-agent.json` (enabled flag, node label, private coordinator address/port, pairing-key path only; no key contents) |
+| Optional LAN host settings | `<app-config>/lan-dev-coordinator.json` (enabled flag, explicit private listen address/port, pairing-key path only; no key contents) |
 
 ## Key invariants
 
@@ -317,8 +323,9 @@ availability claim.
 - **Project metadata and collaborative content have different owners.** Zustand/localStorage holds
   manifest/navigation identity; Yjs/IndexedDB holds collaborative editor and domain state. No
   derived plain-text copy is a second mutable source of truth.
-- **LAN control never rebinds the GUI bridge.** The GUI remains IPv4-loopback-only; an explicit
-  packaged agent makes the outbound encrypted connection and native MCP guards remain authoritative.
+- **LAN control never rebinds the GUI bridge.** The GUI remains IPv4-loopback-only. App host mode owns
+  a separate explicit private coordinator listener plus authenticated loopback MCP attachment; packaged
+  agents connect outbound, shutdown reaps both process classes, and native MCP guards remain authoritative.
 - **MCP automation is semantic and live.** Document mutations require a read revision and fail
   closed on concurrent change; the MCP receives no ambient Drive, filesystem, or model authority.
   Setup data is generated from `current_exe` in Rust and reused by the app and the

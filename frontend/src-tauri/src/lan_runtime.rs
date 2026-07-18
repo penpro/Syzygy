@@ -276,7 +276,10 @@ pub fn lan_agent_configure(
         .lock()
         .map_err(|_| "LAN agent state lock was poisoned".to_string())?;
     if let Some(mut child) = inner.child.take() {
-        stop_child(&mut child)?;
+        if let Err(error) = stop_child(&mut child) {
+            inner.child = Some(child);
+            return Err(error);
+        }
     }
     inner.config = Some(config.clone());
     inner.last_error = None;
@@ -296,7 +299,10 @@ pub fn shutdown(app: &AppHandle) -> Result<(), String> {
         .lock()
         .map_err(|_| "LAN agent state lock was poisoned".to_string())?;
     if let Some(mut child) = inner.child.take() {
-        stop_child(&mut child)?;
+        if let Err(error) = stop_child(&mut child) {
+            inner.child = Some(child);
+            return Err(error);
+        }
     }
     Ok(())
 }

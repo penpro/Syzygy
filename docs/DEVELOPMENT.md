@@ -286,6 +286,7 @@ heartbeat interval:
 cd D:\PolicyPad\syzygy
 node scripts\run-with-heartbeat.mjs --timeout-seconds 60 --heartbeat-seconds 15 -- node --test scripts\lan-bridge.test.mjs
 node scripts\run-with-heartbeat.mjs --timeout-seconds 60 --heartbeat-seconds 15 -- node --test scripts\lan-agent-supervisor.test.mjs
+node scripts\run-with-heartbeat.mjs --timeout-seconds 60 --heartbeat-seconds 15 -- node --test scripts\lan-dev-mode.test.mjs
 node scripts\run-with-heartbeat.mjs --timeout-seconds 90 --heartbeat-seconds 15 -- node scripts\lan-mcp-harness.mjs
 node scripts\run-with-heartbeat.mjs --timeout-seconds 90 --heartbeat-seconds 15 -- node scripts\lan-packaged-agent-harness.mjs
 node scripts\run-with-heartbeat.mjs --timeout-seconds 360 --heartbeat-seconds 15 -- node scripts\lan-drive-live-harness.mjs --listen 192.168.1.20 --port 37663 --key-file "$env:USERPROFILE\.syzygy-lan.key" --local-executable "$env:LOCALAPPDATA\Syzygy\Syzygy.exe" --primary office-primary --secondary office-secondary --mutate
@@ -301,9 +302,12 @@ the encrypted route. `docs/audits/runs/LAN-MCP-CONTROL-PLANE-2026-07-16.json` re
 and explicitly does not claim two-physical-machine or project-convergence proof.
 
 The supervisor suite proves that the host restarts a stopped local packaged agent with bounded
-backoff and stops it cleanly. Rust and server-rendered UI tests separately cover saved in-app agent
-configuration, private-address/key-path validation, startup, disable/reconfigure replacement, and
-shutdown reaping. The physical harness requires two exact node labels and at least twenty-nine
+backoff and stops it cleanly. The developer-mode lifecycle suite starts both coordinator listeners,
+rejects the wrong pairing key, authenticates the loopback MCP attachment, negotiates/list tools, closes
+the app-owned input, and proves the coordinator, attachment process, private listener, and control
+listener all exit within bounded deadlines. Rust and server-rendered UI tests separately cover saved
+agent/host configuration, private-address/key-path validation, startup order, disable/reconfigure
+replacement, graceful two-second shutdown, kill-and-reap fallback, and shutdown order. The physical harness requires two exact node labels and at least twenty-nine
 native tools on each installation. Its default mode performs only catalog/identity checks; `--mutate`
 uses a dedicated proof project, exact revisions, guarded share/join, partition-like concurrent
 appends, bidirectional readback, and stale-write rejection. It prints content-free booleans and has

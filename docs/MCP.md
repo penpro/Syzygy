@@ -188,8 +188,10 @@ MCP host
 ## Private-LAN multi-install control
 
 The development LAN control plane lets one MCP host drive multiple installed Syzygy applications
-without exposing their GUI bridges. The primary host runs `scripts/lan-mcp-host.mjs`; every
-installation joins through its packaged `Syzygy --lan-agent` mode. The coordinator exposes
+without exposing their GUI bridges. The primary installed app can own and supervise the coordinator
+from its Settings host toggle; `scripts/lan-mcp-host.mjs` authenticates to that loopback attachment
+instead of opening a duplicate listener. If app host mode is absent, the wrapper retains a diagnostic
+self-owned fallback. Every installation joins through its packaged `Syzygy --lan-agent` mode. The coordinator exposes
 `lan_nodes`, `lan_node_tools`, `lan_call`, and read-only `lan_probe`. Calls retain the selected
 installation's native tool schemas, revision conflicts, disclosure prompts, and mutation guards.
 

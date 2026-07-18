@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from 'node:crypto'
+import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import net from 'node:net'
 import path from 'node:path'
 import process from 'node:process'
@@ -7,6 +7,7 @@ import {
   HEARTBEAT_MS,
   LAN_PROTOCOL,
   MAX_HANDSHAKE_BYTES,
+  MAX_LINE_BYTES,
   STALE_AFTER_MS,
   assertNodeId,
   boundedTimeout,
@@ -26,10 +27,14 @@ import {
 
 const options = parseCli(process.argv.slice(2))
 const listen = option(options, '--listen', '127.0.0.1')
-const port = integerOption(options, '--port', DEFAULT_PORT, { min: 0, max: 65_535 })
+const port = integerOption(options, '--port', DEFAULT_PORT, { min: 1, max: 65_535 })
+const controlPort = integerOption(options, '--control-port', port + 1, { min: 1, max: 65_535 })
 if (!isPrivateListenAddress(listen)) throw new Error('--listen must be one explicit loopback or RFC1918 IPv4 address')
+if (controlPort === port) throw new Error('--control-port must differ from the agent port')
 const pairingKey = loadPairingKey(path.resolve(requiredOption(options, '--key-file')))
+const CONTROL_PROTOCOL = 'syzygy-lan-control-v1'
 const nodes = new Map()
+const controlConnections = new Set()
 
 function log(message) {
   process.stderr.write(`[syzygy-lan-coordinator] ${message}\n`)
@@ -322,6 +327,75 @@ async function dispatch(message) {
   return jsonrpcError(id, -32601, `Method not found: ${message.method}`)
 }
 
+function controlProof(nonce) {
+  return createHmac('sha256', pairingKey)
+    .update(`${CONTROL_PROTOCOL}\0${nonce}`, 'utf8')
+    .digest()
+}
+
+function acceptControl(socket) {
+  controlConnections.add(socket)
+  socket.setNoDelay(true)
+  const nonce = randomBytes(24).toString('base64url')
+  let authenticated = false
+  let detach = () => {}
+  const fail = (error) => {
+    log(`control attachment rejected: ${sanitizedError(error)}`)
+    detach()
+    socket.destroy()
+  }
+  const authenticate = (line) => {
+    try {
+      const message = JSON.parse(line)
+      if (message?.type !== 'control-proof' || message.protocol !== CONTROL_PROTOCOL || typeof message.proof !== 'string') {
+        throw new Error('invalid control proof')
+      }
+      const received = Buffer.from(message.proof, 'base64url')
+      const expected = controlProof(nonce)
+      if (received.length !== expected.length || !timingSafeEqual(received, expected)) {
+        throw new Error('control proof mismatch')
+      }
+      authenticated = true
+      detach()
+      writeLine(socket, { type: 'control-ready', protocol: CONTROL_PROTOCOL })
+      detach = lineReader(socket, {
+        maxBytes: MAX_LINE_BYTES,
+        onError: fail,
+        onLine: (request) => {
+          void (async () => {
+            let response
+            try {
+              response = await dispatch(JSON.parse(request))
+            } catch (error) {
+              response = jsonrpcError(null, -32700, sanitizedError(error))
+            }
+            if (response && !socket.destroyed) writeLine(socket, response)
+          })()
+        },
+      })
+    } catch (error) {
+      fail(error)
+    }
+  }
+  detach = lineReader(socket, { maxBytes: MAX_HANDSHAKE_BYTES, onLine: authenticate, onError: fail })
+  socket.once('error', (error) => {
+    if (authenticated) log(`control attachment closed: ${sanitizedError(error)}`)
+    detach()
+  })
+  socket.once('close', () => {
+    detach()
+    controlConnections.delete(socket)
+  })
+  writeLine(socket, { type: 'control-challenge', protocol: CONTROL_PROTOCOL, nonce })
+}
+
+const controlServer = net.createServer(acceptControl)
+await new Promise((resolve, reject) => {
+  controlServer.once('error', reject)
+  controlServer.listen({ host: '127.0.0.1', port: controlPort }, resolve)
+})
+log(`control attachment listening on 127.0.0.1:${controlPort}`)
+
 process.stdin.setEncoding('utf8')
 let stdinBuffer = ''
 process.stdin.on('data', (chunk) => {
@@ -344,11 +418,21 @@ process.stdin.on('data', (chunk) => {
   }
 })
 
+let shutdownPromise = null
 async function shutdown() {
-  clearInterval(heartbeat)
-  for (const connection of nodes.values()) connection.close('LAN coordinator stopped')
-  nodes.clear()
-  await new Promise((resolve) => server.close(resolve))
+  if (shutdownPromise) return shutdownPromise
+  shutdownPromise = (async () => {
+    clearInterval(heartbeat)
+    for (const connection of nodes.values()) connection.close('LAN coordinator stopped')
+    nodes.clear()
+    for (const socket of controlConnections) socket.destroy()
+    controlConnections.clear()
+    await Promise.all([
+      new Promise((resolve) => server.close(resolve)),
+      new Promise((resolve) => controlServer.close(resolve)),
+    ])
+  })()
+  return shutdownPromise
 }
 
 process.stdin.once('end', () => void shutdown())

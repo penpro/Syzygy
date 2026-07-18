@@ -1,5 +1,5 @@
 import type { LexicalEditor, LexicalNode } from 'lexical'
-import { $createParagraphNode, $createTextNode, $getRoot } from 'lexical'
+import { $createParagraphNode, $createTextNode, $getRoot, $nodesOfType, type ElementNode } from 'lexical'
 import { $createHeadingNode, $createQuoteNode, $isHeadingNode, $isQuoteNode } from '@lexical/rich-text'
 import {
   getAutomationEditorController,
@@ -8,6 +8,7 @@ import {
   type AutomationEditorSnapshot,
 } from './editorAutomationRegistry'
 import { $createPolicyBlockNode, $isPolicyBlockNode } from './nodes/PolicyBlockNode'
+import { $createScenarioReferenceNode, ScenarioReferenceNode } from './nodes/ScenarioReferenceNode'
 
 export type {
   AutomationBlockKind,
@@ -162,13 +163,17 @@ function assertRevision(registration: ActiveEditor, expectedRevision: string): v
 
 function snapshot(registration: ActiveEditor): AutomationEditorSnapshot {
   const editorState = registration.editor.getEditorState()
-  const blocks = editorState.read(() => $getRoot().getChildren().map(readBlock))
+  const { blocks, scenarioIds } = editorState.read(() => ({
+    blocks: $getRoot().getChildren().map(readBlock),
+    scenarioIds: $nodesOfType(ScenarioReferenceNode).map((node) => node.getScenarioId()).sort(),
+  }))
   const serialized = JSON.stringify(editorState.toJSON())
   return {
     projectId: registration.projectId,
     revision: `lexical-${registration.sessionId}-${registration.generation}-${fnv1a(serialized)}`,
     text: blocks.map(formatBlock).join('\n'),
     blocks,
+    scenarioIds: [...new Set(scenarioIds)],
   }
 }
 
@@ -213,15 +218,28 @@ function parseBlocks(content: string): AutomationDocumentBlock[] {
 }
 
 function createNode(block: AutomationDocumentBlock): LexicalNode {
-  const text = $createTextNode(block.text)
+  let node: ElementNode
   if (block.kind === 'policy') {
     if (!block.policyId || !block.status) throw new Error('Policy automation block requires identity and status')
-    return $createPolicyBlockNode(block.policyId, block.status).append(text)
+    node = $createPolicyBlockNode(block.policyId, block.status)
+  } else if (block.kind === 'heading1') node = $createHeadingNode('h1')
+  else if (block.kind === 'heading2') node = $createHeadingNode('h2')
+  else if (block.kind === 'quote') node = $createQuoteNode()
+  else node = $createParagraphNode()
+  appendInlineContent(node, block.text)
+  return node
+}
+
+function appendInlineContent(node: ElementNode, text: string): void {
+  const pattern = /\[scenario:([A-Za-z0-9][A-Za-z0-9._:@-]{0,199})\]/g
+  let offset = 0
+  for (const match of text.matchAll(pattern)) {
+    const index = match.index ?? offset
+    if (index > offset) node.append($createTextNode(text.slice(offset, index)))
+    node.append($createScenarioReferenceNode(match[1]))
+    offset = index + match[0].length
   }
-  if (block.kind === 'heading1') return $createHeadingNode('h1').append(text)
-  if (block.kind === 'heading2') return $createHeadingNode('h2').append(text)
-  if (block.kind === 'quote') return $createQuoteNode().append(text)
-  return $createParagraphNode().append(text)
+  if (offset < text.length || node.getChildrenSize() === 0) node.append($createTextNode(text.slice(offset)))
 }
 
 function fnv1a(value: string): string {

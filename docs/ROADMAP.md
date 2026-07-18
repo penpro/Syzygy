@@ -97,6 +97,13 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   heading-derived outline and formatting fixtures. P-09/P-10/P-34 are therefore
   `implemented_unverified`; P-10 remains blocked from remote-safe claims by the explicit expected-
   failure move-versus-edit partition fixture.
+- P-05 now has a Penumbra-original inline `ScenarioReferenceNode`. The toolbar inserts links from
+  the live shared scenario list; persisted state contains only the stable scenario ID; current
+  titles resolve reactively from the project Y.Doc; missing targets stay visible. JSON reload,
+  rename-safe rendering, two-editor Yjs convergence, MCP semantic-marker round-trip, and production
+  build gates pass. Immutable checkpoints now retain the reference ID set. Packaged pointer
+  interaction remains unverified, and P-06 spotlight/embed behavior remains planned.
+  Evidence: `docs/audits/runs/SCENARIO-REFERENCE-2026-07-17.json`.
 - The first remote-model execution boundary is now headlessly testable with a bounded product caller.
   Rust constructs and normalizes an OpenAI Responses one-shot request, requires matching content
   disclosure, forces `store:false`, accepts only HTTPS or literal loopback test endpoints, bounds

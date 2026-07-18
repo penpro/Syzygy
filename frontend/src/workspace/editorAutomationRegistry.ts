@@ -14,6 +14,7 @@ export interface AutomationEditorSnapshot {
   revision: string
   text: string
   blocks: AutomationDocumentBlock[]
+  scenarioIds: string[]
 }
 
 export interface AutomationEditorController {

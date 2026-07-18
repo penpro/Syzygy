@@ -2906,6 +2906,60 @@ input.workspace-title-input:focus {
   color: var(--faint);
   cursor: default;
 }
+.scenario-reference-control {
+  display: inline-flex;
+  min-width: 0;
+  align-items: stretch;
+  gap: 3px;
+}
+.scenario-reference-control select {
+  width: min(190px, 24vw);
+  min-height: 30px;
+  padding: 4px 24px 4px 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  text-overflow: ellipsis;
+}
+.scenario-reference-control select:disabled {
+  color: var(--faint);
+}
+.scenario-reference-host {
+  display: inline;
+}
+.scenario-reference-chip {
+  display: inline-flex;
+  max-width: min(100%, 420px);
+  margin: 0 2px;
+  padding: 2px 7px;
+  align-items: baseline;
+  gap: 5px;
+  overflow: hidden;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.82em;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+.scenario-reference-chip > span {
+  color: var(--text-2);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.scenario-reference-chip.missing {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--panel));
+}
 .research-toolbar-rule {
   align-self: stretch;
   width: 1px;

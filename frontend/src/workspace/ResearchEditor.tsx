@@ -11,6 +11,7 @@ import {
   $createTextNode,
   $getRoot,
   $getSelection,
+  $isRangeSelection,
   CAN_REDO_COMMAND,
   CAN_UNDO_COMMAND,
   COMMAND_PRIORITY_LOW,
@@ -30,7 +31,9 @@ import {
   registerPolicyReorderCommands,
 } from './editorStructure'
 import { $createPolicyBlockNode, PolicyBlockNode } from './nodes/PolicyBlockNode'
+import { $createScenarioReferenceNode, ScenarioReferenceNode } from './nodes/ScenarioReferenceNode'
 import { ResearchTableOfContents } from './ResearchTableOfContents'
+import { ScenarioReferenceProvider, useScenarioReferenceState } from './ScenarioReferenceContext'
 
 const editorTheme = {
   heading: {
@@ -48,9 +51,16 @@ const editorTheme = {
 
 function Toolbar({ shared }: { shared: boolean }) {
   const [editor] = useLexicalComposerContext()
+  const { ready: scenariosReady, scenarios } = useScenarioReferenceState()
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
   const [moveAvailability, setMoveAvailability] = useState({ up: false, down: false })
+  const [scenarioId, setScenarioId] = useState('')
+
+  useEffect(() => {
+    if (scenarios.some((scenario) => scenario.id === scenarioId)) return
+    setScenarioId(scenarios[0]?.id ?? '')
+  }, [scenarioId, scenarios])
 
   useEffect(() => {
     const removeUndo = editor.registerCommand(CAN_UNDO_COMMAND, (value) => (setCanUndo(value), false), COMMAND_PRIORITY_LOW)
@@ -98,6 +108,34 @@ function Toolbar({ shared }: { shared: boolean }) {
       >
         Policy block
       </button>
+      <span className="scenario-reference-control">
+        <select
+          aria-label="Scenario to reference"
+          value={scenarioId}
+          disabled={!scenariosReady || scenarios.length === 0}
+          onChange={(event) => setScenarioId(event.target.value)}
+        >
+          {scenarios.length === 0 ? (
+            <option value="">{scenariosReady ? 'Create a scenario first' : 'Loading scenarios…'}</option>
+          ) : scenarios.map((scenario) => (
+            <option key={scenario.id} value={scenario.id}>{scenario.title}</option>
+          ))}
+        </select>
+        <button
+          type="button"
+          disabled={!scenarioId}
+          onClick={() => {
+            editor.update(() => {
+              const reference = $createScenarioReferenceNode(scenarioId)
+              const selection = $getSelection()
+              if ($isRangeSelection(selection)) selection.insertNodes([reference, $createTextNode(' ')])
+              else $getRoot().append($createParagraphNode().append(reference))
+            })
+          }}
+        >
+          Insert scenario link
+        </button>
+      </span>
       <span className="research-toolbar-rule" aria-hidden="true" />
       <button type="button" aria-label="Bold" onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}><b>B</b></button>
       <button type="button" aria-label="Italic" onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}><i>I</i></button>
@@ -141,7 +179,7 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
   const initialConfig = useMemo(
     () => ({
       namespace: `syzygy-project-${project.documentId}`,
-      nodes: [HeadingNode, QuoteNode, PolicyBlockNode],
+      nodes: [HeadingNode, QuoteNode, PolicyBlockNode, ScenarioReferenceNode],
       editorState: null,
       theme: editorTheme,
       onError(error: Error) {
@@ -154,10 +192,11 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
   return (
     <LexicalCollaboration>
       <LexicalComposer initialConfig={initialConfig}>
-        <AutomationEditorRegistration projectId={project.id} />
-        <Toolbar shared={project.transport.kind === 'drive'} />
-        <ResearchTableOfContents />
-        <div className="research-paper">
+        <ScenarioReferenceProvider projectId={project.id}>
+          <AutomationEditorRegistration projectId={project.id} />
+          <Toolbar shared={project.transport.kind === 'drive'} />
+          <ResearchTableOfContents />
+          <div className="research-paper">
           <RichTextPlugin
             contentEditable={<ContentEditable className="research-editor" aria-label="Collaborative policy document" />}
             placeholder={<div className="research-editor-placeholder">Write the first policy statement…</div>}
@@ -179,7 +218,8 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
               )
             }}
           />
-        </div>
+          </div>
+        </ScenarioReferenceProvider>
       </LexicalComposer>
     </LexicalCollaboration>
   )

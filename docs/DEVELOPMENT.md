@@ -151,6 +151,13 @@ command, and a live-derived accessible outline. The policy fixture intentionally
 lose the edit in Lexical's Yjs root delete/insert representation. That expected failure is a
 release gate for remote collaboration, not a passing convergence claim.
 
+`ScenarioReferenceNode.test.tsx` is the P-05 headless gate. It requires strict stable-ID JSON
+round-trip, rejects missing identity, proves rename-safe live label resolution, and converges the
+reference across two Yjs-bound editors. `editorAutomation.test.ts` separately proves that the
+`[scenario:<stable-id>]` MCP/checkpoint marker reconstructs a semantic node and reports its ID.
+The production TypeScript/Vite build is part of the same gate. Packaged pointer insertion and the
+still-blocked physical two-install LAN/Drive run remain separate environment checks.
+
 The same suite includes `heuristicsModel.test.ts`. Forty seeded delivery orders prove concurrent
 field edits retain both values and attribution events, and another forty prove concurrent additions
 plus delete-versus-edit converge without resurrection. Invalid identity and conflicting edit-ID

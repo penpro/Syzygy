@@ -41,6 +41,8 @@
 | `frontend/src/workspace/collaborationProvider.ts` | Penumbra original | Provider-neutral lifecycle shared by local and test/future transports |
 | `frontend/src/workspace/memoryProvider.ts` | Penumbra original | Deterministic two-editor live/partition convergence transport used only by the headless contract suite |
 | `frontend/src/workspace/nodes/PolicyBlockNode.ts` | Penumbra original | Stable-identity editable policy statement node with review state and strict JSON round-trip |
+| `frontend/src/workspace/nodes/ScenarioReferenceNode.tsx` | Penumbra original | Inline stable-ID scenario link with strict JSON/Yjs round-trip and live-title decorator |
+| `frontend/src/workspace/ScenarioReferenceContext.tsx` | Penumbra original | Live project-Y.Doc scenario projection used by the editor toolbar and rename-safe reference rendering |
 | `frontend/src/workspace/ResearchEditor.tsx` | Penumbra original | Original Syzygy editor composition, formatting toolbar, and local provider wiring |
 | `frontend/src/workspace/editorStructure.ts` | Penumbra original | Live heading projection plus shared pointer/keyboard policy-reorder command and availability guards |
 | `frontend/src/workspace/ResearchTableOfContents.tsx` | Penumbra original | Accessible navigation derived from live editor headings without duplicate state |

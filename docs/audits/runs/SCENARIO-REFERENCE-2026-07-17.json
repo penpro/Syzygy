@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "capability": "P-05",
+  "date": "2026-07-17",
+  "status": "implemented_unverified",
+  "scope": "Stable scenario-reference node, live rename-safe rendering, semantic automation marker, immutable checkpoint reference retention, and toolbar insertion contract.",
+  "commands": [
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 180 --heartbeat-seconds 15 -- npm --prefix frontend exec -- vitest run src/workspace/nodes/ScenarioReferenceNode.test.tsx src/workspace/editorAutomation.test.ts src/workspace/versionAutomation.test.ts src/workspace/versionRestoreIntegration.test.ts --reporter=verbose",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 240 --heartbeat-seconds 15 -- npm --prefix frontend run build"
+  ],
+  "results": {
+    "headless": "Scenario node, semantic automation, version automation, and two-peer restore suites pass.",
+    "productionBuild": "TypeScript and Vite production build pass.",
+    "identity": "Serialized node contains scenarioId and no title snapshot.",
+    "rename": "The same ID resolves the updated title without editor-state mutation.",
+    "collaboration": "Two Yjs-bound editors converge on the same scenario ID.",
+    "automation": "The [scenario:<stable-id>] marker reconstructs a semantic node and reports a unique ID set.",
+    "versions": "Save and restore carry the immutable scenarioIds set."
+  },
+  "limitations": [
+    "Packaged pointer insertion has not yet been interaction-verified.",
+    "P-06 spotlight/embed behavior is not implemented.",
+    "The physical two-install LAN/Drive gate is still blocked because office-secondary is not registered with the coordinator."
+  ]
+}

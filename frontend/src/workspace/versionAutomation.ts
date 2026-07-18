@@ -131,7 +131,7 @@ export async function saveAutomationPolicyVersion(
     projectId,
     expectedHeadVersionId: input.expectedHeadVersionId,
     blocks: snapshot.blocks.map(versionBlock),
-    scenarioIds: [],
+    scenarioIds: snapshot.scenarioIds,
     participantId: input.participantId,
     displayName: input.displayName,
     createdAt: input.createdAt,

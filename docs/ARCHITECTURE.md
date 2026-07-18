@@ -182,6 +182,13 @@ live heading nodes rather than storing a second outline. Reordering is enabled f
 single IndexedDB document; the explicit partitioned move-versus-edit expected-failure fixture must
 pass before any remote provider may claim structural-edit safety.
 
+`nodes/ScenarioReferenceNode.tsx` is a Penumbra-original inline domain node that persists only a
+stable scenario ID. `ScenarioReferenceContext.tsx` resolves its title from the same live project
+Y.Doc used by the scenario gallery, so renames update the rendered chip without mutating editor
+state. Missing targets are shown explicitly. The semantic editor/MCP form is
+`[scenario:<stable-id>]`; parsing recreates the node, snapshots expose a sorted unique ID set, and
+immutable policy checkpoints retain that set.
+
 `heuristicsModel.ts` is the first non-editor shared research domain service. Each heuristic is a
 nested Y.Map so concurrent edits to different fields merge instead of replacing an opaque object;
 a nested edit map retains unique author/time/changed-field/value events. Reads validate and

@@ -119,6 +119,12 @@ Every row needs evidence in `docs/audits/CAPABILITIES.json` before becoming `ver
 | S-06 | data minimization | network trace matches active feature/copy |
 | S-07 | private-LAN multi-install control | two physical installed applications authenticate, remain isolated, and pass bounded routed MCP probes |
 
+P-05 now has an original inline Lexical node and product insertion control. Only the scenario ID is
+serialized; the visible title is derived from the shared scenario collection, and missing targets
+remain inspectable. Headless JSON, rename, semantic-marker, immutable-reference, and two-editor Yjs
+gates pass. Packaged pointer interaction remains open, so the capability is
+`implemented_unverified`; P-06 spotlight/embed behavior is still planned.
+
 P-04 now has a Penumbra-original typed Yjs domain service and deterministic headless evidence for
 concurrent add, independent field edit, attributed edit history, and delete-versus-edit without
 resurrection. This closes the data-model convergence slice only; the visible block editor,

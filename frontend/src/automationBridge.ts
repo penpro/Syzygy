@@ -1,4 +1,5 @@
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { AUTOMATION_CAPABILITIES } from './automationCapabilities'
 import { appVersion, automationReady, automationRespond } from './tauri'
 import { useStore } from './store'
 import {
@@ -72,23 +73,7 @@ export async function dispatchAutomationRequest(
         activeProject: activeProject ? summarizeProject(activeProject, state.activeProjectId) : null,
         editorReady: activeProject ? automationEditorReady(activeProject.id) : false,
         researchStateReady: activeProject ? automationProjectDocumentReady(activeProject.id) : false,
-        capabilities: {
-          available: [
-            'local project identity',
-            'local collaborative rich-text draft',
-            'automatic IndexedDB persistence',
-            'Drive-backed project sharing with append-only Yjs merge and local offline persistence',
-            'revision-guarded semantic MCP reads and writes',
-            'read-only MCP integrity inspection for scenarios, votes, annotations, labels, heuristics, and immutable version history',
-            'dual-revision-guarded MCP creation of immutable policy checkpoints',
-            'research-revision-guarded MCP scenario creation, turn editing, aggregate voting, annotation lifecycle, and shared labels',
-          ],
-          unavailable: [
-            'version save, restore, and diff controls in the product UI; MCP restore remains unavailable',
-            'scenario gallery/editing/voting UI and evaluation workflows',
-            'real-time collaborator presence',
-          ],
-        },
+        capabilities: AUTOMATION_CAPABILITIES,
       }
     }
     case 'project.list':

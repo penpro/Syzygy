@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createEditor, $createParagraphNode, $createTextNode, $getRoot } from 'lexical'
 import { HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { PolicyBlockNode } from './nodes/PolicyBlockNode'
+import { ScenarioReferenceNode } from './nodes/ScenarioReferenceNode'
 import {
   appendAutomationDocument,
   readAutomationEditor,
@@ -20,7 +21,7 @@ afterEach(() => {
 function registeredEditor(projectId = 'project-test') {
   const editor = createEditor({
     namespace: `automation-${projectId}`,
-    nodes: [HeadingNode, QuoteNode, PolicyBlockNode],
+    nodes: [HeadingNode, QuoteNode, PolicyBlockNode, ScenarioReferenceNode],
     onError(error) {
       throw error
     },
@@ -77,6 +78,20 @@ describe('live editor automation contract', () => {
     ])
     expect(replaced.text).toContain('# Keep this literal paragraph')
     expect(() => getAutomationEditorController().replaceBlocks(replaced.revision, [])).toThrow('bounded non-empty')
+  })
+
+  it('round-trips scenario reference markers as stable semantic nodes', () => {
+    registeredEditor()
+    const original = readAutomationEditor()
+    const replaced = replaceAutomationDocument(
+      original.revision,
+      'Evaluate [scenario:scenario-access] before approval.',
+    )
+    expect(replaced.text).toBe('Evaluate [scenario:scenario-access] before approval.')
+    expect(replaced.scenarioIds).toEqual(['scenario-access'])
+    expect(replaced.blocks).toEqual([
+      { kind: 'paragraph', text: 'Evaluate [scenario:scenario-access] before approval.' },
+    ])
   })
 
   it('rejects a stale revision instead of overwriting a newer draft', () => {

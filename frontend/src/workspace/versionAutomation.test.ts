@@ -18,6 +18,7 @@ const snapshot: AutomationEditorSnapshot = {
     { kind: 'heading1', text: 'Policy' },
     { kind: 'policy', policyId: 'rule-1', status: 'review', text: 'Cite evidence.' },
   ],
+  scenarioIds: ['scenario-access'],
 }
 const input: SaveAutomationPolicyVersionInput = {
   expectedDocumentRevision: snapshot.revision,
@@ -61,6 +62,7 @@ describe('automation policy version checkpoint', () => {
     const { metadata, versions } = getProjectSharedTypes(doc)
     expect(saved.documentRevision).toBe(snapshot.revision)
     expect(saved.version.policy.blocks).toEqual(snapshot.blocks)
+    expect(saved.version.scenarioIds).toEqual(snapshot.scenarioIds)
     expect(saved.version.note).toBe('MCP checkpoint')
     expect(saved.changeNote).toBeNull()
     expect(readPolicyVersionHead(metadata)).toBe(saved.version.versionId)
@@ -133,6 +135,7 @@ describe('automation policy version checkpoint', () => {
           revision: `lexical-restore-${generation}`,
           text: '',
           blocks: cloneBlocks(blocks),
+          scenarioIds: [],
         }
         return live
       },
@@ -150,6 +153,7 @@ describe('automation policy version checkpoint', () => {
     const { metadata, versions } = getProjectSharedTypes(doc)
     expect(restored.version.parentVersionId).toBe(child.version.versionId)
     expect(restored.version.policy.blocks).toEqual(root.version.policy.blocks)
+    expect(restored.version.scenarioIds).toEqual(root.version.scenarioIds)
     expect(restored.document.blocks).toEqual(root.version.policy.blocks)
     expect(restored.changeNote).toBe('1 change: 0 added, 0 removed, 1 changed, 0 moved; 1 unchanged.')
     expect(readPolicyVersionHead(metadata)).toBe(restored.version.versionId)
@@ -185,6 +189,7 @@ describe('automation policy version checkpoint', () => {
           revision: `lexical-rollback-${calls}`,
           text: '',
           blocks: cloneBlocks(blocks),
+          scenarioIds: [],
         }
         if (calls === 1) throw new Error('synthetic editor failure')
         return live

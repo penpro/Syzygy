@@ -162,6 +162,13 @@ buttons and Alt+Shift+Arrow shortcuts, with unavailable directions disabled. A c
 outline derives from the live Heading 1/2 nodes, announces its empty state, scrolls on narrow
 surfaces, and focuses the selected heading. All outline states use theme tokens.
 
+A **scenario link** is inserted from a labeled toolbar selector and rendered as a compact inline
+chip. The chip stores no title snapshot: it resolves the current title from the shared project and
+shows a token-derived danger treatment plus stable ID when the target is missing. Renaming a
+scenario therefore updates every open chip without changing document history. The control is
+disabled while scenario data is loading or empty; spotlight/embed behavior remains a separate
+future action.
+
 ## MCP connection guide
 
 Settings includes a **Connect an LLM** guide for people who should not need to understand MCP

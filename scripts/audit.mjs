@@ -108,7 +108,7 @@ record(
 
 const provenance = text('docs/audits/EDITOR-PROVENANCE.md')
 const workspaceSources = filesBelow('frontend/src/workspace', ['.ts', '.tsx'])
-  .filter((path) => !path.endsWith('.test.ts'))
+  .filter((path) => !/\.test\.tsx?$/.test(path))
   .map((path) => relative(root, path).replaceAll('\\', '/'))
 const missingWorkspaceProvenance = workspaceSources.filter((path) => !provenance.includes(path))
 record(
@@ -168,6 +168,35 @@ record(
     editorLedgerSource.includes('"id": "P-10", "phase": 2, "status": "implemented_unverified"') &&
     editorLedgerSource.includes('"id": "P-34", "phase": 2, "status": "implemented_unverified"'),
   'shared pointer/keyboard command, live heading projection, formatting and UI fixtures, explicit remote-safety expected failure, and truthful P-09/P-10/P-34 statuses are present',
+)
+
+const scenarioReferenceSource = text('frontend/src/workspace/nodes/ScenarioReferenceNode.tsx')
+const scenarioReferenceTestSource = text('frontend/src/workspace/nodes/ScenarioReferenceNode.test.tsx')
+const scenarioReferenceContextSource = text('frontend/src/workspace/ScenarioReferenceContext.tsx')
+const researchEditorSource = text('frontend/src/workspace/ResearchEditor.tsx')
+const scenarioEditorAutomationSource = text('frontend/src/workspace/editorAutomation.ts')
+const scenarioEditorAutomationTestSource = text('frontend/src/workspace/editorAutomation.test.ts')
+const scenarioVersionAutomationSource = text('frontend/src/workspace/versionAutomation.ts')
+const scenarioVersionAutomationTestSource = text('frontend/src/workspace/versionAutomation.test.ts')
+record(
+  'scenario references retain stable identity across rename, collaboration, automation, and checkpoints',
+  scenarioReferenceSource.includes("type: 'scenario-reference'") &&
+    scenarioReferenceSource.includes('scenarioId: this.__scenarioId') &&
+    !scenarioReferenceSource.includes('title: this.') &&
+    scenarioReferenceContextSource.includes('scenario.title') &&
+    scenarioReferenceContextSource.includes('Missing scenario') &&
+    researchEditorSource.includes('aria-label="Scenario to reference"') &&
+    researchEditorSource.includes('$createScenarioReferenceNode(scenarioId)') &&
+    scenarioReferenceTestSource.includes('updates the visible title after rename without changing the persisted link') &&
+    scenarioReferenceTestSource.includes('converges the stable reference across two Yjs-bound editors') &&
+    scenarioEditorAutomationSource.includes('appendInlineContent(node, block.text)') &&
+    scenarioEditorAutomationSource.includes('$nodesOfType(ScenarioReferenceNode)') &&
+    scenarioEditorAutomationTestSource.includes('round-trips scenario reference markers as stable semantic nodes') &&
+    scenarioVersionAutomationSource.includes('scenarioIds: snapshot.scenarioIds') &&
+    scenarioVersionAutomationTestSource.includes('expect(saved.version.scenarioIds).toEqual(snapshot.scenarioIds)') &&
+    editorLedgerSource.includes('"id": "P-05", "phase": 6, "status": "implemented_unverified"') &&
+    existsSync(join(root, 'docs/audits/runs/SCENARIO-REFERENCE-2026-07-17.json')),
+  'stable-ID-only node, live rename-safe projection, missing-target state, toolbar insertion, Yjs/JSON/semantic-marker fixtures, immutable reference retention, and truthful P-05 status are present',
 )
 
 const heuristicsModelSource = text('frontend/src/workspace/heuristicsModel.ts')

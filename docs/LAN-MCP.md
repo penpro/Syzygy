@@ -105,6 +105,11 @@ port `37663`, and the local copy of the pairing-key file. Leave host mode off an
 the outbound agent now and again on later launches; disabling, changing, or closing Syzygy stops and
 reaps that child. Updates therefore no longer require a person to keep a PowerShell window alive.
 Only routing metadata and the key-file path are persisted; key contents never enter the webview.
+Settings reports the child process and encrypted handshake separately. **Authenticated** means the
+coordinator completed the keyed handshake; **retrying** means the supervised child exists but has not
+connected. The panel shows the last authenticated time, retry count, sanitized failure, and
+**Reconnect now**. A two-second parent supervisor restarts a child that exits, while the child's
+network retry loop remains bounded.
 
 For diagnosis only, the equivalent foreground command is:
 

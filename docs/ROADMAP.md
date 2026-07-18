@@ -325,6 +325,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   host attaches to it without binding a duplicate server. A headless lifecycle harness proves wrong-key
   rejection, MCP negotiation, process exit, and release of both listener ports. Physical proof remains
   pending until this build is installed on both office computers.
+- The outbound LAN diagnostics slice closes a false-positive status path: a living retry-loop process
+  is no longer called connected. Rust consumes bounded sanitized handshake events, reports
+  connected/retrying timestamps and counts, supervises crash restart every two seconds, and exposes
+  an immediate reconnect command through the single typed frontend boundary. Focused Rust/UI tests
+  and the production frontend build pass. The 2026-07-18 physical probe still found only
+  `office-primary` on v0.1.19; `office-secondary` and the physical convergence gate remain open.
 
 ## Current completion snapshot
 

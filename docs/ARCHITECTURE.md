@@ -57,6 +57,11 @@ At app shutdown the outbound agent stops first, then closing the owned coordinat
 close both listeners and active control sockets. Rust waits up to two seconds before a kill-and-reap
 fallback. Key contents never enter the webview, persisted configuration, or process arguments. This
 runtime controls installations; it is not a project persistence provider. See `LAN-MCP.md`.
+The GUI parent now consumes a bounded, content-free stderr event stream from its outbound agent.
+Settings therefore distinguishes child-process state from a completed encrypted handshake, retains the
+last successful handshake time and retry count, and offers an immediate supervised reconnect. The
+agent's internal network backoff remains bounded; a separate two-second parent supervisor restarts the
+agent if the process itself exits. Process existence alone is never presented as connectivity.
 
 ```
  you ──▶ webview (React) ──▶ 127.0.0.1:11435 llama.cpp ──▶ GGUF on GPU

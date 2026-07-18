@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   lanAgentConfigure,
+  lanAgentReconnect,
   lanAgentSettings,
   lanDevCoordinatorConfigure,
   lanDevCoordinatorSettings,
@@ -89,12 +90,18 @@ export function LanAgentSettings() {
       setHostReport(nextHost)
       if (hostConfig.enabled) {
         setMessage(
-          nextAgent.running && nextHost.running
-            ? 'Collaboration developer network is running.'
+          nextAgent.connectionState === 'connected' && nextHost.running
+            ? 'Collaboration developer network is authenticated and running.'
             : 'Developer mode is saved and its supervisor is recovering the connection.',
         )
       } else {
-        setMessage(nextAgent.running ? 'Private LAN connection is running.' : 'Private LAN connection is off.')
+        setMessage(
+          nextAgent.connectionState === 'connected'
+            ? 'Private LAN connection is authenticated.'
+            : nextAgent.config.enabled
+              ? 'Private LAN connection is retrying.'
+              : 'Private LAN connection is off.',
+        )
       }
     } catch (error) {
       setMessage((error as { message?: string })?.message ?? String(error))
@@ -103,14 +110,36 @@ export function LanAgentSettings() {
     }
   }
 
+  const reconnect = async () => {
+    setBusy(true)
+    setMessage('')
+    try {
+      const next = await lanAgentReconnect()
+      setDraft(next.config)
+      setReport(next)
+      setMessage(
+        next.config.enabled
+          ? 'Reconnect requested. Authenticated status will update automatically.'
+          : 'Enable and apply the private LAN connection first.',
+      )
+    } catch (error) {
+      setMessage((error as { message?: string })?.message ?? String(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const authenticated = report?.connectionState === 'connected'
   const status = draft.enabled
     ? hostEnabled
-      ? report?.running && hostReport?.running
-        ? 'Developer network running'
+      ? authenticated && hostReport?.running
+        ? 'Developer network connected'
         : 'Host enabled, recovering'
-      : report?.running
-        ? 'Connected in background'
-        : 'Enabled, reconnecting'
+      : authenticated
+        ? 'Authenticated'
+        : report?.connectionState === 'starting'
+          ? 'Starting'
+          : 'Enabled, retrying'
     : 'Off'
 
   return (
@@ -138,6 +167,9 @@ export function LanAgentSettings() {
       </label>
       <em className="hint">
         Host mode starts and supervises the interconnect server with Syzygy, then stops and reaps it during shutdown. PowerShell is diagnostic-only.
+      </em>
+      <em className="hint">
+        The agent process and encrypted authentication are checked separately. A running process is not reported as connected until its handshake succeeds.
       </em>
       <em className="hint">
         {hostEnabled
@@ -176,6 +208,25 @@ export function LanAgentSettings() {
       {hostEnabled && hostReport?.controlPort ? (
         <span className="mono subtle">Local MCP attachment: 127.0.0.1:{hostReport.controlPort}</span>
       ) : null}
+      {report ? (
+        <div className="field mono subtle" aria-live="polite">
+          <span>Agent process: {report.running ? `running (PID ${report.pid ?? 'unknown'})` : 'stopped'}</span>
+          <span>Encrypted handshake: {report.connectionState}</span>
+          <span>Reconnect attempts: {report.reconnectCount}</span>
+          {report.lastConnectedAtMs ? (
+            <span>
+              Last authenticated: <time dateTime={new Date(report.lastConnectedAtMs).toISOString()}>
+                {new Date(report.lastConnectedAtMs).toLocaleTimeString()}
+              </time>
+            </span>
+          ) : (
+            <span>Last authenticated: not yet</span>
+          )}
+          {report.retryInMs !== null && !report.running ? (
+            <span>Next process restart: within {Math.max(1, Math.ceil(report.retryInMs / 1_000))}s</span>
+          ) : null}
+        </div>
+      ) : null}
       <label className="field">
         <span>Pairing-key file</span>
         <div className="row gap">
@@ -188,6 +239,14 @@ export function LanAgentSettings() {
       <div className="row gap">
         <button type="button" className="btn sm" disabled={busy} onClick={() => void apply()}>
           {busy ? 'Applying…' : 'Apply developer connection'}
+        </button>
+        <button
+          type="button"
+          className="btn sm ghost"
+          disabled={busy || !report?.config.enabled}
+          onClick={() => void reconnect()}
+        >
+          Reconnect now
         </button>
         {report?.lastError ? <span className="error-text">{report.lastError}</span> : null}
         {hostReport?.lastError ? <span className="error-text">{hostReport.lastError}</span> : null}

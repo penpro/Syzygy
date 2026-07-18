@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-07-18",
+  "subject": "lan-agent-authenticated-state-and-self-recovery",
+  "result": "passed_focused_physical_two_install_pending",
+  "observedPhysicalStateBeforeChange": {
+    "coordinator": "192.168.1.73:37663",
+    "registeredNodes": [
+      {
+        "nodeId": "office-primary",
+        "version": "0.1.19",
+        "mcpToolCount": 29,
+        "driveProjectVisible": true
+      }
+    ],
+    "missingNode": "office-secondary",
+    "coordinatorOwner": "repository diagnostic fallback host",
+    "conclusion": "The routed two-install convergence gate could not run."
+  },
+  "implementationClaims": [
+    "The installed app distinguishes a running outbound child from a completed encrypted coordinator handshake.",
+    "Bounded sanitized agent events expose connected, retrying, error, last-connected time, and retry-count state without research content or key material.",
+    "A two-second parent supervisor restarts an agent process that exits with bounded backoff.",
+    "Settings offers an explicit reconnect command through frontend/src/tauri.ts and does not call invoke elsewhere.",
+    "Disable and shutdown mark telemetry off before killing and reaping the owned child."
+  ],
+  "automatedEvidence": {
+    "lanRuntimeRust": {
+      "testsPassed": 3,
+      "command": "cargo test lan_runtime"
+    },
+    "lanSettingsUi": {
+      "testsPassed": 1,
+      "command": "npm test -- src/components/LanAgentSettings.ui.test.ts"
+    },
+    "typescriptAndProductionAssets": {
+      "result": "passed",
+      "command": "npm run build"
+    }
+  },
+  "nonClaims": [
+    "This record does not claim office-secondary registered.",
+    "This record does not claim the physical two-install Drive convergence harness passed.",
+    "A reported handshake authenticates the configured node key, not a human identity.",
+    "The LAN control plane does not itself synchronize research data.",
+    "The current primary coordinator was still owned by the repository diagnostic fallback during the pre-change probe."
+  ]
+}

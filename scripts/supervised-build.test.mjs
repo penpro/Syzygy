@@ -47,7 +47,7 @@ test('production profiles keep every operation bounded and package the re-embedd
   for (const name of ['check', 'package']) {
     assert.ok(available[name].totalDeadlineSeconds > 0)
     assert.ok(available[name].steps.every((step) => Number.isSafeInteger(step.timeoutSeconds) && step.timeoutSeconds > 0))
-    assert.ok(available[name].steps.filter((step) => step.kind !== 'shutdown').every((step) => step.stallSeconds > 0 && step.stallSeconds <= 300))
+    assert.ok(available[name].steps.filter((step) => step.kind !== 'shutdown').every((step) => step.stallSeconds > 0 && step.stallSeconds <= 120))
   }
   const packageStep = available.package.steps.find((step) => step.id === 'tauri-package')
   assert.equal(packageStep.requiredOutput, 'Compiling app v')

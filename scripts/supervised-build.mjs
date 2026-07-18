@@ -34,7 +34,7 @@ const productionProfiles = {
       { id: 'frontend-tests', cwd: FRONTEND, timeoutSeconds: 600, stallSeconds: 120, command: 'npm', args: ['test', '--', '--run'] },
       { id: 'frontend-build', cwd: FRONTEND, timeoutSeconds: 600, stallSeconds: 120, command: 'npm', args: ['run', 'build'] },
       { id: 'repository-audit', cwd: FRONTEND, timeoutSeconds: 300, stallSeconds: 60, command: 'npm', args: ['run', 'audit'] },
-      { id: 'rust-check', cwd: ROOT, timeoutSeconds: 1_200, stallSeconds: 300, command: cargoCommand(), args: ['check', '--manifest-path', join(FRONTEND, 'src-tauri', 'Cargo.toml'), '--locked'] },
+      { id: 'rust-check', cwd: ROOT, timeoutSeconds: 1_200, stallSeconds: 120, command: cargoCommand(), args: ['check', '--manifest-path', join(FRONTEND, 'src-tauri', 'Cargo.toml'), '--locked'] },
     ],
   },
   package: {
@@ -43,10 +43,10 @@ const productionProfiles = {
     steps: [
       { id: 'frontend-tests', cwd: FRONTEND, timeoutSeconds: 600, stallSeconds: 120, command: 'npm', args: ['test', '--', '--run'] },
       { id: 'repository-audit', cwd: FRONTEND, timeoutSeconds: 300, stallSeconds: 60, command: 'npm', args: ['run', 'audit'] },
-      { id: 'rust-check', cwd: ROOT, timeoutSeconds: 1_200, stallSeconds: 300, command: cargoCommand(), args: ['check', '--manifest-path', join(FRONTEND, 'src-tauri', 'Cargo.toml'), '--locked'] },
+      { id: 'rust-check', cwd: ROOT, timeoutSeconds: 1_200, stallSeconds: 120, command: cargoCommand(), args: ['check', '--manifest-path', join(FRONTEND, 'src-tauri', 'Cargo.toml'), '--locked'] },
       { id: 'app-resource-shutdown', kind: 'shutdown', timeoutSeconds: 90 },
-      { id: 'tauri-package', cwd: FRONTEND, timeoutSeconds: 900, stallSeconds: 300, command: 'npm', args: ['run', 'tauri', 'build'], requiredOutput: 'Compiling app v' },
-      { id: 'packaged-mcp-smoke', cwd: ROOT, timeoutSeconds: 300, stallSeconds: 180, command: process.execPath, args: [join(ROOT, 'scripts', 'mcp-harness.mjs'), '--executable', packagedExecutable()] },
+      { id: 'tauri-package', cwd: FRONTEND, timeoutSeconds: 900, stallSeconds: 120, command: 'npm', args: ['run', 'tauri', 'build'], requiredOutput: 'Compiling app v' },
+      { id: 'packaged-mcp-smoke', cwd: ROOT, timeoutSeconds: 300, stallSeconds: 120, command: process.execPath, args: [join(ROOT, 'scripts', 'mcp-harness.mjs'), '--executable', packagedExecutable()] },
     ],
   },
 }

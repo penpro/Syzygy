@@ -70,7 +70,7 @@ checkpoints and `output.log` live in the ignored `.syzygy-dev-runs/<run-id>/` fo
 active run is allowed; a dead worker is marked interrupted before a replacement starts. The check
 profile has a 30-minute total deadline. The package profile has a 40-minute total deadline. Every
 child step also uses `run-with-heartbeat.mjs` with a mandatory operation-specific deadline and a
-30-second heartbeat. Production steps also stop after 60–300 seconds without real child output,
+30-second heartbeat. Production steps also stop after at most 120 seconds without real child output,
 with the longest silence allowance reserved for Rust linking and installer generation. Child stdin
 is closed, so an unattended prompt fails instead of waiting.
 

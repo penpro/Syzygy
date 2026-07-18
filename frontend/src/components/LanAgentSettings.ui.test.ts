@@ -15,5 +15,7 @@ describe('LanAgentSettings', () => {
     expect(markup).toContain('never opens a LAN listener')
     expect(markup).toContain('does not sync research data by itself')
     expect(markup).toContain('Apply developer connection')
+    expect(markup).toContain('running process is not reported as connected')
+    expect(markup).toContain('Reconnect now')
   })
 })

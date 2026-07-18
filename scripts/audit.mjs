@@ -91,7 +91,9 @@ record(
     frontendPackage.scripts?.['test:build-supervisor'] === 'node --test ../scripts/supervised-build.test.mjs' &&
     buildSupervisorSource.includes('HEARTBEAT_SECONDS = 30') &&
     buildSupervisorSource.includes('STALL_EXIT_CODE = 125') &&
-    buildSupervisorSource.includes('stallSeconds: 300') &&
+    buildSupervisorSource.includes('stallSeconds: 120') &&
+    !buildSupervisorSource.includes('stallSeconds: 180') &&
+    !buildSupervisorSource.includes('stallSeconds: 300') &&
     buildSupervisorSource.includes('detached: true') &&
     buildSupervisorSource.includes('writeJsonAtomic') &&
     buildSupervisorSource.includes('CloseMainWindow()') &&
@@ -103,7 +105,7 @@ record(
     buildSupervisorTestSource.includes('a child-output stall clamp terminates a heartbeat-only operation') &&
     buildSupervisorTestSource.includes('a step deadline terminates the hung tree') &&
     text('.gitignore').includes('.syzygy-dev-runs/'),
-  'mandatory deadlines, at-most-30-second heartbeats, 60–300-second child-output stall clamps, detached atomic checkpoints, scoped app/model shutdown, asset re-embed proof, packaged MCP smoke, and executable timeout fixtures are present',
+  'mandatory deadlines, at-most-30-second heartbeats, at-most-120-second child-output stall clamps, detached atomic checkpoints, scoped app/model shutdown, asset re-embed proof, packaged MCP smoke, and executable timeout fixtures are present',
 )
 
 const provenance = text('docs/audits/EDITOR-PROVENANCE.md')

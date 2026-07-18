@@ -58,6 +58,11 @@ export interface LanAgentReport {
   config: LanAgentConfig
   running: boolean
   pid: number | null
+  connectionState: 'off' | 'starting' | 'connected' | 'reconnecting' | 'recovering' | 'stopped' | 'error' | 'unknown'
+  lastEventAtMs: number | null
+  lastConnectedAtMs: number | null
+  reconnectCount: number
+  retryInMs: number | null
   lastError: string | null
 }
 
@@ -482,6 +487,9 @@ export const lanAgentSettings = (): Promise<LanAgentReport> => invoke('lan_agent
 /** Save and apply the outbound LAN test connection; disabled config stops and reaps its child. */
 export const lanAgentConfigure = (config: LanAgentConfig): Promise<LanAgentReport> =>
   invoke('lan_agent_configure', { config })
+
+/** Restart the saved outbound agent immediately and report its real handshake state. */
+export const lanAgentReconnect = (): Promise<LanAgentReport> => invoke('lan_agent_reconnect')
 
 /** Current app-owned private-LAN developer coordinator. Key contents remain native-only. */
 export const lanDevCoordinatorSettings = (): Promise<LanDevCoordinatorReport> =>

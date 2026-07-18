@@ -186,6 +186,10 @@ Settings also includes **Private LAN test connection** as an opt-in advanced con
 a plain-language computer label, one explicit private coordinator address and port, and a pairing-
 key file chosen through the native file picker. The status distinguishes saved configuration, a
 running outbound agent, a running app-owned host, recovery, and actionable failure.
+The UI must not infer connectivity from a child PID. It reports authenticated only after the
+encrypted handshake event, otherwise shows starting, retrying, recovering, or stopped; it also exposes
+the last successful handshake, retry count, sanitized failure, and an explicit **Reconnect now**
+control.
 
 The default client state says that the installation makes an outbound encrypted connection and opens
 no LAN listener. The optional **Host the collaboration developer network on this computer** toggle says

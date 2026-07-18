@@ -10,6 +10,7 @@ import {
   parseCli,
   requiredOption,
 } from './lan-bridge-protocol.mjs'
+import { superviseLanAgent } from './lan-agent-supervisor.mjs'
 
 const scripts = path.dirname(fileURLToPath(import.meta.url))
 const options = parseCli(process.argv.slice(2))
@@ -29,17 +30,6 @@ const coordinator = spawn(process.execPath, [
   windowsHide: true,
 })
 
-const agent = spawn(localExecutable, [
-  '--lan-agent',
-  '--node-id', localNodeId,
-  '--coordinator', listen,
-  '--port', String(port),
-  '--key-file', keyFile,
-], {
-  stdio: ['ignore', 'ignore', 'inherit'],
-  windowsHide: true,
-})
-
 function terminate(child) {
   if (!child.pid || child.exitCode !== null) return
   if (process.platform === 'win32') {
@@ -47,23 +37,33 @@ function terminate(child) {
   } else child.kill('SIGTERM')
 }
 
+const agentSupervisor = superviseLanAgent({
+  spawnAgent: () => spawn(localExecutable, [
+    '--lan-agent',
+    '--node-id', localNodeId,
+    '--coordinator', listen,
+    '--port', String(port),
+    '--key-file', keyFile,
+  ], {
+    stdio: ['ignore', 'ignore', 'inherit'],
+    windowsHide: true,
+  }),
+  terminateAgent: terminate,
+  log: (message) => process.stderr.write(`[syzygy-lan-host] ${message}\n`),
+})
+
 coordinator.once('error', (error) => {
   process.stderr.write(`[syzygy-lan-host] coordinator failed: ${error.message}\n`)
-  terminate(agent)
-  process.exitCode = 1
-})
-agent.once('error', (error) => {
-  process.stderr.write(`[syzygy-lan-host] local agent failed: ${error.message}\n`)
-  terminate(coordinator)
+  agentSupervisor.stop()
   process.exitCode = 1
 })
 coordinator.once('exit', (code) => {
-  terminate(agent)
+  agentSupervisor.stop()
   process.exitCode = code ?? 1
 })
 
 const stop = () => {
-  terminate(agent)
+  agentSupervisor.stop()
   terminate(coordinator)
 }
 process.once('SIGINT', stop)

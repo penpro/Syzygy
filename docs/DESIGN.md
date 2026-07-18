@@ -175,6 +175,13 @@ The copy must distinguish configuration from capability. A successful setup does
 unfinished evaluation or presence features are available. Drive project sharing is controlled in the Workspace UI and is not ambient MCP authority.
 It must also say that MCP does not automatically gain Drive, filesystem, or local-model authority.
 
+Settings also includes **Private LAN test connection** as an opt-in advanced control. It asks for
+a plain-language computer label, one explicit private coordinator address and port, and a pairing-
+key file chosen through the native file picker. The status must distinguish saved configuration,
+a running outbound agent, and actionable failure. Copy says that Syzygy opens no LAN listener and
+that the connection controls this installation but does not itself synchronize research data.
+Disabling or reconfiguring it must stop the old agent before the UI reports the new state.
+
 ## Future provider, panel, and plugin surfaces
 
 Remote models are opt-in additions to a local-first product. Before first transmission, show the

@@ -299,13 +299,17 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   derived requirements, and falsification gates are in
   `docs/audits/LITERATURE-NOTES-2026-07-15.md`; it is requirements evidence, not a quality claim.
 
-- The LAN MCP control plane development slice keeps every GUI automation listener on loopback and
-  adds a packaged outbound `Syzygy --lan-agent`, an authenticated encrypted coordinator, a stdio
-  MCP host wrapper, and bounded two-node harnesses. Node and Rust tests prove challenge binding,
-  directional session keys, AES-GCM tamper/replay rejection, wrong-key rejection, per-node routing,
-  disconnect cleanup, and cross-language discovery of all twenty-five native tools. This is S-07
-  `implemented_unverified`: the decisive two-physical-install private-LAN run is still required, and
-  the control plane does not claim Yjs/IndexedDB project synchronization.
+- The LAN collaboration follow-up makes the outbound agent an opt-in installed-app setting, stores
+  only routing metadata/key-file path, restarts it on launch, and reaps it on disable, reconfigure,
+  or shutdown. The repository host also supervises its primary packaged agent with bounded backoff.
+  Three new MCP tools expose exact bounded Drive catalog/share/join actions; share requires the
+  current document revision and join refetches exact workspace/project/document identity before
+  registration. A five-minute two-physical-install harness now checks both nodes, at least twenty-
+  nine tools, guarded share/join, bidirectional and concurrent-edit convergence, and stale-write
+  rejection with content-free output. Component, Rust, MCP, and synthetic host gates pass; S-07
+  stays `implemented_unverified` until the new build is installed on both profiles and that physical
+  harness produces its evidence record. Presence, bounded compaction, shared rename, and non-Drive
+  transports remain open.
 
 ## Current completion snapshot
 
@@ -337,14 +341,16 @@ collaborators are not required to download large project folders.
    Build the adversarial benchmark before
    claiming panel quality; implement a no-authority WASI host before loading third-party code.
 4. **Harden collaboration beyond the first Drive transport** — append-only Yjs Drive sharing,
-   share/join UI, deterministic partition convergence, and a real Drive canary have landed. Next:
-   packaged two-install convergence, bounded compaction, conflict-safe shared rename, and presence.
+   share/join UI, deterministic partition convergence, a real Drive canary, persistent outbound LAN
+   agents, and guarded MCP catalog/share/join tooling have landed. Next: run and record the packaged
+   two-install convergence harness, then bounded compaction, conflict-safe shared rename, and presence.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.
    v0.1.14 added same-name folder codes and the bounded MCP/LAN diagnostic; the two-physical-install
    run then proved the client had no selected workspace rather than a failed project upload.
    v0.1.15 added bounded cross-workspace discovery and exact-parent Join. The current follow-up makes
-   Drive setup globally reachable and separates live sharing from offline-copy handoff in product
-   copy. Packaged two-install Join and convergence still decide the gate. Self-hosted y-websocket-compatible and P2P transports remain siblings behind the abstraction.
+   Drive setup globally reachable, separates live sharing from offline-copy handoff, and removes
+   manual secondary-agent babysitting. Physical Join/convergence still decides the gate. Self-hosted
+   y-websocket-compatible and P2P transports remain siblings behind the abstraction.
 5. **Independent research workflows on top** — scenarios, structured policy blocks,
    heuristics, evaluation, versions, and review, designed and prompted from scratch for
    Syzygy's local model.

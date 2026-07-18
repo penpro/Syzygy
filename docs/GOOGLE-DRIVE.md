@@ -103,6 +103,16 @@ The explicit MCP tool `inspect_drive_project_discovery` invokes the same refresh
 webview for LAN testing. It returns at most 200 project/document identities plus a short folder code,
 count, truncation state, and time. It returns no OAuth data, Drive file IDs, project titles, or document
 content and grants no project mutation authority.
+The separate `list_shared_projects` tool returns the same bounded catalog. `share_active_project`
+is limited to the active local project, requires the exact current document revision, captures that
+exact Yjs state before publishing, and binds only when Drive returns the expected workspace/project/
+document identity. `join_shared_project` refetches the catalog, requires all three exact identities,
+persists the exact parent workspace, rejects local identity collisions, and waits for the joined
+Drive editor to become ready. These explicit calls use the live product boundary; they are not
+ambient Drive authority.
+
+`scripts/lan-drive-live-harness.mjs` drives those tools through two exact physical node labels. Its
+mutating mode proves guarded share/join, bidirectional and concurrent-edit convergence, and stale-
 
 `npm run test:drive-project-live` creates a temporary project through the real Google endpoints,
 appends two logical-writer records, lists/reads them back, and trashes the project folder. The

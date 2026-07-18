@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-07-17",
+  "subject": "persistent-lan-agent-and-guarded-drive-collaboration",
+  "result": "passed_headless_physical_two_install_pending",
+  "implementationClaims": [
+    "Each installation can opt in to a persistent outbound LAN test agent from Settings without exposing a LAN listener.",
+    "The app persists routing metadata and the pairing-key path, never pairing-key contents, and reaps the agent on disable, reconfiguration, and shutdown.",
+    "The repository MCP host supervises its local packaged agent with bounded restart backoff.",
+    "MCP exposes bounded Drive project catalog, exact-revision share, and exact-identity join actions through the live product boundary.",
+    "The physical harness has a fifteen-second heartbeat, five-minute deadline, exact two-node gate, concurrent convergence proof, and stale-write rejection."
+  ],
+  "automatedEvidence": {
+    "lanAgentSupervisor": {
+      "testsPassed": 2
+    },
+    "lanRuntimeRust": {
+      "testsPassed": 2
+    },
+    "driveActionsAndSettingsUi": {
+      "testFilesPassed": 2,
+      "testsPassed": 5
+    },
+    "nativeMcp": {
+      "testsPassed": 14,
+      "minimumAdvertisedTools": 29
+    },
+    "typescriptCompile": "passed",
+    "supervisedCheckRun": "20260718-032455-5d730f",
+    "fullFrontend": {
+      "testFilesPassed": 57,
+      "testFilesSkipped": 1,
+      "testsPassed": 247,
+      "expectedFailures": 1,
+      "testsSkipped": 1
+    },
+    "productionFrontendBuild": "passed",
+    "nativeCompile": "passed",
+    "supervisedPackageRun": {
+      "runId": "20260718-032737-91eeb5",
+      "appVersion": "0.1.17",
+      "packagedMcpToolCount": 29,
+      "result": "passed"
+    },
+    "postPackageResourceUnload": "passed_no_syzygy_or_llama_server_process",
+    "physicalTwoInstallDriveConvergence": {
+      "status": "pending_new_build_on_both_profiles",
+      "harness": "scripts/lan-drive-live-harness.mjs"
+    }
+  },
+  "nonClaims": [
+    "This record does not claim the physical two-install Drive convergence harness has passed.",
+    "The LAN control plane does not itself synchronize research data.",
+    "Drive delivery remains polling-based and does not provide presence or sub-second delivery.",
+    "Node labels and saved researcher names are not authenticated human identities.",
+    "WebSocket, direct peer transport, bounded Drive compaction, and conflict-safe shared rename remain open."
+  ]
+}

@@ -410,6 +410,9 @@ const advertisedMcpTools = [
   'workspace_walkthrough',
   'list_projects',
   'inspect_drive_project_discovery',
+  'list_shared_projects',
+  'share_active_project',
+  'join_shared_project',
   'create_project',
   'open_project',
   'rename_project',
@@ -441,6 +444,8 @@ const driveDiscoverySource = text('frontend/src/workspace/driveProjectDiscovery.
 const driveDiscoveryTestSource = text('frontend/src/workspace/driveProjectDiscovery.test.ts')
 const driveProjectNativeSource = text('frontend/src-tauri/src/drive_projects.rs')
 const driveProjectControlsSource = text('frontend/src/workspace/DriveProjectControls.tsx')
+const driveProjectActionsSource = text('frontend/src/workspace/driveProjectActions.ts')
+const driveProjectActionsTestSource = text('frontend/src/workspace/driveProjectActions.test.ts')
 record(
   'Drive project discovery remains exact-folder, observable, bounded, and content-minimized',
   driveDiscoverySource.includes('MAX_DIAGNOSTIC_PROJECTS = 200') &&
@@ -453,11 +458,22 @@ record(
     driveProjectNativeSource.includes('google_drive_project_discover') &&
     driveProjectNativeSource.includes('unique_roots_by_workspace') &&
     driveProjectControlsSource.includes('googleDriveProjectDiscover') &&
-    driveProjectControlsSource.includes('googleDriveSelectWorkspace(descriptor.workspaceId)') &&
+    driveProjectControlsSource.includes('joinSharedDriveProject(descriptor)') &&
     driveProjectControlsSource.includes('Shared-project refresh failed:') &&
+    driveProjectActionsSource.includes('shareProjectToSelectedDrive') &&
+    driveProjectActionsSource.includes('joinSharedDriveProject') &&
+    driveProjectActionsSource.includes('candidate.workspaceId === identity.workspaceId') &&
+    driveProjectActionsSource.includes('selectWorkspace(descriptor.workspaceId)') &&
+    driveProjectActionsTestSource.includes('rejects a stale revision before publishing') &&
+    driveProjectActionsTestSource.includes('fails closed when a local identity collision') &&
     text('frontend/src/components/GoogleDriveButton.tsx').includes('driveWorkspaceOptionLabel(option)') &&
     text('frontend/src/automationBridge.ts').includes("case 'drive.inspectProjectDiscovery'") &&
-    mcpSource.includes('"inspect_drive_project_discovery" => live("drive.inspectProjectDiscovery"'),
+    text('frontend/src/automationBridge.ts').includes("case 'drive.listSharedProjects'") &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.shareDrive'") &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.joinDrive'") &&
+    mcpSource.includes('"inspect_drive_project_discovery" => live("drive.inspectProjectDiscovery"') &&
+    mcpSource.includes('"share_active_project" => live("project.shareDrive"') &&
+    mcpSource.includes('"join_shared_project" => live("project.joinDrive"'),
   'selected-folder MCP diagnostics, bounded cross-workspace Syzygy-root catalog, duplicate/orphan rejection, explicit exact-parent Join, no token/file-ID diagnostic disclosure, and hostile workspace fixtures are present',
 )
 const researchInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
@@ -927,7 +943,12 @@ record(
 )
 
 const lanAgentSource = text('frontend/src-tauri/src/lan_agent.rs')
+const lanRuntimeSource = text('frontend/src-tauri/src/lan_runtime.rs')
 const lanCoordinatorSource = text('scripts/lan-mcp-coordinator.mjs')
+const lanHostSource = text('scripts/lan-mcp-host.mjs')
+const lanSupervisorSource = text('scripts/lan-agent-supervisor.mjs')
+const lanDriveHarnessSource = text('scripts/lan-drive-live-harness.mjs')
+const lanSettingsSource = text('frontend/src/components/LanAgentSettings.tsx')
 record(
   'LAN MCP control plane remains outbound, authenticated, encrypted, replay-safe, and bounded',
   text('frontend/src-tauri/src/main.rs').includes('"--lan-agent"') &&
@@ -941,11 +962,24 @@ record(
     lanCoordinatorSource.includes('verifyAgentProof') &&
     lanCoordinatorSource.includes('STALE_AFTER_MS') &&
     lanCoordinatorSource.includes("name: 'lan_probe'") &&
+    lanRuntimeSource.includes('lan-agent.json') &&
+    lanRuntimeSource.includes('Command::new(executable)') &&
+    lanRuntimeSource.includes('pub fn shutdown') &&
+    lanRuntimeSource.includes('key_path.is_absolute()') &&
+    lanHostSource.includes('superviseLanAgent') &&
+    lanSupervisorSource.includes('RESTART_DELAYS_MS') &&
+    lanSettingsSource.includes('Private LAN test connection') &&
+    lanSettingsSource.includes('pickLanPairingKeyFile') &&
+    lanDriveHarnessSource.includes("'--mutate'") &&
+    lanDriveHarnessSource.includes('Math.min(timeoutMs, 60_000)') &&
+    lanDriveHarnessSource.includes('staleRevisionRejected') &&
     existsSync(join(root, 'scripts/lan-mcp-host.mjs')) &&
     existsSync(join(root, 'scripts/lan-mcp-harness.mjs')) &&
     existsSync(join(root, 'scripts/lan-packaged-agent-harness.mjs')) &&
-    existsSync(join(root, 'docs/audits/runs/LAN-MCP-CONTROL-PLANE-2026-07-16.json')),
-  'packaged outbound agent preserves loopback GUI ownership; HMAC/HKDF/AES-GCM, replay counters, deadlines, heartbeats, two-node routing, and packaged interoperability evidence are present',
+    existsSync(join(root, 'scripts/lan-drive-live-harness.mjs')) &&
+    existsSync(join(root, 'docs/audits/runs/LAN-MCP-CONTROL-PLANE-2026-07-16.json')) &&
+    existsSync(join(root, 'docs/audits/runs/LAN-COLLABORATION-SUPERVISION-2026-07-17.json')),
+  'packaged outbound agents preserve loopback GUI ownership; authenticated transport, persistent opt-in lifecycle, bounded supervision, exact Drive collaboration actions, and physical convergence gating are present',
 )
 const ledger = JSON.parse(text('docs/audits/CAPABILITIES.json'))
 const expectedIds = [

@@ -1,22 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
-import * as Y from 'yjs'
 import {
   googleOauthConnection,
   googleDriveProjectDiscover,
-  googleDriveProjectPublish,
-  googleDriveSelectWorkspace,
   googleDriveWorkspace,
   type DriveProjectDescriptor,
   type DriveWorkspace,
 } from '../tauri'
 import { useStore } from '../store'
-import { bytesToBase64 } from './driveProjectProvider'
 import { driveWorkspaceLabel } from './driveProjectDiscovery'
+import { joinSharedDriveProject, shareProjectToSelectedDrive } from './driveProjectActions'
 import { subscribeDriveProjectStatus, type DriveProjectSyncStatus } from './driveProjectStatus'
 import type { ResearchProjectManifest } from './schema'
 import {
   automationProjectDocumentReady,
-  getAutomationProjectDocument,
   subscribeAutomationProjectDocument,
 } from './workspaceAutomationRegistry'
 
@@ -33,8 +29,6 @@ function syncLabel(status: DriveProjectSyncStatus | null): string {
 }
 
 export function DriveProjectControls({ project }: { project?: ResearchProjectManifest }) {
-  const bindProjectToDrive = useStore((state) => state.bindProjectToDrive)
-  const addSharedProject = useStore((state) => state.addSharedProject)
   const projects = useStore((state) => state.projects)
   const [workspace, setWorkspace] = useState<DriveWorkspace | null>(null)
   const [available, setAvailable] = useState<DriveProjectDescriptor[]>([])
@@ -107,22 +101,9 @@ export function DriveProjectControls({ project }: { project?: ResearchProjectMan
     setError('')
     setMessage('')
     try {
-      const selected = await googleDriveWorkspace()
-      if (!selected) throw new Error('Link Google Drive above and choose a shared folder first.')
-      const doc = getAutomationProjectDocument(project.id)
-      const descriptor = await googleDriveProjectPublish(
-        project.id,
-        project.documentId,
-        project.title,
-        project.createdAt,
-        bytesToBase64(Y.encodeStateAsUpdate(doc)),
-      )
-      if (descriptor.workspaceId !== selected.id || descriptor.projectId !== project.id || descriptor.documentId !== project.documentId) {
-        throw new Error('Drive returned a project identity that does not match this project.')
-      }
-      bindProjectToDrive(project.id, selected.id)
-      setWorkspace(selected)
-      setMessage(`Shared to ${driveWorkspaceLabel(selected)}. This project now merges edits from every joined installation.`)
+      const shared = await shareProjectToSelectedDrive(project)
+      setWorkspace(shared.workspace)
+      setMessage(`Shared to ${driveWorkspaceLabel(shared.workspace)}. This project now merges edits from every joined installation.`)
     } catch (value) {
       setError(errorText(value))
     } finally {
@@ -134,20 +115,8 @@ export function DriveProjectControls({ project }: { project?: ResearchProjectMan
     setBusy(true)
     setError('')
     try {
-      const selected = await googleDriveSelectWorkspace(descriptor.workspaceId)
-      if (selected.id !== descriptor.workspaceId) {
-        throw new Error('Drive selected a different workspace than the shared project requires.')
-      }
-      setWorkspace(selected)
-      addSharedProject({
-        schemaVersion: 1,
-        id: descriptor.projectId,
-        documentId: descriptor.documentId,
-        title: descriptor.title,
-        createdAt: descriptor.createdAt,
-        updatedAt: descriptor.createdAt,
-        transport: { kind: 'drive', workspaceId: descriptor.workspaceId },
-      })
+      await joinSharedDriveProject(descriptor)
+      setWorkspace({ id: descriptor.workspaceId, name: descriptor.workspaceName })
     } catch (value) {
       setError(errorText(value))
     } finally {

@@ -92,7 +92,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, and immutable history. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. On any conflict, read again and reconcile. Never claim model generation or real-time collaborator presence is available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, and immutable history. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. On any conflict, read again and reconcile. Never claim model generation or real-time collaborator presence is available."
             })
         }
         "ping" => json!({}),
@@ -123,6 +123,9 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "syzygy_status" => live("app.inspect", json!({})),
         "list_projects" => live("project.list", json!({})),
         "inspect_drive_project_discovery" => live("drive.inspectProjectDiscovery", json!({})),
+        "list_shared_projects" => live("drive.listSharedProjects", json!({})),
+        "share_active_project" => live("project.shareDrive", arguments),
+        "join_shared_project" => live("project.joinDrive", arguments),
         "workspace_walkthrough" => live("workspace.walkthrough", json!({})),
         "create_project" => live("project.create", arguments),
         "open_project" => live("project.open", arguments),
@@ -205,6 +208,31 @@ fn tool_definitions() -> Vec<Value> {
             "inspect_drive_project_discovery",
             "Refresh the selected Drive workspace's shared-project manifests and return only its short folder code, project/document identities, count, truncation state, and check time. This explicit read returns no OAuth token, Drive file ID, project title, or document content.",
             object_schema(&[], &[]),
+        ),
+        tool(
+            "list_shared_projects",
+            "Explicitly browse bounded Syzygy-owned shared-project roots visible to the connected Google account. Returns titles and exact project/document/workspace identities so a user-requested Join can name one result; it grants no mutation by itself.",
+            object_schema(&[], &[]),
+        ),
+        tool(
+            "share_active_project",
+            "Publish the exact active local project to its already selected Drive workspace, then bind it locally. Requires the exact document revision from read_active_project and fails closed if the draft changed.",
+            object_schema(
+                &[("expectedDocumentRevision", string_schema("Exact revision from read_active_project."))],
+                &["expectedDocumentRevision"],
+            ),
+        ),
+        tool(
+            "join_shared_project",
+            "Join one exact result from list_shared_projects. The live app refetches the catalog, selects the exact parent workspace, refuses identity collisions, and opens only after the Drive-backed document is ready.",
+            object_schema(
+                &[
+                    ("projectId", string_schema("Exact project ID from list_shared_projects.")),
+                    ("documentId", string_schema("Exact document ID from list_shared_projects.")),
+                    ("workspaceId", string_schema("Exact workspace ID from list_shared_projects.")),
+                ],
+                &["projectId", "documentId", "workspaceId"],
+            ),
         ),
         tool(
             "create_project",
@@ -612,6 +640,9 @@ mod tests {
         assert!(names.contains(&"read_active_project"));
         assert!(names.contains(&"inspect_research_state"));
         assert!(names.contains(&"inspect_drive_project_discovery"));
+        assert!(names.contains(&"list_shared_projects"));
+        assert!(names.contains(&"share_active_project"));
+        assert!(names.contains(&"join_shared_project"));
         assert!(names.contains(&"create_scenario"));
         assert!(names.contains(&"add_scenario_turn"));
         assert!(names.contains(&"revise_scenario_turn"));
@@ -670,6 +701,38 @@ mod tests {
             "drive.inspectProjectDiscovery"
         );
         assert_eq!(response["result"]["structuredContent"]["params"], json!({}));
+    }
+
+    #[test]
+    fn routes_drive_catalog_share_and_join() {
+        for (tool_name, method) in [
+            ("list_shared_projects", "drive.listSharedProjects"),
+            ("share_active_project", "project.shareDrive"),
+            ("join_shared_project", "project.joinDrive"),
+        ] {
+            let arguments = json!({
+                "expectedDocumentRevision": "revision-1",
+                "projectId": "project-1",
+                "documentId": "document-1",
+                "workspaceId": "workspace-1"
+            });
+            let response = dispatch_message(
+                &json!({
+                    "jsonrpc": "2.0",
+                    "id": tool_name,
+                    "method": "tools/call",
+                    "params": { "name": tool_name, "arguments": arguments }
+                }),
+                &fake_live,
+            )
+            .unwrap();
+            assert_eq!(response["result"]["structuredContent"]["method"], method);
+            if tool_name == "list_shared_projects" {
+                assert_eq!(response["result"]["structuredContent"]["params"], json!({}));
+            } else {
+                assert_eq!(response["result"]["structuredContent"]["params"], arguments);
+            }
+        }
     }
 
     #[test]

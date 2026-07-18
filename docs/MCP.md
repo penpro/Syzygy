@@ -54,6 +54,9 @@ Recommended first instruction to an MCP-capable model:
 | `workspace_walkthrough` | no | State-aware explanation of the current use case and next step |
 | `list_projects` | no | Stable IDs, titles, archive state, transport, active project |
 | `inspect_drive_project_discovery` | no | Explicitly refreshes selected-workspace shared-project metadata; returns short folder code, bounded project/document identities, count, truncation, and time without tokens, Drive file IDs, titles, or document content |
+| `list_shared_projects` | no | Refetches the bounded cross-workspace Drive project catalog and returns only join identities plus parent folder label/code |
+| `share_active_project` | Drive project state | Publishes the exact active local Yjs state only when `expectedDocumentRevision` still matches, then binds only the returned exact identities |
+| `join_shared_project` | local workspace/project registration | Refetches and joins one exact workspace/project/document identity, rejects local collisions, and waits for the Drive-backed editor |
 | `create_project` | yes | Creates and opens a local project with a non-empty title |
 | `open_project` | navigation | Opens a non-archived project by stable ID |
 | `rename_project` | yes | Changes project metadata only |
@@ -112,10 +115,12 @@ MCP host
   malware already executing as the same OS user; such a process can already access the user's
   local app data and input devices.
 - MCP tools do not receive ambient filesystem or local-model authority. Drive access is absent unless
-  the caller explicitly invokes `inspect_drive_project_discovery`; that narrow read uses the selected
-  workspace boundary and returns only bounded project identity metadata. It exposes no OAuth token,
-  Drive file ID, title, or document content and cannot mutate Drive or project state. Future tools for
-  broader Drive, filesystem, or model actions need their own typed proposal/confirmation contracts.
+  the caller explicitly invokes one of the four Drive-project tools. Catalog reads return bounded
+  identity metadata without OAuth tokens, Drive file IDs, or document content. Share requires the
+  exact active document revision and publishes only a local project's captured Yjs state. Join
+  refetches and matches exact workspace/project/document identity before local registration. These
+  calls do not grant general Drive file, filesystem, credential, or model access. Broader actions need
+  their own typed proposal/confirmation contracts.
 - `inspect_research_state` is read-only and content-minimized. It checks the same live Y.Doc owned
   by the editor/local provider, caps returned items, and has no scenario/label/heuristic/version/document mutation
   path. Titles, attribution, IDs, counts, and timestamps are metadata and may be returned; policy
@@ -214,7 +219,7 @@ It fails unless:
 2. replace/append operations change the same editor and reject a stale revision;
 3. the loopback parser accepts an authenticated request and rejects browser origins;
 4. MCP initialization negotiates the current `2025-11-25` protocol revision;
-5. all twenty-six semantic tools are discoverable and route to their intended live operation, including the bounded Drive project-discovery diagnostic;
+5. all twenty-nine semantic tools are discoverable and route to their intended live operation, including bounded Drive project catalog/share/join actions;
 6. self-description returns absolute paths and copy-ready configuration without a GUI;
 7. platform contracts parse, keep provider-run/adversarial/plugin schemas strict, and do not
    overstate unimplemented runtimes; and

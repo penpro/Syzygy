@@ -3,7 +3,7 @@
 // lives in ONE place instead of being duplicated across ~40 call sites. Add a wrapper here for
 // every new `#[tauri::command]`; components should never import `invoke` themselves.
 import { invoke as rawInvoke, isTauri as rawIsTauri } from '@tauri-apps/api/core'
-import { save } from '@tauri-apps/plugin-dialog'
+import { open, save } from '@tauri-apps/plugin-dialog'
 import { download as downloadBlob } from './util'
 import { logError } from './log'
 import type { ProviderRunRecord } from './extensions/providerRunRecord'
@@ -44,6 +44,21 @@ export interface McpConnectionInfo {
   codexToml: string
   connectionPrompt: string
   starterPrompt: string
+}
+
+export interface LanAgentConfig {
+  enabled: boolean
+  nodeId: string
+  coordinator: string
+  port: number
+  keyFile: string
+}
+
+export interface LanAgentReport {
+  config: LanAgentConfig
+  running: boolean
+  pid: number | null
+  lastError: string | null
 }
 
 export type RemoteProviderId = 'openai' | 'anthropic' | 'gemini' | 'xai'
@@ -445,6 +460,19 @@ export const automationReady = (): Promise<void> => invoke('automation_ready')
 
 /** Exact, copy-ready connection details generated from the currently running executable. */
 export const mcpConnectionInfo = (): Promise<McpConnectionInfo> => invoke('mcp_connection_info')
+
+/** Current opt-in outbound LAN test connection. The pairing key itself never crosses this boundary. */
+export const lanAgentSettings = (): Promise<LanAgentReport> => invoke('lan_agent_settings')
+
+/** Save and apply the outbound LAN test connection; disabled config stops and reaps its child. */
+export const lanAgentConfigure = (config: LanAgentConfig): Promise<LanAgentReport> =>
+  invoke('lan_agent_configure', { config })
+
+/** Pick the pairing-key file without reading its contents into the webview. */
+export async function pickLanPairingKeyFile(): Promise<string | null> {
+  const selected = await open({ multiple: false, directory: false })
+  return typeof selected === 'string' ? selected : null
+}
 
 // ---------- optional remote-provider credentials ----------
 

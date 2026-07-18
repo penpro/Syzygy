@@ -18,6 +18,11 @@ import type { ScenarioLabel, ScenarioLabelAssignment } from './workspace/scenari
 import type { ResearchScenario, ScenarioStatus, ScenarioTurn, ScenarioTurnRole } from './workspace/scenarioModel'
 import type { ScenarioVoteChoice } from './workspace/scenarioVoteModel'
 import { refreshDriveProjectDiscovery } from './workspace/driveProjectDiscovery'
+import {
+  joinSharedDriveProject,
+  listSharedDriveProjects,
+  shareProjectToSelectedDrive,
+} from './workspace/driveProjectActions'
 import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
 import { restoreAutomationPolicyVersion, saveAutomationPolicyVersion } from './workspace/versionAutomation'
 
@@ -94,6 +99,36 @@ export async function dispatchAutomationRequest(
     case 'drive.inspectProjectDiscovery': {
       const result = await refreshDriveProjectDiscovery()
       return { discovery: result.diagnostic }
+    }
+    case 'drive.listSharedProjects': {
+      return { catalog: await listSharedDriveProjects() }
+    }
+    case 'project.shareDrive': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; open a local project first')
+      const expectedDocumentRevision = requiredString(params, 'expectedDocumentRevision')
+      const shared = await shareProjectToSelectedDrive(project, expectedDocumentRevision)
+      const persisted = useStore.getState().projects.find((candidate) => candidate.id === project.id)
+      if (!persisted) throw new Error('The shared project was not persisted locally')
+      return {
+        project: summarizeProject(persisted, useStore.getState().activeProjectId),
+        descriptor: shared.descriptor,
+      }
+    }
+    case 'project.joinDrive': {
+      const project = await joinSharedDriveProject({
+        projectId: requiredString(params, 'projectId'),
+        documentId: requiredString(params, 'documentId'),
+        workspaceId: requiredString(params, 'workspaceId'),
+      })
+      await waitForEditor(project.id, 20_000)
+      return {
+        project: summarizeProject(project, project.id),
+        document: getAutomationEditorController(project.id).read(),
+      }
     }
     case 'project.create': {
       const title = requiredString(params, 'title')
@@ -510,15 +545,21 @@ function buildWalkthrough() {
       },
       {
         name: 'Network collaboration',
-        status: 'not-implemented-for-projects',
-        use: 'Drive can already supply shared Ask evidence, but this project draft is still local IndexedDB state.',
+        status: project?.transport.kind === 'drive'
+          ? 'drive-shared'
+          : project
+            ? 'local-only'
+            : 'needs-project',
+        use: project?.transport.kind === 'drive'
+          ? 'This project keeps local IndexedDB durability and exchanges append-only Yjs updates through its selected Drive workspace. Presence is not yet available.'
+          : 'This project stays local until its owner explicitly shares it to a selected Drive workspace. Offline export creates an independent copy, not live sync.',
       },
     ],
   }
 }
 
-async function waitForEditor(projectId: string): Promise<void> {
-  const deadline = Date.now() + 4_000
+async function waitForEditor(projectId: string, timeoutMs = 4_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     if (automationEditorReady(projectId)) return
     await new Promise((resolve) => window.setTimeout(resolve, 25))

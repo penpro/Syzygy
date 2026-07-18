@@ -2,8 +2,8 @@
 
 Syzygy can expose two or more installed applications to one MCP-capable test host on a private
 local network. This is an offline-capable **control and test plane**. It does not yet synchronize
-the projects stored in each installation's IndexedDB; Drive-backed or WebSocket-backed Yjs remains
-the project transport milestone.
+research by itself: shared Drive-backed Yjs is the current project transport, while WebSocket and
+direct peer transports remain future siblings.
 
 ## Shape
 
@@ -62,7 +62,9 @@ The installed executable path is available in **Settings -> Connect an LLM** or 
 
 ## Configure ChatGPT/Codex on the primary computer
 
-The host wrapper starts both the coordinator and the primary computer's packaged agent. Use this
+The host wrapper starts both the coordinator and the primary computer's packaged agent. It also
+supervises that agent with bounded restart backoff, so an app update or agent crash cannot leave a
+healthy-looking coordinator silently missing the primary installation. Use this
 stdio MCP shape, replacing the private address, executable, Node, and key paths:
 
 ```toml
@@ -83,9 +85,16 @@ for the lifetime of the MCP process.
 
 ## Join the second installed computer
 
-Open PowerShell on the second computer and run:
+In the installed app, open **Settings -> Private LAN test connection**, enable the connection, and
+enter a unique computer label such as `office-secondary`, the primary computer's private address,
+port `37663`, and the local copy of the pairing-key file. Choose **Apply connection**. The app starts
+the outbound agent now and again on later launches; disabling, changing, or closing Syzygy stops and
+reaps that child. Updates therefore no longer require a person to keep a PowerShell window alive.
+Only routing metadata and the key-file path are persisted; key contents never enter the webview.
 
 ```powershell
+For diagnosis only, the equivalent foreground command is:
+
 & "C:\Program Files\Syzygy\Syzygy.exe" `
   --lan-agent `
   --node-id office-secondary `
@@ -94,9 +103,7 @@ Open PowerShell on the second computer and run:
   --key-file "$env:USERPROFILE\.syzygy-lan.key"
 ```
 
-The agent reconnects with bounded exponential backoff if the coordinator restarts. Keep the
-PowerShell process running for this initial development slice. A later UI/startup task can install
-the agent as an opt-in background launch item after the two-computer live proof.
+The agent reconnects with bounded exponential backoff if the coordinator restarts.
 
 Ask the MCP host to call `lan_nodes`, then `lan_probe`. If a GUI is closed, call the native
 `launch_syzygy` tool on that node through `lan_call`, then probe again.
@@ -108,8 +115,10 @@ All commands should be supervised through the repository watchdog:
 ```powershell
 cd D:\PolicyPad\syzygy
 node scripts\run-with-heartbeat.mjs --timeout-seconds 60 --heartbeat-seconds 15 -- node --test scripts\lan-bridge.test.mjs
+node scripts\run-with-heartbeat.mjs --timeout-seconds 60 --heartbeat-seconds 15 -- node --test scripts\lan-agent-supervisor.test.mjs
 node scripts\run-with-heartbeat.mjs --timeout-seconds 90 --heartbeat-seconds 15 -- node scripts\lan-mcp-harness.mjs
 node scripts\run-with-heartbeat.mjs --timeout-seconds 90 --heartbeat-seconds 15 -- node scripts\lan-packaged-agent-harness.mjs
+node scripts\run-with-heartbeat.mjs --timeout-seconds 360 --heartbeat-seconds 15 -- node scripts\lan-drive-live-harness.mjs --listen 192.168.1.20 --port 37663 --key-file "$env:USERPROFILE\.syzygy-lan.key" --local-executable "$env:LOCALAPPDATA\Syzygy\Syzygy.exe" --primary office-primary --secondary office-secondary --mutate
 ```
 
 The first suite checks authentication, key separation, encryption, tamper detection, replay
@@ -120,7 +129,9 @@ discovers all native MCP tools, and calls installation self-description through 
 
 ## Honest current limit
 
-This proves that one autonomous harness can inspect and drive two real installations. It does not
-prove that a mutation on one installation appears on the other. That convergence gate belongs to
-the future Drive/WebSocket Yjs provider and must use two clean installed profiles over this control
-plane before project synchronization is claimed.
+The deterministic and live-Drive component gates pass, but the decisive packaged two-install run
+must still be recorded after both profiles enable the in-app agent. The physical harness fails
+unless the exact two nodes connect, expose the guarded catalog/share/join tools, converge a unique
+baseline plus concurrent edits through Drive, and reject a stale write without leaking proof text.
+That proves the tested Drive path only; it does not claim presence, sub-second delivery, WebSocket
+or peer transport, authenticated human identity, or arbitrary crash recovery.

@@ -54,6 +54,9 @@ const MAX_BUCKETS = 20_000
 const MAX_EVENTS_PER_SCENARIO = 100_000
 const stableId = (value: unknown, max = 200): value is string =>
   typeof value === 'string' && value.length <= max && /^[A-Za-z0-9][A-Za-z0-9._:@-]*$/.test(value)
+const modelRouteId = (value: unknown): value is string =>
+  typeof value === 'string' && value.length > 0 && value.length <= 200 && value.trim() === value &&
+  !/[\u0000-\u001f\u007f]/.test(value)
 const validText = (value: unknown, max: number, allowEmpty = false): value is string =>
   typeof value === 'string' && value.length <= max && (allowEmpty || value.trim().length > 0) && !/[\u0000]/.test(value)
 const validTimestamp = (value: unknown): value is number =>
@@ -84,7 +87,7 @@ function validRevision(value: unknown): value is ScenarioResponseRevision {
   if (revision.sourceKind === 'human') {
     return revision.providerId === null && revision.modelId === null && revision.runId === null
   }
-  return stableId(revision.providerId) && stableId(revision.modelId) && stableId(revision.runId)
+  return stableId(revision.providerId) && modelRouteId(revision.modelId) && stableId(revision.runId)
 }
 
 const bucketEntries = (collection: Y.Map<unknown>) =>

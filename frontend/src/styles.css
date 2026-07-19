@@ -3439,3 +3439,41 @@ input.workspace-title-input:focus {
   .research-presence { align-items: flex-start; flex-direction: column; }
   .research-presence small { margin-left: 0; }
 }
+
+/* P16 scenario generation */
+.scenario-generator {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.scenario-generation-intro,
+.scenario-generation-note,
+.scenario-generation-status {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.scenario-generation-note,
+.scenario-generation-status.error {
+  color: var(--danger);
+}
+
+.scenario-responses {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scenario-responses > li {
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 4%, var(--panel));
+}

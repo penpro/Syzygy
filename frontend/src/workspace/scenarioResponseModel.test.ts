@@ -180,6 +180,15 @@ describe('collaborative scenario response revisions', () => {
     expect(inspectScenarioResponses(leftTypes.discussions, leftTypes.scenarios).healthy).toBe(false)
   })
 
+  it('retains common provider model route names without treating them as storage keys', () => {
+    const doc = seededDocument()
+    const { discussions, scenarios } = getProjectSharedTypes(doc)
+    const response = createScenarioResponse(discussions, scenarios, {
+      ...modelInput, modelId: 'organization/model family:v2',
+    })
+    expect(response.revisions[0].modelId).toBe('organization/model family:v2')
+  })
+
   it('rejects malformed provenance and detects hostile bucket mutation', () => {
     const doc = seededDocument()
     const { discussions, scenarios } = getProjectSharedTypes(doc)

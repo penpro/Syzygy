@@ -97,7 +97,7 @@ packaged MCP surface before succeeding.
 | `mcp_setup.rs` | Running-executable discovery plus copy-ready JSON/TOML configuration and connection prompts shared by the UI and MCP. |
 | `platform_contracts.rs` | Machine-readable provider-run, adversarial-review, and researcher-plugin schemas/status exposed to headless MCP clients. |
 | `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses one-shot/SSE plus Anthropic Messages, Gemini Interactions, and xAI Responses one-shot wire contracts have fake-server evidence with bounded controls and sanitized normalization. |
-| `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. The public command accepts a structured question plus labeled source snapshots; Rust derives disclosure categories and provenance IDs from that exact payload. Every ordinary call uses a blocking native dialog to create one-use approval before any vault read or network access. The workspace's optional single-review panel is now a product caller and preserves cancellation/non-mutating output. A separate adversarial command can create/status/revoke an exact-route, bounded, expiring batch authorization. A private, non-executing reservation function atomically proves run/source-ID/route/call-ID checks and route+total decrements, but no command consumes it or calls a model. Fake-network one-shot execution and Rust→TypeScript record validation are proven; live-provider execution is not. |
+| `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. The public command accepts a structured question plus labeled source snapshots; Rust derives disclosure categories and provenance IDs from that exact payload. Every ordinary call uses a blocking native dialog to create one-use approval before any vault read or network access. The workspace's optional draft-review and scenario-response panels are product callers; both preserve cancellation, and only validated scenario output enters the collaborative response graph. A separate adversarial command can create/status/revoke an exact-route, bounded, expiring batch authorization. A private, non-executing reservation function atomically proves run/source-ID/route/call-ID checks and route+total decrements, but no command consumes it or calls a model. Fake-network one-shot execution and Rust→TypeScript record validation are proven; live-provider execution is not. |
 | `provider_stream.rs` | Incremental provider SSE normalization. The OpenAI decoder handles byte-fragmented Unicode, multiline frames, usage/finish events, unknown future events, sanitized provider errors, and bounded malformed/truncated input. |
 | `credential_vault.rs` | Provider-secret abstraction backed by Windows Credential Manager, macOS Keychain, or Linux Secret Service/keyutils. Unit tests use only a memory implementation; a separate live harness creates and deletes a random OS-store canary. |
 
@@ -217,7 +217,7 @@ new top-level save shape. Every revision retains response/scenario identity, exa
 author ID and display-name snapshot, timestamp, and human or provider/model/run provenance. Exact-
 current guards reject stale edits; concurrent sibling edits both survive and select a deterministic
 current projection. Reused identities, malformed graphs, and disconnected root collisions fail
-closed. This is the P-07 domain contract; no editable product panel is claimed yet.
+closed. `ScenarioGenerator.tsx` now projects those variants in the selected scenario, while `scenarioGeneration.ts` owns the bounded, provider-neutral P-16 request/output contract and exact-source commit guard. Generated variants are visible but not yet editable or regenerable in the product.
 
 `suggestionModel.ts` stores immutable proposal and decision events in a separate versioned,
 peer-namespaced section of the existing shared discussions map, so no save-shape migration or
@@ -244,13 +244,14 @@ scenario edit history as nested Yjs types. Public scenario, turn, and edit ident
 under peer-specific internal keys so disconnected collisions survive merge and make projection
 fail closed. Independent scalar edits and turn insertions converge; turn revisions retain every
 attributed alternative and select a deterministic current value. A graph inspector detects invalid
-records, missing parents, and cycles. No visible gallery, generation, response evaluation, voting,
-or portable scenario-pack export was previously claimed. `ScenarioWorkspace.tsx` now provides an
-engine-free product gallery with create/select/edit/status controls, ordered turn addition, and
-attributed vote/withdraw controls against the same live Y.Doc. It observes peer updates, refuses
-stale detail saves when any scenario edit identity changed, and makes graph-integrity failures
-read-only. Turn revision editing, generation, evaluation, annotations, labels, and scenario-pack
-export remain outside this slice.
+records, missing parents, and cycles. `ScenarioWorkspace.tsx` provides an engine-free product gallery with create/select/edit/status
+controls, ordered turn addition, and attributed vote/withdraw controls against the same live Y.Doc.
+It observes peer updates, refuses stale detail saves when any scenario edit identity changed, and
+makes graph-integrity failures read-only. P-16 adds optional generation without making the gallery
+dependent on AI: local inference is available only while the model is loaded, remote routes reuse
+the native one-shot disclosure boundary, and both write through the attributed response domain only
+if the selected scenario revision is unchanged. Turn revision editing, response regeneration,
+evaluation, annotations, labels, and scenario-pack export remain outside this slice.
 
 `scenarioVoteModel.ts` stores immutable vote events in peer-specific, version-prefixed buckets
 inside the reserved discussions collection. This avoids namespace collisions with future notes and
@@ -338,7 +339,7 @@ availability claim.
 | Portable project archive | User-chosen `.syzygy-project.json`; manifest plus exact checksummed Yjs state, no app/model/credential settings |
 | Sanitized diagnostic history (last 500 entries) | localStorage key `syzygy-diagnostic-log-v1` (webview) |
 | Google refresh token + client info | `<app-data>/google_auth.json` (Rust-only) |
-| Optional remote-model API keys | OS credential store under service `org.penumbra.syzygy.model-provider`; the collapsed Settings UI can set/replace/delete and read only presence; no generation workflow is enabled |
+| Optional remote-model API keys | OS credential store under service `org.penumbra.syzygy.model-provider`; the webview reads only presence, and draft-review/scenario calls cross the Rust-owned native Send once boundary |
 | Selected Drive workspace ID/name | `<app-data>/drive_workspace.json` |
 | Models (GGUF) | `<app-data>/models/` |
 | Optional Drive mirror folder | `<Documents>/Syzygy` (manual sync with Drive folder "Syzygy") |
@@ -349,9 +350,9 @@ availability claim.
 
 ## Key invariants
 
-- **The AI loop is 100% local.** Never write copy claiming the whole app is offline —
-  see `DESIGN.md → Voice`. Internet is touched only by explicitly invoked features:
-  model downloads, update checks, Google Drive.
+- **Local inference needs no paid API.** Never write copy claiming the whole app or every AI
+  path is offline—see `DESIGN.md → Voice`. Internet is touched only by explicitly invoked features:
+  model downloads, update checks, Google Drive, and native-confirmed remote-provider calls.
 - **`tauri.ts` is the only invoke boundary** (logging + typing chokepoint).
 - **`migrations.ts` is the only save-migration site.**
 - **Removed features come back from Aphelion** (`D:\LocalLLM`), not from git archaeology.
@@ -392,7 +393,7 @@ availability claim.
   process memory. Its private reservation state machine atomically enforces exact run/source-ID/
   route/call identity and route+total budgets under concurrency. It does not bind actual task bytes,
   read a credential, execute a call, or grant MCP authority; the authorized executor remains open.
-  One product single-review workflow invokes provider execution; no MCP tool or adversarial batch invokes it;
+  Two opt-in product workflows invoke provider execution (draft review and scenario variants); no MCP tool or adversarial batch invokes it;
   streamed tools, live-provider certification, and other remote adapters remain open.
   Plugins declare capabilities and submit revision-guarded proposals. No plugin
   code executes in the webview and no contract-only feature may report itself as available. See

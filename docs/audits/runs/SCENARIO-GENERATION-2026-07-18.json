@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "capability": "P-16",
+  "date": "2026-07-18",
+  "status": "implemented_unverified",
+  "claim": "Scenario response generation uses one bounded provider-neutral contract, works through the optional local model or native-approved remote APIs, and commits only attributed output against the exact selected-scenario revision.",
+  "verified": [
+    "The provider receives a detached bounded snapshot of only the selected scenario",
+    "Local generation uses the configured loopback endpoint and selected local model",
+    "Turning local AI off prevents local invocation without disabling manual scenarios or API selection",
+    "OpenAI, Anthropic, Gemini, and xAI routes reuse the Rust-owned credential and native Send once boundary",
+    "Provider output must match contract version, run, provider, and requested-model route",
+    "Ambient fields, control bytes, oversized content, route substitution, and malformed output fail before shared mutation",
+    "A scenario edit during generation makes commit fail closed without adding a response",
+    "Successful output enters the existing collaborative response graph with provider, executed model, and run provenance",
+    "Two independent variants from the same source revision remain separate responses",
+    "The product keeps manual, local, and API paths explicit and does not claim generated text changed policy",
+    "Production TypeScript and Vite build passes"
+  ],
+  "headlessResults": {
+    "focusedTestFiles": 5,
+    "focusedTestsPassed": 22,
+    "focusedTestsFailed": 0,
+    "productionBuild": "passed",
+    "repositoryAudit": "passed",
+    "fullSupervisedCheck": "passed",
+    "fullSupervisedRunId": "20260719-083102-9e4395",
+    "fullTestFilesPassed": 71,
+    "fullTestFilesSkipped": 1,
+    "fullTestsPassed": 295,
+    "fullTestsExpectedFail": 1,
+    "fullTestsSkipped": 1
+  },
+  "limitations": [
+    "No live paid-provider call or packaged pointer/keyboard interaction is included in this proof.",
+    "Remote API results pass the native one-shot disclosure boundary, but the shared response stores only provider/model/run identity rather than the complete content-free provider-run record.",
+    "Generated variants can be inspected but do not yet have a product editing/regeneration workflow; P-17 remains planned.",
+    "Generation does not apply policy text, score model quality, or prove superiority over another research product."
+  ],
+  "sources": [
+    "frontend/src/workspace/scenarioGeneration.ts",
+    "frontend/src/workspace/scenarioGeneration.test.ts",
+    "frontend/src/workspace/scenarioGenerationRuntime.ts",
+    "frontend/src/workspace/scenarioGenerationRuntime.test.ts",
+    "frontend/src/workspace/ScenarioGenerator.tsx",
+    "frontend/src/workspace/ScenarioGenerator.ui.test.tsx",
+    "frontend/src/workspace/ScenarioWorkspace.tsx",
+    "frontend/src/workspace/scenarioResponseModel.ts",
+    "frontend/src/workspace/scenarioResponseModel.test.ts"
+  ]
+}

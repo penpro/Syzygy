@@ -169,6 +169,16 @@ two-peer concurrent sibling retention, deterministic convergence, disconnected r
 failure, and hostile bucket validation. It does not prove a product editing panel, authenticated
 identity, or packaged two-client interaction.
 
+`scenarioGeneration.test.ts`, `scenarioGenerationRuntime.test.ts`, and
+`ScenarioGenerator.ui.test.tsx` are the P-16 gates. They require a detached, selected-scenario-only
+snapshot; 240,000-character context and 500,000-character output ceilings; route/run/model binding;
+hostile-envelope rejection before mutation; exact-source revision checking at commit; separate
+concurrent variants; local-disabled refusal; fake local streaming; native-approved remote task
+construction; cancellation routing; and honest local/API/manual UI copy. The existing response-domain
+gate must accept common provider model route names without using them as storage keys. This proves the
+provider contract and product wiring, not a live paid-provider call, generated-response editing,
+model quality, or packaged interaction. Evidence: `docs/audits/runs/SCENARIO-GENERATION-2026-07-18.json`.
+
 `suggestionModel.test.ts` and `nodes/SuggestionNode.test.tsx` are the P-08 domain/editor gates.
 They prove attributed human/model proposals, exact-proposal decisions, replay and stale rejection,
 disconnected opposite-decision retention, explicit conflict projection, proposal-root collision

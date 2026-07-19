@@ -76,9 +76,9 @@ Three layers, all CSS:
 
 ## Voice (copy rules)
 
-- **Local-first, not offline-absolute.** The AI loop is 100% local — say that. The app
-  as a whole touches the internet for explicitly invoked features (model downloads,
-  update checks, Google Drive). Absolute claims like "nothing ever leaves this PC" are
+- **Local-first, not offline-absolute.** Local inference needs no paid API and stays on this
+  computer. The app also supports explicitly approved remote-provider calls, model downloads,
+  update checks, and Google Drive. Absolute claims like "nothing ever leaves this PC" are
   **Aphelion's** hallmark and are now false here; they were audited out — don't
   reintroduce them.
 - Plain, concrete, a little warm. Explain what a thing does and where files land
@@ -112,7 +112,7 @@ editable in Settings and old attribution remains visually historical.
 Restore is a deliberate two-step action on a non-head checkpoint. **Prepare restore** reveals the
 exact short checkpoint ID, a cancel action, and **Restore as new version**. The copy states that the
 live draft is replaced, a new child is created on the current head, and existing versions remain.
-The UI identifies local versus Drive-shared projects precisely; scenario generation/evaluation and real-time presence remain unclaimed.
+The UI identifies local versus Drive-shared projects precisely. Scenario response generation is available; scenario evaluation and installed-network real-time presence remain unclaimed.
 
 Portable project movement is available from both the empty workspace and an open project. **Export
 offline copy** stays disabled until the live collaboration document is ready; **Import offline
@@ -155,6 +155,13 @@ background, and workflow state; appends ordered role/content turns; and exposes 
 abstain, and withdraw controls with aggregate counts. A stale detail form must reload instead of
 overwriting a newer shared scenario edit. When graph integrity fails, all mutation controls are
 disabled. Copy states that the installation researcher identity is not authenticated.
+
+The **Response variants** surface is optional and never blocks manual scenario work. It distinguishes
+local generation on this computer from API routes that require the native **Send once** disclosure.
+With local AI off or unloaded, the local action is disabled while manual editing and API selection
+remain available. A run receives only the selected bounded scenario, and output is added as a shared,
+attributed variant only if that scenario's source revision is still current. Provider/model metadata
+is visible; copy must not imply that a variant changed the policy draft, was evaluated, or is true.
 
 The editor uses Plex Serif for document content and Plex Mono metadata stamps, with every surface,
 border, status, and selection derived from theme tokens.

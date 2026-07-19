@@ -212,6 +212,13 @@ const localPresenceSource = text('frontend/src/workspace/localProvider.ts')
 const drivePresenceSource = text('frontend/src/workspace/driveProjectProvider.ts')
 const researchPresenceInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
 const researchPresenceInspectionTestSource = text('frontend/src/workspace/presenceResearchInspection.test.ts')
+const scenarioGenerationSource = text('frontend/src/workspace/scenarioGeneration.ts')
+const scenarioGenerationTestSource = text('frontend/src/workspace/scenarioGeneration.test.ts')
+const scenarioGenerationRuntimeSource = text('frontend/src/workspace/scenarioGenerationRuntime.ts')
+const scenarioGenerationRuntimeTestSource = text('frontend/src/workspace/scenarioGenerationRuntime.test.ts')
+const scenarioGeneratorSource = text('frontend/src/workspace/ScenarioGenerator.tsx')
+const scenarioGeneratorTestSource = text('frontend/src/workspace/ScenarioGenerator.ui.test.tsx')
+const scenarioWorkspaceGenerationSource = text('frontend/src/workspace/ScenarioWorkspace.tsx')
 record(
   'scenario references retain stable identity across rename, collaboration, automation, and checkpoints',
   scenarioReferenceSource.includes("type: 'scenario-reference'") &&
@@ -319,6 +326,28 @@ record(
     editorLedgerSource.includes('"id": "P-11", "phase": 5, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/PRESENCE-LIFECYCLE-2026-07-18.json')),
   '200-state hostile-input bound, schema identity, two-client packets, removal tombstones, stale-registration guard, honest local/Drive/live UI, content-free MCP counts, and truthful P-11 status are present',
+)
+record(
+  'scenario generation is bounded, provider-neutral, revision-guarded, optional, and attributed',
+  scenarioGenerationSource.includes('MAX_SCENARIO_GENERATION_CONTEXT = 240_000') &&
+    scenarioGenerationSource.includes('MAX_SCENARIO_GENERATION_OUTPUT = 500_000') &&
+    scenarioGenerationSource.includes('structuredClone(request)') &&
+    scenarioGenerationSource.includes('scenarioGenerationRevision(current) !== request.sourceRevision') &&
+    scenarioGenerationTestSource.includes('rejects route substitution, ambient fields, control bytes, and oversized output without mutation') &&
+    scenarioGenerationTestSource.includes('fails closed when selected scenario content changes during a call') &&
+    scenarioGenerationRuntimeSource.includes('providerId:') &&
+    scenarioGenerationRuntimeSource.includes('research.scenario-response') &&
+    scenarioGenerationRuntimeSource.includes('Remote scenario provider route mismatch') &&
+    scenarioGenerationRuntimeSource.includes('maxOutputTokens: 1_200') &&
+    scenarioGenerationRuntimeTestSource.includes('refuses local invocation when local AI is disabled') &&
+    scenarioGenerationRuntimeTestSource.includes('builds a one-source remote disclosure envelope') &&
+    scenarioGeneratorSource.includes('Manual scenario work still functions') &&
+    scenarioGeneratorSource.includes('Nothing is applied to the policy draft') &&
+    scenarioGeneratorTestSource.includes('keeps local, API, and no-AI/manual paths explicit') &&
+    scenarioWorkspaceGenerationSource.includes('generation={doc && selected ? <ScenarioGenerator') &&
+    editorLedgerSource.includes('"id": "P-16", "phase": 6, "status": "implemented_unverified"') &&
+    existsSync(join(root, 'docs/audits/runs/SCENARIO-GENERATION-2026-07-18.json')),
+  'selected-scenario-only snapshots, explicit bounds, hostile-output rejection, exact-source commit, local-off refusal, native remote envelope, honest UI, attributed response persistence, and truthful P-16 status are present',
 )
 
 const heuristicsModelSource = text('frontend/src/workspace/heuristicsModel.ts')

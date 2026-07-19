@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import type * as Y from 'yjs'
 import { now, uid } from '../util'
 import { useStore } from '../store'
@@ -22,6 +22,7 @@ import {
   type ScenarioVoteSummary,
 } from './scenarioVoteModel'
 import { subscribeAutomationProjectDocument } from './workspaceAutomationRegistry'
+import { ScenarioGenerator } from './ScenarioGenerator'
 
 interface ScenarioWorkspaceContentProps {
   ready: boolean
@@ -30,6 +31,7 @@ interface ScenarioWorkspaceContentProps {
   voteSummary: ScenarioVoteSummary | null
   currentVote: ScenarioVoteChoice | null
   integrityIssues: string[]
+  generation?: ReactNode
   createOpen: boolean
   createTitle: string
   createBackground: string
@@ -64,6 +66,7 @@ export function ScenarioWorkspaceContent({
   voteSummary,
   currentVote,
   integrityIssues,
+  generation,
   createOpen,
   createTitle,
   createBackground,
@@ -197,6 +200,8 @@ export function ScenarioWorkspaceContent({
             </label>
             <button className="btn sm" type="submit" disabled={!canWrite}>Add turn</button>
           </form>
+
+          {generation}
 
           <div className="scenario-section-heading">
             <h3>Team vote</h3>
@@ -392,6 +397,7 @@ export function ScenarioWorkspace({ project }: { project: ResearchProjectManifes
     <ScenarioWorkspaceContent
       ready={Boolean(doc)} scenarios={snapshot.scenarios} selected={selected}
       voteSummary={voteSummary} currentVote={currentVote} integrityIssues={snapshot.issues}
+      generation={doc && selected ? <ScenarioGenerator key={selected.id} project={project} doc={doc} scenario={selected} /> : undefined}
       createOpen={createOpen} createTitle={createTitle} createBackground={createBackground}
       editTitle={editTitle} editBackground={editBackground} turnRole={turnRole} turnContent={turnContent}
       error={error} onSelect={selectScenario} onOpenCreate={() => { setCreateOpen(true); setError('') }}

@@ -91,7 +91,7 @@ Every row needs evidence in `docs/audits/CAPABILITIES.json` before becoming `ver
 | P-13 | offline editing | independent offline edits merge without text loss |
 | P-14 | scenario gallery | CRUD with loading/empty/error states |
 | P-15 | multi-turn scenario | deterministic fixture round trip |
-| P-16 | scenario generation | local-provider contract test with fake stream |
+| P-16 | scenario generation | bounded local/API contract, fake streams, stale-source and hostile-output gates |
 | P-17 | regeneration | prior variants and lineage retained |
 | P-18 | positive/negative examples | concurrent classifications converge |
 | P-19 | voting | per-user idempotency and concurrency tests |
@@ -639,7 +639,7 @@ dialog. Product domain orchestration still must decide which frozen snapshots en
 
 ## 11. Recommended next slice
 
-Status snapshot on 2026-07-18: the 42-row ledger has 32 `implemented_unverified`, 10 `planned`,
+Status snapshot on 2026-07-18: the 42-row ledger has 33 `implemented_unverified`, 9 `planned`,
 and 0 `verified` capabilities. The shipped local editor, Drive research path, local engine, and MCP
 pilot are meaningful foundations, but none substitutes for the decisive two-install, convergence,
 portable-archive, workflow, accessibility, and adversarial gates below. MCP setup/onboarding is

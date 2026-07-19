@@ -24,7 +24,7 @@
 | `frontend/src/workspace/ProjectArchiveControls.tsx` | Penumbra original | Accessible engine-free project import/export controls with live-document readiness, file-size gating, and explicit status/error states |
 | `frontend/src/workspace/heuristicsModel.ts` | Penumbra original | Typed collaborative heuristic records with nested CRDT fields, bounded validation, per-edit attribution, replay rejection, and deterministic read projection |
 | `frontend/src/workspace/scenarioModel.ts` | Penumbra original | Stable lifecycle scenarios, ordered multi-turn CRDT content, attributed immutable revisions/edits, branch inspection, and fail-closed peer-collision handling |
-| `frontend/src/workspace/ScenarioWorkspace.tsx` | Penumbra original | Engine-free live-Y.Doc scenario gallery, stale-detail guard, integrity-read-only state, ordered turn creation, and attributed unauthenticated vote controls |
+| `frontend/src/workspace/ScenarioWorkspace.tsx` | Penumbra original | Live-Y.Doc scenario gallery, stale-detail guard, integrity-read-only state, ordered turn creation, attributed voting, and injected optional response generation |
 | `frontend/src/workspace/scenarioVoteModel.ts` | Penumbra original | Namespaced immutable scenario vote events, idempotent replay, attributed re-vote/withdrawal history, deterministic participant projection, and orphan/collision inspection |
 | `frontend/src/workspace/scenarioAnnotationModel.ts` | Penumbra original | Namespaced immutable flag/note lifecycle events, exact-parent revision guards, concurrent branch retention, resolve/reopen attribution, and orphan/collision inspection |
 | `frontend/src/workspace/scenarioLabelModel.ts` | Penumbra original | Namespaced immutable label and scenario-assignment events, exact-parent guards, deterministic concurrent rename projection, filtering, and orphan/collision inspection |
@@ -47,6 +47,9 @@
 | `frontend/src/workspace/nodes/ScenarioReferenceNode.tsx` | Penumbra original | Inline stable-ID scenario link with strict JSON/Yjs round-trip and live-title decorator |
 | `frontend/src/workspace/nodes/ScenarioSpotlightNode.tsx` | Penumbra original | Block-level stable-ID scenario projection with live content, shared embed/collapse, and exact semantic/version round-trip |
 | `frontend/src/workspace/scenarioResponseModel.ts` | Penumbra original | Versioned peer-namespaced response revisions with human/model provenance, exact-parent edits, and collision-safe projection |
+| `frontend/src/workspace/scenarioGeneration.ts` | Penumbra original | Bounded provider-neutral selected-scenario request/output contract with route binding and exact-source commit guard |
+| `frontend/src/workspace/scenarioGenerationRuntime.ts` | Penumbra original | Optional local-stream and native-approved remote-provider adapters for the shared generation contract |
+| `frontend/src/workspace/ScenarioGenerator.tsx` | Penumbra original | Manual-safe local/API response-variant controls and attributed shared result projection |
 | `frontend/src/workspace/suggestionModel.ts` | Penumbra original | Immutable peer-namespaced proposal/decision ledger with exact-proposal guards, replay safety, model provenance, and explicit concurrent decision conflicts |
 | `frontend/src/workspace/SuggestionContext.tsx` | Penumbra original | Live project-Y.Doc suggestion projection and attributed human proposal/decision actions |
 | `frontend/src/workspace/nodes/SuggestionNode.tsx` | Penumbra original | Stable-ID-only live suggestion preview with explicit accept/reject, missing-target, decided, and conflict states |

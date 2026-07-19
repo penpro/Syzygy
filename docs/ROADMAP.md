@@ -137,6 +137,14 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   pass. No installed live network provider, authenticated identity, physical two-install cursor
   proof, or five-client soak exists yet, so P-11 is `implemented_unverified`. Evidence:
   `docs/audits/runs/PRESENCE-LIFECYCLE-2026-07-18.json`.
+- P-16 now connects selected scenarios to one bounded provider-neutral response contract. Local
+  generation uses the optional loopback model; OpenAI, Anthropic, Gemini, and xAI reuse the native
+  Send once boundary. Output enters the existing collaborative response lineage only when the exact
+  scenario revision is unchanged. Hostile envelopes, cancellation, local-AI-off behavior, remote
+  task construction, separate concurrent variants, focused UI, and production build gates pass.
+  Live paid-provider proof, response editing/regeneration, and quality claims remain open, so status
+  is `implemented_unverified`. Evidence:
+  `docs/audits/runs/SCENARIO-GENERATION-2026-07-18.json`.
 
 - The first remote-model execution boundary is now headlessly testable with a bounded product caller.
   Rust constructs and normalizes an OpenAI Responses one-shot request, requires matching content
@@ -368,8 +376,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **42 capabilities**: **32 are
-`implemented_unverified`, 10 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **42 capabilities**: **33 are
+`implemented_unverified`, 9 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, remaining crash/recovery local
 lifecycle, Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned

@@ -40,6 +40,9 @@
 | `frontend/src-tauri/src/drive_projects.rs` | Penumbra original | Strict selected-workspace manifest/update transport, bounded app-root catalog with duplicate/orphan rejection, and real Google cleanup canary |
 | `frontend/src/workspace/collaborationProvider.ts` | Penumbra original | Provider-neutral lifecycle shared by local and test/future transports |
 | `frontend/src/workspace/memoryProvider.ts` | Penumbra original | Deterministic two-editor live/partition convergence transport used only by the headless contract suite |
+| `frontend/src/workspace/presenceModel.ts` | Penumbra original | Bounded fail-closed projection of schema-versioned ephemeral researcher awareness metadata |
+| `frontend/src/workspace/presenceRegistry.ts` | Penumbra original | Identity-safe active-provider presence lifecycle plus content-free MCP session-count inspection |
+| `frontend/src/workspace/ResearchPresence.tsx` | Penumbra original | Accessible transport-honest local/Drive/live presence surface with invalid-state disclosure |
 | `frontend/src/workspace/nodes/PolicyBlockNode.ts` | Penumbra original | Stable-identity editable policy statement node with review state and strict JSON round-trip |
 | `frontend/src/workspace/nodes/ScenarioReferenceNode.tsx` | Penumbra original | Inline stable-ID scenario link with strict JSON/Yjs round-trip and live-title decorator |
 | `frontend/src/workspace/nodes/ScenarioSpotlightNode.tsx` | Penumbra original | Block-level stable-ID scenario projection with live content, shared embed/collapse, and exact semantic/version round-trip |

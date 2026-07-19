@@ -146,6 +146,14 @@ omits proposal and decision bodies. Authenticated identity, packaged two-client 
 generation, and revision-guarded accepted-text application remain open, so P-08 is
 `implemented_unverified`.
 
+P-11 now has bounded schema-versioned ephemeral awareness, an identity-safe active-provider
+registry, migrated researcher identity in Lexical, remote cursor classes, an accessible capability
+strip, and content-free MCP session counts. The Memory transport proves live two-client updates,
+immediate disconnect cleanup, and reconnect tombstones. Local and Drive modes state that they do
+not provide remote live presence; Drive edit polling is unchanged. A packaged live network
+provider, authenticated identity, physical two-install cursor proof, and five-client soak remain
+open, so P-11 is `implemented_unverified`.
+
 
 P-04 now has a Penumbra-original typed Yjs domain service and deterministic headless evidence for
 concurrent add, independent field edit, attributed edit history, and delete-versus-edit without
@@ -631,7 +639,7 @@ dialog. Product domain orchestration still must decide which frozen snapshots en
 
 ## 11. Recommended next slice
 
-Status snapshot on 2026-07-18: the 42-row ledger has 31 `implemented_unverified`, 11 `planned`,
+Status snapshot on 2026-07-18: the 42-row ledger has 32 `implemented_unverified`, 10 `planned`,
 and 0 `verified` capabilities. The shipped local editor, Drive research path, local engine, and MCP
 pilot are meaningful foundations, but none substitutes for the decisive two-install, convergence,
 portable-archive, workflow, accessibility, and adversarial gates below. MCP setup/onboarding is

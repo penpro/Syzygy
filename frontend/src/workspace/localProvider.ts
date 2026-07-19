@@ -10,6 +10,7 @@ import type {
 import { createProjectDocument } from './projectModel'
 import type { ResearchProjectManifest } from './schema'
 import { registerAutomationProjectDocument } from './workspaceAutomationRegistry'
+import { registerProjectPresence } from './presenceRegistry'
 
 export class LocalProjectProvider implements ProjectCollaborationProvider {
   readonly awareness: Awareness
@@ -18,12 +19,14 @@ export class LocalProjectProvider implements ProjectCollaborationProvider {
   private connected = false
   private connectionGeneration = 0
   private unregisterAutomation: (() => void) | null = null
+  private unregisterPresence: (() => void) | null = null
 
   constructor(
     readonly doc: Y.Doc,
     storageKey: string,
     private readonly projectId = doc.guid,
     private readonly registerAutomation = true,
+    private readonly publishPresence = true,
   ) {
     this.awareness = new Awareness(doc)
     this.persistence = new IndexeddbPersistence(storageKey, doc)
@@ -34,6 +37,7 @@ export class LocalProjectProvider implements ProjectCollaborationProvider {
     if (this.connected) return
     const generation = ++this.connectionGeneration
     this.connected = true
+    if (this.publishPresence) this.unregisterPresence = registerProjectPresence(this.projectId, this.awareness, 'local-only')
     this.emit('status', { status: 'connecting' })
     // Return void deliberately. Lexical's development StrictMode cleanup defers disconnecting
     // promise-returning providers and can disconnect a newer mount when the old promise settles.
@@ -56,10 +60,12 @@ export class LocalProjectProvider implements ProjectCollaborationProvider {
     this.connectionGeneration += 1
     this.unregisterAutomation?.()
     this.unregisterAutomation = null
-    if (!this.connected) return
+    const wasConnected = this.connected
     this.connected = false
     this.awareness.setLocalState(null)
-    this.emit('status', { status: 'disconnected' })
+    this.unregisterPresence?.()
+    this.unregisterPresence = null
+    if (wasConnected) this.emit('status', { status: 'disconnected' })
   }
 
   async flush(): Promise<void> {

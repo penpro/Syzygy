@@ -141,6 +141,12 @@ ambiguous or unreadable roots, or a visible sanitized error; an empty list may n
 that did nothing. The header reports connecting, synced time, error, or offline-copy state. Shared titles are read-only in
 this first transport slice because manifest rename has not been given a conflict-safe contract.
 The UI must not describe polling as real-time presence.
+A compact **Presence** strip below the editor toolbar always names the actual capability. Local
+projects say that no remote editing session is connected. Drive-shared projects say edits sync
+but live cursors and online status are unavailable. A future live provider may show bounded
+session chips with **this device**, **editing**, or **viewing** state. Invalid/excess peer records
+produce an accessible warning rather than rendering attacker-controlled identity data. Live mode
+must state that presence is ephemeral and collaborator names are self-reported, not authenticated.
 Live offline/LAN project synchronization is not implemented; the portable archive is a handoff that
 creates independent local state after import.
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,

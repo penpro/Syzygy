@@ -1,4 +1,4 @@
-import { Awareness } from 'y-protocols/awareness'
+import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness'
 import * as Y from 'yjs'
 import type {
   ProjectCollaborationProvider,
@@ -20,6 +20,10 @@ export class MemoryProjectHub {
     for (const peer of this.connected) {
       Y.applyUpdate(provider.doc, Y.encodeStateAsUpdate(peer.doc), this)
       Y.applyUpdate(peer.doc, Y.encodeStateAsUpdate(provider.doc), this)
+      const peerAwareness = encodeAwarenessUpdate(peer.awareness, Array.from(peer.awareness.meta.keys()))
+      const providerAwareness = encodeAwarenessUpdate(provider.awareness, Array.from(provider.awareness.meta.keys()))
+      applyAwarenessUpdate(provider.awareness, peerAwareness, this)
+      applyAwarenessUpdate(peer.awareness, providerAwareness, this)
     }
     this.connected.add(provider)
   }
@@ -31,6 +35,12 @@ export class MemoryProjectHub {
   publish(source: MemoryProjectProvider, update: Uint8Array): void {
     for (const peer of this.connected) {
       if (peer !== source) Y.applyUpdate(peer.doc, update, this)
+    }
+  }
+
+  publishAwareness(source: MemoryProjectProvider, update: Uint8Array): void {
+    for (const peer of this.connected) {
+      if (peer !== source) applyAwarenessUpdate(peer.awareness, update, this)
     }
   }
 
@@ -47,12 +57,20 @@ export class MemoryProjectProvider implements ProjectCollaborationProvider {
     this.emit('update', update)
     if (this.connected && origin !== this.hub) this.hub.publish(this, update)
   }
+  private readonly forwardAwareness = (
+    { added, updated, removed }: { added: number[]; updated: number[]; removed: number[] },
+    origin: unknown,
+  ) => {
+    if (!this.connected || origin === this.hub) return
+    this.hub.publishAwareness(this, encodeAwarenessUpdate(this.awareness, [...added, ...updated, ...removed]))
+  }
 
   constructor(
     readonly doc: Y.Doc,
     private readonly hub: MemoryProjectHub,
   ) {
     this.awareness = new Awareness(doc)
+    this.awareness.on('update', this.forwardAwareness)
     doc.on('update', this.forwardUpdate)
   }
 
@@ -70,16 +88,20 @@ export class MemoryProjectProvider implements ProjectCollaborationProvider {
   }
 
   disconnect(): void {
-    if (!this.connected) return
+    if (!this.connected) {
+      this.awareness.setLocalState(null)
+      return
+    }
+    this.awareness.setLocalState(null)
     this.connected = false
     this.hub.leave(this)
-    this.awareness.setLocalState(null)
     this.emit('status', { status: 'disconnected' })
   }
 
   async destroy(): Promise<void> {
     this.disconnect()
     this.doc.off('update', this.forwardUpdate)
+    this.awareness.off('update', this.forwardAwareness)
     this.awareness.destroy()
   }
 

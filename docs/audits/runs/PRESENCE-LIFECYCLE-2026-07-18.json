@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "capability": "P-11",
+  "date": "2026-07-18",
+  "status": "implemented_unverified",
+  "claim": "Provider-neutral presence is bounded, ephemeral, identity-aware, and cleans up disconnected peers without misrepresenting Drive polling as live presence.",
+  "verified": [
+    "Awareness projection accepts only bounded schema-versioned participant metadata and omits selection/cursor payloads",
+    "The Memory provider exchanges live awareness updates between two clients",
+    "Disconnect publishes a removal before leaving the hub so connected peers clean up immediately",
+    "Reconnect exchanges awareness tombstones so a partitioned peer cannot resurrect stale presence",
+    "Identity-safe provider registration prevents an old lifecycle cleanup from removing a newer provider",
+    "Lexical awareness uses the installation researcher ID and current display name rather than a fixed placeholder",
+    "The product surface distinguishes local-only, Drive-polling, and future live transport modes",
+    "Drive copy explicitly says that polling does not provide live cursors or online status",
+    "Malformed or excess peer awareness is hidden behind a visible accessible warning",
+    "MCP research inspection returns only transport mode and bounded session/integrity counts",
+    "Production TypeScript and Vite build passes"
+  ],
+  "headlessResults": {
+    "focusedTestFiles": 9,
+    "focusedTestsPassed": 19,
+    "focusedTestsFailed": 0,
+    "productionBuild": "passed",
+    "repositoryAudit": "passed",
+    "fullSupervisedCheck": "passed",
+    "fullSupervisedRunId": "20260719-035935-bdb1dc",
+    "fullTestFilesPassed": 68,
+    "fullTestFilesSkipped": 1,
+    "fullTestsPassed": 282,
+    "fullTestsExpectedFail": 1,
+    "fullTestsSkipped": 1
+  },
+  "limitations": [
+    "Memory is the only live awareness transport in this slice; installed local and Drive providers do not exchange remote presence.",
+    "Drive polling synchronizes Yjs edits but intentionally does not claim live cursors or online status.",
+    "Collaborator identity is self-reported and is not authenticated.",
+    "No self-hosted WebSocket provider, packaged physical two-client proof, or five-client soak is included yet."
+  ],
+  "sources": [
+    "frontend/src/workspace/presenceModel.ts",
+    "frontend/src/workspace/presenceModel.test.ts",
+    "frontend/src/workspace/presenceRegistry.ts",
+    "frontend/src/workspace/presenceRegistry.test.ts",
+    "frontend/src/workspace/ResearchPresence.tsx",
+    "frontend/src/workspace/ResearchPresence.ui.test.tsx",
+    "frontend/src/workspace/memoryProvider.ts",
+    "frontend/src/workspace/memoryProvider.presence.test.ts",
+    "frontend/src/workspace/localProvider.ts",
+    "frontend/src/workspace/driveProjectProvider.ts",
+    "frontend/src/workspace/ResearchEditor.tsx",
+    "frontend/src/workspace/researchStateInspection.ts",
+    "frontend/src/workspace/presenceResearchInspection.test.ts"
+  ]
+}

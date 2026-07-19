@@ -21,6 +21,7 @@ import {
 } from 'lexical'
 import { $createHeadingNode, $createQuoteNode, HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { useEffect, useMemo, useState } from 'react'
+import { useStore } from '../store'
 import type { ResearchProjectManifest } from './schema'
 import { createLocalProviderFactory } from './localProvider'
 import { createDriveProviderFactory } from './driveProjectProvider'
@@ -36,10 +37,17 @@ import { $createScenarioReferenceNode, ScenarioReferenceNode } from './nodes/Sce
 import { $createScenarioSpotlightNode, ScenarioSpotlightNode } from './nodes/ScenarioSpotlightNode'
 import { $createSuggestionNode, SuggestionNode } from './nodes/SuggestionNode'
 import { ResearchTableOfContents } from './ResearchTableOfContents'
+import { ResearchPresence } from './ResearchPresence'
 import { ScenarioReferenceProvider, useScenarioReferenceState } from './ScenarioReferenceContext'
 import { SuggestionProvider, useSuggestionState } from './SuggestionContext'
 
 const editorTheme = {
+  collaboration: {
+    cursor: 'research-collab-cursor',
+    cursorName: 'research-collab-cursor-name',
+    selection: 'research-collab-selection',
+    selectionBg: 'research-collab-selection-bg',
+  },
   heading: {
     h1: 'research-editor-h1',
     h2: 'research-editor-h2',
@@ -221,6 +229,12 @@ function AutomationEditorRegistration({ projectId }: { projectId: string }) {
 }
 
 export function ResearchEditor({ project }: { project: ResearchProjectManifest }) {
+  const researcherId = useStore((state) => state.settings.researcherId)
+  const researcherName = useStore((state) => state.settings.researcherName)
+  const presenceName = researcherName.trim() || 'Unnamed researcher'
+  const awarenessData = useMemo(() => ({
+    syzygy: { schemaVersion: 1, participantId: researcherId },
+  }), [researcherId])
   const transportKey = project.transport.kind === 'drive' ? `drive:${project.transport.workspaceId}` : 'local'
   const providerFactory = useMemo(
     () => project.transport.kind === 'drive' ? createDriveProviderFactory(project) : createLocalProviderFactory(project),
@@ -246,6 +260,7 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
           <SuggestionProvider projectId={project.id}>
           <AutomationEditorRegistration projectId={project.id} />
           <Toolbar shared={project.transport.kind === 'drive'} />
+          <ResearchPresence projectId={project.id} />
           <ResearchTableOfContents />
           <div className="research-paper">
           <RichTextPlugin
@@ -257,8 +272,10 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
             id={project.documentId}
             providerFactory={providerFactory}
             shouldBootstrap
-            username="Local researcher"
+            username={presenceName}
+            awarenessData={awarenessData}
             cursorColor="var(--accent)"
+            selectionHighlight
             initialEditorState={() => {
               const root = $getRoot()
               root.append(

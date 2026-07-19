@@ -179,6 +179,15 @@ Drive provider publishes to the UI/MCP automation registry only after local reop
 remote pull, and a live canary proves the underlying Google create/list/readback/cleanup path.
 The local provider publishes its document to the UI/MCP automation registry only after IndexedDB
 synchronization and uses a connection generation guard so stale lifecycle continuations fail closed.
+`presenceRegistry.ts` separately publishes the active provider awareness object and an explicit
+capability mode; token-gated cleanup prevents an old mount from removing a newer registration.
+`presenceModel.ts` projects at most 200 schema-versioned participant states and omits cursor/
+selection bodies. `ResearchPresence.tsx` renders the installation researcher identity, current
+editing sessions, malformed-state warnings, and precise provider copy. Memory transports real
+awareness packets and disconnect tombstones for two-client tests. Local mode is device-only;
+Drive polling carries durable Yjs edits but no awareness packets, so it is labeled as lacking live
+cursors and online status. Awareness is ephemeral and never written to Yjs, IndexedDB, Drive,
+archives, diagnostics, or immutable versions.
 Its `nodes/PolicyBlockNode.ts` is the first original domain editor node: stable identity and
 review state live with editable Lexical content and survive JSON/MCP serialization and two-editor
 convergence. `editorStructure.ts` owns one semantic reorder command shared by toolbar buttons and
@@ -325,6 +334,7 @@ availability claim.
 | Settings, experts, ask threads | localStorage key `syzygy` (webview) |
 | Project manifests / active project / researcher attribution | localStorage key `syzygy` (webview, migration v3) |
 | Collaborative project updates | IndexedDB database `syzygy-project-v1:<projectId>` |
+| Ephemeral cursor/presence state | Active provider awareness only; never persisted or sent through Drive polling |
 | Portable project archive | User-chosen `.syzygy-project.json`; manifest plus exact checksummed Yjs state, no app/model/credential settings |
 | Sanitized diagnostic history (last 500 entries) | localStorage key `syzygy-diagnostic-log-v1` (webview) |
 | Google refresh token + client info | `<app-data>/google_auth.json` (Rust-only) |

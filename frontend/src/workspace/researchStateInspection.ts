@@ -8,6 +8,7 @@ import { inspectScenarioAnnotations, listScenarioAnnotationSummaries } from './s
 import { inspectScenarioVotes, listScenarioVoteSummaries } from './scenarioVoteModel'
 import { inspectScenarioLabels, listScenarioIdsForLabel, listScenarioLabels } from './scenarioLabelModel'
 import { inspectSuggestions, listSuggestions } from './suggestionModel'
+import { inspectRegisteredProjectPresence } from './presenceRegistry'
 
 const MAX_RETURNED_ITEMS = 200
 
@@ -51,6 +52,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   const labelInspection = inspectScenarioLabels(settings, scenarioMap)
   const suggestions = listSuggestions(discussions)
   const suggestionInspection = inspectSuggestions(discussions)
+  const presence = inspectRegisteredProjectPresence(expectedProjectId)
   const allVersions = await listPolicyVersions(versionMap)
   const versions = allVersions.filter((version) => version.projectId === expectedProjectId)
   const foreignProjectVersions = allVersions.length - versions.length
@@ -64,6 +66,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   issues.push(...voteInspection.issues)
   issues.push(...labelInspection.issues)
   issues.push(...suggestionInspection.issues)
+  if (presence.available && !presence.healthy) issues.push(`${presence.invalidRecords} presence record(s) failed validation or exceeded the bound`)
   if (invalidVersionRecords > 0) issues.push(`${invalidVersionRecords} version record(s) failed hash/schema validation`)
   if (foreignProjectVersions > 0) issues.push(`${foreignProjectVersions} version record(s) belong to another project`)
   if (invalidLineageRecords > 0) issues.push(`${invalidLineageRecords} version record(s) have missing, cross-project, or cyclic ancestry`)
@@ -86,6 +89,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
     schemaVersion: 1,
     projectId: expectedProjectId,
     revision: startingRevision,
+    presence,
     heuristics: {
       totalRecords: heuristicMap.size,
       validRecords: validHeuristics.length,
@@ -216,7 +220,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
     selfCheck: { healthy: issues.length === 0, issues },
     limitations: [
       'inspection itself is read-only; separate revision-guarded MCP tools can mutate scenarios, votes, annotations, labels, and policy versions, but suggestion decisions, heuristic mutation, and broader scenario lifecycle remain unavailable through MCP',
-      'inspection reads the active live collaboration document; it does not by itself prove local, Drive, LAN, or future WebSocket transport health',
+      'presence reports only active provider mode and bounded session counts; Drive polling is explicitly not live presence, and inspection does not prove an underlying transport healthy',
       'counts and integrity are checked; policy text, suggestion content and decision bodies, heuristic guidance, scenario background/turn content/revision bodies, annotation/voter bodies, label event bodies, edit values, and version notes are omitted',
     ],
   }

@@ -200,6 +200,18 @@ const suggestionPolicyVersionSource = text('frontend/src/workspace/policyVersion
 const suggestionPolicyVersionTestSource = text('frontend/src/workspace/policyVersionModel.test.ts')
 const suggestionInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
 const suggestionInspectionTestSource = text('frontend/src/workspace/researchStateInspection.test.ts')
+const presenceModelSource = text('frontend/src/workspace/presenceModel.ts')
+const presenceModelTestSource = text('frontend/src/workspace/presenceModel.test.ts')
+const presenceRegistrySource = text('frontend/src/workspace/presenceRegistry.ts')
+const presenceRegistryTestSource = text('frontend/src/workspace/presenceRegistry.test.ts')
+const researchPresenceSource = text('frontend/src/workspace/ResearchPresence.tsx')
+const researchPresenceTestSource = text('frontend/src/workspace/ResearchPresence.ui.test.tsx')
+const memoryPresenceSource = text('frontend/src/workspace/memoryProvider.ts')
+const memoryPresenceTestSource = text('frontend/src/workspace/memoryProvider.presence.test.ts')
+const localPresenceSource = text('frontend/src/workspace/localProvider.ts')
+const drivePresenceSource = text('frontend/src/workspace/driveProjectProvider.ts')
+const researchPresenceInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
+const researchPresenceInspectionTestSource = text('frontend/src/workspace/presenceResearchInspection.test.ts')
 record(
   'scenario references retain stable identity across rename, collaboration, automation, and checkpoints',
   scenarioReferenceSource.includes("type: 'scenario-reference'") &&
@@ -281,6 +293,32 @@ record(
     editorLedgerSource.includes('"id": "P-08", "phase": 6, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/SUGGESTION-DECISIONS-2026-07-18.json')),
   'immutable proposal/decision ledger, human/model provenance, explicit conflicts, stable-ID-only editor/version markers, content-free inspection, and truthful P-08 status are present',
+)
+record(
+  'presence remains bounded, ephemeral, disconnect-safe, and transport-honest',
+  presenceModelSource.includes('MAX_PRESENCE_STATES = 200') &&
+    presenceModelSource.includes('awarenessData.syzygy') &&
+    presenceModelTestSource.includes('caps peer-controlled awareness records') &&
+    presenceModelTestSource.includes("not.toContain('secretSelectionBody')") &&
+    memoryPresenceSource.includes('encodeAwarenessUpdate') &&
+    memoryPresenceSource.includes('Array.from(peer.awareness.meta.keys())') &&
+    memoryPresenceSource.indexOf('this.awareness.setLocalState(null)') < memoryPresenceSource.indexOf('this.hub.leave(this)') &&
+    memoryPresenceTestSource.includes('removes a disconnected peer immediately') &&
+    memoryPresenceTestSource.includes('instead of resurrecting stale presence') &&
+    presenceRegistrySource.includes('registrations.get(projectId)?.token !== token') &&
+    presenceRegistryTestSource.includes('identity-safe lifecycle cleanup') &&
+    researchPresenceSource.includes('does not provide live cursors or online status') &&
+    researchPresenceSource.includes('self-reported, not authenticated') &&
+    researchPresenceTestSource.includes('does not misrepresent Drive polling') &&
+    localPresenceSource.includes("'local-only'") &&
+    drivePresenceSource.includes("'drive-polling'") &&
+    researchEditorSource.includes('username={presenceName}') &&
+    researchEditorSource.includes('awarenessData={awarenessData}') &&
+    researchPresenceInspectionSource.includes('presence reports only active provider mode') &&
+    researchPresenceInspectionTestSource.includes('without participant identity or cursor data') &&
+    editorLedgerSource.includes('"id": "P-11", "phase": 5, "status": "implemented_unverified"') &&
+    existsSync(join(root, 'docs/audits/runs/PRESENCE-LIFECYCLE-2026-07-18.json')),
+  '200-state hostile-input bound, schema identity, two-client packets, removal tombstones, stale-registration guard, honest local/Drive/live UI, content-free MCP counts, and truthful P-11 status are present',
 )
 
 const heuristicsModelSource = text('frontend/src/workspace/heuristicsModel.ts')

@@ -16,6 +16,7 @@ import { createProjectDocument } from './projectModel'
 import type { ResearchProjectManifest } from './schema'
 import { registerAutomationProjectDocument } from './workspaceAutomationRegistry'
 import { publishDriveProjectStatus, type DriveProjectSyncStatus } from './driveProjectStatus'
+import { registerProjectPresence } from './presenceRegistry'
 
 const POLL_INTERVAL_MS = 3_000
 const PUSH_DEBOUNCE_MS = 750
@@ -66,6 +67,7 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
   private pushTimer: ReturnType<typeof setTimeout> | null = null
   private syncing: Promise<void> | null = null
   private unregisterAutomation: (() => void) | null = null
+  private unregisterPresence: (() => void) | null = null
   private readyPromise: Promise<void> = Promise.resolve()
   private resolveReady: (() => void) | null = null
   private rejectReady: ((error: unknown) => void) | null = null
@@ -87,6 +89,7 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
       `syzygy-project-v1:${manifest.id}`,
       manifest.id,
       false,
+      false,
     ),
   ) {
     this.awareness = local.awareness
@@ -95,6 +98,7 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
   connect(): void {
     if (this.connected) return
     this.connected = true
+    this.unregisterPresence = registerProjectPresence(this.manifest.id, this.awareness, 'drive-polling')
     const generation = ++this.generation
     this.readyPromise = new Promise<void>((resolve, reject) => {
       this.resolveReady = resolve
@@ -122,6 +126,8 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
     this.unregisterAutomation = null
     this.local.disconnect()
     this.awareness.setLocalState(null)
+    this.unregisterPresence?.()
+    this.unregisterPresence = null
     this.reportStatus({ state: 'disconnected' })
   }
 

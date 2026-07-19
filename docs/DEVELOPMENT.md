@@ -179,6 +179,16 @@ inspection exposes bounded provenance/status metadata while omitting proposal an
 These gates do not prove authenticated identity, packaged two-install interaction, or applying
 accepted text to the policy; application remains P-24.
 
+`presenceModel.test.ts`, `presenceRegistry.test.ts`,
+`memoryProvider.presence.test.ts`, and `ResearchPresence.ui.test.tsx` are the P-11 gates.
+They require a 200-state hostile-input bound, schema-versioned researcher identity, content-free
+projection, identity-safe provider replacement, two-client live awareness, immediate disconnect
+cleanup, reconnect tombstones, and honest local/Drive/live copy. The editor must pass the migrated
+installation identity to Lexical instead of a fixed username. `presenceResearchInspection.test.ts`
+requires MCP to expose only transport mode and session/integrity counts. This is provider-neutral
+and product-visible evidence, but it does not prove a packaged live network provider, authenticated
+identity, a physical two-install cursor run, or the Phase 5 five-client soak.
+
 The same suite includes `heuristicsModel.test.ts`. Forty seeded delivery orders prove concurrent
 field edits retain both values and attribution events, and another forty prove concurrent additions
 plus delete-versus-edit converge without resurrection. Invalid identity and conflicting edit-ID

@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "capability": "P-31",
+  "date": "2026-07-19",
+  "status": "implemented_unverified",
+  "claim": "Two completed exact-compatible scenario rerun queues can be compared through a deterministic neutral response matrix and exported as a bounded independently verifiable open JSON artifact.",
+  "verified": [
+    "Comparison requires distinct completed jobs with identical project, document, prompt version, scenario IDs, and byte-exact scenario revisions",
+    "Rows are canonically ordered by stable scenario ID and derive a nine-cell handled/unhandled/uncertain transition matrix without improvement or truth labels",
+    "The artifact retains both verified immutable policy snapshots, exact scenario revisions, full evaluation evidence, and route/model/run/attempt/author attribution",
+    "Unavailable model hash, sampler, and seed metadata are explicit nulls with a nondeterminism warning rather than silently omitted",
+    "Policy-version, scenario-revision, and complete-artifact SHA-256 values are recomputed during decode",
+    "Decoder rejects unknown fields, tampering, noncanonical order, mismatched redundant identities/routes/results, inconsistent executed-model sets, timestamps, change flags, and summaries",
+    "The published strict Draft 2020-12 schema validates the real typed fixture while documenting semantic checks that require the runtime verifier",
+    "Product controls show responsive side-by-side response, rationale, uncertainty, model, and run evidence and disclose every research body written by explicit export",
+    "Comparison uses no model, key, network, or shared mutation; MCP research-state inspection exposes only compatible-pair count"
+  ],
+  "headlessResults": {
+    "focusedTestFiles": 4,
+    "focusedTestsPassed": 11,
+    "focusedTestsFailed": 0,
+    "publicSchema": "passed",
+    "productionBuild": "passed",
+    "repositoryAudit": "passed",
+    "fullSupervisedCheck": "passed",
+    "fullSupervisedRunId": "20260719-232416-0d58ca",
+    "fullTestFilesPassed": 89,
+    "fullTestFilesSkipped": 1,
+    "fullTestsPassed": 362,
+    "fullTestsExpectedFail": 1,
+    "fullTestsSkipped": 1,
+    "rustCheck": "passed",
+    "assetReembed": "Compiling app v0.1.19 observed"
+  },
+  "limitations": [
+    "No semantic, causal, correctness, improvement, consensus, or model-quality claim is made from an outcome transition.",
+    "Model binary hash, sampler settings, and seed were not captured by P-30 and therefore cannot be reconstructed by P-31.",
+    "Researcher identity and timestamps are installation/caller supplied and are not authenticated or trusted across installs.",
+    "No live paid-provider repeatability or nondeterminism benchmark is included.",
+    "No packaged OS Save-dialog or two-physical-install comparison interaction is included.",
+    "The export intentionally contains sensitive policy, scenario, response, rationale, and uncertainty bodies; destination choice remains the researcher's responsibility."
+  ],
+  "sources": [
+    "frontend/src/workspace/scenarioComparison.ts",
+    "frontend/src/workspace/scenarioComparison.test.ts",
+    "frontend/src/workspace/ScenarioComparisonPanel.tsx",
+    "frontend/src/workspace/ScenarioComparisonPanel.ui.test.tsx",
+    "frontend/src/workspace/ScenarioRerunQueuePanel.tsx",
+    "frontend/src/workspace/researchStateInspection.ts",
+    "frontend/src/workspace/researchStateInspection.test.ts",
+    "frontend/src/styles.css",
+    "docs/schemas/syzygy-scenario-comparison-v1.schema.json",
+    "scripts/audit.mjs"
+  ]
+}

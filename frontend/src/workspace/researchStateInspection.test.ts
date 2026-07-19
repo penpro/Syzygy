@@ -125,7 +125,7 @@ describe('research state inspection', () => {
     expect(result.scenarioReruns).toEqual({
       jobCount: 1, runningCount: 0, pausedCount: 0, cancelledCount: 0, completeCount: 1,
       itemCount: 1, completedItemCount: 1, failedItemCount: 0, interruptedItemCount: 0,
-      localJobCount: 1, remoteJobCount: 0, invalidRecords: 0,
+      localJobCount: 1, remoteJobCount: 0, comparablePairCount: 0, invalidRecords: 0,
       orphanScenarioIds: [], orphanPolicyVersionIds: [], foreignProjectJobCount: 0,
     })
     expect(result.scenarioVotes).toMatchObject({

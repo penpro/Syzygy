@@ -21,6 +21,7 @@ import {
   SCENARIO_EVALUATION_REMOTE_PROVIDERS,
 } from './scenarioEvaluationRuntime'
 import { listScenarios } from './scenarioModel'
+import { ScenarioComparisonPanel } from './ScenarioComparisonPanel'
 import type { ResearchProjectManifest } from './schema'
 import type { ScenarioEvaluationProviderId } from './scenarioEvaluation'
 
@@ -291,6 +292,7 @@ export function ScenarioRerunQueuePanel({ project, doc }: { project: ResearchPro
           </li>
         })}
       </ol>}
+      <ScenarioComparisonPanel project={project} doc={doc} jobs={jobs} />
       <p className="scenario-identity-note">Queue control uses this installation’s researcher identity; identity is not authenticated. Collaborators can inspect every shared result.</p>
     </section>
   )

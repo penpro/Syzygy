@@ -3478,6 +3478,52 @@ input.workspace-title-input:focus {
   background: color-mix(in srgb, var(--accent) 4%, var(--panel));
 }
 
+/* P31 stable baseline comparison */
+.scenario-comparison-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.scenario-comparison-matrix caption {
+  padding-bottom: 0.4rem;
+  text-align: left;
+}
+
+.scenario-comparison-matrix th,
+.scenario-comparison-matrix td {
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.scenario-comparison-matrix th {
+  background: color-mix(in srgb, var(--accent) 5%, var(--panel));
+  color: var(--text);
+}
+
+.scenario-comparison-sides {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin-top: 0.55rem;
+}
+
+.scenario-comparison-sides > section {
+  min-width: 0;
+  padding-left: 0.65rem;
+  border-left: 2px solid var(--border);
+}
+
+.scenario-comparison-sides h4,
+.scenario-comparison-sides p { margin: 0 0 0.45rem; }
+.scenario-comparison-sides p { overflow-wrap: anywhere; }
+
+@media (max-width: 780px) {
+  .scenario-comparison-sides { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* P17 retained response lineage */
 .scenario-response-lineage {
   margin-top: 0.55rem;

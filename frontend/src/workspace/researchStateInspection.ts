@@ -7,6 +7,7 @@ import { listPolicyVersions, readPolicyVersionHead, readPolicyVersionLineage } f
 import type { PolicyVersion } from './policyVersionModel'
 import { inspectScenarioGraph, listScenarios } from './scenarioModel'
 import { inspectScenarioRerunQueues, listScenarioRerunJobs } from './scenarioRerunQueue'
+import { countComparableScenarioRerunPairs } from './scenarioComparison'
 import { inspectScenarioAnnotations, listScenarioAnnotationSummaries } from './scenarioAnnotationModel'
 import { inspectScenarioVotes, listScenarioVoteSummaries } from './scenarioVoteModel'
 import { inspectScenarioLabels, listScenarioIdsForLabel, listScenarioLabels } from './scenarioLabelModel'
@@ -171,6 +172,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
       interruptedItemCount: scenarioRerunInspection.interruptedItemCount,
       localJobCount: scenarioRerunJobs.filter(({ definition }) => definition.providerId === 'local').length,
       remoteJobCount: scenarioRerunJobs.filter(({ definition }) => definition.providerId !== 'local').length,
+      comparablePairCount: countComparableScenarioRerunPairs(scenarioRerunJobs),
       invalidRecords: scenarioRerunInspection.invalidRecords,
       orphanScenarioIds: scenarioRerunInspection.orphanScenarioIds,
       orphanPolicyVersionIds: orphanRerunPolicyVersionIds,

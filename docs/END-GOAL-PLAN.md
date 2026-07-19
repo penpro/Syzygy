@@ -658,10 +658,18 @@ P-30 now has a persistent exact-version/exact-scenario rerun queue with bounded 
 events, sequential local/API execution, begin-before-send and atomic completion, crash resume,
 pause/cancel/retry, a two-minute item deadline, 30-second progress heartbeats, product controls,
 and body-free MCP integrity counts. Live-provider quality, authenticated identity, packaged
-two-install crash/convergence, baseline comparison/export, and scenario-pack interchange remain
-unproven, so it is `implemented_unverified`.
+two-install crash/convergence and scenario-pack interchange remain unproven, so it is
+`implemented_unverified`.
 
-Status snapshot on 2026-07-19: the 42-row ledger has 39 `implemented_unverified`, 3 `planned`,
+P-31 now derives a deterministic neutral transition matrix from two completed queues only when
+project, document, prompt, scenario identities, and exact scenario revisions match. The side-by-side
+product surface and 24-MB open JSON export retain verified policy snapshots, exact scenario and result
+bodies, route/model/run/attribution, explicit missing seed/sampler/model-hash metadata, canonical order,
+and recomputed SHA-256/identity/summary checks. MCP exposes only compatible-pair count. Live-provider
+reproducibility, causal or semantic improvement, authenticated identity, and packaged pointer/save
+interaction remain unproven, so it is `implemented_unverified`.
+
+Status snapshot on 2026-07-19: the 42-row ledger has 40 `implemented_unverified`, 2 `planned`,
 and 0 `verified` capabilities. The shipped local editor, Drive research path, local engine, and MCP
 pilot are meaningful foundations, but none substitutes for the decisive two-install, convergence,
 portable-archive, workflow, accessibility, and adversarial gates below. MCP setup/onboarding is

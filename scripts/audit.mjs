@@ -252,6 +252,11 @@ const scenarioRerunRunnerSource = text('frontend/src/workspace/scenarioRerunRunn
 const scenarioRerunRunnerTestSource = text('frontend/src/workspace/scenarioRerunRunner.test.ts')
 const scenarioRerunPanelSource = text('frontend/src/workspace/ScenarioRerunQueuePanel.tsx')
 const scenarioRerunPanelTestSource = text('frontend/src/workspace/ScenarioRerunQueuePanel.ui.test.tsx')
+const scenarioComparisonSource = text('frontend/src/workspace/scenarioComparison.ts')
+const scenarioComparisonTestSource = text('frontend/src/workspace/scenarioComparison.test.ts')
+const scenarioComparisonPanelSource = text('frontend/src/workspace/ScenarioComparisonPanel.tsx')
+const scenarioComparisonPanelTestSource = text('frontend/src/workspace/ScenarioComparisonPanel.ui.test.tsx')
+const scenarioComparisonSchemaSource = text('docs/schemas/syzygy-scenario-comparison-v1.schema.json')
 record(
   'scenario references retain stable identity across rename, collaboration, automation, and checkpoints',
   scenarioReferenceSource.includes("type: 'scenario-reference'") &&
@@ -487,6 +492,32 @@ record(
     editorLedgerSource.includes('"id": "P-30", "phase": 8, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-RERUN-QUEUE-2026-07-19.json')),
   'exact immutable inputs, strict route/result contract, untrusted-source adapters, bounded persistent event queue, begin-before-send, atomic completion, sequential heartbeat/deadline runner, crash resume, product controls, body-free MCP inspection, and truthful P-30 status are present',
+)
+
+record(
+  'scenario baseline comparisons remain exact, neutral, deterministic, exportable, and content-explicit',
+  scenarioComparisonSource.includes("SCENARIO_COMPARISON_FORMAT = 'syzygy-scenario-comparison-v1'") &&
+    scenarioComparisonSource.includes('SCENARIO_COMPARISON_MAX_FILE_BYTES = 24_000_000') &&
+    scenarioComparisonSource.includes('Scenario comparison queues do not contain the same scenario IDs') &&
+    scenarioComparisonSource.includes('changed between comparison queues') &&
+    scenarioComparisonSource.includes('await sha256(canonicalPayload(payload))') &&
+    scenarioComparisonSource.includes('export async function decodeScenarioComparison') &&
+    scenarioComparisonSource.includes('countComparableScenarioRerunPairs') &&
+    scenarioComparisonTestSource.includes('builds a deterministic side-by-side matrix with exact reproducibility metadata') &&
+    scenarioComparisonTestSource.includes('rejects tampering or ambient fields') &&
+    scenarioComparisonTestSource.includes('fails closed for incomplete, self, mismatched-set, and changed-revision comparisons') &&
+    scenarioComparisonTestSource.includes('validatePublicSchema(JSON.parse(exported))') &&
+    scenarioComparisonPanelSource.includes('not scored as better or worse') &&
+    scenarioComparisonPanelSource.includes('Compare exact runs') &&
+    scenarioComparisonPanelSource.includes('Export verifiable JSON') &&
+    scenarioComparisonPanelSource.includes('both verified policy snapshots') &&
+    scenarioComparisonPanelTestSource.includes('states exact compatibility, neutral interpretation, export contents, and side-by-side evidence') &&
+    scenarioComparisonSchemaSource.includes('https://json-schema.org/draft/2020-12/schema') &&
+    scenarioComparisonSchemaSource.includes('"additionalProperties": false') &&
+    researchInspectionTestSource.includes('comparablePairCount: 0') &&
+    editorLedgerSource.includes('"id": "P-31", "phase": 8, "status": "implemented_unverified"') &&
+    existsSync(join(root, 'docs/audits/runs/SCENARIO-COMPARISON-2026-07-19.json')),
+  'two completed exact-compatible jobs, neutral derived matrix, verified policy/result joins, strict open schema, bounded checksummed export, explicit content disclosure, body-free MCP count, and truthful P-31 status are present',
 )
 
 const heuristicsModelSource = text('frontend/src/workspace/heuristicsModel.ts')

@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syzygy.local/schemas/syzygy-scenario-comparison-v1.schema.json",
+  "title": "Syzygy scenario comparison export v1",
+  "description": "A deterministic, checksummed side-by-side comparison of two completed exact-revision scenario rerun queues.",
+  "$comment": "Schema validation proves shape and bounds only. A conforming verifier must also recompute policy-version, scenario-revision, and artifact SHA-256 values; verify every redundant project/document/job/version/scenario/prompt/route join; recompute executed-model sets, timestamps, outcomeChanged fields, and the outcome matrix; and reject files larger than 24,000,000 bytes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "schemaVersion", "projectId", "documentId", "latestSourceTimestamp", "baseline", "candidate", "summary", "rows", "artifactSha256"],
+  "properties": {
+    "format": { "const": "syzygy-scenario-comparison-v1" },
+    "schemaVersion": { "const": 1 },
+    "projectId": { "$ref": "#/$defs/stableId" },
+    "documentId": { "$ref": "#/$defs/stableId" },
+    "latestSourceTimestamp": { "$ref": "#/$defs/timestamp" },
+    "baseline": { "$ref": "#/$defs/source" },
+    "candidate": { "$ref": "#/$defs/source" },
+    "summary": { "$ref": "#/$defs/summary" },
+    "rows": { "type": "array", "minItems": 1, "maxItems": 200, "items": { "$ref": "#/$defs/row" } },
+    "artifactSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "stableId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@-]*$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "timestamp": { "type": "number", "minimum": 0 },
+    "routeId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[^\\u0000-\\u001f\\u007f]+$" },
+    "outcome": { "enum": ["handled", "unhandled", "uncertain"] },
+    "policyBlock": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["kind", "text"],
+          "properties": { "kind": { "enum": ["paragraph", "heading1", "heading2", "quote"] }, "text": { "type": "string", "maxLength": 500000 } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["kind", "text", "policyId", "status"],
+          "properties": { "kind": { "const": "policy" }, "text": { "type": "string", "maxLength": 500000 }, "policyId": { "$ref": "#/$defs/stableId" }, "status": { "enum": ["draft", "review", "approved"] } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["kind", "text", "scenarioId"],
+          "properties": { "kind": { "const": "spotlight" }, "text": { "const": "" }, "scenarioId": { "$ref": "#/$defs/stableId" } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["kind", "text", "suggestionId"],
+          "properties": { "kind": { "const": "suggestion" }, "text": { "const": "" }, "suggestionId": { "$ref": "#/$defs/stableId" } }
+        }
+      ]
+    },
+    "policyVersion": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "versionId", "projectId", "parentVersionId", "policy", "scenarioIds", "author", "createdAt", "note"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "versionId": { "$ref": "#/$defs/sha256" },
+        "projectId": { "$ref": "#/$defs/stableId" },
+        "parentVersionId": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/sha256" }] },
+        "policy": {
+          "type": "object", "additionalProperties": false, "required": ["format", "blocks"],
+          "properties": { "format": { "const": "syzygy-semantic-blocks-v1" }, "blocks": { "type": "array", "minItems": 1, "maxItems": 10000, "items": { "$ref": "#/$defs/policyBlock" } } }
+        },
+        "scenarioIds": { "type": "array", "maxItems": 10000, "uniqueItems": true, "items": { "$ref": "#/$defs/stableId" } },
+        "author": {
+          "type": "object", "additionalProperties": false, "required": ["participantId", "displayName"],
+          "properties": { "participantId": { "$ref": "#/$defs/stableId" }, "displayName": { "type": "string", "minLength": 1, "maxLength": 200 } }
+        },
+        "createdAt": { "$ref": "#/$defs/timestamp" },
+        "note": { "oneOf": [{ "type": "null" }, { "type": "string", "maxLength": 20000 }] }
+      }
+    },
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["jobId", "policyVersion", "providerId", "requestedModelId", "executedModelIds", "promptVersion", "createdBy", "createdByDisplayName", "createdAt", "modelHash", "sampler", "seed", "nondeterminismLabel"],
+      "properties": {
+        "jobId": { "$ref": "#/$defs/stableId" },
+        "policyVersion": { "$ref": "#/$defs/policyVersion" },
+        "providerId": { "enum": ["local", "openai", "anthropic", "gemini", "xai"] },
+        "requestedModelId": { "$ref": "#/$defs/routeId" },
+        "executedModelIds": { "type": "array", "minItems": 1, "maxItems": 200, "uniqueItems": true, "items": { "$ref": "#/$defs/routeId" } },
+        "promptVersion": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "createdBy": { "$ref": "#/$defs/stableId" },
+        "createdByDisplayName": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "createdAt": { "$ref": "#/$defs/timestamp" },
+        "modelHash": { "type": "null" },
+        "sampler": { "type": "null" },
+        "seed": { "type": "null" },
+        "nondeterminismLabel": { "const": "Model hash, sampler settings, and seed were not captured; repeating the same exact inputs may produce different output." }
+      }
+    },
+    "result": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "resultId", "jobId", "itemId", "attempt", "runId", "projectId", "documentId", "policyVersionId", "scenarioId", "scenarioRevision", "promptVersion", "providerId", "requestedModelId", "executedModelId", "outcome", "response", "rationale", "uncertainty", "authorId", "authorDisplayName", "timestamp"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "resultId": { "$ref": "#/$defs/stableId" }, "jobId": { "$ref": "#/$defs/stableId" }, "itemId": { "$ref": "#/$defs/stableId" },
+        "attempt": { "type": "integer", "minimum": 1, "maximum": 3 }, "runId": { "$ref": "#/$defs/stableId" },
+        "projectId": { "$ref": "#/$defs/stableId" }, "documentId": { "$ref": "#/$defs/stableId" }, "policyVersionId": { "$ref": "#/$defs/sha256" },
+        "scenarioId": { "$ref": "#/$defs/stableId" }, "scenarioRevision": { "type": "string", "minLength": 1, "maxLength": 200000 },
+        "promptVersion": { "type": "string", "minLength": 1, "maxLength": 200 }, "providerId": { "enum": ["local", "openai", "anthropic", "gemini", "xai"] },
+        "requestedModelId": { "$ref": "#/$defs/routeId" }, "executedModelId": { "$ref": "#/$defs/routeId" }, "outcome": { "$ref": "#/$defs/outcome" },
+        "response": { "type": "string", "minLength": 1, "maxLength": 500000 }, "rationale": { "type": "string", "minLength": 1, "maxLength": 100000 },
+        "uncertainty": { "type": "string", "minLength": 1, "maxLength": 50000 }, "authorId": { "$ref": "#/$defs/stableId" },
+        "authorDisplayName": { "type": "string", "minLength": 1, "maxLength": 200 }, "timestamp": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "row": {
+      "type": "object", "additionalProperties": false,
+      "required": ["scenarioId", "scenarioRevision", "scenarioRevisionSha256", "outcomeChanged", "baseline", "candidate"],
+      "properties": {
+        "scenarioId": { "$ref": "#/$defs/stableId" }, "scenarioRevision": { "type": "string", "minLength": 1, "maxLength": 200000 },
+        "scenarioRevisionSha256": { "$ref": "#/$defs/sha256" }, "outcomeChanged": { "type": "boolean" },
+        "baseline": { "$ref": "#/$defs/result" }, "candidate": { "$ref": "#/$defs/result" }
+      }
+    },
+    "matrixRow": {
+      "type": "object", "additionalProperties": false, "required": ["handled", "unhandled", "uncertain"],
+      "properties": { "handled": { "type": "integer", "minimum": 0, "maximum": 200 }, "unhandled": { "type": "integer", "minimum": 0, "maximum": 200 }, "uncertain": { "type": "integer", "minimum": 0, "maximum": 200 } }
+    },
+    "summary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["scenarioCount", "unchangedOutcomeCount", "changedOutcomeCount", "outcomeMatrix"],
+      "properties": {
+        "scenarioCount": { "type": "integer", "minimum": 1, "maximum": 200 },
+        "unchangedOutcomeCount": { "type": "integer", "minimum": 0, "maximum": 200 },
+        "changedOutcomeCount": { "type": "integer", "minimum": 0, "maximum": 200 },
+        "outcomeMatrix": {
+          "type": "object", "additionalProperties": false, "required": ["handled", "unhandled", "uncertain"],
+          "properties": { "handled": { "$ref": "#/$defs/matrixRow" }, "unhandled": { "$ref": "#/$defs/matrixRow" }, "uncertain": { "$ref": "#/$defs/matrixRow" } }
+        }
+      }
+    }
+  }
+}

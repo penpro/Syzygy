@@ -188,9 +188,21 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   cancel, explicit retry, local-off behavior, and local/OpenAI/Anthropic/Gemini/xAI routing are
   product-visible. Remote items retain native Send once approval. MCP inspection exposes only
   counts/integrity and omits every research/result body. Live-provider quality, authenticated
-  identity, packaged two-install crash/convergence, baseline comparison/export, and scenario-pack
-  interchange remain open, so status is `implemented_unverified`. Evidence:
+  identity, packaged two-install crash/convergence, and scenario-pack interchange remain open, so
+  status is `implemented_unverified`. Evidence:
   `docs/audits/runs/SCENARIO-RERUN-QUEUE-2026-07-19.json`.
+
+- P-31 adds a deterministic side-by-side comparison over two distinct completed P-30 queues. It
+  requires the same project, document, prompt version, scenario IDs, and byte-exact scenario
+  revisions, then derives a neutral nine-cell handled/unhandled/uncertain transition matrix without
+  claiming improvement or truth. The product shows full response/rationale/uncertainty evidence and
+  explicitly saves a bounded open JSON artifact containing both verified policy snapshots, exact
+  scenario revisions, model/run/attribution, explicit unavailable seed/sampler/model-hash fields,
+  and policy/revision/artifact SHA-256 checks. Strict Draft 2020-12 plus runtime verification rejects
+  unknown fields, identity/route mismatch, tampering, noncanonical order, and inconsistent summaries.
+  MCP inspection exposes only compatible-pair count. Live-provider reproducibility, authenticated
+  identity, semantic-quality judgment, and packaged interaction remain unproven, so status is
+  `implemented_unverified`. Evidence: `docs/audits/runs/SCENARIO-COMPARISON-2026-07-19.json`.
 
 - The first remote-model execution boundary is now headlessly testable with a bounded product caller.
   Rust constructs and normalizes an OpenAI Responses one-shot request, requires matching content
@@ -428,12 +440,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **42 capabilities**: **39 are
-`implemented_unverified`, 3 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **42 capabilities**: **40 are
+`implemented_unverified`, 2 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, remaining crash/recovery local
-lifecycle, Drive-backed Yjs convergence, optional presence, baseline comparison/export, an open scenario-pack schema, and network-trace
-certification. The definitive contracts and gates remain in `END-GOAL-PLAN.md` and
+lifecycle, Drive-backed Yjs convergence, optional presence, an open scenario-pack schema, and
+network-trace certification. The definitive contracts and gates remain in `END-GOAL-PLAN.md` and
 `docs/audits/CAPABILITIES.json`.
 
 ## Next (in intended order)

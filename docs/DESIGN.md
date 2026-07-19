@@ -112,7 +112,7 @@ editable in Settings and old attribution remains visually historical.
 Restore is a deliberate two-step action on a non-head checkpoint. **Prepare restore** reveals the
 exact short checkpoint ID, a cancel action, and **Restore as new version**. The copy states that the
 live draft is replaced, a new child is created on the current head, and existing versions remain.
-The UI identifies local versus Drive-shared projects precisely. Scenario response generation and versioned scenario-rerun evaluation are available; baseline comparison/export and installed-network real-time presence remain unclaimed.
+The UI identifies local versus Drive-shared projects precisely. Scenario response generation, versioned scenario-rerun evaluation, and exact baseline comparison/export are available; installed-network real-time presence remains unclaimed.
 
 Portable project movement is available from both the empty workspace and an open project. **Export
 offline copy** stays disabled until the live collaboration document is ready; **Import offline
@@ -194,6 +194,16 @@ item shows state/attempt, handled/unhandled/uncertain response, rationale, uncer
 attribution, and run identity. Collaborators can inspect results but installation-provided identity
 is not authentication. Copy must not imply that evaluation is truth, consensus, a baseline
 comparison, or an automatic policy edit.
+
+The nested **Baseline comparison** surface lists completed queues only. **Baseline queue** and
+**Candidate queue** remain explicit; **Compare exact runs** fails closed unless project, document,
+prompt, scenario IDs, and exact revisions match. The matrix labels baseline rows and candidate
+columns and reports only outcome transitions. It never labels a transition improved, regressed,
+correct, or true. Each scenario shows responsive side-by-side response, rationale, uncertainty,
+model, and run evidence. **Export verifiable JSON** remains disabled until a verified preview exists.
+The disclosure states that both policy snapshots, exact scenarios, and all evaluation bodies will be
+written, names the unavailable seed/sampler/model-hash fields, and asks the researcher to review the
+destination. The comparison requires no AI, provider key, or network.
 
 The editor uses Plex Serif for document content and Plex Mono metadata stamps, with every surface,
 border, status, and selection derived from theme tokens.

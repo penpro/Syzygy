@@ -274,6 +274,17 @@ paused creation plus creator-only start/pause/cancel/retry while every collabora
 Research inspection returns queue/status/route/item/integrity counts and orphan IDs only; all policy,
 scenario, response, rationale, and uncertainty bodies remain omitted.
 
+`scenarioComparison.ts` is a pure derived boundary over two verified completed queue projections and
+two verified immutable policy snapshots. It accepts only exact-compatible project/document/prompt/
+scenario-revision sets, sorts rows by stable scenario ID, derives rather than stores the outcome
+matrix, and produces a 24-MB-bounded canonical `syzygy-scenario-comparison-v1` artifact. Decode
+recomputes policy-version, scenario-revision, and artifact SHA-256 values plus every redundant job/
+result/route join, executed-model set, latest source timestamp, change flag, and matrix.
+`ScenarioComparisonPanel.tsx` reads only completed shared queues, keeps previews transient, presents
+neutral side-by-side evidence, and uses the existing typed native Save helper for explicit export.
+The open Draft 2020-12 schema documents structural bounds; runtime checks remain authoritative for
+semantic joins and checksums. Research-state MCP inspection adds only a compatible-pair count.
+
 `scenarioModel.ts` stores each scenario, ordered turn collection, turn revision collection, and
 scenario edit history as nested Yjs types. Public scenario, turn, and edit identities are stored
 under peer-specific internal keys so disconnected collisions survive merge and make projection
@@ -285,8 +296,8 @@ It observes peer updates, refuses stale detail saves when any scenario edit iden
 makes graph-integrity failures read-only. P-16 adds optional generation without making the gallery
 dependent on AI: local inference is available only while the model is loaded, remote routes reuse
 the native one-shot disclosure boundary, and both write through the attributed response domain only
-if the selected scenario revision is unchanged. Turn revision editing, arbitrary historical-parent regeneration, response conflict resolution,
-baseline comparison/export, and scenario-pack export remain outside this slice.
+if the selected scenario revision is unchanged. Turn revision editing, arbitrary historical-parent
+regeneration, response conflict resolution, and scenario-pack export remain outside this slice.
 
 `scenarioVoteModel.ts` stores immutable vote events in peer-specific, version-prefixed buckets
 inside the reserved discussions collection. This avoids namespace collisions with future notes and

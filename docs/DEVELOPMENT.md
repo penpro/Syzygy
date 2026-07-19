@@ -323,6 +323,23 @@ output rejection; product-visible provenance; and MCP-safe counts with body cana
 providers do not prove live-provider quality, authenticated identity, packaged two-install
 convergence, or crash durability below the Yjs update boundary.
 
+## Headless stable scenario-comparison proof
+
+Run the P-31 deterministic comparison, public schema, adversarial decoder, product copy, and
+content-free MCP-count gates without a model, key, network, webview, or manual file selection:
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm test -- --run src/workspace/scenarioComparison.test.ts src/workspace/ScenarioComparisonPanel.ui.test.tsx src/workspace/ScenarioRerunQueuePanel.ui.test.tsx src/workspace/researchStateInspection.test.ts
+```
+
+The gates complete two real persistent P-30 jobs against verified immutable policy versions, prove
+canonical byte-stable derivation, strict Draft 2020-12 alignment, JSON round-trip, exact policy and
+scenario checksums, neutral nine-cell transition counts, same-input guards, ambient-field and
+tampering denial, explicit export disclosure, and body-free compatible-pair inspection. They do not
+prove model quality, causality, authenticated identity, live-provider determinism, or packaged OS
+Save-dialog behavior.
+
 ## Headless live-MCP contract proof
 
 Run the embedded MCP protocol, loopback-security, and live-editor mutation contracts without

@@ -167,6 +167,14 @@ content: a collapsed **Variant lineage** lists every retained revision with its 
 model attribution. If the response changes while a provider runs, the stale result is refused and
 the researcher is told to review the new variant before trying again.
 
+The **Shared evaluation examples** surface remains useful with AI disabled. Researchers can create
+project heuristics, select required/recommended/watch priority, and attach explicit positive or
+negative examples. Every active example shows its polarity and historical display-name attribution;
+removal is an explicit action that retains shared history rather than erasing it. Loading and failure
+states are accessible, all treatments use theme tokens, and copy states that collaboration identity
+is installation-provided rather than authenticated. The surface must not imply that examples have
+been scored, validated as true, or applied to policy text.
+
 The editor uses Plex Serif for document content and Plex Mono metadata stamps, with every surface,
 border, status, and selection derived from theme tokens.
 

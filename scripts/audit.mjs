@@ -220,6 +220,11 @@ const scenarioGenerationRuntimeTestSource = text('frontend/src/workspace/scenari
 const scenarioGeneratorSource = text('frontend/src/workspace/ScenarioGenerator.tsx')
 const scenarioGeneratorTestSource = text('frontend/src/workspace/ScenarioGenerator.ui.test.tsx')
 const scenarioWorkspaceGenerationSource = text('frontend/src/workspace/ScenarioWorkspace.tsx')
+const heuristicExampleSource = text('frontend/src/workspace/heuristicExampleModel.ts')
+const heuristicExampleTestSource = text('frontend/src/workspace/heuristicExampleModel.test.ts')
+const heuristicWorkspaceSource = text('frontend/src/workspace/HeuristicWorkspace.tsx')
+const heuristicWorkspaceTestSource = text('frontend/src/workspace/HeuristicWorkspace.ui.test.tsx')
+const heuristicExampleInspectionTestSource = text('frontend/src/workspace/heuristicExampleInspection.test.ts')
 record(
   'scenario references retain stable identity across rename, collaboration, automation, and checkpoints',
   scenarioReferenceSource.includes("type: 'scenario-reference'") &&
@@ -367,6 +372,24 @@ record(
     editorLedgerSource.includes('"id": "P-17", "phase": 6, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-REGENERATION-2026-07-18.json')),
   'bounded parent context, exact-current response guard, appended model revision, retained root/siblings, convergence, stale/cross-scenario denial, lineage UI, and truthful P-17 status are present',
+)
+record(
+  'positive and negative heuristic examples retain history and converge without content leakage',
+  heuristicExampleSource.includes("BUCKET_PREFIX = 'heuristic-examples:v1:'") &&
+    heuristicExampleSource.includes('MAX_EVENTS_PER_HEURISTIC = 100_000') &&
+    heuristicExampleSource.includes('Heuristic example event ID was reused') &&
+    heuristicExampleSource.includes("collection.doc.transact(operation, 'syzygy-heuristic-examples')") &&
+    heuristicExampleTestSource.includes('converges concurrent positive and negative additions across duplicate delivery orders') &&
+    heuristicExampleTestSource.includes('retains attributed removal history and converges concurrent exact-parent removals') &&
+    heuristicExampleTestSource.includes('fails closed on disconnected root collision and hostile bucket mutation') &&
+    heuristicWorkspaceSource.includes('Project rules and examples work without AI') &&
+    heuristicWorkspaceSource.includes('identity is not authenticated') &&
+    heuristicWorkspaceTestSource.includes('renders attributed polarity while keeping removal explicit') &&
+    heuristicExampleInspectionTestSource.includes('without example bodies or attribution') &&
+    scenarioWorkspaceGenerationSource.includes('heuristics={doc ? <HeuristicWorkspace') &&
+    editorLedgerSource.includes('"id": "P-18", "phase": 6, "status": "implemented_unverified"') &&
+    existsSync(join(root, 'docs/audits/runs/HEURISTIC-EXAMPLES-2026-07-19.json')),
+  'bounded immutable events, exact replay/removal history, disconnected convergence, hostile/collision denial, engine-free UI, content-free inspection, and truthful P-18 status are present',
 )
 
 const heuristicsModelSource = text('frontend/src/workspace/heuristicsModel.ts')

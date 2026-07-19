@@ -23,6 +23,8 @@
 | `frontend/src/workspace/projectArchive.ts` | Penumbra original | Checksummed, size-bounded manifest plus exact-Yjs-state archive with identity validation, collision refusal, local import rebinding, and IndexedDB orphan-state protection |
 | `frontend/src/workspace/ProjectArchiveControls.tsx` | Penumbra original | Accessible engine-free project import/export controls with live-document readiness, file-size gating, and explicit status/error states |
 | `frontend/src/workspace/heuristicsModel.ts` | Penumbra original | Typed collaborative heuristic records with nested CRDT fields, bounded validation, per-edit attribution, replay rejection, and deterministic read projection |
+| `frontend/src/workspace/heuristicExampleModel.ts` | Penumbra original | Immutable peer-namespaced positive/negative example and exact-parent removal events with replay safety, hostile-input bounds, collision detection, and deterministic convergence |
+| `frontend/src/workspace/HeuristicWorkspace.tsx` | Penumbra original | Engine-free live-Y.Doc heuristic and attributed positive/negative example controls with explicit retained-history removal and accessible states |
 | `frontend/src/workspace/scenarioModel.ts` | Penumbra original | Stable lifecycle scenarios, ordered multi-turn CRDT content, attributed immutable revisions/edits, branch inspection, and fail-closed peer-collision handling |
 | `frontend/src/workspace/ScenarioWorkspace.tsx` | Penumbra original | Live-Y.Doc scenario gallery, stale-detail guard, integrity-read-only state, ordered turn creation, attributed voting, and injected optional response generation |
 | `frontend/src/workspace/scenarioVoteModel.ts` | Penumbra original | Namespaced immutable scenario vote events, idempotent replay, attributed re-vote/withdrawal history, deterministic participant projection, and orphan/collision inspection |
@@ -64,7 +66,7 @@
 | `frontend/src/workspace/editorAutomation.ts` | Penumbra original | Semantic live-editor controller, deterministic text-block adapter, and optimistic revision guard |
 | `frontend/src/workspace/editorAutomationRegistry.ts` | Penumbra original | Lightweight active-editor capability registry that preserves lazy workspace loading |
 | `frontend/src/workspace/workspaceAutomationRegistry.ts` | Penumbra original | Identity-safe lifecycle registry exposing only the active collaboration document to internal semantic automation |
-| `frontend/src/workspace/researchStateInspection.ts` | Penumbra original | Bounded content-minimized heuristic/version/head/lineage integrity projection for read-only MCP inspection |
+| `frontend/src/workspace/researchStateInspection.ts` | Penumbra original | Bounded content-minimized heuristic/example/scenario/version/head/lineage integrity projection for read-only MCP inspection |
 | `frontend/src/workspace/versionAutomation.ts` | Penumbra original | Exact semantic-editor snapshot adapter with document/head concurrency guards and immutable checkpoint output |
 | `frontend/src/workspace/*.test.ts` and `frontend/src/migrations.test.ts` | Penumbra original | Schema, migration, convergence, duplicate/reorder, and reopen harnesses |
 | `frontend/src/automationBridge.ts` and `frontend/src-tauri/src/{automation,mcp}.rs` | Penumbra original | Live semantic dispatcher, authenticated loopback bridge, and stdio MCP protocol implementation |

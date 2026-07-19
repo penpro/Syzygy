@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "capability": "P-18",
+  "date": "2026-07-19",
+  "status": "implemented_unverified",
+  "claim": "Collaborators can attach attributed positive and negative examples to shared heuristics; disconnected additions and exact-parent removals retain history and converge without exposing research bodies through MCP inspection.",
+  "verified": [
+    "Positive and negative example events use a versioned peer-namespaced immutable ledger inside the existing discussions map",
+    "Exact duplicate delivery is idempotent while reused event identity and disconnected public-root collisions fail closed",
+    "Concurrent positive and negative additions survive duplicate and reversed Yjs delivery and converge deterministically",
+    "Concurrent exact-parent removals survive merge, retain attributed history, and converge",
+    "Missing heuristics, malformed records, control bytes, and oversized bodies are rejected without shared mutation",
+    "The engine-free product surface creates/selects heuristics and adds or explicitly removes attributed examples",
+    "Loading and mutation failures are exposed through accessible status and alert states",
+    "Research-state inspection returns only bounded counts and integrity metadata, omitting example bodies and display-name attribution",
+    "All new visual treatments use existing theme tokens",
+    "Production TypeScript and Vite build passes"
+  ],
+  "headlessResults": {
+    "focusedTestFiles": 5,
+    "focusedTestsPassed": 18,
+    "focusedTestsFailed": 0,
+    "productionBuild": "passed",
+    "repositoryAudit": "passed",
+    "fullSupervisedCheck": "passed",
+    "fullSupervisedRunId": "20260719-094615-6445a4",
+    "fullTestFilesPassed": 75,
+    "fullTestFilesSkipped": 1,
+    "fullTestsPassed": 309,
+    "fullTestsExpectedFail": 1,
+    "fullTestsSkipped": 1
+  },
+  "limitations": [
+    "No packaged two-install interaction or physical Drive/LAN example edit is included in this proof.",
+    "Researcher identity is installation-provided and is not authenticated.",
+    "Examples are collaborative research inputs; this capability does not score them, prove truth, or run an evaluation engine.",
+    "Removal retains immutable history; the product does not yet expose that removed-history audit trail."
+  ],
+  "sources": [
+    "frontend/src/workspace/heuristicExampleModel.ts",
+    "frontend/src/workspace/heuristicExampleModel.test.ts",
+    "frontend/src/workspace/HeuristicWorkspace.tsx",
+    "frontend/src/workspace/HeuristicWorkspace.ui.test.tsx",
+    "frontend/src/workspace/heuristicExampleInspection.test.ts",
+    "frontend/src/workspace/researchStateInspection.ts",
+    "frontend/src/workspace/ScenarioWorkspace.tsx"
+  ]
+}

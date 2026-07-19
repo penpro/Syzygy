@@ -235,9 +235,14 @@ revision-guarded application of accepted text remains the separate P-24 contract
 nested Y.Map so concurrent edits to different fields merge instead of replacing an opaque object;
 a nested edit map retains unique author/time/changed-field/value events. Reads validate and
 project bounded records, duplicate/reused edit identity fails closed locally and after peer merge,
-and top-level deletion wins
-over a concurrent nested edit in the committed convergence fixture. No heuristics UI or evaluation
-engine is claimed.
+and top-level deletion wins over a concurrent nested edit in the committed convergence fixture.
+`heuristicExampleModel.ts` adds immutable positive/negative example and exact-parent removal
+events in peer-namespaced buckets inside the existing discussions map, avoiding a save-shape
+migration. Duplicate delivery is idempotent, reused event IDs and colliding roots fail closed, and
+disconnected additions/removals retain auditable history and converge. `HeuristicWorkspace.tsx`
+provides engine-free shared heuristic/example controls against the live project Y.Doc. Research
+inspection reports only bounded counts and integrity failures; example bodies and attribution are
+omitted. No evaluation engine, authenticated identity, or packaged two-install interaction is claimed.
 
 `scenarioModel.ts` stores each scenario, ordered turn collection, turn revision collection, and
 scenario edit history as nested Yjs types. Public scenario, turn, and edit identities are stored

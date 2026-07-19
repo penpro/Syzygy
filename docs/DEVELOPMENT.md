@@ -187,6 +187,17 @@ the prior variant crosses both local and remote adapter context, and the UI test
 parent selection, human sibling-conflict resolution, a live provider, or quality improvement.
 Evidence: `docs/audits/runs/SCENARIO-REGENERATION-2026-07-18.json`.
 
+`heuristicExampleModel.test.ts`, `HeuristicWorkspace.ui.test.tsx`, and
+`heuristicExampleInspection.test.ts` are the P-18 gates. They require disconnected positive and
+negative additions to converge across duplicate/reversed delivery, exact-parent concurrent removals
+to retain attribution and history, exact replay to be idempotent, reused identities/root collisions/
+hostile records to fail closed, and oversized or control-byte bodies to leave shared state unchanged.
+The UI gate requires engine-free collaborative copy, explicit polarity/removal controls, attribution,
+and accessible loading/error states. The inspection canary proves MCP counts and integrity omit both
+example bodies and participant display names. These tests do not prove authenticated identity,
+packaged two-install interaction, semantic example quality, or an evaluation engine. Evidence:
+`docs/audits/runs/HEURISTIC-EXAMPLES-2026-07-19.json`.
+
 `suggestionModel.test.ts` and `nodes/SuggestionNode.test.tsx` are the P-08 domain/editor gates.
 They prove attributed human/model proposals, exact-proposal decisions, replay and stale rejection,
 disconnected opposite-decision retention, explicit conflict projection, proposal-root collision

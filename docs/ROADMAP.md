@@ -152,6 +152,14 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   lineage. Historical-parent selection, sibling conflict resolution, live-provider proof, and quality
   claims remain open, so status is `implemented_unverified`. Evidence:
   `docs/audits/runs/SCENARIO-REGENERATION-2026-07-18.json`.
+- P-18 adds collaborative positive and negative examples to the shared heuristic domain. Immutable
+  peer-namespaced add/removal events preserve attribution, replay safely, retain concurrent exact-
+  parent removals, and converge after disconnected positive/negative additions. Hostile records,
+  reused identities, and colliding roots fail closed. The engine-free product surface creates and
+  selects heuristics, adds/removes attributed examples, and exposes accessible failure states; MCP
+  inspection returns content-free counts and integrity only. Packaged two-install interaction,
+  authenticated identity, semantic quality, and evaluation remain open, so status is
+  `implemented_unverified`. Evidence: `docs/audits/runs/HEURISTIC-EXAMPLES-2026-07-19.json`.
 
 - The first remote-model execution boundary is now headlessly testable with a bounded product caller.
   Rust constructs and normalizes an OpenAI Responses one-shot request, requires matching content
@@ -383,8 +391,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **42 capabilities**: **34 are
-`implemented_unverified`, 8 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **42 capabilities**: **35 are
+`implemented_unverified`, 7 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, remaining crash/recovery local
 lifecycle, Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned

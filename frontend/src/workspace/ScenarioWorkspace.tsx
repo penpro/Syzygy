@@ -23,6 +23,7 @@ import {
 } from './scenarioVoteModel'
 import { subscribeAutomationProjectDocument } from './workspaceAutomationRegistry'
 import { ScenarioGenerator } from './ScenarioGenerator'
+import { HeuristicWorkspace } from './HeuristicWorkspace'
 
 interface ScenarioWorkspaceContentProps {
   ready: boolean
@@ -32,6 +33,7 @@ interface ScenarioWorkspaceContentProps {
   currentVote: ScenarioVoteChoice | null
   integrityIssues: string[]
   generation?: ReactNode
+  heuristics?: ReactNode
   createOpen: boolean
   createTitle: string
   createBackground: string
@@ -67,6 +69,7 @@ export function ScenarioWorkspaceContent({
   currentVote,
   integrityIssues,
   generation,
+  heuristics,
   createOpen,
   createTitle,
   createBackground,
@@ -227,6 +230,8 @@ export function ScenarioWorkspaceContent({
           <p className="scenario-identity-note">Votes use this installation’s researcher identity; identity is not authenticated.</p>
         </section>
       )}
+
+      {heuristics}
     </div>
   )
 }
@@ -398,6 +403,7 @@ export function ScenarioWorkspace({ project }: { project: ResearchProjectManifes
       ready={Boolean(doc)} scenarios={snapshot.scenarios} selected={selected}
       voteSummary={voteSummary} currentVote={currentVote} integrityIssues={snapshot.issues}
       generation={doc && selected ? <ScenarioGenerator key={selected.id} project={project} doc={doc} scenario={selected} /> : undefined}
+      heuristics={doc ? <HeuristicWorkspace doc={doc} /> : undefined}
       createOpen={createOpen} createTitle={createTitle} createBackground={createBackground}
       editTitle={editTitle} editBackground={editBackground} turnRole={turnRole} turnContent={turnContent}
       error={error} onSelect={selectScenario} onOpenCreate={() => { setCreateOpen(true); setError('') }}

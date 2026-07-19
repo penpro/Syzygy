@@ -3500,3 +3500,45 @@ input.workspace-title-input:focus {
   padding: 0.55rem;
   border-left: 2px solid var(--border);
 }
+
+
+/* P18 collaborative heuristic examples */
+.heuristic-workspace {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.heuristic-examples {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+.heuristic-examples li {
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+}
+.heuristic-examples li > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 9px;
+}
+.heuristic-examples p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.heuristic-example-polarity {
+  color: var(--accent);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.heuristic-example-polarity.negative { color: var(--danger); }

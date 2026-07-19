@@ -169,6 +169,16 @@ two-peer concurrent sibling retention, deterministic convergence, disconnected r
 failure, and hostile bucket validation. It does not prove a product editing panel, authenticated
 identity, or packaged two-client interaction.
 
+`suggestionModel.test.ts` and `nodes/SuggestionNode.test.tsx` are the P-08 domain/editor gates.
+They prove attributed human/model proposals, exact-proposal decisions, replay and stale rejection,
+disconnected opposite-decision retention, explicit conflict projection, proposal-root collision
+failure, stable-ID-only JSON/Yjs projection, and pending/decided/missing UI states. The semantic
+editor and immutable-version fixtures require exact `[suggestion:<stable-id>]` round-trip and
+reject copied proposal content or duplicate IDs. `researchStateInspection.test.ts` proves MCP
+inspection exposes bounded provenance/status metadata while omitting proposal and decision bodies.
+These gates do not prove authenticated identity, packaged two-install interaction, or applying
+accepted text to the policy; application remains P-24.
+
 The same suite includes `heuristicsModel.test.ts`. Forty seeded delivery orders prove concurrent
 field edits retain both values and attribution events, and another forty prove concurrent additions
 plus delete-versus-edit converge without resurrection. Invalid identity and conflicting edit-ID

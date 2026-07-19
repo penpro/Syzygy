@@ -4,6 +4,7 @@ import { HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { PolicyBlockNode } from './nodes/PolicyBlockNode'
 import { ScenarioReferenceNode } from './nodes/ScenarioReferenceNode'
 import { ScenarioSpotlightNode } from './nodes/ScenarioSpotlightNode'
+import { SuggestionNode } from './nodes/SuggestionNode'
 import {
   appendAutomationDocument,
   readAutomationEditor,
@@ -22,7 +23,7 @@ afterEach(() => {
 function registeredEditor(projectId = 'project-test') {
   const editor = createEditor({
     namespace: `automation-${projectId}`,
-    nodes: [HeadingNode, QuoteNode, PolicyBlockNode, ScenarioReferenceNode, ScenarioSpotlightNode],
+    nodes: [HeadingNode, QuoteNode, PolicyBlockNode, ScenarioReferenceNode, ScenarioSpotlightNode, SuggestionNode],
     onError(error) {
       throw error
     },
@@ -113,6 +114,21 @@ describe('live editor automation contract', () => {
     ])).toThrow('empty text')
   })
 
+
+  it('round-trips suggestion markers without copying proposal content into the draft', () => {
+    registeredEditor()
+    const original = readAutomationEditor()
+    const replaced = replaceAutomationDocument(original.revision, '[suggestion:suggestion-access]')
+    expect(replaced.text).toBe('[suggestion:suggestion-access]')
+    expect(replaced.blocks).toEqual([
+      { kind: 'suggestion', text: '', suggestionId: 'suggestion-access' },
+    ])
+    const restored = getAutomationEditorController().replaceBlocks(replaced.revision, replaced.blocks)
+    expect(restored.blocks).toEqual(replaced.blocks)
+    expect(() => getAutomationEditorController().replaceBlocks(restored.revision, [
+      { kind: 'suggestion', text: 'unaccepted policy text', suggestionId: 'suggestion-access' },
+    ])).toThrow('empty text')
+  })
 
   it('rejects a stale revision instead of overwriting a newer draft', () => {
     registeredEditor()

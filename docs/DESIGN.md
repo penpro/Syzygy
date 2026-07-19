@@ -151,7 +151,7 @@ overwriting a newer shared scenario edit. When graph integrity fails, all mutati
 disabled. Copy states that the installation researcher identity is not authenticated.
 
 The editor uses Plex Serif for document content and Plex Mono metadata stamps, with every surface,
-border, status, and selection derived from theme tokens so retained
+border, status, and selection derived from theme tokens.
 
 The first original research node is a **policy block**: an editable statement with a stable ID and
 `draft`, `review`, or `approved` state. Its paper treatment uses a quiet token-derived tint, ink
@@ -174,6 +174,15 @@ panel tints, preserves long content, exposes its stable ID, and shows the same d
 a missing target. **Collapse to scenario link** changes presentation without copying scenario
 content; the action is collaborative and undoable. The card must never imply that its projection is
 an independent scenario copy.
+
+A **suggestion** begins in the labeled **Proposed policy text** composer and is inserted as a
+full-width review card. The card previews the shared proposal, its source revision, author or model
+provenance, and stable ID without copying proposal text into the policy draft. Pending cards expose
+explicit **Accept** and **Reject** actions. Decided cards show reviewer attribution and history;
+opposite disconnected decisions show a prominent conflict state rather than silently choosing one.
+Missing or invalid suggestions remain visible and fail closed. Accept currently records the human
+decision—it must not claim that policy text was applied until the separate revision-guarded P-24
+application workflow exists.
 
 ## MCP connection guide
 

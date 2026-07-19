@@ -2927,6 +2927,30 @@ input.workspace-title-input:focus {
 .scenario-reference-control select:disabled {
   color: var(--faint);
 }
+.suggestion-compose-control {
+  display: inline-grid;
+  min-width: min(360px, 100%);
+  grid-template-columns: minmax(160px, 1fr) auto;
+  gap: 3px;
+}
+.suggestion-compose-control input {
+  min-width: 0;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+.suggestion-compose-control input:disabled {
+  color: var(--faint);
+}
+.suggestion-compose-error {
+  grid-column: 1 / -1;
+  color: var(--danger);
+  font-size: 0.78rem;
+}
 .scenario-reference-host {
   display: inline;
 }
@@ -3028,6 +3052,84 @@ input.workspace-title-input:focus {
 .scenario-spotlight.missing {
   border-color: var(--danger);
   background: color-mix(in srgb, var(--danger) 8%, var(--panel));
+}
+.research-suggestion-host {
+  display: block;
+  margin: 14px 0;
+}
+.research-suggestion {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--accent);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+  color: var(--text);
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+.research-suggestion.accepted {
+  border-color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent-2) 8%, var(--panel));
+}
+.research-suggestion.rejected {
+  border-color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 8%, var(--panel));
+}
+.research-suggestion.conflicted,
+.research-suggestion.missing {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--panel));
+}
+.research-suggestion > header,
+.research-suggestion > footer {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+}
+.research-suggestion > header strong {
+  text-transform: capitalize;
+}
+.suggestion-preview {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.suggestion-provenance {
+  overflow-wrap: anywhere;
+  color: var(--text-2);
+  font-size: 0.76rem;
+}
+.suggestion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.suggestion-decisions {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+}
+.suggestion-decisions li {
+  list-style: none;
+}
+.suggestion-error {
+  margin: 0;
+  color: var(--danger);
+}
+.research-suggestion > footer {
+  border-top: 1px solid var(--border);
+  padding-top: 9px;
+}
+.research-suggestion > footer > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .research-toolbar-rule {
   align-self: stretch;

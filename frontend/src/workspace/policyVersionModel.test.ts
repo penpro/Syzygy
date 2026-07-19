@@ -61,6 +61,25 @@ describe('immutable policy version model', () => {
     })).rejects.toThrow('empty text')
   })
 
+  it('preserves a suggestion by stable identity and rejects copied or duplicate proposal content', async () => {
+    const doc = createProjectDocument(manifest)
+    const versions = getProjectSharedTypes(doc).versions
+    const suggestion = { kind: 'suggestion' as const, text: '', suggestionId: 'suggestion-a' }
+    const created = await createPolicyVersion(versions, {
+      ...rootInput,
+      blocks: [...rootInput.blocks, suggestion],
+    })
+    expect(created.policy.blocks[created.policy.blocks.length - 1]).toEqual(suggestion)
+    await expect(createPolicyVersion(versions, {
+      ...rootInput,
+      blocks: [...rootInput.blocks, { ...suggestion, text: 'unaccepted proposal text' }],
+    })).rejects.toThrow('empty text')
+    await expect(createPolicyVersion(versions, {
+      ...rootInput,
+      blocks: [...rootInput.blocks, suggestion, suggestion],
+    })).rejects.toThrow('duplicate suggestion IDs')
+  })
+
   it('detects storage mutation and returns detached snapshots', async () => {
     const doc = createProjectDocument(manifest)
     const versions = getProjectSharedTypes(doc).versions

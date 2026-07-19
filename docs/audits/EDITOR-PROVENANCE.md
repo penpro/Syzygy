@@ -44,6 +44,9 @@
 | `frontend/src/workspace/nodes/ScenarioReferenceNode.tsx` | Penumbra original | Inline stable-ID scenario link with strict JSON/Yjs round-trip and live-title decorator |
 | `frontend/src/workspace/nodes/ScenarioSpotlightNode.tsx` | Penumbra original | Block-level stable-ID scenario projection with live content, shared embed/collapse, and exact semantic/version round-trip |
 | `frontend/src/workspace/scenarioResponseModel.ts` | Penumbra original | Versioned peer-namespaced response revisions with human/model provenance, exact-parent edits, and collision-safe projection |
+| `frontend/src/workspace/suggestionModel.ts` | Penumbra original | Immutable peer-namespaced proposal/decision ledger with exact-proposal guards, replay safety, model provenance, and explicit concurrent decision conflicts |
+| `frontend/src/workspace/SuggestionContext.tsx` | Penumbra original | Live project-Y.Doc suggestion projection and attributed human proposal/decision actions |
+| `frontend/src/workspace/nodes/SuggestionNode.tsx` | Penumbra original | Stable-ID-only live suggestion preview with explicit accept/reject, missing-target, decided, and conflict states |
 | `frontend/src/workspace/ScenarioReferenceContext.tsx` | Penumbra original | Live project-Y.Doc scenario projection used by the editor toolbar and rename-safe reference rendering |
 | `frontend/src/workspace/ResearchEditor.tsx` | Penumbra original | Original Syzygy editor composition, formatting toolbar, and local provider wiring |
 | `frontend/src/workspace/editorStructure.ts` | Penumbra original | Live heading projection plus shared pointer/keyboard policy-reorder command and availability guards |

@@ -10,6 +10,7 @@ import {
 import { $createPolicyBlockNode, $isPolicyBlockNode } from './nodes/PolicyBlockNode'
 import { $createScenarioReferenceNode, ScenarioReferenceNode } from './nodes/ScenarioReferenceNode'
 import { $createScenarioSpotlightNode, $isScenarioSpotlightNode } from './nodes/ScenarioSpotlightNode'
+import { $createSuggestionNode, $isSuggestionNode } from './nodes/SuggestionNode'
 
 export type {
   AutomationBlockKind,
@@ -126,7 +127,7 @@ function normalizeBlocks(blocks: AutomationDocumentBlock[]): AutomationDocumentB
   }
   let contentLength = 0
   return blocks.map((block) => {
-    if (!block || typeof block !== 'object' || !['heading1', 'heading2', 'quote', 'paragraph', 'policy', 'spotlight'].includes(block.kind) ||
+    if (!block || typeof block !== 'object' || !['heading1', 'heading2', 'quote', 'paragraph', 'policy', 'spotlight', 'suggestion'].includes(block.kind) ||
       typeof block.text !== 'string' || block.text.includes('\u0000')) {
       throw new Error('Document contains an invalid semantic block')
     }
@@ -147,6 +148,13 @@ function normalizeBlocks(blocks: AutomationDocumentBlock[]): AutomationDocumentB
         throw new Error('Scenario spotlight automation block requires stable identity and empty text')
       }
       return { kind: 'spotlight', text: '', scenarioId: block.scenarioId }
+    }
+    if (block.kind === 'suggestion') {
+      if (block.text !== '' || !block.suggestionId ||
+        !/^[A-Za-z0-9][A-Za-z0-9._:@-]{0,199}$/.test(block.suggestionId)) {
+        throw new Error('Suggestion automation block requires stable identity and empty text')
+      }
+      return { kind: 'suggestion', text: '', suggestionId: block.suggestionId }
     }
     return { kind: block.kind, text: block.text }
   })
@@ -195,6 +203,9 @@ function readBlock(node: LexicalNode): AutomationDocumentBlock {
   if ($isScenarioSpotlightNode(node)) {
     return { kind: 'spotlight', text: '', scenarioId: node.getScenarioId() }
   }
+  if ($isSuggestionNode(node)) {
+    return { kind: 'suggestion', text: '', suggestionId: node.getSuggestionId() }
+  }
   if ($isPolicyBlockNode(node)) {
     return {
       kind: 'policy',
@@ -214,6 +225,7 @@ function formatBlock(block: AutomationDocumentBlock): string {
   if (block.kind === 'policy') return `[policy:${block.policyId}:${block.status}] ${block.text}`
   if (block.kind === 'heading1') return `# ${block.text}`
   if (block.kind === 'spotlight') return `[spotlight:${block.scenarioId}]`
+  if (block.kind === 'suggestion') return `[suggestion:${block.suggestionId}]`
   if (block.kind === 'heading2') return `## ${block.text}`
   if (block.kind === 'quote') return `> ${block.text}`
   return block.text
@@ -223,6 +235,10 @@ function parseBlocks(content: string): AutomationDocumentBlock[] {
   const normalized = content.replace(/\r\n/g, '\n')
   const lines = normalized.split('\n')
   const blocks = lines.map<AutomationDocumentBlock>((line) => {
+    const suggestion = /^\[suggestion:([A-Za-z0-9][A-Za-z0-9._:@-]{0,199})\]$/.exec(line)
+    if (suggestion) {
+      return { kind: 'suggestion', suggestionId: suggestion[1], text: '' }
+    }
     const spotlight = /^\[spotlight:([A-Za-z0-9][A-Za-z0-9._:@-]{0,199})\]$/.exec(line)
     if (spotlight) {
       return { kind: 'spotlight', scenarioId: spotlight[1], text: '' }
@@ -240,6 +256,10 @@ function parseBlocks(content: string): AutomationDocumentBlock[] {
 }
 
 function createNode(block: AutomationDocumentBlock): LexicalNode {
+  if (block.kind === 'suggestion') {
+    if (!block.suggestionId) throw new Error('Suggestion automation block requires stable identity')
+    return $createSuggestionNode(block.suggestionId)
+  }
   if (block.kind === 'spotlight') {
     if (!block.scenarioId) throw new Error('Scenario spotlight automation block requires stable identity')
     return $createScenarioSpotlightNode(block.scenarioId)

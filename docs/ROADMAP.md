@@ -118,6 +118,16 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   fail closed. Focused tests and the production build pass. A product editor and packaged two-client
   interaction remain open, so status is `implemented_unverified`.
   Evidence: `docs/audits/runs/SCENARIO-RESPONSE-2026-07-18.json`.
+- P-08 now has a Penumbra-original collaborative suggestion review surface. Immutable proposals
+  retain source revision and human/model provenance; accept/reject decisions retain reviewer
+  snapshots and name the exact proposal event. Stale or reused identities fail before mutation,
+  disconnected opposite decisions remain visible as a conflict, and proposal/decision writes do
+  not apply policy text. The editor, semantic automation, immutable versions, and bounded MCP
+  inspection carry only stable identity or content-free metadata. Focused tests and the production
+  build pass. Authenticated identity, packaged two-client interaction, model generation, and
+  revision-guarded application of accepted text remain open, so status is
+  `implemented_unverified`. Evidence:
+  `docs/audits/runs/SUGGESTION-DECISIONS-2026-07-18.json`.
 
 - The first remote-model execution boundary is now headlessly testable with a bounded product caller.
   Rust constructs and normalizes an OpenAI Responses one-shot request, requires matching content
@@ -349,8 +359,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **42 capabilities**: **26 are
-`implemented_unverified`, 16 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **42 capabilities**: **31 are
+`implemented_unverified`, 11 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, remaining crash/recovery local
 lifecycle, Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned

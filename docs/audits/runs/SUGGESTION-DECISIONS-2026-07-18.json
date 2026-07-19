@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "capability": "P-08",
+  "date": "2026-07-18",
+  "status": "implemented_unverified",
+  "claim": "Shared suggestions require an explicit attributed accept or reject decision without applying proposal text before acceptance.",
+  "verified": [
+    "Human and model proposals retain author, display-name, timestamp, source revision, and provider/model/run provenance",
+    "Decisions retain reviewer attribution and name the exact proposal event",
+    "Exact replay is idempotent and stale or reused identities fail before mutation",
+    "Disconnected opposite decisions are both retained and project an explicit conflict",
+    "Disconnected proposal-root identity collisions and hostile bucket mutations fail closed",
+    "Proposal and decision writes do not change existing policy text",
+    "The editor node, semantic marker, and immutable version retain only stable suggestion identity",
+    "Pending, accepted, rejected, conflicted, and missing states are visible without a model",
+    "MCP research-state inspection exposes bounded status/provenance metadata while omitting proposal and decision bodies",
+    "Production TypeScript and Vite build passes"
+  ],
+  "headlessResults": {
+    "focusedTestFiles": 5,
+    "focusedTestsPassed": 30,
+    "focusedTestsFailed": 0,
+    "productionBuild": "passed",
+    "repositoryAudit": "passed",
+    "fullSupervisedCheck": "passed",
+    "fullSupervisedRunId": "20260719-015225-79ee23",
+    "fullTestFilesPassed": 63,
+    "fullTestFilesSkipped": 1,
+    "fullTestsPassed": 273,
+    "fullTestsExpectedFail": 1,
+    "fullTestsSkipped": 1
+  },
+  "limitations": [
+    "Accept records the review decision but does not yet apply proposal text to the policy; revision-guarded application remains P-24.",
+    "Installation researcher identity is caller-supplied and is not authenticated.",
+    "Packaged physical two-client pointer interaction and Drive-backed convergence are not yet proven.",
+    "No model generation or MCP suggestion-mutation tool is included in this slice."
+  ],
+  "sources": [
+    "frontend/src/workspace/suggestionModel.ts",
+    "frontend/src/workspace/suggestionModel.test.ts",
+    "frontend/src/workspace/SuggestionContext.tsx",
+    "frontend/src/workspace/nodes/SuggestionNode.tsx",
+    "frontend/src/workspace/nodes/SuggestionNode.test.tsx",
+    "frontend/src/workspace/ResearchEditor.tsx",
+    "frontend/src/workspace/editorAutomation.ts",
+    "frontend/src/workspace/editorAutomation.test.ts",
+    "frontend/src/workspace/policyVersionModel.ts",
+    "frontend/src/workspace/policyVersionModel.test.ts",
+    "frontend/src/workspace/researchStateInspection.ts",
+    "frontend/src/workspace/researchStateInspection.test.ts"
+  ]
+}

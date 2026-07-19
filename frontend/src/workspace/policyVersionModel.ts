@@ -3,7 +3,7 @@ import * as Y from 'yjs'
 export const POLICY_VERSION_SCHEMA_VERSION = 1 as const
 export const POLICY_SNAPSHOT_FORMAT = 'syzygy-semantic-blocks-v1' as const
 
-export type VersionBlockKind = 'paragraph' | 'heading1' | 'heading2' | 'quote' | 'policy' | 'spotlight'
+export type VersionBlockKind = 'paragraph' | 'heading1' | 'heading2' | 'quote' | 'policy' | 'spotlight' | 'suggestion'
 export type VersionPolicyStatus = 'draft' | 'review' | 'approved'
 
 export interface VersionPolicyBlock {
@@ -12,6 +12,7 @@ export interface VersionPolicyBlock {
   policyId?: string
   status?: VersionPolicyStatus
   scenarioId?: string
+  suggestionId?: string
 }
 
 export interface PolicyVersion {
@@ -56,7 +57,7 @@ const MAX_SCENARIOS = 10_000
 const MAX_CANONICAL_BYTES = 1_000_000
 const sha256Pattern = /^[a-f0-9]{64}$/
 const stableIdPattern = /^[A-Za-z0-9][A-Za-z0-9._:@-]*$/
-const blockKinds = new Set<VersionBlockKind>(['paragraph', 'heading1', 'heading2', 'quote', 'policy', 'spotlight'])
+const blockKinds = new Set<VersionBlockKind>(['paragraph', 'heading1', 'heading2', 'quote', 'policy', 'spotlight', 'suggestion'])
 const policyStatuses = new Set<VersionPolicyStatus>(['draft', 'review', 'approved'])
 const encoder = new TextEncoder()
 
@@ -89,6 +90,13 @@ function canonicalBlock(block: VersionPolicyBlock): VersionPolicyBlock {
     }
     return { kind: 'spotlight', text: '', scenarioId: block.scenarioId }
   }
+  if (block.kind === 'suggestion') {
+    if (!exactKeys(block, ['kind', 'text', 'suggestionId']) || block.text !== '' ||
+      !validStableId(block.suggestionId)) {
+      throw new Error('Suggestion version block requires stable identity and empty text')
+    }
+    return { kind: 'suggestion', text: '', suggestionId: block.suggestionId }
+  }
   if (!exactKeys(block, ['kind', 'text'])) throw new Error('Non-policy version block has unsupported fields')
   return { kind: block.kind, text: normalizeText(block.text) }
 }
@@ -105,6 +113,8 @@ function payloadFromInput(input: CreatePolicyVersionInput): PolicyVersionPayload
   const blocks = input.blocks.map(canonicalBlock)
   const policyIds = blocks.flatMap((block) => block.kind === 'policy' ? [block.policyId!] : [])
   if (new Set(policyIds).size !== policyIds.length) throw new Error('Policy version contains duplicate policy block IDs')
+  const suggestionIds = blocks.flatMap((block) => block.kind === 'suggestion' ? [block.suggestionId!] : [])
+  if (new Set(suggestionIds).size !== suggestionIds.length) throw new Error('Policy version contains duplicate suggestion IDs')
   if (blocks.reduce((total, block) => total + block.text.length, 0) > MAX_POLICY_TEXT) {
     throw new Error('Policy version text exceeds the size limit')
   }

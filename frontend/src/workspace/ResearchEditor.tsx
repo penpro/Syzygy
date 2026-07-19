@@ -25,6 +25,7 @@ import type { ResearchProjectManifest } from './schema'
 import { createLocalProviderFactory } from './localProvider'
 import { createDriveProviderFactory } from './driveProjectProvider'
 import { registerAutomationEditor } from './editorAutomation'
+import { getAutomationEditorController } from './editorAutomationRegistry'
 import {
   MOVE_POLICY_BLOCK_COMMAND,
   readPolicyMoveAvailability,
@@ -33,8 +34,10 @@ import {
 import { $createPolicyBlockNode, PolicyBlockNode } from './nodes/PolicyBlockNode'
 import { $createScenarioReferenceNode, ScenarioReferenceNode } from './nodes/ScenarioReferenceNode'
 import { $createScenarioSpotlightNode, ScenarioSpotlightNode } from './nodes/ScenarioSpotlightNode'
+import { $createSuggestionNode, SuggestionNode } from './nodes/SuggestionNode'
 import { ResearchTableOfContents } from './ResearchTableOfContents'
 import { ScenarioReferenceProvider, useScenarioReferenceState } from './ScenarioReferenceContext'
+import { SuggestionProvider, useSuggestionState } from './SuggestionContext'
 
 const editorTheme = {
   heading: {
@@ -53,10 +56,13 @@ const editorTheme = {
 function Toolbar({ shared }: { shared: boolean }) {
   const [editor] = useLexicalComposerContext()
   const { ready: scenariosReady, scenarios } = useScenarioReferenceState()
+  const { projectId, ready: suggestionsReady, healthy: suggestionsHealthy, createHumanSuggestion } = useSuggestionState()
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
   const [moveAvailability, setMoveAvailability] = useState({ up: false, down: false })
   const [scenarioId, setScenarioId] = useState('')
+  const [suggestionText, setSuggestionText] = useState('')
+  const [suggestionError, setSuggestionError] = useState<string | null>(null)
 
   useEffect(() => {
     if (scenarios.some((scenario) => scenario.id === scenarioId)) return
@@ -149,6 +155,37 @@ function Toolbar({ shared }: { shared: boolean }) {
           Spotlight scenario
         </button>
       </span>
+      <span className="suggestion-compose-control">
+        <input
+          aria-label="Proposed policy text"
+          value={suggestionText}
+          maxLength={500_000}
+          disabled={!suggestionsReady || !suggestionsHealthy}
+          placeholder="Propose text without changing the draft"
+          onChange={(event) => setSuggestionText(event.target.value)}
+        />
+        <button
+          type="button"
+          disabled={!suggestionsReady || !suggestionsHealthy || !suggestionText.trim()}
+          onClick={() => {
+            setSuggestionError(null)
+            try {
+              const revision = getAutomationEditorController(projectId).read().revision
+              const suggestion = createHumanSuggestion(suggestionText.trim(), revision)
+              editor.update(
+                () => $getRoot().append($createSuggestionNode(suggestion.id)),
+                { tag: 'syzygy-suggestion-propose' },
+              )
+              setSuggestionText('')
+            } catch (value) {
+              setSuggestionError(value instanceof Error ? value.message : String(value))
+            }
+          }}
+        >
+          Add suggestion
+        </button>
+        {suggestionError ? <span className="suggestion-compose-error" role="alert">{suggestionError}</span> : null}
+      </span>
       <span className="research-toolbar-rule" aria-hidden="true" />
       <button type="button" aria-label="Bold" onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}><b>B</b></button>
       <button type="button" aria-label="Italic" onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}><i>I</i></button>
@@ -192,7 +229,7 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
   const initialConfig = useMemo(
     () => ({
       namespace: `syzygy-project-${project.documentId}`,
-      nodes: [HeadingNode, QuoteNode, PolicyBlockNode, ScenarioReferenceNode, ScenarioSpotlightNode],
+      nodes: [HeadingNode, QuoteNode, PolicyBlockNode, ScenarioReferenceNode, ScenarioSpotlightNode, SuggestionNode],
       editorState: null,
       theme: editorTheme,
       onError(error: Error) {
@@ -206,6 +243,7 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
     <LexicalCollaboration>
       <LexicalComposer initialConfig={initialConfig}>
         <ScenarioReferenceProvider projectId={project.id}>
+          <SuggestionProvider projectId={project.id}>
           <AutomationEditorRegistration projectId={project.id} />
           <Toolbar shared={project.transport.kind === 'drive'} />
           <ResearchTableOfContents />
@@ -232,6 +270,7 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
             }}
           />
           </div>
+          </SuggestionProvider>
         </ScenarioReferenceProvider>
       </LexicalComposer>
     </LexicalCollaboration>

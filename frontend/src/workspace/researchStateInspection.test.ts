@@ -7,13 +7,14 @@ import { createScenario, deleteScenario } from './scenarioModel'
 import { createScenarioAnnotation } from './scenarioAnnotationModel'
 import { castScenarioVote } from './scenarioVoteModel'
 import { createScenarioLabel, setScenarioLabelAssignment } from './scenarioLabelModel'
+import { createSuggestion } from './suggestionModel'
 import { createProjectManifest } from './schema'
 
 const manifest = createProjectManifest({ id: 'inspection-project', documentId: 'inspection-document', timestamp: 1 })
 
 async function populatedDocument() {
   const doc = createProjectDocument(manifest)
-  const { heuristics, scenarios, settings, versions, metadata } = getProjectSharedTypes(doc)
+  const { discussions, heuristics, scenarios, settings, versions, metadata } = getProjectSharedTypes(doc)
   createHeuristic(heuristics, {
     id: 'evidence-quality', title: 'Evidence quality', guidance: 'Secret guidance is omitted.', priority: 'required',
     authorId: 'researcher-1', timestamp: 10, editId: 'create-evidence-quality',
@@ -39,6 +40,12 @@ async function populatedDocument() {
     annotationId: 'source-warning', eventId: 'create-source-warning', scenarioId: 'source-challenge',
     kind: 'flag', body: 'Secret annotation body is omitted.', authorId: 'researcher-2',
     displayName: 'Secret annotator display name is omitted.', timestamp: 12,
+  })
+  createSuggestion(discussions, {
+    suggestionId: 'appeal-proposal', eventId: 'proposal-appeal',
+    content: 'Secret suggestion content is omitted.', sourceDocumentRevision: 'lexical-inspection-source',
+    authorId: 'researcher-2', authorDisplayName: 'Researcher Two', timestamp: 13,
+    sourceKind: 'model', providerId: 'local', modelId: 'model-fixture', runId: 'run-fixture',
   })
   createScenario(scenarios, {
     id: 'source-challenge-branch', title: 'Skeptical branch', background: '', parentScenarioId: 'source-challenge',
@@ -72,6 +79,10 @@ describe('research state inspection', () => {
       labelCount: 1, assignmentCount: 1, invalidRecords: 0, orphanScenarioIds: [], orphanLabelIds: [],
       items: [{ id: 'evidence-context', name: 'Evidence context', eventCount: 1, scenarioIds: ['source-challenge'] }],
     })
+    expect(result.suggestions).toMatchObject({
+      suggestionCount: 1, pendingCount: 1, invalidRecords: 0, conflictedSuggestionIds: [],
+      items: [{ id: 'appeal-proposal', status: 'pending', sourceKind: 'model', decisionCount: 0 }],
+    })
     expect(result.versions).toMatchObject({ totalRecords: 1, validRecords: 1, invalidRecords: 0, headVersionId: version.versionId, headLineageDepth: 1 })
     const serialized = JSON.stringify(result)
     expect(serialized).not.toContain('Secret guidance')
@@ -81,6 +92,7 @@ describe('research state inspection', () => {
     expect(serialized).not.toContain('Secret scenario turn')
     expect(serialized).not.toContain('Secret voter display name')
     expect(serialized).not.toContain('Secret annotation body')
+    expect(serialized).not.toContain('Secret suggestion content')
     expect(serialized).not.toContain('Secret annotator display name')
   })
 

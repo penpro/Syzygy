@@ -1,6 +1,6 @@
 import type { PolicyBlockStatus } from './nodes/PolicyBlockNode'
 
-export type AutomationBlockKind = 'heading1' | 'heading2' | 'quote' | 'paragraph' | 'policy' | 'spotlight'
+export type AutomationBlockKind = 'heading1' | 'heading2' | 'quote' | 'paragraph' | 'policy' | 'spotlight' | 'suggestion'
 
 export interface AutomationDocumentBlock {
   kind: AutomationBlockKind
@@ -8,6 +8,7 @@ export interface AutomationDocumentBlock {
   policyId?: string
   status?: PolicyBlockStatus
   scenarioId?: string
+  suggestionId?: string
 }
 
 export interface AutomationEditorSnapshot {

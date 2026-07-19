@@ -191,6 +191,15 @@ const scenarioSpotlightTestSource = text('frontend/src/workspace/nodes/ScenarioS
 const scenarioVersionModelSource = text('frontend/src/workspace/policyVersionModel.ts')
 const scenarioResponseSource = text('frontend/src/workspace/scenarioResponseModel.ts')
 const scenarioResponseTestSource = text('frontend/src/workspace/scenarioResponseModel.test.ts')
+const suggestionModelSource = text('frontend/src/workspace/suggestionModel.ts')
+const suggestionModelTestSource = text('frontend/src/workspace/suggestionModel.test.ts')
+const suggestionNodeSource = text('frontend/src/workspace/nodes/SuggestionNode.tsx')
+const suggestionNodeTestSource = text('frontend/src/workspace/nodes/SuggestionNode.test.tsx')
+const suggestionContextSource = text('frontend/src/workspace/SuggestionContext.tsx')
+const suggestionPolicyVersionSource = text('frontend/src/workspace/policyVersionModel.ts')
+const suggestionPolicyVersionTestSource = text('frontend/src/workspace/policyVersionModel.test.ts')
+const suggestionInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
+const suggestionInspectionTestSource = text('frontend/src/workspace/researchStateInspection.test.ts')
 record(
   'scenario references retain stable identity across rename, collaboration, automation, and checkpoints',
   scenarioReferenceSource.includes("type: 'scenario-reference'") &&
@@ -243,6 +252,35 @@ record(
     editorLedgerSource.includes('"id": "P-07", "phase": 6, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-RESPONSE-2026-07-18.json')),
   'versioned peer-namespaced events, exact-parent edits, human/model provenance, replay safety, concurrent sibling retention, collision failure, and truthful P-07 status are present',
+)
+record(
+  'suggestions require explicit attributed decisions without applying proposal text',
+  suggestionModelSource.includes('SUGGESTION_SCHEMA_VERSION = 1') &&
+    suggestionModelSource.includes("SUGGESTION_BUCKET_PREFIX = 'suggestions:v1:'") &&
+    suggestionModelSource.includes("? 'conflicted'") &&
+    suggestionModelSource.includes('sourceDocumentRevision: proposal.sourceDocumentRevision') &&
+    suggestionModelTestSource.includes('requires an attributed human decision without changing policy text') &&
+    suggestionModelTestSource.includes('retains concurrent opposite decisions and converges to an explicit conflict') &&
+    suggestionModelTestSource.includes('fails closed when disconnected peers create the same public suggestion identity') &&
+    suggestionNodeSource.includes("type: 'suggestion'") &&
+    suggestionNodeSource.includes('suggestionId: this.__suggestionId') &&
+    suggestionNodeSource.includes('>Accept</button>') &&
+    suggestionNodeSource.includes('>Reject</button>') &&
+    suggestionNodeTestSource.includes('persists only stable identity and fails closed without it') &&
+    suggestionNodeTestSource.includes('renders explicit pending, decided, conflicting, and missing review states') &&
+    suggestionContextSource.includes('createHumanSuggestion:') &&
+    suggestionContextSource.includes('decide: (suggestionId, expectedProposalEventId, decision)') &&
+    researchEditorSource.includes('Proposed policy text') &&
+    researchEditorSource.includes('Add suggestion') &&
+    scenarioEditorAutomationSource.includes('[suggestion:') &&
+    scenarioEditorAutomationTestSource.includes('without copying proposal content into the draft') &&
+    suggestionPolicyVersionSource.includes("block.kind === 'suggestion'") &&
+    suggestionPolicyVersionTestSource.includes('rejects copied or duplicate proposal content') &&
+    suggestionInspectionSource.includes('suggestion content and decision bodies') &&
+    suggestionInspectionTestSource.includes("expect(serialized).not.toContain('Secret suggestion content')") &&
+    editorLedgerSource.includes('"id": "P-08", "phase": 6, "status": "implemented_unverified"') &&
+    existsSync(join(root, 'docs/audits/runs/SUGGESTION-DECISIONS-2026-07-18.json')),
+  'immutable proposal/decision ledger, human/model provenance, explicit conflicts, stable-ID-only editor/version markers, content-free inspection, and truthful P-08 status are present',
 )
 
 const heuristicsModelSource = text('frontend/src/workspace/heuristicsModel.ts')

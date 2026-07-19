@@ -137,6 +137,15 @@ Exact-current guards reject stale edits, concurrent siblings remain retained and
 and malformed or colliding identity graphs fail closed. The visible editable response surface and
 packaged two-client interaction remain open, so the capability is `implemented_unverified`.
 
+P-08 now has an original shared proposal/decision ledger and live stable-ID editor card. Proposals
+retain exact source revision plus human/model provenance; decisions retain reviewer attribution and
+the exact proposal event. Stale/reused identities fail before mutation, disconnected opposite
+decisions remain as an explicit conflict, and no proposal/decision operation applies policy text.
+Semantic automation and immutable versions retain only `[suggestion:<stable-id>]`; MCP inspection
+omits proposal and decision bodies. Authenticated identity, packaged two-client interaction, model
+generation, and revision-guarded accepted-text application remain open, so P-08 is
+`implemented_unverified`.
+
 
 P-04 now has a Penumbra-original typed Yjs domain service and deterministic headless evidence for
 concurrent add, independent field edit, attributed edit history, and delete-versus-edit without
@@ -622,7 +631,7 @@ dialog. Product domain orchestration still must decide which frozen snapshots en
 
 ## 11. Recommended next slice
 
-Status snapshot on 2026-07-16: the 42-row ledger has 26 `implemented_unverified`, 16 `planned`,
+Status snapshot on 2026-07-18: the 42-row ledger has 31 `implemented_unverified`, 11 `planned`,
 and 0 `verified` capabilities. The shipped local editor, Drive research path, local engine, and MCP
 pilot are meaningful foundations, but none substitutes for the decisive two-install, convergence,
 portable-archive, workflow, accessibility, and adversarial gates below. MCP setup/onboarding is

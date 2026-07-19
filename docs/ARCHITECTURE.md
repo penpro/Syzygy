@@ -210,6 +210,18 @@ current guards reject stale edits; concurrent sibling edits both survive and sel
 current projection. Reused identities, malformed graphs, and disconnected root collisions fail
 closed. This is the P-07 domain contract; no editable product panel is claimed yet.
 
+`suggestionModel.ts` stores immutable proposal and decision events in a separate versioned,
+peer-namespaced section of the existing shared discussions map, so no save-shape migration or
+second mutable policy copy is introduced. Proposals retain their source document revision, author
+snapshot, timestamp, and human or provider/model/run provenance. Decisions name the exact proposal
+event and retain the reviewer snapshot. Connected stale or opposite decisions fail before mutation;
+disconnected opposite decisions both survive and project an explicit conflict. Replayed events are
+idempotent, identity reuse and disconnected proposal-root collisions fail closed, and proposal or
+decision writes never apply proposal text to the policy root. `SuggestionNode.tsx` persists only
+the stable suggestion ID and projects the live proposal, decision history, missing-target state, and
+conflict state through `SuggestionContext.tsx`. Accept and reject currently record review decisions;
+revision-guarded application of accepted text remains the separate P-24 contract.
+
 `heuristicsModel.ts` is the first non-editor shared research domain service. Each heuristic is a
 nested Y.Map so concurrent edits to different fields merge instead of replacing an opaque object;
 a nested edit map retains unique author/time/changed-field/value events. Reads validate and

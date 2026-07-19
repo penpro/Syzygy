@@ -33,6 +33,7 @@ export interface ScenarioGeneratorContentProps {
   onModel: (model: string) => void
   onInstructions: (instructions: string) => void
   onGenerate: () => void
+  onRegenerate: (response: ScenarioResponse) => void
   onCancel: () => void
 }
 
@@ -85,6 +86,25 @@ export function ScenarioGeneratorContent(props: ScenarioGeneratorContentProps) {
                   {' · '}{response.revisions.length} revision{response.revisions.length === 1 ? '' : 's'}
                 </div>
                 <div className="scenario-turn-content">{response.content}</div>
+                <div className="scenario-actions">
+                  <button className="btn sm" type="button" disabled={busy} onClick={() => props.onRegenerate(response)}>Regenerate</button>
+                </div>
+                <details className="scenario-response-lineage">
+                  <summary>Variant lineage · {response.revisions.length} retained</summary>
+                  <ol>
+                    {response.revisions.map((revision) => (
+                      <li key={revision.revisionId}>
+                        <div className="scenario-turn-meta mono">
+                          {revision.sourceKind === 'model'
+                            ? `${revision.providerId} · ${revision.modelId}`
+                            : revision.authorDisplayName}
+                          {' · '}parent {revision.parentRevisionId?.slice(0, 12) ?? 'root'}
+                        </div>
+                        <div className="scenario-turn-content">{revision.content}</div>
+                      </li>
+                    ))}
+                  </ol>
+                </details>
               </li>
             )
           })}
@@ -125,7 +145,7 @@ export function ScenarioGenerator({
       : 'The native Send once dialog appears before any scenario content leaves this computer.')
   }
 
-  const generate = async () => {
+  const generate = async (parentResponse?: ScenarioResponse) => {
     const runId = `scenario-run-${uid()}`
     const controller = new AbortController()
     const adapter = provider === 'local'
@@ -144,17 +164,19 @@ export function ScenarioGenerator({
         setPhase('running')
         setMessage('Native approval or the provider response is pending. Content leaves only after Send once.')
       }
-      const request = buildScenarioGenerationRequest({ runId, providerId: provider, requestedModelId: model.trim(), project, scenario, instructions })
+      const request = buildScenarioGenerationRequest({ runId, providerId: provider, requestedModelId: model.trim(), project, scenario, parentResponse, instructions })
       const output = await runScenarioGeneration(adapter, request, controller.signal)
       commitScenarioGeneration(doc, request, output, {
-        responseId: `scenario-response-${uid()}`,
+        responseId: parentResponse?.id ?? `scenario-response-${uid()}`,
         revisionId: `scenario-revision-${uid()}`,
         authorId: `model-${provider}`,
         authorDisplayName: provider === 'local' ? 'Local model' : `${SCENARIO_REMOTE_PROVIDERS.find(({ id }) => id === provider)?.name} model`,
         timestamp: now(),
       })
       setPhase('complete')
-      setMessage('Variant added to the shared scenario with provider, model, and run provenance.')
+      setMessage(parentResponse
+        ? 'Regenerated variant added as a new revision; every earlier variant remains in lineage.'
+        : 'Variant added to the shared scenario with provider, model, and run provenance.')
     } catch (error) {
       if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
         setPhase('idle')
@@ -180,6 +202,7 @@ export function ScenarioGenerator({
   return <ScenarioGeneratorContent
     provider={provider} model={model} instructions={instructions} localAvailable={localAvailable}
     phase={phase} message={message} responses={responses} onProvider={chooseProvider}
-    onModel={setModel} onInstructions={setInstructions} onGenerate={() => void generate()} onCancel={() => void cancel()}
+    onModel={setModel} onInstructions={setInstructions} onGenerate={() => void generate()}
+    onRegenerate={(response) => void generate(response)} onCancel={() => void cancel()}
   />
 }

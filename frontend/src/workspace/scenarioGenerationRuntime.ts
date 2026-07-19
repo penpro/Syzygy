@@ -33,11 +33,14 @@ function scenarioSource(request: ScenarioGenerationRequest): string {
     `Workflow state: ${request.scenarioStatus}`,
     `Background:\n${request.scenarioBackground || '(No background supplied.)'}`,
     `Conversation:\n${turns}`,
-  ].join('\n\n')
+    request.parentResponse
+      ? `Prior response to regenerate (revision ${request.parentResponse.revisionId}):\n${request.parentResponse.content}`
+      : '',
+  ].filter(Boolean).join('\n\n')
 }
 
 const systemInstruction =
-  'Act as a scenario participant for policy research. Return only the proposed next response, without a preamble. Use only the supplied scenario; distinguish uncertainty instead of inventing facts or source access.'
+  'Act as a scenario participant for policy research. Return only the proposed next response, without a preamble. Use only the supplied scenario; distinguish uncertainty instead of inventing facts or source access. When a prior response is supplied, produce a distinct revised variant rather than repeating it.'
 
 export function createLocalScenarioGenerationAdapter(
   settings: Settings,

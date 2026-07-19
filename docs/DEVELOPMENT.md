@@ -179,6 +179,14 @@ gate must accept common provider model route names without using them as storage
 provider contract and product wiring, not a live paid-provider call, generated-response editing,
 model quality, or packaged interaction. Evidence: `docs/audits/runs/SCENARIO-GENERATION-2026-07-18.json`.
 
+`scenarioRegeneration.test.ts` is the P-17 gate. It requires exact-current parent binding, retained
+root/child content and provenance, stale-response zero-write rejection, cross-scenario parent denial,
+and two-peer concurrent sibling retention with deterministic convergence. The runtime test proves
+the prior variant crosses both local and remote adapter context, and the UI test requires a visible
+**Regenerate** action plus collapsed parent-attributed lineage. It does not prove arbitrary historical-
+parent selection, human sibling-conflict resolution, a live provider, or quality improvement.
+Evidence: `docs/audits/runs/SCENARIO-REGENERATION-2026-07-18.json`.
+
 `suggestionModel.test.ts` and `nodes/SuggestionNode.test.tsx` are the P-08 domain/editor gates.
 They prove attributed human/model proposals, exact-proposal decisions, replay and stale rejection,
 disconnected opposite-decision retention, explicit conflict projection, proposal-root collision

@@ -5,7 +5,7 @@ import { ScenarioGeneratorContent, type ScenarioGeneratorContentProps } from './
 const props = (): ScenarioGeneratorContentProps => ({
   provider: 'local', model: 'local-model', instructions: 'Continue carefully.', localAvailable: true,
   phase: 'idle', message: 'Ready.', responses: [], onProvider: vi.fn(), onModel: vi.fn(),
-  onInstructions: vi.fn(), onGenerate: vi.fn(), onCancel: vi.fn(),
+  onInstructions: vi.fn(), onGenerate: vi.fn(), onRegenerate: vi.fn(), onCancel: vi.fn(),
 })
 
 describe('scenario generator product surface', () => {
@@ -30,5 +30,8 @@ describe('scenario generator product surface', () => {
     expect(html).toContain('local · local-model')
     expect(html).toContain('Generated variant.')
     expect(html).toContain('1 revision')
+    expect(html).toContain('Regenerate')
+    expect(html).toContain('Variant lineage · 1 retained')
+    expect(html).toContain('parent root')
   })
 })

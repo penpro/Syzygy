@@ -217,7 +217,7 @@ new top-level save shape. Every revision retains response/scenario identity, exa
 author ID and display-name snapshot, timestamp, and human or provider/model/run provenance. Exact-
 current guards reject stale edits; concurrent sibling edits both survive and select a deterministic
 current projection. Reused identities, malformed graphs, and disconnected root collisions fail
-closed. `ScenarioGenerator.tsx` now projects those variants in the selected scenario, while `scenarioGeneration.ts` owns the bounded, provider-neutral P-16 request/output contract and exact-source commit guard. Generated variants are visible but not yet editable or regenerable in the product.
+closed. `ScenarioGenerator.tsx` now projects those variants in the selected scenario, while `scenarioGeneration.ts` owns the bounded, provider-neutral P-16 request/output contract and exact-source commit guard. `Regenerate` supplies the exact current response revision as bounded context and appends a new exact-parent model revision to the same response identity. Earlier and concurrent sibling variants remain inspectable; arbitrary historical-parent selection and human conflict resolution are not yet exposed.
 
 `suggestionModel.ts` stores immutable proposal and decision events in a separate versioned,
 peer-namespaced section of the existing shared discussions map, so no save-shape migration or
@@ -250,7 +250,7 @@ It observes peer updates, refuses stale detail saves when any scenario edit iden
 makes graph-integrity failures read-only. P-16 adds optional generation without making the gallery
 dependent on AI: local inference is available only while the model is loaded, remote routes reuse
 the native one-shot disclosure boundary, and both write through the attributed response domain only
-if the selected scenario revision is unchanged. Turn revision editing, response regeneration,
+if the selected scenario revision is unchanged. Turn revision editing, arbitrary historical-parent regeneration, response conflict resolution,
 evaluation, annotations, labels, and scenario-pack export remain outside this slice.
 
 `scenarioVoteModel.ts` stores immutable vote events in peer-specific, version-prefixed buckets

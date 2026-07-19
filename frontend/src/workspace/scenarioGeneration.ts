@@ -2,10 +2,10 @@ import type * as Y from 'yjs'
 import type { RemoteProviderId } from '../tauri'
 import { getProjectSharedTypes } from './projectModel'
 import { readScenario, type ResearchScenario } from './scenarioModel'
-import { createScenarioResponse, type ScenarioResponse } from './scenarioResponseModel'
+import { createScenarioResponse, editScenarioResponse, readScenarioResponses, type ScenarioResponse } from './scenarioResponseModel'
 import type { ResearchProjectManifest } from './schema'
 
-export const SCENARIO_GENERATION_CONTRACT_VERSION = 1 as const
+export const SCENARIO_GENERATION_CONTRACT_VERSION = 2 as const
 export const MAX_SCENARIO_GENERATION_INSTRUCTIONS = 20_000
 export const MAX_SCENARIO_GENERATION_CONTEXT = 240_000
 export const MAX_SCENARIO_GENERATION_OUTPUT = 500_000
@@ -14,6 +14,12 @@ export type ScenarioGenerationProviderId = 'local' | RemoteProviderId
 
 export interface ScenarioGenerationTurnSnapshot {
   role: 'system' | 'user' | 'assistant'
+  content: string
+}
+
+export interface ScenarioGenerationParentResponse {
+  responseId: string
+  revisionId: string
   content: string
 }
 
@@ -29,6 +35,7 @@ export interface ScenarioGenerationRequest {
   scenarioBackground: string
   scenarioStatus: ResearchScenario['status']
   turns: ScenarioGenerationTurnSnapshot[]
+  parentResponse: ScenarioGenerationParentResponse | null
   sourceRevision: string
   instructions: string
 }
@@ -83,9 +90,10 @@ export function scenarioGenerationRevision(scenario: ResearchScenario): string {
   })
 }
 
-function contextLength(scenario: ResearchScenario): number {
+function contextLength(scenario: ResearchScenario, parentResponse: ScenarioGenerationParentResponse | null): number {
   return scenario.title.length + scenario.background.length +
-    scenario.turns.reduce((total, turn) => total + turn.content.length, 0)
+    scenario.turns.reduce((total, turn) => total + turn.content.length, 0) +
+    (parentResponse?.content.length ?? 0)
 }
 
 export function buildScenarioGenerationRequest(input: {
@@ -94,16 +102,28 @@ export function buildScenarioGenerationRequest(input: {
   requestedModelId: string
   project: ResearchProjectManifest
   scenario: ResearchScenario
+  parentResponse?: ScenarioResponse
   instructions?: string
 }): ScenarioGenerationRequest {
   const instructions = input.instructions?.trim() ||
     'Continue this scenario with the most realistic next participant response. Do not invent access to evidence that is not present in the scenario.'
+  const parentRevision = input.parentResponse?.revisions.find(({ revisionId }) =>
+    revisionId === input.parentResponse?.currentRevisionId)
+  if (input.parentResponse && (input.parentResponse.scenarioId !== input.scenario.id || !parentRevision ||
+    parentRevision.content !== input.parentResponse.content)) {
+    throw new Error('Scenario regeneration parent is invalid or stale')
+  }
+  const parentResponse: ScenarioGenerationParentResponse | null = input.parentResponse ? {
+    responseId: input.parentResponse.id,
+    revisionId: input.parentResponse.currentRevisionId,
+    content: input.parentResponse.content,
+  } : null
   if (!stableId(input.runId) || !stableId(input.project.id) || !stableId(input.project.documentId) ||
     !stableId(input.scenario.id) || !providerIds.has(input.providerId) || !routeId(input.requestedModelId)) {
     throw new Error('Scenario generation route or identity is invalid')
   }
   if (!boundedText(instructions, MAX_SCENARIO_GENERATION_INSTRUCTIONS) ||
-    contextLength(input.scenario) > MAX_SCENARIO_GENERATION_CONTEXT) {
+    contextLength(input.scenario, parentResponse) > MAX_SCENARIO_GENERATION_CONTEXT) {
     throw new Error('Scenario generation input exceeds the bounded provider contract')
   }
   return {
@@ -118,6 +138,7 @@ export function buildScenarioGenerationRequest(input: {
     scenarioBackground: input.scenario.background,
     scenarioStatus: input.scenario.status,
     turns: input.scenario.turns.map(({ role, content }) => ({ role, content })),
+    parentResponse,
     sourceRevision: scenarioGenerationRevision(input.scenario),
     instructions,
   }
@@ -166,6 +187,31 @@ export function commitScenarioGeneration(
   const current = readScenario(scenarios, request.scenarioId)
   if (!current || scenarioGenerationRevision(current) !== request.sourceRevision) {
     throw new Error('Scenario changed during generation; review the new state and run again')
+  }
+  if (request.parentResponse) {
+    if (input.responseId !== request.parentResponse.responseId) {
+      throw new Error('Scenario regeneration response identity changed before commit')
+    }
+    const response = readScenarioResponses(discussions, request.scenarioId)?.find(({ id }) =>
+      id === request.parentResponse?.responseId)
+    if (!response || response.currentRevisionId !== request.parentResponse.revisionId ||
+      response.content !== request.parentResponse.content) {
+      throw new Error('Scenario response changed during regeneration; review the new variant and run again')
+    }
+    return editScenarioResponse(discussions, scenarios, {
+      responseId: input.responseId,
+      scenarioId: request.scenarioId,
+      revisionId: input.revisionId,
+      expectedCurrentRevisionId: request.parentResponse.revisionId,
+      content: validated.content,
+      authorId: input.authorId,
+      authorDisplayName: input.authorDisplayName,
+      timestamp: input.timestamp,
+      sourceKind: 'model',
+      providerId: validated.providerId,
+      modelId: validated.executedModelId,
+      runId: validated.runId,
+    })
   }
   return createScenarioResponse(discussions, scenarios, {
     responseId: input.responseId,

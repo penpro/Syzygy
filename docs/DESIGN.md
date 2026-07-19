@@ -162,6 +162,10 @@ With local AI off or unloaded, the local action is disabled while manual editing
 remain available. A run receives only the selected bounded scenario, and output is added as a shared,
 attributed variant only if that scenario's source revision is still current. Provider/model metadata
 is visible; copy must not imply that a variant changed the policy draft, was evaluated, or is true.
+**Regenerate** creates a child of the exact current revision. It never replaces or hides earlier
+content: a collapsed **Variant lineage** lists every retained revision with its parent and human or
+model attribution. If the response changes while a provider runs, the stale result is refused and
+the researcher is told to review the new variant before trying again.
 
 The editor uses Plex Serif for document content and Plex Mono metadata stamps, with every surface,
 border, status, and selection derived from theme tokens.

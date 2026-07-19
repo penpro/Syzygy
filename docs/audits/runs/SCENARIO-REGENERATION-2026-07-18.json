@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "capability": "P-17",
+  "date": "2026-07-18",
+  "status": "implemented_unverified",
+  "claim": "Regenerating a scenario response creates an exact-parent model revision, retains every earlier variant, and fails closed if the scenario or response changes before commit.",
+  "verified": [
+    "The generation contract carries an optional bounded parent response snapshot",
+    "Local and remote adapters receive the prior response as labeled regeneration context",
+    "A successful regeneration appends a model-attributed revision to the same response identity",
+    "The new revision names the exact prior revision as its parent",
+    "Prior content, provider, model, run, author, and timestamp provenance remain retained",
+    "A changed response head makes a stale regeneration fail before shared mutation",
+    "A changed selected scenario remains protected by the P-16 exact-source guard",
+    "Concurrent sibling regenerations survive Yjs merge and converge to the same deterministic projection",
+    "A response from another scenario is rejected before a provider request is built",
+    "The product exposes Regenerate and a collapsed complete lineage instead of overwriting visible history",
+    "Production TypeScript and Vite build passes"
+  ],
+  "headlessResults": {
+    "focusedTestFiles": 5,
+    "focusedTestsPassed": 22,
+    "focusedTestsFailed": 0,
+    "productionBuild": "passed",
+    "repositoryAudit": "passed",
+    "fullSupervisedCheck": "passed",
+    "fullSupervisedRunId": "20260719-083845-549692",
+    "fullTestFilesPassed": 72,
+    "fullTestFilesSkipped": 1,
+    "fullTestsPassed": 299,
+    "fullTestsExpectedFail": 1,
+    "fullTestsSkipped": 1
+  },
+  "limitations": [
+    "No live paid-provider call or packaged pointer/keyboard interaction is included in this proof.",
+    "The product regenerates only the current response head; selecting an arbitrary historical parent is not exposed.",
+    "Concurrent sibling revisions are retained and deterministically projected, but no human conflict-resolution surface exists yet.",
+    "Regeneration does not score quality, establish truth, or apply policy text."
+  ],
+  "sources": [
+    "frontend/src/workspace/scenarioGeneration.ts",
+    "frontend/src/workspace/scenarioGenerationRuntime.ts",
+    "frontend/src/workspace/scenarioGenerationRuntime.test.ts",
+    "frontend/src/workspace/scenarioRegeneration.test.ts",
+    "frontend/src/workspace/ScenarioGenerator.tsx",
+    "frontend/src/workspace/ScenarioGenerator.ui.test.tsx",
+    "frontend/src/workspace/scenarioResponseModel.ts"
+  ]
+}

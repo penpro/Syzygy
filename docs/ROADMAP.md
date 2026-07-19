@@ -145,6 +145,13 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   Live paid-provider proof, response editing/regeneration, and quality claims remain open, so status
   is `implemented_unverified`. Evidence:
   `docs/audits/runs/SCENARIO-GENERATION-2026-07-18.json`.
+- P-17 adds non-destructive regeneration on top of that contract. The exact current response
+  revision becomes bounded provider context and the result is appended as its attributed child;
+  prior and concurrent sibling variants remain inspectable and converge. Stale response heads and
+  cross-scenario parents fail before mutation. The product exposes Regenerate plus complete collapsed
+  lineage. Historical-parent selection, sibling conflict resolution, live-provider proof, and quality
+  claims remain open, so status is `implemented_unverified`. Evidence:
+  `docs/audits/runs/SCENARIO-REGENERATION-2026-07-18.json`.
 
 - The first remote-model execution boundary is now headlessly testable with a bounded product caller.
   Rust constructs and normalizes an OpenAI Responses one-shot request, requires matching content
@@ -376,8 +383,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **42 capabilities**: **33 are
-`implemented_unverified`, 9 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **42 capabilities**: **34 are
+`implemented_unverified`, 8 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, remaining crash/recovery local
 lifecycle, Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned

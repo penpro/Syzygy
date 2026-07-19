@@ -214,6 +214,7 @@ const researchPresenceInspectionSource = text('frontend/src/workspace/researchSt
 const researchPresenceInspectionTestSource = text('frontend/src/workspace/presenceResearchInspection.test.ts')
 const scenarioGenerationSource = text('frontend/src/workspace/scenarioGeneration.ts')
 const scenarioGenerationTestSource = text('frontend/src/workspace/scenarioGeneration.test.ts')
+const scenarioRegenerationTestSource = text('frontend/src/workspace/scenarioRegeneration.test.ts')
 const scenarioGenerationRuntimeSource = text('frontend/src/workspace/scenarioGenerationRuntime.ts')
 const scenarioGenerationRuntimeTestSource = text('frontend/src/workspace/scenarioGenerationRuntime.test.ts')
 const scenarioGeneratorSource = text('frontend/src/workspace/ScenarioGenerator.tsx')
@@ -348,6 +349,24 @@ record(
     editorLedgerSource.includes('"id": "P-16", "phase": 6, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-GENERATION-2026-07-18.json')),
   'selected-scenario-only snapshots, explicit bounds, hostile-output rejection, exact-source commit, local-off refusal, native remote envelope, honest UI, attributed response persistence, and truthful P-16 status are present',
+)
+record(
+  'scenario regeneration retains exact-parent variants and converges without stale overwrite',
+  scenarioGenerationSource.includes('parentResponse: ScenarioGenerationParentResponse | null') &&
+    scenarioGenerationSource.includes('Scenario response changed during regeneration') &&
+    scenarioGenerationSource.includes('return editScenarioResponse') &&
+    scenarioGenerationRuntimeSource.includes('Prior response to regenerate') &&
+    scenarioGenerationRuntimeTestSource.includes('Prior variant canary.') &&
+    scenarioRegenerationTestSource.includes('adds a child revision while retaining the prior variant and exact parent') &&
+    scenarioRegenerationTestSource.includes('fails without mutation when the response changes while regeneration is running') &&
+    scenarioRegenerationTestSource.includes('retains concurrent sibling regenerations and converges deterministically') &&
+    scenarioRegenerationTestSource.includes('rejects a parent from another scenario') &&
+    scenarioGeneratorSource.includes('Variant lineage') &&
+    scenarioGeneratorSource.includes('onRegenerate(response)') &&
+    scenarioGeneratorTestSource.includes('Variant lineage · 1 retained') &&
+    editorLedgerSource.includes('"id": "P-17", "phase": 6, "status": "implemented_unverified"') &&
+    existsSync(join(root, 'docs/audits/runs/SCENARIO-REGENERATION-2026-07-18.json')),
+  'bounded parent context, exact-current response guard, appended model revision, retained root/siblings, convergence, stale/cross-scenario denial, lineage UI, and truthful P-17 status are present',
 )
 
 const heuristicsModelSource = text('frontend/src/workspace/heuristicsModel.ts')

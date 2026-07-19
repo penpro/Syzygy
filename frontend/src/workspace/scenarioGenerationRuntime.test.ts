@@ -57,6 +57,12 @@ describe('scenario generation runtime adapters', () => {
     })
     expect(task.sources).toHaveLength(1)
     expect(task.sources[0].excerpt).toContain('Only this context is sent.')
+    const regenerationTask = buildRemoteScenarioTask({
+      ...remoteRequest,
+      parentResponse: { responseId: 'response-1', revisionId: 'revision-1', content: 'Prior variant canary.' },
+    })
+    expect(regenerationTask.sources[0].excerpt).toContain('Prior response to regenerate')
+    expect(regenerationTask.sources[0].excerpt).toContain('Prior variant canary.')
 
     const outcome = {
       response: { provider: 'openai', id: 'response', status: 'completed', model: 'gpt-test-actual', text: 'Remote response.', refusals: [], unknownOutputTypes: [], usage: null },

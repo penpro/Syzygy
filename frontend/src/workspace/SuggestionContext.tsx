@@ -12,6 +12,8 @@ import {
   type SuggestionDecisionKind,
 } from './suggestionModel'
 import { subscribeAutomationProjectDocument } from './workspaceAutomationRegistry'
+import { getAutomationEditorController, type AutomationEditorSnapshot } from './editorAutomationRegistry'
+import { applyAcceptedSuggestion } from './suggestionApplication'
 
 interface SuggestionState {
   projectId: string
@@ -24,6 +26,11 @@ interface SuggestionState {
     expectedProposalEventId: string,
     decision: SuggestionDecisionKind,
   ) => CollaborativeSuggestion
+  apply: (
+    suggestionId: string,
+    expectedProposalEventId: string,
+    expectedDecisionEventId: string,
+  ) => AutomationEditorSnapshot
 }
 
 const SuggestionContext = createContext<SuggestionState | null>(null)
@@ -88,6 +95,16 @@ export function SuggestionProvider({ projectId, children }: { projectId: string;
         reviewerId: reviewer.participantId,
         reviewerDisplayName: reviewer.displayName,
         timestamp: now(),
+      })
+    },
+    apply: (suggestionId, expectedProposalEventId, expectedDecisionEventId) => {
+      if (!shared) throw new Error('The collaboration document is still loading')
+      const controller = getAutomationEditorController(projectId)
+      return applyAcceptedSuggestion(shared.discussions, controller, {
+        suggestionId,
+        expectedProposalEventId,
+        expectedDecisionEventId,
+        expectedDocumentRevision: controller.read().revision,
       })
     },
   }), [projectId, shared, healthy, suggestions, researcherId, researcherName])

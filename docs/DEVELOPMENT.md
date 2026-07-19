@@ -208,8 +208,15 @@ failure, stable-ID-only JSON/Yjs projection, and pending/decided/missing UI stat
 editor and immutable-version fixtures require exact `[suggestion:<stable-id>]` round-trip and
 reject copied proposal content or duplicate IDs. `researchStateInspection.test.ts` proves MCP
 inspection exposes bounded provenance/status metadata while omitting proposal and decision bodies.
-These gates do not prove authenticated identity, packaged two-install interaction, or applying
-accepted text to the policy; application remains P-24.
+Those P-08 gates do not make a decision mutate policy text. `suggestionApplication.test.ts` and
+`suggestionApplicationIntegration.test.ts` are the separate P-24 gates. They require a deterministic
+policy-content fingerprint that excludes suggestion markers, exact accepted proposal/decision and
+live-editor revision guards, stale-source zero-write rejection, one-marker and policy-ID collision
+checks, a simulated read/replace race stopped by the controller, and a real Lexical replacement into
+one stable `review` policy node. `SuggestionNode.test.tsx` requires a distinct **Apply to draft**
+action and unchanged-content copy. This does not prove authenticated identity, packaged two-install
+interaction, an MCP application route, or semantic correctness of the proposed policy. Evidence:
+`docs/audits/runs/SUGGESTION-APPLICATION-2026-07-19.json`.
 
 `presenceModel.test.ts`, `presenceRegistry.test.ts`,
 `memoryProvider.presence.test.ts`, and `ResearchPresence.ui.test.tsx` are the P-11 gates.

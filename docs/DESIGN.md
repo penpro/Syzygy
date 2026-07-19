@@ -205,9 +205,12 @@ full-width review card. The card previews the shared proposal, its source revisi
 provenance, and stable ID without copying proposal text into the policy draft. Pending cards expose
 explicit **Accept** and **Reject** actions. Decided cards show reviewer attribution and history;
 opposite disconnected decisions show a prominent conflict state rather than silently choosing one.
-Missing or invalid suggestions remain visible and fail closed. Accept currently records the human
-decision—it must not claim that policy text was applied until the separate revision-guarded P-24
-application workflow exists.
+Missing or invalid suggestions remain visible and fail closed. **Accept** records the human review
+decision without changing the draft. An accepted, non-conflicted card separately exposes **Apply to
+draft**, with copy that it replaces only that card with a `review` policy block and only when the
+semantic policy content is unchanged. Stale policy content, stale editor revisions, missing/duplicate
+cards, and policy-identity collisions stay visible as errors and leave the draft untouched. Rejected
+or conflicted suggestions never expose Apply.
 
 ## MCP connection guide
 

@@ -231,8 +231,14 @@ disconnected opposite decisions both survive and project an explicit conflict. R
 idempotent, identity reuse and disconnected proposal-root collisions fail closed, and proposal or
 decision writes never apply proposal text to the policy root. `SuggestionNode.tsx` persists only
 the stable suggestion ID and projects the live proposal, decision history, missing-target state, and
-conflict state through `SuggestionContext.tsx`. Accept and reject currently record review decisions;
-revision-guarded application of accepted text remains the separate P-24 contract.
+conflict state through `SuggestionContext.tsx`. Accept and reject record review decisions only.
+`suggestionApplication.ts` separately fingerprints the semantic policy content while excluding
+review-card markers. **Apply to draft** requires the exact accepted proposal and decision, exact live
+editor revision, unchanged policy-content fingerprint, exactly one marker, and no policy-ID collision.
+It then replaces that marker through the existing semantic editor controller with one `review`
+policy block whose stable ID is the suggestion ID. The controller rechecks the revision at mutation,
+so a preparation/replacement race leaves the draft untouched. The application does not add MCP
+authority or make reviewer identity authenticated.
 
 `heuristicsModel.ts` is the first non-editor shared research domain service. Each heuristic is a
 nested Y.Map so concurrent edits to different fields merge instead of replacing an opaque object;

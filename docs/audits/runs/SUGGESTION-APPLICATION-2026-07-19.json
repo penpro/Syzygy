@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "capability": "P-24",
+  "date": "2026-07-19",
+  "status": "implemented_unverified",
+  "claim": "An accepted, non-conflicted typed policy suggestion can replace exactly its live review card with one linked review policy block only against the exact unchanged semantic draft.",
+  "verified": [
+    "Suggestion creation stores a deterministic semantic policy-content fingerprint that excludes suggestion review-card markers",
+    "Application requires the exact suggestion, proposal event, accepted decision event, and current editor revision",
+    "Pending, rejected, conflicted, missing, or invalid suggestion state cannot mutate the policy draft",
+    "Any semantic policy-content change since proposal creation rejects application before editor mutation",
+    "The suggestion marker must occur exactly once and its stable identity must not collide with an existing policy block",
+    "The accepted proposal becomes one review-status policy block whose stable policy ID is the suggestion ID",
+    "The existing editor controller rechecks the revision during replacement and stops a simulated preparation/replacement race",
+    "A real Lexical integration test confirms the card node is removed and one exact PolicyBlockNode is created",
+    "The product separates Accept from Apply to draft and explains the unchanged-content guard",
+    "Production TypeScript and Vite build passes"
+  ],
+  "headlessResults": {
+    "focusedTestFiles": 5,
+    "focusedTestsPassed": 24,
+    "focusedTestsFailed": 0,
+    "productionBuild": "passed",
+    "repositoryAudit": "passed",
+    "fullSupervisedCheck": "passed",
+    "fullSupervisedRunId": "20260719-100414-91e545",
+    "fullTestFilesPassed": 78,
+    "fullTestFilesSkipped": 1,
+    "fullTestsPassed": 317,
+    "fullTestsExpectedFail": 1,
+    "fullTestsSkipped": 1
+  },
+  "limitations": [
+    "Reviewer identity is installation-provided and is not authenticated.",
+    "No packaged two-client interaction or disconnected apply/conflict resolution is included in this proof.",
+    "MCP can inspect suggestion decisions but cannot apply an accepted suggestion through this product-only route.",
+    "The action applies the complete proposal as one review policy block; partial edit and semantic-quality validation remain open.",
+    "A conflicting offline rejection that has not yet arrived cannot be predicted; once present, conflicted state blocks application."
+  ],
+  "sources": [
+    "frontend/src/workspace/suggestionApplication.ts",
+    "frontend/src/workspace/suggestionApplication.test.ts",
+    "frontend/src/workspace/suggestionApplicationIntegration.test.ts",
+    "frontend/src/workspace/SuggestionContext.tsx",
+    "frontend/src/workspace/nodes/SuggestionNode.tsx",
+    "frontend/src/workspace/nodes/SuggestionNode.test.tsx",
+    "frontend/src/workspace/ResearchEditor.tsx"
+  ]
+}

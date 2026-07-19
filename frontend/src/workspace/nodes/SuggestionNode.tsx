@@ -28,20 +28,23 @@ export function SuggestionCard({
   suggestion,
   suggestionId,
   onDecision,
+  onApply,
 }: {
   suggestion: CollaborativeSuggestion | null
   suggestionId: string
   onDecision: (decision: SuggestionDecisionKind) => void
+  onApply?: () => void
 }) {
   const [error, setError] = useState<string | null>(null)
-  const decide = (decision: SuggestionDecisionKind) => {
+  const act = (operation: () => void) => {
     setError(null)
     try {
-      onDecision(decision)
+      operation()
     } catch (value) {
       setError(value instanceof Error ? value.message : String(value))
     }
   }
+  const decide = (decision: SuggestionDecisionKind) => act(() => onDecision(decision))
 
   if (!suggestion) {
     return (
@@ -77,6 +80,12 @@ export function SuggestionCard({
           <button type="button" className="btn sm ghost" onClick={() => decide('rejected')}>Reject</button>
         </div>
       ) : null}
+      {suggestion.status === 'accepted' && onApply ? (
+        <div className="suggestion-actions" aria-label="Apply accepted suggestion">
+          <button type="button" className="btn sm primary" onClick={() => act(onApply)}>Apply to draft</button>
+          <span>Replaces this card with a review policy block only if the policy content is unchanged.</span>
+        </div>
+      ) : null}
       {suggestion.status === 'conflicted' ? (
         <p role="alert">Two collaborators made opposite decisions while disconnected. Review the decision history before applying this proposal.</p>
       ) : null}
@@ -96,7 +105,7 @@ export function SuggestionCard({
 }
 
 function ConnectedSuggestionCard({ suggestionId }: { suggestionId: string }) {
-  const { suggestions, decide } = useSuggestionState()
+  const { suggestions, decide, apply } = useSuggestionState()
   const suggestion = suggestions.find(({ id }) => id === suggestionId) ?? null
   return (
     <SuggestionCard
@@ -106,6 +115,11 @@ function ConnectedSuggestionCard({ suggestionId }: { suggestionId: string }) {
         if (!suggestion) throw new Error('Suggestion is unavailable')
         decide(suggestionId, suggestion.proposal.eventId, decision)
       }}
+      onApply={suggestion?.status === 'accepted' ? () => {
+        const accepted = suggestion.decisions.find(({ decision }) => decision === 'accepted')
+        if (!accepted) throw new Error('Accepted decision is unavailable')
+        apply(suggestionId, suggestion.proposal.eventId, accepted.eventId)
+      } : undefined}
     />
   )
 }

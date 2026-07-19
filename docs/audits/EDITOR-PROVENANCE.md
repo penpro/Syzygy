@@ -53,6 +53,7 @@
 | `frontend/src/workspace/scenarioGenerationRuntime.ts` | Penumbra original | Optional local-stream and native-approved remote-provider adapters for the shared generation contract |
 | `frontend/src/workspace/ScenarioGenerator.tsx` | Penumbra original | Manual-safe local/API variant controls, non-destructive regeneration, and complete parent-attributed lineage projection |
 | `frontend/src/workspace/suggestionModel.ts` | Penumbra original | Immutable peer-namespaced proposal/decision ledger with exact-proposal guards, replay safety, model provenance, and explicit concurrent decision conflicts |
+| `frontend/src/workspace/suggestionApplication.ts` | Penumbra original | Deterministic suggestion-excluding policy fingerprint plus exact proposal/decision/editor-revision and marker-identity guards for linked review-policy application |
 | `frontend/src/workspace/SuggestionContext.tsx` | Penumbra original | Live project-Y.Doc suggestion projection and attributed human proposal/decision actions |
 | `frontend/src/workspace/nodes/SuggestionNode.tsx` | Penumbra original | Stable-ID-only live suggestion preview with explicit accept/reject, missing-target, decided, and conflict states |
 | `frontend/src/workspace/ScenarioReferenceContext.tsx` | Penumbra original | Live project-Y.Doc scenario projection used by the editor toolbar and rename-safe reference rendering |

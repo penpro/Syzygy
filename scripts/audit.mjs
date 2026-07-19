@@ -205,6 +205,9 @@ const suggestionPolicyVersionSource = text('frontend/src/workspace/policyVersion
 const suggestionPolicyVersionTestSource = text('frontend/src/workspace/policyVersionModel.test.ts')
 const suggestionInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
 const suggestionInspectionTestSource = text('frontend/src/workspace/researchStateInspection.test.ts')
+const suggestionApplicationSource = text('frontend/src/workspace/suggestionApplication.ts')
+const suggestionApplicationTestSource = text('frontend/src/workspace/suggestionApplication.test.ts')
+const suggestionApplicationIntegrationSource = text('frontend/src/workspace/suggestionApplicationIntegration.test.ts')
 const presenceModelSource = text('frontend/src/workspace/presenceModel.ts')
 const presenceModelTestSource = text('frontend/src/workspace/presenceModel.test.ts')
 const presenceRegistrySource = text('frontend/src/workspace/presenceRegistry.ts')
@@ -311,6 +314,25 @@ record(
     editorLedgerSource.includes('"id": "P-08", "phase": 6, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/SUGGESTION-DECISIONS-2026-07-18.json')),
   'immutable proposal/decision ledger, human/model provenance, explicit conflicts, stable-ID-only editor/version markers, content-free inspection, and truthful P-08 status are present',
+)
+record(
+  'accepted suggestions apply as linked policy blocks only against exact unchanged state',
+  suggestionApplicationSource.includes('policy-content-v1-') &&
+    suggestionApplicationSource.includes("kind !== 'suggestion'") &&
+    suggestionApplicationSource.includes("suggestion.status !== 'accepted'") &&
+    suggestionApplicationSource.includes('expectedDecisionEventId') &&
+    suggestionApplicationSource.includes('current.revision !== input.expectedDocumentRevision') &&
+    suggestionApplicationSource.includes('The policy content changed since this suggestion was proposed') &&
+    suggestionApplicationSource.includes('controller.replaceBlocks(input.expectedDocumentRevision, next)') &&
+    suggestionApplicationTestSource.includes('replaces exactly one accepted marker with a linked review policy block') &&
+    suggestionApplicationTestSource.includes('lets the editor revision guard stop a race between preparation and replacement') &&
+    suggestionApplicationIntegrationSource.includes('replaces the live Lexical review card with one stable review policy node') &&
+    suggestionNodeSource.includes('Apply to draft') &&
+    suggestionNodeTestSource.includes('only if the policy content is unchanged') &&
+    suggestionContextSource.includes('applyAcceptedSuggestion(shared.discussions, controller') &&
+    editorLedgerSource.includes('"id": "P-24", "phase": 7, "status": "implemented_unverified"') &&
+    existsSync(join(root, 'docs/audits/runs/SUGGESTION-APPLICATION-2026-07-19.json')),
+  'deterministic marker-excluding source revision, exact accepted decision/current editor guards, zero-write stale/collision/race tests, real Lexical linked policy replacement, explicit product action, and truthful P-24 status are present',
 )
 record(
   'presence remains bounded, ephemeral, disconnect-safe, and transport-honest',

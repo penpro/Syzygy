@@ -99,7 +99,7 @@ Every row needs evidence in `docs/audits/CAPABILITIES.json` before becoming `ver
 | P-21 | context labels | add/remove/filter/concurrent rename |
 | P-22 | scenario branching | exact parent graph and integrity failures survive persisted offline import |
 | P-23 | attribution | display-name change preserves historical identity |
-| P-24 | policy suggestion | validated structured result and accept/reject |
+| P-24 | policy suggestion | accepted typed proposal applies only to the exact unchanged draft |
 | P-25 | discussion prompt | cancellation/failure and prompt fixture |
 | P-26 | heuristics checker | pass/fail/uncertain, rationale, cited spans, retry |
 | P-27 | immutable policy version | content hash prevents mutation |
@@ -142,9 +142,8 @@ retain exact source revision plus human/model provenance; decisions retain revie
 the exact proposal event. Stale/reused identities fail before mutation, disconnected opposite
 decisions remain as an explicit conflict, and no proposal/decision operation applies policy text.
 Semantic automation and immutable versions retain only `[suggestion:<stable-id>]`; MCP inspection
-omits proposal and decision bodies. Authenticated identity, packaged two-client interaction, model
-generation, and revision-guarded accepted-text application remain open, so P-08 is
-`implemented_unverified`.
+omits proposal and decision bodies. Authenticated identity, packaged two-client interaction, and model generation remain open, so
+P-08 is `implemented_unverified`; accepted-text application is tracked separately as P-24.
 
 P-11 now has bounded schema-versioned ephemeral awareness, an identity-safe active-provider
 registry, migrated researcher identity in Lexical, remote cursor classes, an accessible capability
@@ -649,7 +648,13 @@ turn/revision content, and workflow state through portable export, local persist
 IndexedDB reopen. Missing-parent failures remain visible after import. Packaged two-install interaction
 is still open, so it is `implemented_unverified`.
 
-Status snapshot on 2026-07-19: the 42-row ledger has 36 `implemented_unverified`, 6 `planned`,
+P-24 now separates human acceptance from draft mutation. Its product action binds the exact
+proposal and accepted decision to a deterministic unchanged-policy fingerprint, exact live editor
+revision, unique marker, and stable policy identity; the real Lexical controller replaces only that
+card with one review policy block. Authenticated identity, packaged two-client interaction, MCP
+application, partial edit, and semantic-quality proof remain open, so it is `implemented_unverified`.
+
+Status snapshot on 2026-07-19: the 42-row ledger has 37 `implemented_unverified`, 5 `planned`,
 and 0 `verified` capabilities. The shipped local editor, Drive research path, local engine, and MCP
 pilot are meaningful foundations, but none substitutes for the decisive two-install, convergence,
 portable-archive, workflow, accessibility, and adversarial gates below. MCP setup/onboarding is

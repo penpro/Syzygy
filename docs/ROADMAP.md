@@ -124,10 +124,17 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   disconnected opposite decisions remain visible as a conflict, and proposal/decision writes do
   not apply policy text. The editor, semantic automation, immutable versions, and bounded MCP
   inspection carry only stable identity or content-free metadata. Focused tests and the production
-  build pass. Authenticated identity, packaged two-client interaction, model generation, and
-  revision-guarded application of accepted text remain open, so status is
-  `implemented_unverified`. Evidence:
+  build pass. Authenticated identity, packaged two-client interaction, and model generation
+  remain open, so P-08 status is `implemented_unverified`. Evidence:
   `docs/audits/runs/SUGGESTION-DECISIONS-2026-07-18.json`.
+- P-24 adds a distinct revision-guarded **Apply to draft** action for accepted, non-conflicted
+  suggestions. A deterministic semantic fingerprint excludes review cards but detects any policy
+  content change; application also requires the exact proposal, accepted decision, live editor
+  revision, one marker, and a free stable policy identity. The existing controller rechecks the
+  revision during replacement, and the real Lexical gate proves the card becomes one linked review
+  policy block. Authenticated identity, packaged two-client interaction, MCP application, partial
+  edit, and semantic-quality claims remain open, so status is `implemented_unverified`. Evidence:
+  `docs/audits/runs/SUGGESTION-APPLICATION-2026-07-19.json`.
 - P-11 now has a provider-neutral bounded presence model, identity-safe active-provider registry,
   installation-identity Lexical wiring, remote cursor theme, product strip, and content-free MCP
   counts. The Memory provider now exchanges real awareness packets and removal tombstones:
@@ -397,8 +404,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **42 capabilities**: **36 are
-`implemented_unverified`, 6 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **42 capabilities**: **37 are
+`implemented_unverified`, 5 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, remaining crash/recovery local
 lifecycle, Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned

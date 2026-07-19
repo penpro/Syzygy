@@ -97,9 +97,11 @@ describe('suggestion node', () => {
     expect(pending).toContain('Reject')
     expect(pending).toContain('source revision lexical-source-a')
 
-    const accepted = renderToStaticMarkup(<SuggestionCard suggestion={suggestion('accepted')} suggestionId="suggestion-a" onDecision={() => undefined} />)
+    const accepted = renderToStaticMarkup(<SuggestionCard suggestion={suggestion('accepted')} suggestionId="suggestion-a" onDecision={() => undefined} onApply={() => undefined} />)
     expect(accepted).toContain('accepted')
     expect(accepted).toContain('Reviewer A')
+    expect(accepted).toContain('Apply to draft')
+    expect(accepted).toContain('only if the policy content is unchanged')
     expect(accepted).not.toContain('>Accept<')
 
     const conflict = renderToStaticMarkup(<SuggestionCard suggestion={suggestion('conflicted')} suggestionId="suggestion-a" onDecision={() => undefined} />)

@@ -40,6 +40,7 @@ import { ResearchTableOfContents } from './ResearchTableOfContents'
 import { ResearchPresence } from './ResearchPresence'
 import { ScenarioReferenceProvider, useScenarioReferenceState } from './ScenarioReferenceContext'
 import { SuggestionProvider, useSuggestionState } from './SuggestionContext'
+import { suggestionSourceRevision } from './suggestionApplication'
 
 const editorTheme = {
   collaboration: {
@@ -178,8 +179,8 @@ function Toolbar({ shared }: { shared: boolean }) {
           onClick={() => {
             setSuggestionError(null)
             try {
-              const revision = getAutomationEditorController(projectId).read().revision
-              const suggestion = createHumanSuggestion(suggestionText.trim(), revision)
+              const snapshot = getAutomationEditorController(projectId).read()
+              const suggestion = createHumanSuggestion(suggestionText.trim(), suggestionSourceRevision(snapshot.blocks))
               editor.update(
                 () => $getRoot().append($createSuggestionNode(suggestion.id)),
                 { tag: 'syzygy-suggestion-propose' },

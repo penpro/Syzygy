@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "capability": "P-22",
+  "date": "2026-07-19",
+  "status": "implemented_unverified",
+  "claim": "A real collaborative scenario branch graph retains stable ancestry, content, revision metadata, and integrity failures through portable export, local import persistence, and disconnected reopen.",
+  "verified": [
+    "The fixture uses the production scenario domain model rather than placeholder values in the scenarios collection",
+    "One root, two sibling branches, and one nested branch retain exact stable parent identities",
+    "Scenario background, workflow state, ordered turns, immutable turn revisions, edits, and attribution round-trip exactly",
+    "Portable import rebinds the Drive-origin manifest to local transport without changing shared scenario state",
+    "The imported Yjs document persists through the production LocalProjectProvider and reopens from IndexedDB without a network provider",
+    "The complete graph inspector projection is identical before export, after decode, and after disconnected reopen",
+    "Deleting the root before export produces missing-parent failures that remain identical after import instead of being laundered",
+    "Existing archive corruption, identity, collision, size, and orphan-state gates remain green"
+  ],
+  "headlessResults": {
+    "focusedTestFiles": 3,
+    "focusedTestsPassed": 14,
+    "focusedTestsFailed": 0,
+    "productionBuild": "passed",
+    "repositoryAudit": "passed",
+    "fullSupervisedCheck": "passed",
+    "fullSupervisedRunId": "20260719-095251-08585b",
+    "fullTestFilesPassed": 76,
+    "fullTestFilesSkipped": 1,
+    "fullTestsPassed": 311,
+    "fullTestsExpectedFail": 1,
+    "fullTestsSkipped": 1
+  },
+  "limitations": [
+    "The proof uses fake IndexedDB in one headless process; it does not reproduce a packaged transfer between two physical installations.",
+    "The archive is an offline handoff and does not preserve a live Drive collaboration connection after import.",
+    "This proves exact graph transport and integrity retention, not a dedicated scenario-pack schema or selective scenario export.",
+    "Malformed graph state remains visible and read-only after import; the archive decoder does not silently repair research history."
+  ],
+  "sources": [
+    "frontend/src/workspace/projectArchive.ts",
+    "frontend/src/workspace/projectArchive.test.ts",
+    "frontend/src/workspace/scenarioArchiveGraph.test.ts",
+    "frontend/src/workspace/scenarioModel.ts",
+    "frontend/src/workspace/localProvider.ts"
+  ]
+}

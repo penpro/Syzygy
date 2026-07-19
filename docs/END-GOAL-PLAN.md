@@ -97,7 +97,7 @@ Every row needs evidence in `docs/audits/CAPABILITIES.json` before becoming `ver
 | P-19 | voting | per-user idempotency and concurrency tests |
 | P-20 | flags/notes | author, timestamp, resolve lifecycle |
 | P-21 | context labels | add/remove/filter/concurrent rename |
-| P-22 | scenario branching | parent graph survives export/import |
+| P-22 | scenario branching | exact parent graph and integrity failures survive persisted offline import |
 | P-23 | attribution | display-name change preserves historical identity |
 | P-24 | policy suggestion | validated structured result and accept/reject |
 | P-25 | discussion prompt | cancellation/failure and prompt fixture |
@@ -644,7 +644,12 @@ input gates, disconnected convergence, engine-free product controls, and content
 Packaged two-install interaction, authenticated identity, semantic quality, and evaluation remain
 unproven, so it is `implemented_unverified`.
 
-Status snapshot on 2026-07-19: the 42-row ledger has 35 `implemented_unverified`, 7 `planned`,
+P-22 now has a real-domain four-node branch fixture that preserves stable ancestry, ordered
+turn/revision content, and workflow state through portable export, local persistence, and disconnected
+IndexedDB reopen. Missing-parent failures remain visible after import. Packaged two-install interaction
+is still open, so it is `implemented_unverified`.
+
+Status snapshot on 2026-07-19: the 42-row ledger has 36 `implemented_unverified`, 6 `planned`,
 and 0 `verified` capabilities. The shipped local editor, Drive research path, local engine, and MCP
 pilot are meaningful foundations, but none substitutes for the decisive two-install, convergence,
 portable-archive, workflow, accessibility, and adversarial gates below. MCP setup/onboarding is

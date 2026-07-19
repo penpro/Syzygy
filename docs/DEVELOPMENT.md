@@ -139,9 +139,12 @@ reserved shared collection through IndexedDB without a network provider, and rej
 hashes, future schemas, unknown envelope/manifest fields, project/document collisions, identity
 mismatch, oversized input, and different orphaned local state. The server-rendered UI contract
 requires import with no current project, disables export before the live document is ready, and
-announces errors. This is engine-free, fake-IndexedDB evidence; S-04 remains
-`implemented_unverified` until a packaged archive is exported on one clean installation and
-imported offline on a second clean installation.
+announces errors. `scenarioArchiveGraph.test.ts` is the additional P-22 gate: a four-node,
+two-level graph with ordered turn/revision content must survive archive decoding, local persistence,
+and disconnected IndexedDB reopen exactly, while a missing-parent integrity failure must remain
+visible rather than being laundered by import. This is engine-free, fake-IndexedDB evidence; P-22
+and S-04 remain `implemented_unverified` until packaged two-install interaction is reproduced.
+Evidence: `docs/audits/runs/SCENARIO-BRANCH-ARCHIVE-2026-07-19.json`.
 
 The editor structure slice is covered by `ResearchEditorFormatting.test.ts`,
 `editorStructure.test.ts`, `ResearchTableOfContents.ui.test.ts`, and `PolicyBlockNode.test.ts`.

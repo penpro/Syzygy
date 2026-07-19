@@ -127,6 +127,7 @@ record(
 
 const projectArchiveSource = text('frontend/src/workspace/projectArchive.ts')
 const projectArchiveTestSource = text('frontend/src/workspace/projectArchive.test.ts')
+const scenarioArchiveGraphTestSource = text('frontend/src/workspace/scenarioArchiveGraph.test.ts')
 const projectArchiveUiSource = text('frontend/src/workspace/ProjectArchiveControls.tsx')
 const projectArchiveUiTestSource = text('frontend/src/workspace/ProjectArchiveControls.ui.test.ts')
 const projectStoreSource = text('frontend/src/store.ts')
@@ -143,14 +144,18 @@ record(
     projectArchiveTestSource.includes('round-trips every shared collection with stable identity and a local import binding') &&
     projectArchiveTestSource.includes('persists an imported archive and reopens it from IndexedDB without a network provider') &&
     projectArchiveTestSource.includes('refuses to merge an archive with different orphaned local state') &&
+    scenarioArchiveGraphTestSource.includes('survives export, local import persistence, and disconnected reopen with exact content and ancestry') &&
+    scenarioArchiveGraphTestSource.includes('does not launder a missing-parent integrity failure during archive import') &&
     projectArchiveUiSource.includes('subscribeAutomationProjectDocument(project.id') &&
     projectArchiveUiSource.includes('assertProjectArchiveImportAvailable(decoded.manifest, useStore.getState().projects)') &&
     projectArchiveUiSource.includes('if (file.size > PROJECT_ARCHIVE_MAX_FILE_BYTES)') &&
     projectArchiveUiTestSource.includes('keeps import available without an existing project') &&
     projectStoreSource.includes('addImportedProject: (value) =>') &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "S-04", "phase": 3, "status": "implemented_unverified"') &&
-    existsSync(join(root, 'docs/audits/runs/PORTABLE-ARCHIVE-2026-07-16.json')),
-  'checksummed exact-state envelope, bounded input, fail-closed manifest/document identity, local rebinding, collision/orphan refusal, offline IndexedDB reopen, accessible product controls, and truthful S-04 status are present',
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-22", "phase": 6, "status": "implemented_unverified"') &&
+    existsSync(join(root, 'docs/audits/runs/PORTABLE-ARCHIVE-2026-07-16.json')) &&
+    existsSync(join(root, 'docs/audits/runs/SCENARIO-BRANCH-ARCHIVE-2026-07-19.json')),
+  'checksummed exact-state envelope, bounded input, fail-closed manifest/document identity, local rebinding, collision/orphan refusal, exact scenario graph and integrity retention, offline IndexedDB reopen, accessible product controls, and truthful P-22/S-04 statuses are present',
 )
 
 const editorStructureSource = text('frontend/src/workspace/editorStructure.ts')

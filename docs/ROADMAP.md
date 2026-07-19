@@ -306,6 +306,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   closed. The product panel now exposes engine-free create/select/edit/status, ordered turn
   addition, and integrity-error states. Turn revision UI, generation, response variants,
   flags/notes/labels, evaluation, and portable scenario packs remain open.
+- P-22 now proves the real scenario domain graph—not placeholder objects—survives portable export,
+  local import persistence, and disconnected IndexedDB reopen. A root, sibling branches, a nested
+  branch, workflow state, ordered turns, and immutable turn/edit attribution round-trip exactly.
+  Missing-parent integrity failures also survive instead of being laundered. Packaged two-install
+  interaction remains open, so status is `implemented_unverified`. Evidence:
+  `docs/audits/runs/SCENARIO-BRANCH-ARCHIVE-2026-07-19.json`.
 - The existing `inspect_research_state` MCP self-check now reports bounded scenario metadata and
   validates scenario records plus missing/cyclic branch ancestry alongside heuristics and immutable
   history. Scenario background, turn content, and revision bodies remain excluded, and the route
@@ -391,8 +397,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **42 capabilities**: **35 are
-`implemented_unverified`, 7 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **42 capabilities**: **36 are
+`implemented_unverified`, 6 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, remaining crash/recovery local
 lifecycle, Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned

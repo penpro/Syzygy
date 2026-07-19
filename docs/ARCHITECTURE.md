@@ -146,7 +146,10 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   and document identity, refuses manifest/document collisions and different orphaned IndexedDB
   state, resets transport to local, persists before opening, and never carries settings, model
   configuration, OAuth state, or provider credentials. `ProjectArchiveControls.tsx` exposes the
-  same engine-free import path with or without an existing project.
+  same engine-free import path with or without an existing project. Because the archive carries
+  exact Yjs state, stable scenario IDs, parent IDs, ordered turns, revision history, and graph
+  integrity failures survive local rebinding and disconnected IndexedDB reopen without a parallel
+  scenario export format.
 - `workspace/driveProjectDiscovery.ts` keeps the selected-workspace refresh used by MCP/LAN
   diagnostics. It produces explicit checked-folder/count results and a bounded, content-free
   diagnostic projection. The product browser separately calls the native bounded cross-workspace

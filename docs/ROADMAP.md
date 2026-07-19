@@ -179,6 +179,19 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   and packaged two-install interaction remain open, so status is `implemented_unverified`. Evidence:
   `docs/audits/runs/HEURISTIC-CHECKER-2026-07-19.json`.
 
+- P-30 adds a persistent versioned scenario-evaluation queue. Each job freezes one verified
+  immutable policy version, exact scenario revisions, one provider/model route, unique execution
+  identities, and at most 200 items/three attempts under aggregate bounds. Peer-namespaced strict
+  events persist begin before provider work, commit result plus completion atomically, reject forks
+  and identity reuse, and reopen interrupted attempts without rerunning completed items. The
+  sequential runner has 30-second progress heartbeats and a hard two-minute item deadline; pause,
+  cancel, explicit retry, local-off behavior, and local/OpenAI/Anthropic/Gemini/xAI routing are
+  product-visible. Remote items retain native Send once approval. MCP inspection exposes only
+  counts/integrity and omits every research/result body. Live-provider quality, authenticated
+  identity, packaged two-install crash/convergence, baseline comparison/export, and scenario-pack
+  interchange remain open, so status is `implemented_unverified`. Evidence:
+  `docs/audits/runs/SCENARIO-RERUN-QUEUE-2026-07-19.json`.
+
 - The first remote-model execution boundary is now headlessly testable with a bounded product caller.
   Rust constructs and normalizes an OpenAI Responses one-shot request, requires matching content
   disclosure, forces `store:false`, accepts only HTTPS or literal loopback test endpoints, bounds
@@ -415,12 +428,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **42 capabilities**: **38 are
-`implemented_unverified`, 4 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **42 capabilities**: **39 are
+`implemented_unverified`, 3 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, remaining crash/recovery local
-lifecycle, Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned
-evaluation. The definitive contracts and gates remain in `END-GOAL-PLAN.md` and
+lifecycle, Drive-backed Yjs convergence, optional presence, baseline comparison/export, an open scenario-pack schema, and network-trace
+certification. The definitive contracts and gates remain in `END-GOAL-PLAN.md` and
 `docs/audits/CAPABILITIES.json`.
 
 ## Next (in intended order)

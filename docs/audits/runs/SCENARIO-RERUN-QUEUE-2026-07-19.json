@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "capability": "P-30",
+  "date": "2026-07-19",
+  "status": "implemented_unverified",
+  "claim": "Exact scenario revisions can be evaluated against one verified immutable policy version through a bounded, sequential, persistent, pause/resume/retry queue using optional local inference or native-approved API routes.",
+  "verified": [
+    "Queue definitions bind one verified policy version, exact scenario revisions, one provider/model route, unique run/result identities, creator attribution, at most 200 items, at most three attempts, and a two-megabyte aggregate revision bound",
+    "Definitions, controls, item attempts, failures, and results use strict peer-namespaced collaborative records with exact replay idempotence, collision/fork rejection, and creator-only controls",
+    "A begin event is persisted before provider work; result plus completion event commit in one Yjs transaction; a crash after begin reopens as interrupted and resumes the same attempt without another begin",
+    "The runner executes one item at a time, rejects duplicate in-process runners, emits progress heartbeats no slower than 30 seconds, and enforces a hard two-minute item deadline",
+    "Pause/cancel abort the active provider best-effort without erasing progress; provider failures are sanitized, bounded, and explicit; retry cannot exceed the job ceiling",
+    "Completed items cannot run again and exact completion replay produces no second collaborative update",
+    "Local, OpenAI, Anthropic, Gemini, and xAI routes share one strict handled/unhandled/uncertain contract with mandatory response, rationale, uncertainty, and route provenance",
+    "Remote execution prepares only one exact policy version and one exact scenario revision for each native Send once approval; adapters expose no tools or ambient source authority",
+    "The scenario workspace creates paused queues, selects scenarios/routes, controls creator-owned execution, and shows every shared result while preserving manual/no-AI work",
+    "Research-state/MCP inspection exposes only queue/status/route/item/integrity counts and orphan IDs; policy/scenario/result/rationale/uncertainty bodies are omitted with secret canaries",
+    "Focused product/domain/runtime/runner/inspection tests and the production frontend build pass"
+  ],
+  "headlessResults": {
+    "focusedTestFiles": 7,
+    "focusedTestsPassed": 30,
+    "focusedTestsFailed": 0,
+    "productionBuild": "passed",
+    "repositoryAudit": "passed",
+    "fullSupervisedCheck": "passed",
+    "fullSupervisedRunId": "20260719-211543-707b58",
+    "fullTestFilesPassed": 87,
+    "fullTestFilesSkipped": 1,
+    "fullTestsPassed": 356,
+    "fullTestsExpectedFail": 1,
+    "fullTestsSkipped": 1,
+    "rustCheck": "passed",
+    "assetReembed": "Compiling app v0.1.19 observed"
+  },
+  "limitations": [
+    "No live paid-provider call, model-quality benchmark, or semantic correctness claim is included; provider behavior is injected and deterministic.",
+    "Researcher identity and timestamps are installation/caller supplied and are not authenticated or trusted across installs.",
+    "No packaged two-physical-install queue convergence or crash-at-IndexedDB-durability run is included.",
+    "Remote queues wait for native Send once approval per item; unattended blanket disclosure is intentionally not implemented.",
+    "An offline collaborator change not yet delivered cannot be predicted; stale exact scenario revisions require a new queue.",
+    "Baseline comparison/export is tracked separately as P-31, and the open scenario-pack schema is tracked as P-33."
+  ],
+  "sources": [
+    "frontend/src/workspace/scenarioEvaluation.ts",
+    "frontend/src/workspace/scenarioEvaluation.test.ts",
+    "frontend/src/workspace/scenarioEvaluationRuntime.ts",
+    "frontend/src/workspace/scenarioEvaluationRuntime.test.ts",
+    "frontend/src/workspace/scenarioRerunQueue.ts",
+    "frontend/src/workspace/scenarioRerunQueue.test.ts",
+    "frontend/src/workspace/scenarioRerunRunner.ts",
+    "frontend/src/workspace/scenarioRerunRunner.test.ts",
+    "frontend/src/workspace/ScenarioRerunQueuePanel.tsx",
+    "frontend/src/workspace/ScenarioRerunQueuePanel.ui.test.tsx",
+    "frontend/src/workspace/ScenarioWorkspace.tsx",
+    "frontend/src/workspace/researchStateInspection.ts",
+    "frontend/src/workspace/researchStateInspection.test.ts",
+    "scripts/audit.mjs"
+  ]
+}

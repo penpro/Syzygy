@@ -24,6 +24,7 @@ import {
 import { subscribeAutomationProjectDocument } from './workspaceAutomationRegistry'
 import { ScenarioGenerator } from './ScenarioGenerator'
 import { HeuristicWorkspace } from './HeuristicWorkspace'
+import { ScenarioRerunQueuePanel } from './ScenarioRerunQueuePanel'
 
 interface ScenarioWorkspaceContentProps {
   ready: boolean
@@ -34,6 +35,7 @@ interface ScenarioWorkspaceContentProps {
   integrityIssues: string[]
   generation?: ReactNode
   heuristics?: ReactNode
+  reruns?: ReactNode
   createOpen: boolean
   createTitle: string
   createBackground: string
@@ -70,6 +72,7 @@ export function ScenarioWorkspaceContent({
   integrityIssues,
   generation,
   heuristics,
+  reruns,
   createOpen,
   createTitle,
   createBackground,
@@ -231,6 +234,7 @@ export function ScenarioWorkspaceContent({
         </section>
       )}
 
+      {reruns}
       {heuristics}
     </div>
   )
@@ -404,6 +408,7 @@ export function ScenarioWorkspace({ project }: { project: ResearchProjectManifes
       voteSummary={voteSummary} currentVote={currentVote} integrityIssues={snapshot.issues}
       generation={doc && selected ? <ScenarioGenerator key={selected.id} project={project} doc={doc} scenario={selected} /> : undefined}
       heuristics={doc ? <HeuristicWorkspace project={project} doc={doc} /> : undefined}
+      reruns={doc ? <ScenarioRerunQueuePanel project={project} doc={doc} /> : undefined}
       createOpen={createOpen} createTitle={createTitle} createBackground={createBackground}
       editTitle={editTitle} editBackground={editBackground} turnRole={turnRole} turnContent={turnContent}
       error={error} onSelect={selectScenario} onOpenCreate={() => { setCreateOpen(true); setError('') }}

@@ -112,7 +112,7 @@ editable in Settings and old attribution remains visually historical.
 Restore is a deliberate two-step action on a non-head checkpoint. **Prepare restore** reveals the
 exact short checkpoint ID, a cancel action, and **Restore as new version**. The copy states that the
 live draft is replaced, a new child is created on the current head, and existing versions remain.
-The UI identifies local versus Drive-shared projects precisely. Scenario response generation is available; scenario evaluation and installed-network real-time presence remain unclaimed.
+The UI identifies local versus Drive-shared projects precisely. Scenario response generation and versioned scenario-rerun evaluation are available; baseline comparison/export and installed-network real-time presence remain unclaimed.
 
 Portable project movement is available from both the empty workspace and an open project. **Export
 offline copy** stays disabled until the live collaboration document is ready; **Import offline
@@ -183,6 +183,17 @@ expandable policy quotes and offsets, human attribution, provider/model, run, an
 **Run again** creates another immutable shared result; it does not overwrite history or alter the
 draft. Cancellation or stale-source failure saves nothing. Copy must not call a model verdict true,
 validated, consensus, or a substitute for researcher review.
+
+The **Versioned scenario reruns** surface sits in the shared scenario workspace. It requires a
+verified immutable policy head, defaults to ready non-archived scenarios, and creates a paused queue
+before any model work. Provider/model and every included scenario are explicit. Local-unavailable
+copy preserves queues, results, and manual research; remote copy states that one exact policy version
+and one exact scenario revision are prepared for each native **Send once** approval. Creator controls
+are **Start / resume**, **Continue queue**, **Pause**, **Cancel**, and bounded **Retry item**. Every
+item shows state/attempt, handled/unhandled/uncertain response, rationale, uncertainty, route/model,
+attribution, and run identity. Collaborators can inspect results but installation-provided identity
+is not authentication. Copy must not imply that evaluation is truth, consensus, a baseline
+comparison, or an automatic policy edit.
 
 The editor uses Plex Serif for document content and Plex Mono metadata stamps, with every surface,
 border, status, and selection derived from theme tokens.

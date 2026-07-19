@@ -6,6 +6,7 @@ import { getProjectSharedTypes, projectStateFingerprint } from './projectModel'
 import { listPolicyVersions, readPolicyVersionHead, readPolicyVersionLineage } from './policyVersionModel'
 import type { PolicyVersion } from './policyVersionModel'
 import { inspectScenarioGraph, listScenarios } from './scenarioModel'
+import { inspectScenarioRerunQueues, listScenarioRerunJobs } from './scenarioRerunQueue'
 import { inspectScenarioAnnotations, listScenarioAnnotationSummaries } from './scenarioAnnotationModel'
 import { inspectScenarioVotes, listScenarioVoteSummaries } from './scenarioVoteModel'
 import { inspectScenarioLabels, listScenarioIdsForLabel, listScenarioLabels } from './scenarioLabelModel'
@@ -48,6 +49,8 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   const heuristicCheckInspection = inspectHeuristicCheckResults(discussions, heuristicMap)
   const validScenarios = listScenarios(scenarioMap)
   const scenarioGraph = inspectScenarioGraph(scenarioMap)
+  const scenarioRerunInspection = inspectScenarioRerunQueues(settings, discussions, scenarioMap)
+  const scenarioRerunJobs = listScenarioRerunJobs(settings, discussions)
   const annotationSummaries = listScenarioAnnotationSummaries(discussions)
   const annotationInspection = inspectScenarioAnnotations(discussions, scenarioMap)
   const voteSummaries = listScenarioVoteSummaries(discussions)
@@ -61,6 +64,10 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   const versions = allVersions.filter((version) => version.projectId === expectedProjectId)
   const foreignProjectVersions = allVersions.length - versions.length
   const invalidLineageRecords = countInvalidLineages(versions)
+  const verifiedVersionIds = new Set(versions.map(({ versionId }) => versionId))
+  const orphanRerunPolicyVersionIds = Array.from(new Set(scenarioRerunJobs.flatMap(({ definition }) =>
+    verifiedVersionIds.has(definition.policyVersionId) ? [] : [definition.policyVersionId]))).sort()
+  const foreignProjectRerunJobCount = scenarioRerunJobs.filter(({ definition }) => definition.projectId !== expectedProjectId).length
   const invalidHeuristicRecords = heuristicMap.size - validHeuristics.length
   const invalidVersionRecords = versionMap.size - allVersions.length
   const issues: string[] = []
@@ -68,6 +75,9 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   issues.push(...heuristicExampleInspection.issues)
   issues.push(...heuristicCheckInspection.issues)
   issues.push(...scenarioGraph.issues)
+  issues.push(...scenarioRerunInspection.issues)
+  orphanRerunPolicyVersionIds.forEach((id) => issues.push(`Scenario rerun queue targets missing or invalid policy version ${id}`))
+  if (foreignProjectRerunJobCount) issues.push(`${foreignProjectRerunJobCount} scenario rerun queue(s) belong to another project`)
   issues.push(...annotationInspection.issues)
   issues.push(...voteInspection.issues)
   issues.push(...labelInspection.issues)
@@ -148,6 +158,23 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
         turnRevisionCount: scenario.turns.reduce((total, turn) => total + turn.revisions.length, 0),
         editCount: scenario.edits.length,
       })),
+    },
+    scenarioReruns: {
+      jobCount: scenarioRerunInspection.jobCount,
+      runningCount: scenarioRerunInspection.runningCount,
+      pausedCount: scenarioRerunInspection.pausedCount,
+      cancelledCount: scenarioRerunInspection.cancelledCount,
+      completeCount: scenarioRerunInspection.completeCount,
+      itemCount: scenarioRerunInspection.itemCount,
+      completedItemCount: scenarioRerunInspection.completedItemCount,
+      failedItemCount: scenarioRerunInspection.failedItemCount,
+      interruptedItemCount: scenarioRerunInspection.interruptedItemCount,
+      localJobCount: scenarioRerunJobs.filter(({ definition }) => definition.providerId === 'local').length,
+      remoteJobCount: scenarioRerunJobs.filter(({ definition }) => definition.providerId !== 'local').length,
+      invalidRecords: scenarioRerunInspection.invalidRecords,
+      orphanScenarioIds: scenarioRerunInspection.orphanScenarioIds,
+      orphanPolicyVersionIds: orphanRerunPolicyVersionIds,
+      foreignProjectJobCount: foreignProjectRerunJobCount,
     },
     scenarioVotes: {
       summaryCount: voteInspection.summaryCount,
@@ -245,7 +272,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
     limitations: [
       'inspection itself is read-only; separate revision-guarded MCP tools can mutate scenarios, votes, annotations, labels, and policy versions, but suggestion decisions, heuristic mutation, and broader scenario lifecycle remain unavailable through MCP',
       'presence reports only active provider mode and bounded session counts; Drive polling is explicitly not live presence, and inspection does not prove an underlying transport healthy',
-      'counts and integrity are checked; policy text, suggestion content and decision bodies, heuristic guidance, example bodies/attribution, and heuristic-check rationale, uncertainty, citation text, scenario background/turn content/revision bodies, annotation/voter bodies, label event bodies, edit values, and version notes are omitted',
+      'counts and integrity are checked; policy text, suggestion content and decision bodies, heuristic guidance, example bodies/attribution, and heuristic-check rationale, uncertainty, citation text, scenario background/turn content/revision bodies, scenario-evaluation response/rationale/uncertainty bodies, annotation/voter bodies, label event bodies, edit values, and version notes are omitted',
     ],
   }
 }

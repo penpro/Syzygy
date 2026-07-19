@@ -97,7 +97,7 @@ packaged MCP surface before succeeding.
 | `mcp_setup.rs` | Running-executable discovery plus copy-ready JSON/TOML configuration and connection prompts shared by the UI and MCP. |
 | `platform_contracts.rs` | Machine-readable provider-run, adversarial-review, and researcher-plugin schemas/status exposed to headless MCP clients. |
 | `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses one-shot/SSE plus Anthropic Messages, Gemini Interactions, and xAI Responses one-shot wire contracts have fake-server evidence with bounded controls and sanitized normalization. |
-| `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. The public command accepts a structured question plus labeled source snapshots; Rust derives disclosure categories and provenance IDs from that exact payload. Every ordinary call uses a blocking native dialog to create one-use approval before any vault read or network access. The workspace's optional draft-review and scenario-response panels are product callers; both preserve cancellation, and only validated scenario output enters the collaborative response graph. A separate adversarial command can create/status/revoke an exact-route, bounded, expiring batch authorization. A private, non-executing reservation function atomically proves run/source-ID/route/call-ID checks and route+total decrements, but no command consumes it or calls a model. Fake-network one-shot execution and Rust→TypeScript record validation are proven; live-provider execution is not. |
+| `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. The public command accepts a structured question plus labeled source snapshots; Rust derives disclosure categories and provenance IDs from that exact payload. Every ordinary call uses a blocking native dialog to create one-use approval before any vault read or network access. The workspace's optional draft-review, scenario-response, and versioned scenario-evaluation panels are product callers; both preserve cancellation, and only validated scenario output enters the collaborative response graph. A separate adversarial command can create/status/revoke an exact-route, bounded, expiring batch authorization. A private, non-executing reservation function atomically proves run/source-ID/route/call-ID checks and route+total decrements, but no command consumes it or calls a model. Fake-network one-shot execution and Rust→TypeScript record validation are proven; live-provider execution is not. |
 | `provider_stream.rs` | Incremental provider SSE normalization. The OpenAI decoder handles byte-fragmented Unicode, multiline frames, usage/finish events, unknown future events, sanitized provider errors, and bounded malformed/truncated input. |
 | `credential_vault.rs` | Provider-secret abstraction backed by Windows Credential Manager, macOS Keychain, or Linux Secret Service/keyutils. Unit tests use only a memory implementation; a separate live harness creates and deletes a random OS-store canary. |
 
@@ -261,6 +261,19 @@ Research inspection returns only result counts and integrity, omitting all bodie
 Authenticated identity, semantic/model quality, live paid-provider proof, and packaged two-install
 interaction are not claimed.
 
+`scenarioEvaluation.ts` owns a strict handled/unhandled/uncertain contract over one verified
+immutable policy version and one exact scenario revision. `scenarioEvaluationRuntime.ts` binds
+that envelope to optional local inference or the four native Send-once routes without tools or
+ambient sources. `scenarioRerunQueue.ts` stores immutable job/control/item/result records in
+peer-namespaced existing settings/discussions maps: begin is durable before provider work and result
+plus completion commit atomically. Projection rejects forks, identity reuse, route/version/revision
+mismatch, foreign items, and malformed bounds. `scenarioRerunRunner.ts` is sequential, prevents a
+duplicate runner in one app, resumes interrupted attempts, skips completed work, emits 30-second
+progress heartbeats, and enforces a two-minute item deadline. `ScenarioRerunQueuePanel.tsx` exposes
+paused creation plus creator-only start/pause/cancel/retry while every collaborator can read results.
+Research inspection returns queue/status/route/item/integrity counts and orphan IDs only; all policy,
+scenario, response, rationale, and uncertainty bodies remain omitted.
+
 `scenarioModel.ts` stores each scenario, ordered turn collection, turn revision collection, and
 scenario edit history as nested Yjs types. Public scenario, turn, and edit identities are stored
 under peer-specific internal keys so disconnected collisions survive merge and make projection
@@ -273,7 +286,7 @@ makes graph-integrity failures read-only. P-16 adds optional generation without 
 dependent on AI: local inference is available only while the model is loaded, remote routes reuse
 the native one-shot disclosure boundary, and both write through the attributed response domain only
 if the selected scenario revision is unchanged. Turn revision editing, arbitrary historical-parent regeneration, response conflict resolution,
-evaluation, annotations, labels, and scenario-pack export remain outside this slice.
+baseline comparison/export, and scenario-pack export remain outside this slice.
 
 `scenarioVoteModel.ts` stores immutable vote events in peer-specific, version-prefixed buckets
 inside the reserved discussions collection. This avoids namespace collisions with future notes and

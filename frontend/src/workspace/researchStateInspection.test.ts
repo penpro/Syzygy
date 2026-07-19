@@ -4,8 +4,10 @@ import { buildHeuristicCheckRequest, HEURISTIC_CHECK_CONTRACT_VERSION } from './
 import { commitHeuristicCheckResult } from './heuristicCheckResultModel'
 import { createProjectDocument, getProjectSharedTypes } from './projectModel'
 import { commitPolicyVersion } from './policyVersionModel'
+import { buildScenarioEvaluationRequest, SCENARIO_EVALUATION_CONTRACT_VERSION, SCENARIO_EVALUATION_PROMPT_VERSION } from './scenarioEvaluation'
+import { beginScenarioRerunItem, completeScenarioRerunItem, controlScenarioRerunJob, createScenarioRerunJob } from './scenarioRerunQueue'
 import { inspectResearchState } from './researchStateInspection'
-import { createScenario, deleteScenario } from './scenarioModel'
+import { createScenario, deleteScenario, readScenario } from './scenarioModel'
 import { createScenarioAnnotation } from './scenarioAnnotationModel'
 import { castScenarioVote } from './scenarioVoteModel'
 import { createScenarioLabel, setScenarioLabelAssignment } from './scenarioLabelModel'
@@ -21,7 +23,7 @@ async function populatedDocument() {
     id: 'evidence-quality', title: 'Evidence quality', guidance: 'Secret guidance is omitted.', priority: 'required',
     authorId: 'researcher-1', timestamp: 10, editId: 'create-evidence-quality',
   })
-  createScenario(scenarios, {
+  const sourceScenario = createScenario(scenarios, {
     id: 'source-challenge', title: 'Source challenge', background: 'Secret scenario background is omitted.',
     authorId: 'researcher-1', timestamp: 10, editId: 'create-source-challenge',
     turns: [{ id: 'challenge-question', role: 'user', content: 'Secret scenario turn is omitted.', editId: 'create-challenge-question' }],
@@ -74,6 +76,38 @@ async function populatedDocument() {
     blocks: [{ kind: 'policy', policyId: 'rule-1', status: 'review', text: 'Secret policy text is omitted.' }],
     participantId: 'researcher-1', displayName: 'Researcher One', createdAt: 11, note: 'Secret note is omitted.',
   })
+  const queue = createScenarioRerunJob(settings, {
+    jobId: 'inspection-rerun', project: manifest, policyVersion: version,
+    providerId: 'local', requestedModelId: 'fixture-model',
+    items: [{ itemId: 'inspection-item', scenario: sourceScenario, runIdBase: 'inspection-run', resultId: 'inspection-result' }],
+    authorId: 'researcher-1', authorDisplayName: 'Researcher One', timestamp: 15,
+  })
+  controlScenarioRerunJob(settings, discussions, {
+    eventId: 'inspection-start', jobId: queue.definition.jobId, action: 'start', parentEventId: null,
+    authorId: 'researcher-1', timestamp: 16,
+  })
+  beginScenarioRerunItem(settings, discussions, {
+    eventId: 'inspection-begin', jobId: queue.definition.jobId, itemId: 'inspection-item',
+    expectedCurrentEventId: null, attempt: 1, authorId: 'researcher-1', timestamp: 17,
+  })
+  const evaluationRequest = buildScenarioEvaluationRequest({
+    jobId: queue.definition.jobId, itemId: 'inspection-item', attempt: 1, runId: 'inspection-run-a1',
+    providerId: 'local', requestedModelId: 'fixture-model', project: manifest, policyVersion: version,
+    scenario: readScenario(scenarios, sourceScenario.id)!,
+  })
+  await completeScenarioRerunItem(doc, evaluationRequest, {
+    contractVersion: SCENARIO_EVALUATION_CONTRACT_VERSION,
+    promptVersion: SCENARIO_EVALUATION_PROMPT_VERSION,
+    jobId: evaluationRequest.jobId, itemId: evaluationRequest.itemId, attempt: 1,
+    runId: evaluationRequest.runId, providerId: 'local', requestedModelId: 'fixture-model',
+    executedModelId: 'fixture-model', outcome: 'uncertain',
+    response: 'Secret scenario evaluation response is omitted.',
+    rationale: 'Secret scenario evaluation rationale is omitted.',
+    uncertainty: 'Secret scenario evaluation uncertainty is omitted.',
+  }, {
+    eventId: 'inspection-complete', resultId: 'inspection-result',
+    authorId: 'researcher-1', authorDisplayName: 'Researcher One', timestamp: 18,
+  })
   return { doc, version }
 }
 
@@ -88,6 +122,12 @@ describe('research state inspection', () => {
     })
     expect(result.scenarios).toMatchObject({ totalRecords: 2, validRecords: 2, invalidRecords: 0, rootCount: 1, branchCount: 1 })
     expect(result.scenarios.items[0]).toMatchObject({ id: 'source-challenge', turnCount: 1, turnRevisionCount: 1, editCount: 1 })
+    expect(result.scenarioReruns).toEqual({
+      jobCount: 1, runningCount: 0, pausedCount: 0, cancelledCount: 0, completeCount: 1,
+      itemCount: 1, completedItemCount: 1, failedItemCount: 0, interruptedItemCount: 0,
+      localJobCount: 1, remoteJobCount: 0, invalidRecords: 0,
+      orphanScenarioIds: [], orphanPolicyVersionIds: [], foreignProjectJobCount: 0,
+    })
     expect(result.scenarioVotes).toMatchObject({
       summaryCount: 1, invalidRecords: 0, orphanScenarioIds: [],
       items: [{ scenarioId: 'source-challenge', counts: { support: 1, oppose: 0, abstain: 0 }, activeVoteCount: 1, eventCount: 1 }],
@@ -114,6 +154,9 @@ describe('research state inspection', () => {
     expect(serialized).not.toContain('Secret cited policy text')
     expect(serialized).not.toContain('Secret scenario background')
     expect(serialized).not.toContain('Secret scenario turn')
+    expect(serialized).not.toContain('Secret scenario evaluation response')
+    expect(serialized).not.toContain('Secret scenario evaluation rationale')
+    expect(serialized).not.toContain('Secret scenario evaluation uncertainty')
     expect(serialized).not.toContain('Secret voter display name')
     expect(serialized).not.toContain('Secret annotation body')
     expect(serialized).not.toContain('Secret suggestion content')
@@ -130,6 +173,7 @@ describe('research state inspection', () => {
       healthy: false,
       issues: [
         'Scenario source-challenge-branch has missing parent source-challenge',
+        'Scenario rerun queue targets missing scenario source-challenge',
         'Scenario annotations target missing scenario source-challenge',
         'Scenario votes target missing scenario source-challenge',
         'Scenario label assignments target missing scenario source-challenge',
@@ -145,6 +189,7 @@ describe('research state inspection', () => {
     expect(result.selfCheck.healthy).toBe(false)
     expect(result.versions).toMatchObject({ totalRecords: 1, validRecords: 0, invalidRecords: 1, headVersionId: version.versionId, headLineageDepth: 0 })
     expect(result.selfCheck.issues).toEqual([
+      `Scenario rerun queue targets missing or invalid policy version ${version.versionId}`,
       '1 version record(s) failed hash/schema validation',
       'The policy version head or its lineage is invalid',
     ])
@@ -165,6 +210,7 @@ describe('research state inspection', () => {
       headVersionId: child.versionId, headLineageDepth: 0,
     })
     expect(result.selfCheck.issues).toEqual([
+      `Scenario rerun queue targets missing or invalid policy version ${root.versionId}`,
       '1 version record(s) have missing, cross-project, or cyclic ancestry',
       'The policy version head or its lineage is invalid',
     ])

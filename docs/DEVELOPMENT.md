@@ -305,6 +305,24 @@ example stale-write rejection; product-visible provenance; and MCP-safe counts w
 They use injected fake providers and do not prove live-provider behavior, answer quality, authenticated
 identity, or packaged two-install interaction.
 
+## Headless versioned scenario-rerun proof
+
+Run the P-30 contract, route adapters, persistent queue, supervised runner, product copy, and
+content-free MCP inspection without a model, key, network, webview, or manual queue operation:
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm test -- --run src/workspace/scenarioEvaluation.test.ts src/workspace/scenarioEvaluationRuntime.test.ts src/workspace/scenarioRerunQueue.test.ts src/workspace/scenarioRerunRunner.test.ts src/workspace/ScenarioRerunQueuePanel.ui.test.tsx src/workspace/ScenarioWorkspace.ui.test.ts src/workspace/researchStateInspection.test.ts
+```
+
+The gates require exact immutable policy/scenario binding; unique bounded job/run/result identities;
+creator-only exact-parent controls; durable begin-before-send; atomic result/completion; single-item
+execution; 30-second progress heartbeats; two-minute item deadlines; pause/cancel/retry; crash reopen;
+completed-item deduplication; local-off behavior; native remote task construction; injection-shaped
+output rejection; product-visible provenance; and MCP-safe counts with body canaries. Injected
+providers do not prove live-provider quality, authenticated identity, packaged two-install
+convergence, or crash durability below the Yjs update boundary.
+
 ## Headless live-MCP contract proof
 
 Run the embedded MCP protocol, loopback-security, and live-editor mutation contracts without

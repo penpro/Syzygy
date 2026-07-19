@@ -654,7 +654,14 @@ revision, unique marker, and stable policy identity; the real Lexical controller
 card with one review policy block. Authenticated identity, packaged two-client interaction, MCP
 application, partial edit, and semantic-quality proof remain open, so it is `implemented_unverified`.
 
-Status snapshot on 2026-07-19: the 42-row ledger has 37 `implemented_unverified`, 5 `planned`,
+P-30 now has a persistent exact-version/exact-scenario rerun queue with bounded peer-namespaced
+events, sequential local/API execution, begin-before-send and atomic completion, crash resume,
+pause/cancel/retry, a two-minute item deadline, 30-second progress heartbeats, product controls,
+and body-free MCP integrity counts. Live-provider quality, authenticated identity, packaged
+two-install crash/convergence, baseline comparison/export, and scenario-pack interchange remain
+unproven, so it is `implemented_unverified`.
+
+Status snapshot on 2026-07-19: the 42-row ledger has 39 `implemented_unverified`, 3 `planned`,
 and 0 `verified` capabilities. The shipped local editor, Drive research path, local engine, and MCP
 pilot are meaningful foundations, but none substitutes for the decisive two-install, convergence,
 portable-archive, workflow, accessibility, and adversarial gates below. MCP setup/onboarding is

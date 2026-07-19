@@ -2,7 +2,7 @@
 
 These artifacts separate product claims from implementation evidence.
 
-- `CAPABILITIES.json` — machine-readable status for all 41 end-goal capabilities.
+- `CAPABILITIES.json` — machine-readable status for all 42 end-goal capabilities.
 - `EDITOR-PROVENANCE.md` — clean-room/editor source ledger and dependency gate.
 - `DATA-FLOW.md` — trigger, source, destination, persistence, and guard for each data flow.
 - `THREAT-MODEL.md` — assets, trust boundaries, controls, residual risks, and blockers.

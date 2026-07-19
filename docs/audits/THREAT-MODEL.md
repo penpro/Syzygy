@@ -30,6 +30,9 @@ versions/evaluation evidence.
 | Broad Drive token reads outside workspace | Descendant enumeration and selected-folder config | Application boundary can regress; add hostile-ID tests |
 | Legacy scope yields empty evidence and model hallucinates | Collaboration access gate; Shared Ask fails closed | Live re-link harness outstanding |
 | Malicious Drive text prompt-injects model | Text is labeled evidence; model has no ambient commands | Injection fixture and proposal-only AI contract needed |
+| Malicious policy/heuristic/example text prompt-injects the checker or fabricates evidence | All snapshots are labeled untrusted content; adapters expose no command/tool/Drive authority; strict exact-key output is route-owned; every cited quote and UTF-16 span is checked against the frozen policy; one repair is the ceiling; stale revisions save nothing | A model can still produce persuasive but wrong rationale or select misleading true spans; live-provider injection corpus, semantic benchmarks, researcher override, and human review remain required |
+| Concurrent collaborators make a model result appear current after its inputs change | Commit rechecks project/document identity, exact heuristic edit revision, exact active-example events, and exact semantic policy text before one immutable peer-namespaced append | Offline changes not yet delivered cannot be predicted; later results remain historical evidence and UI needs stronger outdated-result comparison/filtering |
+
 | Oversized/nested Drive workspace exhausts resources | 2,000-file and 12-level direct-read bounds | Measure bytes/API calls and add attachment limits |
 | Transcript leaks a local conversation | Shared toggle is explicit and UI copy names logging | Per-message inclusion controls are future work |
 | Mirror conflict loses edits | Current LWW mirror documented as optional | Never use LWW for CRDT state; Phase 4 convergence tests |

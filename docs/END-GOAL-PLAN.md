@@ -157,7 +157,7 @@ open, so P-11 is `implemented_unverified`.
 P-04 now has a Penumbra-original typed Yjs domain service and deterministic headless evidence for
 concurrent add, independent field edit, attributed edit history, and delete-versus-edit without
 resurrection. This closes the data-model convergence slice only; the visible block editor,
-examples, voting, and P-26 explainable checker remain open.
+examples and the P-26 explainable checker are now separate implemented-unverified slices; broader evaluation and packaged interaction remain open.
 
 P-23/P-27 now have a Penumbra-original immutable version domain service. Canonical structured
 policy snapshots, lineage, scenario references, participant identity, display-name-at-save,

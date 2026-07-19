@@ -175,6 +175,15 @@ states are accessible, all treatments use theme tokens, and copy states that col
 is installation-provided rather than authenticated. The surface must not imply that examples have
 been scored, validated as true, or applied to policy text.
 
+The selected heuristic includes an **Explainable policy check** below its shared examples. The
+provider and model are explicit; local-unavailable copy preserves manual work, while API copy names
+the bounded heuristic/examples/current-policy disclosure and native **Send once** approval. A result
+must show PASS, FAIL, or UNCERTAIN with rationale, a separate residual-uncertainty statement, exact
+expandable policy quotes and offsets, human attribution, provider/model, run, and source revision.
+**Run again** creates another immutable shared result; it does not overwrite history or alter the
+draft. Cancellation or stale-source failure saves nothing. Copy must not call a model verdict true,
+validated, consensus, or a substitute for researcher review.
+
 The editor uses Plex Serif for document content and Plex Mono metadata stamps, with every surface,
 border, status, and selection derived from theme tokens.
 

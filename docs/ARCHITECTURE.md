@@ -247,11 +247,19 @@ project bounded records, duplicate/reused edit identity fails closed locally and
 and top-level deletion wins over a concurrent nested edit in the committed convergence fixture.
 `heuristicExampleModel.ts` adds immutable positive/negative example and exact-parent removal
 events in peer-namespaced buckets inside the existing discussions map, avoiding a save-shape
-migration. Duplicate delivery is idempotent, reused event IDs and colliding roots fail closed, and
-disconnected additions/removals retain auditable history and converge. `HeuristicWorkspace.tsx`
-provides engine-free shared heuristic/example controls against the live project Y.Doc. Research
-inspection reports only bounded counts and integrity failures; example bodies and attribution are
-omitted. No evaluation engine, authenticated identity, or packaged two-install interaction is claimed.
+migration. `heuristicCheck.ts` freezes a bounded exact policy/heuristic/example snapshot and owns
+the strict pass/fail/uncertain response contract. Every result requires non-empty rationale and
+uncertainty plus sorted, non-overlapping citations whose quotes exactly equal the supplied policy
+UTF-16 spans. `heuristicCheckRuntime.ts` routes that same contract to optional local inference or
+the four native Send-once API adapters, permits one malformed-output repair attempt, and exposes no
+tool or ambient-source authority. `heuristicCheckResultModel.ts` commits only while project, policy,
+heuristic, and active-example revisions remain exact, then stores immutable attributed provenance
+in peer-namespaced discussions buckets. Disconnected results coexist; hostile or colliding identity
+fails closed. `HeuristicWorkspace.tsx` and `HeuristicChecker.tsx` keep manual rules/examples usable
+with AI off and display rationale, residual uncertainty, verified spans, and route provenance.
+Research inspection returns only result counts and integrity, omitting all bodies and citations.
+Authenticated identity, semantic/model quality, live paid-provider proof, and packaged two-install
+interaction are not claimed.
 
 `scenarioModel.ts` stores each scenario, ordered turn collection, turn revision collection, and
 scenario edit history as nested Yjs types. Public scenario, turn, and edit identities are stored

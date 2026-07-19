@@ -11,6 +11,8 @@ import {
   type HeuristicExamplePolarity,
 } from './heuristicExampleModel'
 import { getProjectSharedTypes } from './projectModel'
+import type { ResearchProjectManifest } from './schema'
+import { HeuristicChecker } from './HeuristicChecker'
 
 export interface HeuristicWorkspaceContentProps {
   ready: boolean
@@ -84,7 +86,7 @@ export function HeuristicWorkspaceContent(props: HeuristicWorkspaceContentProps)
   )
 }
 
-export function HeuristicWorkspace({ doc }: { doc: Y.Doc }) {
+export function HeuristicWorkspace({ project, doc }: { project: ResearchProjectManifest; doc: Y.Doc }) {
   const researcherId = useStore((state) => state.settings.researcherId)
   const researcherName = useStore((state) => state.settings.researcherName)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -139,11 +141,14 @@ export function HeuristicWorkspace({ doc }: { doc: Y.Doc }) {
       displayName: author.displayName, timestamp: now(),
     })
   })
-  return <HeuristicWorkspaceContent
-    ready heuristics={heuristics} selectedId={selected?.id ?? null} examples={examples}
-    title={title} guidance={guidance} priority={priority} polarity={polarity} exampleBody={exampleBody}
-    error={error} onSelect={setSelectedId} onTitle={setTitle} onGuidance={setGuidance}
-    onPriority={setPriority} onCreateHeuristic={create} onPolarity={setPolarity}
-    onExampleBody={setExampleBody} onAddExample={addExample} onRemoveExample={remove}
-  />
+  return <>
+    <HeuristicWorkspaceContent
+      ready heuristics={heuristics} selectedId={selected?.id ?? null} examples={examples}
+      title={title} guidance={guidance} priority={priority} polarity={polarity} exampleBody={exampleBody}
+      error={error} onSelect={setSelectedId} onTitle={setTitle} onGuidance={setGuidance}
+      onPriority={setPriority} onCreateHeuristic={create} onPolarity={setPolarity}
+      onExampleBody={setExampleBody} onAddExample={addExample} onRemoveExample={remove}
+    />
+    {selected && <HeuristicChecker key={selected.id} project={project} doc={doc} heuristic={selected} />}
+  </>
 }

@@ -168,6 +168,17 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   authenticated identity, semantic quality, and evaluation remain open, so status is
   `implemented_unverified`. Evidence: `docs/audits/runs/HEURISTIC-EXAMPLES-2026-07-19.json`.
 
+- P-26 adds a provider-neutral explainable heuristic checker over an exact bounded snapshot of the
+  current semantic policy, selected enabled heuristic, and active positive/negative examples. Local
+  and four native Send-once API routes share one strict pass/fail/uncertain contract; rationale and
+  uncertainty are mandatory, every cited quote/UTF-16 span is verified, malformed output gets one
+  repair attempt, and cancellation or stale policy/heuristic/example revisions add nothing. Results
+  are immutable, attributed, peer-namespaced collaborative records with provider/model/run/source
+  provenance. Product UI shows the complete evidence; MCP inspection returns only counts/integrity.
+  Live paid-provider proof, semantic/model quality, authenticated identity, manual verdict override,
+  and packaged two-install interaction remain open, so status is `implemented_unverified`. Evidence:
+  `docs/audits/runs/HEURISTIC-CHECKER-2026-07-19.json`.
+
 - The first remote-model execution boundary is now headlessly testable with a bounded product caller.
   Rust constructs and normalizes an OpenAI Responses one-shot request, requires matching content
   disclosure, forces `store:false`, accepts only HTTPS or literal loopback test endpoints, bounds
@@ -404,8 +415,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **42 capabilities**: **37 are
-`implemented_unverified`, 5 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **42 capabilities**: **38 are
+`implemented_unverified`, 4 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, remaining crash/recovery local
 lifecycle, Drive-backed Yjs convergence, optional presence, scenarios, local-AI review tools, and versioned

@@ -1,6 +1,7 @@
 import type * as Y from 'yjs'
 import { listHeuristics } from './heuristicsModel'
 import { inspectHeuristicExamples } from './heuristicExampleModel'
+import { inspectHeuristicCheckResults } from './heuristicCheckResultModel'
 import { getProjectSharedTypes, projectStateFingerprint } from './projectModel'
 import { listPolicyVersions, readPolicyVersionHead, readPolicyVersionLineage } from './policyVersionModel'
 import type { PolicyVersion } from './policyVersionModel'
@@ -44,6 +45,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
 
   const validHeuristics = listHeuristics(heuristicMap)
   const heuristicExampleInspection = inspectHeuristicExamples(discussions, heuristicMap)
+  const heuristicCheckInspection = inspectHeuristicCheckResults(discussions, heuristicMap)
   const validScenarios = listScenarios(scenarioMap)
   const scenarioGraph = inspectScenarioGraph(scenarioMap)
   const annotationSummaries = listScenarioAnnotationSummaries(discussions)
@@ -64,6 +66,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   const issues: string[] = []
   if (invalidHeuristicRecords > 0) issues.push(`${invalidHeuristicRecords} heuristic record(s) failed validation`)
   issues.push(...heuristicExampleInspection.issues)
+  issues.push(...heuristicCheckInspection.issues)
   issues.push(...scenarioGraph.issues)
   issues.push(...annotationInspection.issues)
   issues.push(...voteInspection.issues)
@@ -116,6 +119,16 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
       negativeCount: heuristicExampleInspection.negativeCount,
       invalidRecords: heuristicExampleInspection.invalidRecords,
       orphanHeuristicIds: heuristicExampleInspection.orphanHeuristicIds,
+    },
+    heuristicChecks: {
+      resultCount: heuristicCheckInspection.resultCount,
+      passCount: heuristicCheckInspection.passCount,
+      failCount: heuristicCheckInspection.failCount,
+      uncertainCount: heuristicCheckInspection.uncertainCount,
+      localCount: heuristicCheckInspection.localCount,
+      remoteCount: heuristicCheckInspection.remoteCount,
+      invalidRecords: heuristicCheckInspection.invalidRecords,
+      orphanHeuristicIds: heuristicCheckInspection.orphanHeuristicIds,
     },
     scenarios: {
       totalRecords: scenarioMap.size,
@@ -232,7 +245,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
     limitations: [
       'inspection itself is read-only; separate revision-guarded MCP tools can mutate scenarios, votes, annotations, labels, and policy versions, but suggestion decisions, heuristic mutation, and broader scenario lifecycle remain unavailable through MCP',
       'presence reports only active provider mode and bounded session counts; Drive polling is explicitly not live presence, and inspection does not prove an underlying transport healthy',
-      'counts and integrity are checked; policy text, suggestion content and decision bodies, heuristic guidance and example bodies/attribution, scenario background/turn content/revision bodies, annotation/voter bodies, label event bodies, edit values, and version notes are omitted',
+      'counts and integrity are checked; policy text, suggestion content and decision bodies, heuristic guidance, example bodies/attribution, and heuristic-check rationale, uncertainty, citation text, scenario background/turn content/revision bodies, annotation/voter bodies, label event bodies, edit values, and version notes are omitted',
     ],
   }
 }

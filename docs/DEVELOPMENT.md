@@ -288,6 +288,23 @@ two-peer one-update integration fixture. This does not prove Drive/WebSocket tra
 pointer/focus behavior, crash injection at the IndexedDB durability boundary, or the semantic
 usefulness of every diff. Export also remains open.
 
+## Headless explainable-heuristic proof
+
+Run the P-26 contract, runtime, collaborative-state, UI, and content-free inspection gates without
+a model, API key, network, or webview:
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm test -- --run src/workspace/heuristicCheck.test.ts src/workspace/heuristicCheckRuntime.test.ts src/workspace/heuristicCheckResultModel.test.ts src/workspace/HeuristicChecker.test.tsx src/workspace/researchStateInspection.test.ts
+```
+
+The gates require exact bounded input snapshots; route-bound strict output; mandatory rationale and
+uncertainty; exact sorted citation spans; cancellation; one malformed-output repair; local-AI-off
+behavior; native remote task construction; immutable replay-safe peer convergence; policy/heuristic/
+example stale-write rejection; product-visible provenance; and MCP-safe counts with body canaries.
+They use injected fake providers and do not prove live-provider behavior, answer quality, authenticated
+identity, or packaged two-install interaction.
+
 ## Headless live-MCP contract proof
 
 Run the embedded MCP protocol, loopback-security, and live-editor mutation contracts without

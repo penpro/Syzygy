@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "capability": "P-26",
+  "date": "2026-07-19",
+  "status": "implemented_unverified",
+  "claim": "A selected enabled heuristic can evaluate one exact bounded policy/example snapshot through an optional local or native-approved API route and retain an immutable attributed pass/fail/uncertain result with mandatory rationale, uncertainty, exact verified policy spans, and route provenance.",
+  "verified": [
+    "The request freezes only project/document identity, one enabled heuristic, active examples, and deterministic semantic policy text under explicit size bounds",
+    "Local, OpenAI, Anthropic, Gemini, and xAI routes share one strict route-bound result contract",
+    "Every accepted result has a pass/fail/uncertain verdict, non-empty rationale and uncertainty, and one or more sorted non-overlapping citations whose quotes exactly equal the supplied UTF-16 policy spans",
+    "Malformed or command-bearing structured output receives at most one repair attempt and then fails closed",
+    "Cancellation and route mismatch prevent a result; adapter/network failures are not silently retried",
+    "Remote tasks carry only the selected heuristic/examples and exact policy snapshot through the native Send once boundary",
+    "Before any provider work, the product rejects invalid shared result/example history and builds from the current live heuristic/editor snapshot",
+    "Commit rechecks project/document identity plus exact policy, heuristic, and active-example revisions; stale work adds no record",
+    "Results are immutable attributed peer-namespaced records; exact replay is idempotent, identity reuse fails closed, and disconnected peer results converge without overwrite",
+    "The product exposes provider/model, verdict, rationale, residual uncertainty, verified quotes/offsets, researcher attribution, run, and source revision while remaining usable with local AI off",
+    "Research-state/MCP inspection exposes only result/verdict/route counts and integrity; rationale, uncertainty, citation text, and policy bodies are omitted with secret canaries",
+    "Production TypeScript and Vite build passes"
+  ],
+  "headlessResults": {
+    "focusedTestFiles": 5,
+    "focusedTestsPassed": 21,
+    "focusedTestsFailed": 0,
+    "productionBuild": "passed",
+    "repositoryAudit": "passed",
+    "fullSupervisedCheck": "passed",
+    "fullSupervisedRunId": "20260719-103409-912bdc",
+    "fullTestFilesPassed": 82,
+    "fullTestFilesSkipped": 1,
+    "fullTestsPassed": 334,
+    "fullTestsExpectedFail": 1,
+    "fullTestsSkipped": 1,
+    "rustCheck": "passed",
+    "assetReembed": "Compiling app observed"
+  },
+  "limitations": [
+    "No live paid-provider call or model-quality/semantic-correctness benchmark is included; provider behavior is injected and deterministic.",
+    "A citation can be textually exact yet misleading, incomplete, or attached to unsound rationale; human review remains required.",
+    "Researcher identity and timestamps are installation/caller supplied and are not authenticated or trusted across installs.",
+    "No packaged pointer/keyboard interaction or two-physical-install result-convergence run is included.",
+    "No manual verdict override, result supersession/outdated filter, or bulk evaluation queue is included.",
+    "An offline collaborator change not yet delivered cannot be predicted; results remain historical records after later edits."
+  ],
+  "sources": [
+    "frontend/src/workspace/heuristicCheck.ts",
+    "frontend/src/workspace/heuristicCheck.test.ts",
+    "frontend/src/workspace/heuristicCheckRuntime.ts",
+    "frontend/src/workspace/heuristicCheckRuntime.test.ts",
+    "frontend/src/workspace/heuristicCheckResultModel.ts",
+    "frontend/src/workspace/heuristicCheckResultModel.test.ts",
+    "frontend/src/workspace/HeuristicChecker.tsx",
+    "frontend/src/workspace/HeuristicChecker.test.tsx",
+    "frontend/src/workspace/HeuristicWorkspace.tsx",
+    "frontend/src/workspace/researchStateInspection.ts",
+    "frontend/src/workspace/researchStateInspection.test.ts",
+    "scripts/audit.mjs"
+  ]
+}

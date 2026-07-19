@@ -403,7 +403,7 @@ export function ScenarioWorkspace({ project }: { project: ResearchProjectManifes
       ready={Boolean(doc)} scenarios={snapshot.scenarios} selected={selected}
       voteSummary={voteSummary} currentVote={currentVote} integrityIssues={snapshot.issues}
       generation={doc && selected ? <ScenarioGenerator key={selected.id} project={project} doc={doc} scenario={selected} /> : undefined}
-      heuristics={doc ? <HeuristicWorkspace doc={doc} /> : undefined}
+      heuristics={doc ? <HeuristicWorkspace project={project} doc={doc} /> : undefined}
       createOpen={createOpen} createTitle={createTitle} createBackground={createBackground}
       editTitle={editTitle} editBackground={editBackground} turnRole={turnRole} turnContent={turnContent}
       error={error} onSelect={selectScenario} onOpenCreate={() => { setCreateOpen(true); setError('') }}

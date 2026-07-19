@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createHeuristic } from './heuristicsModel'
+import { buildHeuristicCheckRequest, HEURISTIC_CHECK_CONTRACT_VERSION } from './heuristicCheck'
+import { commitHeuristicCheckResult } from './heuristicCheckResultModel'
 import { createProjectDocument, getProjectSharedTypes } from './projectModel'
 import { commitPolicyVersion } from './policyVersionModel'
 import { inspectResearchState } from './researchStateInspection'
@@ -15,7 +17,7 @@ const manifest = createProjectManifest({ id: 'inspection-project', documentId: '
 async function populatedDocument() {
   const doc = createProjectDocument(manifest)
   const { discussions, heuristics, scenarios, settings, versions, metadata } = getProjectSharedTypes(doc)
-  createHeuristic(heuristics, {
+  const evidenceHeuristic = createHeuristic(heuristics, {
     id: 'evidence-quality', title: 'Evidence quality', guidance: 'Secret guidance is omitted.', priority: 'required',
     authorId: 'researcher-1', timestamp: 10, editId: 'create-evidence-quality',
   })
@@ -47,6 +49,22 @@ async function populatedDocument() {
     authorId: 'researcher-2', authorDisplayName: 'Researcher Two', timestamp: 13,
     sourceKind: 'model', providerId: 'local', modelId: 'model-fixture', runId: 'run-fixture',
   })
+  const checkBlocks = [{ kind: 'paragraph' as const, text: 'Secret cited policy text is omitted.' }]
+  const checkRequest = buildHeuristicCheckRequest({
+    runId: 'inspection-check-run', providerId: 'local', requestedModelId: 'fixture-model',
+    project: manifest, heuristic: evidenceHeuristic, examples: [], blocks: checkBlocks,
+  })
+  const checkQuote = checkBlocks[0].text
+  commitHeuristicCheckResult(doc, checkRequest, {
+    contractVersion: HEURISTIC_CHECK_CONTRACT_VERSION, runId: checkRequest.runId,
+    providerId: 'local', requestedModelId: 'fixture-model', executedModelId: 'fixture-model',
+    verdict: 'uncertain', rationale: 'Secret check rationale is omitted.',
+    uncertainty: 'Secret check uncertainty is omitted.',
+    citations: [{ start: 0, end: checkQuote.length, quote: checkQuote }],
+  }, {
+    resultId: 'inspection-check-result', authorId: 'researcher-1',
+    authorDisplayName: 'Researcher One', timestamp: 14, currentBlocks: checkBlocks,
+  })
   createScenario(scenarios, {
     id: 'source-challenge-branch', title: 'Skeptical branch', background: '', parentScenarioId: 'source-challenge',
     authorId: 'researcher-2', timestamp: 11, editId: 'create-source-challenge-branch',
@@ -65,6 +83,9 @@ describe('research state inspection', () => {
     const result = await inspectResearchState(doc, manifest.id)
     expect(result.selfCheck).toEqual({ healthy: true, issues: [] })
     expect(result.heuristics).toMatchObject({ totalRecords: 1, validRecords: 1, invalidRecords: 0 })
+    expect(result.heuristicChecks).toMatchObject({
+      resultCount: 1, passCount: 0, failCount: 0, uncertainCount: 1, localCount: 1, remoteCount: 0, invalidRecords: 0,
+    })
     expect(result.scenarios).toMatchObject({ totalRecords: 2, validRecords: 2, invalidRecords: 0, rootCount: 1, branchCount: 1 })
     expect(result.scenarios.items[0]).toMatchObject({ id: 'source-challenge', turnCount: 1, turnRevisionCount: 1, editCount: 1 })
     expect(result.scenarioVotes).toMatchObject({
@@ -88,6 +109,9 @@ describe('research state inspection', () => {
     expect(serialized).not.toContain('Secret guidance')
     expect(serialized).not.toContain('Secret policy text')
     expect(serialized).not.toContain('Secret note')
+    expect(serialized).not.toContain('Secret check rationale')
+    expect(serialized).not.toContain('Secret check uncertainty')
+    expect(serialized).not.toContain('Secret cited policy text')
     expect(serialized).not.toContain('Secret scenario background')
     expect(serialized).not.toContain('Secret scenario turn')
     expect(serialized).not.toContain('Secret voter display name')

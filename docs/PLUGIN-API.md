@@ -189,6 +189,12 @@ proposal fields, duplicate authorities, invalid provider IDs, overlong public fi
 untyped proposals, and the same proposal bounds as the published schema. JSON Schema remains the
 portable interchange gate; the broker repeats semantic identity/revision/authority checks.
 
+The same headless `syzygy_platform_contracts` response publishes the strict portable scenario-pack
+schema. Plugins and external research tools may produce or consume that open file contract, but schema
+validation alone is insufficient: they must also verify canonical SHA-256, nested ID uniqueness,
+current-turn projection, canonical histories, and the closed acyclic parent graph. Import remains an
+explicit product action; publishing the schema grants no project, file, model, Drive, or network authority.
+
 A signed marketplace is not required for the API. Local folders and explicit package files remain
 supported. Publication metadata, signatures, and reputation can be layered on later without
 changing the project/proposal contracts.

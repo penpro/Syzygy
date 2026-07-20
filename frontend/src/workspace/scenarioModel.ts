@@ -338,6 +338,136 @@ export function readScenario(collection: Y.Map<unknown>, id: string): ResearchSc
   }
 }
 
+function canonicalSnapshotJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalSnapshotJson).join(',')}]`
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, child]) => `${JSON.stringify(key)}:${canonicalSnapshotJson(child)}`).join(',')}`
+  }
+  return JSON.stringify(value)
+}
+
+export interface ScenarioSnapshotImportResult {
+  addedScenarioIds: string[]
+  existingScenarioIds: string[]
+}
+
+function snapshotRecord(collection: Y.Map<unknown>, scenario: ResearchScenario): [string, Y.Map<unknown>] {
+  const record = new Y.Map<unknown>()
+  const turns = new Y.Map<unknown>()
+  const turnOrder = new Y.Array<string>()
+  const edits = new Y.Map<ScenarioEdit>()
+  record.set('schemaVersion', scenario.schemaVersion)
+  record.set('id', scenario.id)
+  record.set('title', scenario.title)
+  record.set('background', scenario.background)
+  record.set('status', scenario.status)
+  record.set('parentScenarioId', scenario.parentScenarioId)
+  record.set('createdBy', scenario.createdBy)
+  record.set('createdAt', scenario.createdAt)
+  record.set('turns', turns)
+  record.set('turnOrder', turnOrder)
+  record.set('edits', edits)
+  for (const turn of scenario.turns) {
+    const turnRecord = new Y.Map<unknown>()
+    const revisions = new Y.Map<ScenarioTurnRevision>()
+    turnRecord.set('id', turn.id)
+    turnRecord.set('createdBy', turn.createdBy)
+    turnRecord.set('createdAt', turn.createdAt)
+    turnRecord.set('revisions', revisions)
+    for (const revision of turn.revisions) {
+      revisions.set(storageKey(collection, revision.editId), { ...revision })
+    }
+    const key = storageKey(collection, turn.id)
+    turns.set(key, turnRecord)
+    turnOrder.push([key])
+  }
+  for (const edit of scenario.edits) {
+    edits.set(storageKey(collection, edit.editId), {
+      ...edit, fields: [...edit.fields], changes: { ...edit.changes },
+    })
+  }
+  return [storageKey(collection, scenario.id), record]
+}
+
+function validateScenarioSnapshots(scenarios: ResearchScenario[]): ResearchScenario[] {
+  if (!Array.isArray(scenarios) || scenarios.length > MAX_SCENARIOS) {
+    throw new Error('Scenario pack exceeds the scenario limit')
+  }
+  if (!scenarios.every((scenario) => !!scenario && typeof scenario === 'object' && !Array.isArray(scenario))) {
+    throw new Error('Scenario pack contains an invalid scenario')
+  }
+  if (new Set(scenarios.map((scenario) => scenario.id)).size !== scenarios.length) {
+    throw new Error('Scenario pack contains duplicate scenario IDs')
+  }
+  const scratch = new Y.Doc()
+  try {
+    const collection = scratch.getMap<unknown>('scenarios')
+    for (const scenario of scenarios) {
+      if (!scenario || typeof scenario !== 'object' || Array.isArray(scenario)) {
+        throw new Error('Scenario pack contains an invalid scenario')
+      }
+      const [key, record] = snapshotRecord(collection, scenario)
+      collection.set(key, record)
+    }
+    const graph = inspectScenarioGraph(collection)
+    if (!graph.healthy || graph.scenarioCount !== scenarios.length) {
+      throw new Error(`Scenario pack graph is invalid: ${graph.issues.join('; ') || 'scenario count mismatch'}`)
+    }
+    const normalized = scenarios.map((scenario) => readScenario(collection, scenario.id))
+    if (normalized.some((scenario) => scenario === null)) throw new Error('Scenario pack contains invalid authoring history')
+    normalized.forEach((scenario, index) => {
+      if (canonicalSnapshotJson(scenario) !== canonicalSnapshotJson(scenarios[index])) {
+        throw new Error(`Scenario ${scenarios[index].id} is not in canonical lossless form`)
+      }
+    })
+    return normalized as ResearchScenario[]
+  } finally {
+    scratch.destroy()
+  }
+}
+
+/**
+ * Atomically imports canonical scenario authoring snapshots into an existing collaborative map.
+ * Exact duplicates are idempotent. Any same-ID/different-content collision aborts before mutation.
+ */
+export function importScenarioSnapshots(
+  collection: Y.Map<unknown>, scenarios: ResearchScenario[],
+): ScenarioSnapshotImportResult {
+  const normalized = validateScenarioSnapshots(scenarios)
+  const currentGraph = inspectScenarioGraph(collection)
+  if (!currentGraph.healthy) {
+    throw new Error(`Existing scenario graph is invalid: ${currentGraph.issues.join('; ')}`)
+  }
+  const existingScenarioIds: string[] = []
+  const additions: ResearchScenario[] = []
+  for (const scenario of normalized) {
+    const existing = readScenario(collection, scenario.id)
+    if (existing) {
+      if (canonicalSnapshotJson(existing) !== canonicalSnapshotJson(scenario)) {
+        throw new Error(`Scenario ID collision: ${scenario.id}`)
+      }
+      existingScenarioIds.push(scenario.id)
+    } else {
+      additions.push(scenario)
+    }
+  }
+  if (collection.size + additions.length > MAX_SCENARIOS) {
+    throw new Error('Scenario collection limit reached')
+  }
+  const prepared = additions.map((scenario) => snapshotRecord(collection, scenario))
+  for (const [key] of prepared) {
+    if (collection.has(key)) throw new Error(`Scenario storage collision: ${key}`)
+  }
+  const operation = () => prepared.forEach(([key, record]) => collection.set(key, record))
+  if (collection.doc) collection.doc.transact(operation, 'syzygy-scenario-pack-import')
+  else operation()
+  return {
+    addedScenarioIds: additions.map((scenario) => scenario.id),
+    existingScenarioIds,
+  }
+}
+
 export function listScenarios(collection: Y.Map<unknown>): ResearchScenario[] {
   if (collection.size > MAX_SCENARIOS) return []
   const ids = Array.from(new Set(Array.from(collection.values())

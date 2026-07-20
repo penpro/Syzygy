@@ -188,8 +188,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   cancel, explicit retry, local-off behavior, and local/OpenAI/Anthropic/Gemini/xAI routing are
   product-visible. Remote items retain native Send once approval. MCP inspection exposes only
   counts/integrity and omits every research/result body. Live-provider quality, authenticated
-  identity, packaged two-install crash/convergence, and scenario-pack interchange remain open, so
-  status is `implemented_unverified`. Evidence:
+  identity, and packaged two-install crash/convergence remain open, so status is
+  `implemented_unverified`; portable interchange is proven separately by P-33. Evidence:
   `docs/audits/runs/SCENARIO-RERUN-QUEUE-2026-07-19.json`.
 
 - P-31 adds a deterministic side-by-side comparison over two distinct completed P-30 queues. It
@@ -347,8 +347,13 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   field/turn-add deliveries and forty delete-versus-turn-edit deliveries converge; disconnected
   public scenario/turn ID collisions, malformed order, unknown fields, and missing parents fail
   closed. The product panel now exposes engine-free create/select/edit/status, ordered turn
-  addition, and integrity-error states. Turn revision UI, generation, response variants,
-  flags/notes/labels, evaluation, and portable scenario packs remain open.
+  addition, and integrity-error states. Turn revision UI and some advanced reconciliation remain open.
+- P-33 adds a strict checksummed open scenario-pack codec and product workflow. Selected exports include
+  required ancestors and preserve ordered turns plus complete revision/edit attribution; import validates
+  the public Draft 2020-12 schema semantics, checksum, canonical history, and closed graph before one
+  atomic collision-safe Yjs transaction. Exact duplicates are idempotent. A CC0 sample pack and MCP-
+  discoverable schema support independent readers; packaged OS file-dialog and third-party interop remain
+  unverified. Evidence: `docs/audits/runs/SCENARIO-PACKS-2026-07-19.json`.
 - P-22 now proves the real scenario domain graph—not placeholder objects—survives portable export,
   local import persistence, and disconnected IndexedDB reopen. A root, sibling branches, a nested
   branch, workflow state, ordered turns, and immutable turn/edit attribution round-trip exactly.
@@ -440,12 +445,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **42 capabilities**: **40 are
-`implemented_unverified`, 2 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **42 capabilities**: **41 are
+`implemented_unverified`, 1 is `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, remaining crash/recovery local
-lifecycle, Drive-backed Yjs convergence, optional presence, an open scenario-pack schema, and
-network-trace certification. The definitive contracts and gates remain in `END-GOAL-PLAN.md` and
+lifecycle, Drive-backed Yjs convergence, optional presence, third-party scenario-pack interoperability,
+and network-trace certification. The definitive contracts and gates remain in `END-GOAL-PLAN.md` and
 `docs/audits/CAPABILITIES.json`.
 
 ## Next (in intended order)

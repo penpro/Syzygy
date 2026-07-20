@@ -148,8 +148,14 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   configuration, OAuth state, or provider credentials. `ProjectArchiveControls.tsx` exposes the
   same engine-free import path with or without an existing project. Because the archive carries
   exact Yjs state, stable scenario IDs, parent IDs, ordered turns, revision history, and graph
-  integrity failures survive local rebinding and disconnected IndexedDB reopen without a parallel
-  scenario export format.
+  integrity failures survive local rebinding and disconnected IndexedDB reopen. The separate
+  `scenarioPack.ts` boundary exports only reusable scenario authoring state: selected scenarios plus
+  required ancestors, ordered turns, complete turn/scenario edit history, timestamps, and attribution.
+  Its 64-MiB-bounded `syzygy-scenario-pack` envelope uses canonical SHA-256, strict exact-field
+  decoding, closed acyclic graph checks, and atomic same-ID collision refusal. Votes, annotations,
+  labels, responses, rerun results, policies, project files, settings, credentials, and transport state
+  are deliberately excluded. `ScenarioPackControls.tsx` provides explicit export, validate-preview,
+  and confirm-import actions against the same live Y.Doc without a model or network call.
 - `workspace/driveProjectDiscovery.ts` keeps the selected-workspace refresh used by MCP/LAN
   diagnostics. It produces explicit checked-folder/count results and a bounded, content-free
   diagnostic projection. The product browser separately calls the native bounded cross-workspace
@@ -297,7 +303,8 @@ makes graph-integrity failures read-only. P-16 adds optional generation without 
 dependent on AI: local inference is available only while the model is loaded, remote routes reuse
 the native one-shot disclosure boundary, and both write through the attributed response domain only
 if the selected scenario revision is unchanged. Turn revision editing, arbitrary historical-parent
-regeneration, response conflict resolution, and scenario-pack export remain outside this slice.
+regeneration, and response conflict resolution remain outside this slice. Portable scenario packs
+are handled by the independent open codec and product controls described above.
 
 `scenarioVoteModel.ts` stores immutable vote events in peer-specific, version-prefixed buckets
 inside the reserved discussions collection. This avoids namespace collisions with future notes and

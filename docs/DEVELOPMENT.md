@@ -257,7 +257,7 @@ checks must converge. `ScenarioWorkspace.ui.test.ts` adds an engine-free product
 loading/empty/error states, create/select/detail controls, ordered turn addition, vote controls,
 the unauthenticated-identity disclosure, deterministic stale-detail detection, and read-only
 integrity failure. This does not prove turn revision editing, generation, evaluation, annotations,
-labels, scenario packs, packaged pointer/focus behavior, or a remote collaboration provider.
+labels, packaged pointer/focus behavior, or a remote collaboration provider.
 
 `scenarioVoteModel.test.ts` is the P-19 domain gate. It covers exact replay idempotency, attributed
 re-voting, abstention, withdrawal without history erasure, disconnected first-vote merge,
@@ -339,6 +339,24 @@ scenario checksums, neutral nine-cell transition counts, same-input guards, ambi
 tampering denial, explicit export disclosure, and body-free compatible-pair inspection. They do not
 prove model quality, causality, authenticated identity, live-provider determinism, or packaged OS
 Save-dialog behavior.
+
+## Headless portable scenario-pack proof
+
+Run P-33's lossless import/export, public-schema, committed-sample, adversarial decoder, collision,
+and product-copy gates without a model, key, network, webview, or manual file selection:
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm test -- --run src/workspace/scenarioPack.test.ts src/workspace/scenarioPackSchema.test.ts src/workspace/ScenarioPackControls.ui.test.tsx src/workspace/ScenarioWorkspace.ui.test.ts
+```
+
+The gates require automatic ancestor closure, canonical SHA-256 verification, strict Draft 2020-12
+alignment, full ordered turn/revision/edit attribution round-trip into a different project, exact-
+duplicate idempotency, whole-import refusal on any same-ID/different-content collision, and explicit
+included/excluded-data copy. The sample at `docs/samples/source-review.syzygy-scenarios.json` is CC0
+and must pass both the public schema and runtime decoder. Rust platform-contract tests prove the same
+schema is returned by `syzygy_platform_contracts`. These gates do not prove authenticated identity,
+trusted clocks, semantic quality, packaged OS file dialogs, or third-party reader interoperability.
 
 ## Headless live-MCP contract proof
 

@@ -156,6 +156,14 @@ abstain, and withdraw controls with aggregate counts. A stale detail form must r
 overwriting a newer shared scenario edit. When graph integrity fails, all mutation controls are
 disabled. Copy states that the installation researcher identity is not authenticated.
 
+**Portable scenario packs** sit inside the scenario workspace and remain usable without AI. Researchers
+can export the selected scenario plus its required ancestors or every scenario, and can set a title,
+description, and optional license. Copy names the included authoring history and explicitly excludes
+votes, annotations, labels, model outputs, policies, and project files. Import is two-step: choose and
+validate the checksum/schema/graph first, then explicitly confirm the collision-free plan. Exact
+duplicates are skipped; a same-ID/different-content collision blocks the entire import. Neither path
+contacts a model or network. The hidden file input follows the existing portable-archive affordance.
+
 The **Response variants** surface is optional and never blocks manual scenario work. It distinguishes
 local generation on this computer from API routes that require the native **Send once** disclosure.
 With local AI off or unloaded, the local action is disabled while manual editing and API selection

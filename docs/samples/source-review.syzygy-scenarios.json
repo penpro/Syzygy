@@ -1,0 +1,75 @@
+{
+  "format": "syzygy-scenario-pack",
+  "schemaVersion": 1,
+  "packId": "sample-source-review-v1",
+  "title": "Source independence review",
+  "description": "A public-domain example for testing portable scenario-pack readers and writers.",
+  "license": "CC0-1.0",
+  "source": {
+    "projectId": "sample-project",
+    "documentId": "sample-document",
+    "projectTitle": "Scenario pack examples",
+    "exportedBy": "example-researcher",
+    "exportedByDisplayName": "Example Researcher",
+    "exportedAt": 1700000000000
+  },
+  "scenarios": [
+    {
+      "schemaVersion": 1,
+      "id": "policy-evidence-review",
+      "title": "Policy evidence review",
+      "background": "A policy claim cites two reports that may share funding or underlying data.",
+      "status": "ready",
+      "parentScenarioId": null,
+      "createdBy": "example-researcher",
+      "createdAt": 1700000000000,
+      "turns": [
+        {
+          "id": "independence-question",
+          "createdBy": "example-researcher",
+          "createdAt": 1700000000001,
+          "role": "user",
+          "content": "Are these sources independent in funding, authorship, and underlying data?",
+          "revisions": [
+            {
+              "editId": "create-independence-question",
+              "role": "user",
+              "content": "Are these sources independent?",
+              "authorId": "example-researcher",
+              "timestamp": 1700000000001
+            },
+            {
+              "editId": "refine-independence-question",
+              "role": "user",
+              "content": "Are these sources independent in funding, authorship, and underlying data?",
+              "authorId": "second-researcher",
+              "timestamp": 1700000000002
+            }
+          ]
+        }
+      ],
+      "edits": [
+        {
+          "editId": "create-policy-evidence-review",
+          "authorId": "example-researcher",
+          "timestamp": 1700000000000,
+          "fields": [
+            "title",
+            "background",
+            "status"
+          ],
+          "changes": {
+            "title": "Policy evidence review",
+            "background": "A policy claim cites two reports that may share funding or underlying data.",
+            "status": "ready"
+          }
+        }
+      ]
+    }
+  ],
+  "checksum": {
+    "algorithm": "SHA-256",
+    "canonicalization": "syzygy-json-v1",
+    "value": "16fc8f8d9c5a57dc3e98e4748f8bf67679769f6a14b37e71901b6e8cfd04efab"
+  }
+}

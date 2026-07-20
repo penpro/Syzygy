@@ -257,6 +257,14 @@ const scenarioComparisonTestSource = text('frontend/src/workspace/scenarioCompar
 const scenarioComparisonPanelSource = text('frontend/src/workspace/ScenarioComparisonPanel.tsx')
 const scenarioComparisonPanelTestSource = text('frontend/src/workspace/ScenarioComparisonPanel.ui.test.tsx')
 const scenarioComparisonSchemaSource = text('docs/schemas/syzygy-scenario-comparison-v1.schema.json')
+const scenarioPackSource = text('frontend/src/workspace/scenarioPack.ts')
+const scenarioPackTestSource = text('frontend/src/workspace/scenarioPack.test.ts')
+const scenarioPackSchemaTestSource = text('frontend/src/workspace/scenarioPackSchema.test.ts')
+const scenarioPackPanelSource = text('frontend/src/workspace/ScenarioPackControls.tsx')
+const scenarioPackPanelTestSource = text('frontend/src/workspace/ScenarioPackControls.ui.test.tsx')
+const scenarioPackSchemaSource = text('docs/schemas/syzygy-scenario-pack-v1.schema.json')
+const scenarioPackSampleSource = text('docs/samples/source-review.syzygy-scenarios.json')
+const scenarioPackPlatformContractSource = text('frontend/src-tauri/src/platform_contracts.rs')
 record(
   'scenario references retain stable identity across rename, collaboration, automation, and checkpoints',
   scenarioReferenceSource.includes("type: 'scenario-reference'") &&
@@ -518,6 +526,32 @@ record(
     editorLedgerSource.includes('"id": "P-31", "phase": 8, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-COMPARISON-2026-07-19.json')),
   'two completed exact-compatible jobs, neutral derived matrix, verified policy/result joins, strict open schema, bounded checksummed export, explicit content disclosure, body-free MCP count, and truthful P-31 status are present',
+)
+
+record(
+  'portable scenario packs remain open, bounded, lossless, collision-safe, and authority-free',
+  scenarioPackSource.includes("SCENARIO_PACK_FORMAT = 'syzygy-scenario-pack'") &&
+    scenarioPackSource.includes('SCENARIO_PACK_MAX_FILE_BYTES = 64 * 1024 * 1024') &&
+    scenarioPackSource.includes('selectScenarioClosure') &&
+    scenarioPackSource.includes("await sha256(canonicalScenarioPackJson(unsigned))") &&
+    scenarioPackSource.includes('export async function decodeScenarioPack') &&
+    scenarioPackSource.includes('export function planScenarioPackImport') &&
+    scenarioPackSource.includes('return importScenarioSnapshots(collection, pack.scenarios)') &&
+    scenarioPackTestSource.includes('round-trips a branch graph with ordered turns and full edit attribution') &&
+    scenarioPackTestSource.includes('aborts atomically on a same-ID/different-content collision') &&
+    scenarioPackTestSource.includes('rejects tampering, unknown authority, future schemas, and malformed graphs') &&
+    scenarioPackSchemaTestSource.includes('validates the committed sample structurally and semantically') &&
+    scenarioPackPanelSource.includes('Import validated pack') &&
+    scenarioPackPanelSource.includes('Excludes votes, annotations, labels, model outputs, policies, and project files') &&
+    scenarioPackPanelSource.includes('Import does not contact a model or network') &&
+    scenarioPackPanelTestSource.includes('requires explicit confirmation after validation') &&
+    scenarioPackSchemaSource.includes('https://json-schema.org/draft/2020-12/schema') &&
+    scenarioPackSchemaSource.includes('"additionalProperties": false') &&
+    scenarioPackSampleSource.includes('"license": "CC0-1.0"') &&
+    scenarioPackPlatformContractSource.includes('"scenarioPackSchema": scenario_pack_schema') &&
+    editorLedgerSource.includes('"id": "P-33", "phase": 6, "status": "implemented_unverified"') &&
+    existsSync(join(root, 'docs/audits/runs/SCENARIO-PACKS-2026-07-19.json')),
+  'ancestor-closed authoring history, canonical SHA-256, strict schema/sample, adversarial decode, atomic collision refusal, explicit no-model/network product flow, MCP schema discovery, and truthful P-33 status are present',
 )
 
 const heuristicsModelSource = text('frontend/src/workspace/heuristicsModel.ts')

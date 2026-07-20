@@ -25,6 +25,7 @@ import { subscribeAutomationProjectDocument } from './workspaceAutomationRegistr
 import { ScenarioGenerator } from './ScenarioGenerator'
 import { HeuristicWorkspace } from './HeuristicWorkspace'
 import { ScenarioRerunQueuePanel } from './ScenarioRerunQueuePanel'
+import { ScenarioPackControls } from './ScenarioPackControls'
 
 interface ScenarioWorkspaceContentProps {
   ready: boolean
@@ -36,6 +37,7 @@ interface ScenarioWorkspaceContentProps {
   generation?: ReactNode
   heuristics?: ReactNode
   reruns?: ReactNode
+  packs?: ReactNode
   createOpen: boolean
   createTitle: string
   createBackground: string
@@ -73,6 +75,7 @@ export function ScenarioWorkspaceContent({
   generation,
   heuristics,
   reruns,
+  packs,
   createOpen,
   createTitle,
   createBackground,
@@ -234,6 +237,7 @@ export function ScenarioWorkspaceContent({
         </section>
       )}
 
+      {packs}
       {reruns}
       {heuristics}
     </div>
@@ -409,6 +413,7 @@ export function ScenarioWorkspace({ project }: { project: ResearchProjectManifes
       generation={doc && selected ? <ScenarioGenerator key={selected.id} project={project} doc={doc} scenario={selected} /> : undefined}
       heuristics={doc ? <HeuristicWorkspace project={project} doc={doc} /> : undefined}
       reruns={doc ? <ScenarioRerunQueuePanel project={project} doc={doc} /> : undefined}
+      packs={<ScenarioPackControls project={project} doc={doc} scenarios={snapshot.scenarios} selected={selected} integrityIssues={snapshot.issues} />}
       createOpen={createOpen} createTitle={createTitle} createBackground={createBackground}
       editTitle={editTitle} editBackground={editBackground} turnRole={turnRole} turnContent={turnContent}
       error={error} onSelect={selectScenario} onOpenCreate={() => { setCreateOpen(true); setError('') }}

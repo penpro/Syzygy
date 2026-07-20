@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "capability": "P-33",
+  "date": "2026-07-19",
+  "status": "implemented_unverified",
+  "claim": "Reusable scenario authoring graphs can be exported and imported through a bounded checksummed open schema without copying unrelated project or AI state.",
+  "verified": [
+    "Selected export automatically includes every required ancestor and canonicalizes scenarios by stable ID",
+    "The pack retains ordered turns, complete turn revision history, complete scenario edit history, lifecycle, lineage, timestamps, and author IDs",
+    "Votes, annotations, labels, responses, rerun results, policies, project files, settings, credentials, and transport state are excluded",
+    "Runtime decoding bounds bytes and nested collections, rejects unknown fields and future schemas, verifies current-turn projection and canonical history, recomputes SHA-256, and requires a closed acyclic graph",
+    "Import into a different project is one prevalidated Yjs transaction; exact duplicates are idempotent and any same-ID/different-content collision aborts all writes",
+    "The strict Draft 2020-12 public schema validates the committed CC0 sample and closes every object boundary to undeclared authority",
+    "Product controls disclose included and excluded data, validate and preview before explicit confirmation, and use no model or network",
+    "The exact public schema and a self-check command are discoverable through the headless syzygy_platform_contracts MCP tool"
+  ],
+  "headlessResults": {
+    "focusedTestFiles": 4,
+    "focusedTestsPassed": 13,
+    "focusedTestsFailed": 0,
+    "publicSchema": "passed",
+    "committedSample": "passed",
+    "frontendProductionBuild": "passed",
+    "rustPlatformContractTests": "2 passed",
+    "fullSupervisedCheck": "passed",
+    "fullSupervisedRunId": "20260720-193945-f65308",
+    "fullTestFilesPassed": 92,
+    "fullTestFilesSkipped": 1,
+    "fullTestsPassed": 371,
+    "fullTestsExpectedFail": 1,
+    "fullTestsSkipped": 1,
+    "repositoryAudit": "passed",
+    "rustCheck": "passed",
+    "assetReembed": "Compiling app v0.1.19 observed"
+  },
+  "limitations": [
+    "Researcher identities and timestamps are installation/caller supplied and are not authenticated or trusted across installations.",
+    "A structurally valid pack can contain deceptive or sensitive research text; schema validation does not establish truth or safety.",
+    "No authenticated signatures, revocation, malware scanning, destination policy, or redaction workflow is included.",
+    "No packaged OS Save/Open-dialog or external third-party reader interoperability run is included.",
+    "The format intentionally excludes votes, annotations, labels, model outputs, policies, and project state; it is not a full-project archive."
+  ],
+  "sources": [
+    "frontend/src/workspace/scenarioModel.ts",
+    "frontend/src/workspace/scenarioPack.ts",
+    "frontend/src/workspace/scenarioPack.test.ts",
+    "frontend/src/workspace/scenarioPackSchema.test.ts",
+    "frontend/src/workspace/ScenarioPackControls.tsx",
+    "frontend/src/workspace/ScenarioPackControls.ui.test.tsx",
+    "frontend/src/workspace/ScenarioWorkspace.tsx",
+    "frontend/src-tauri/src/platform_contracts.rs",
+    "docs/schemas/syzygy-scenario-pack-v1.schema.json",
+    "docs/samples/source-review.syzygy-scenarios.json"
+  ]
+}

@@ -50,7 +50,7 @@ Recommended first instruction to an MCP-capable model:
 | `syzygy_status` | no | Running version/view, active project, editor readiness, honest capability report |
 | `launch_syzygy` | launches app | Starts the GUI from the same installed executable and waits for readiness |
 | `syzygy_installation` | no | Exact executable/install folder, protocol, JSON/TOML configuration, connection prompt, and starter prompt; works without the GUI |
-| `syzygy_platform_contracts` | no | Provider-run, custom-adapter, public adversarial-run, and plugin schemas, honest runtime status, and self-check commands; works without the GUI |
+| `syzygy_platform_contracts` | no | Provider-run, custom-adapter, public adversarial-run, portable scenario-pack, and plugin schemas, honest runtime status, and self-check commands; works without the GUI |
 | `workspace_walkthrough` | no | State-aware explanation of the current use case and next step |
 | `list_projects` | no | Stable IDs, titles, archive state, transport, active project |
 | `inspect_drive_project_discovery` | no | Explicitly refreshes selected-workspace shared-project metadata; returns short folder code, bounded project/document identities, count, truncation, and time without tokens, Drive file IDs, titles, or document content |

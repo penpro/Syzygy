@@ -18,6 +18,8 @@ const MODEL_ADAPTER_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-model-adapter-v1.schema.json");
 const MODEL_ADAPTER_CERTIFICATION_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-model-adapter-certification-v1.schema.json");
+const SCENARIO_PACK_SCHEMA: &str =
+    include_str!("../../../docs/schemas/syzygy-scenario-pack-v1.schema.json");
 const PLUGIN_WIT_CONTRACT: &str = include_str!("../../../docs/wit/syzygy-research-plugin-v1.wit");
 
 pub fn current() -> Result<Value, String> {
@@ -35,6 +37,8 @@ pub fn current() -> Result<Value, String> {
         serde_json::from_str(MODEL_ADAPTER_CERTIFICATION_SCHEMA).map_err(|error| {
             format!("Embedded model adapter certification schema is invalid: {error}")
         })?;
+    let scenario_pack_schema: Value = serde_json::from_str(SCENARIO_PACK_SCHEMA)
+        .map_err(|error| format!("Embedded scenario pack schema is invalid: {error}"))?;
     Ok(json!({
         "contractVersion": 1,
         "implementationStatus": {
@@ -51,7 +55,8 @@ pub fn current() -> Result<Value, String> {
             "pluginCertifier": "contract-certified-runner",
             "pluginAuthorityBroker": "implemented-non-executing",
             "pluginWitContract": "published-zero-imports-no-runtime",
-            "pluginLoader": "contract-only"
+            "pluginLoader": "contract-only",
+            "scenarioPackCodec": "product-import-export-checksummed-atomic"
         },
         "providerAdapterStatus": {
             "openai-responses": crate::model_provider::OPENAI_ADAPTER_STATUS,
@@ -101,6 +106,7 @@ pub fn current() -> Result<Value, String> {
         "providerRunRecordSchema": provider_run_schema,
         "modelAdapterProfileSchema": model_adapter_schema,
         "modelAdapterCertificationSchema": model_adapter_certification_schema,
+        "scenarioPackSchema": scenario_pack_schema,
         "selfCheck": {
             "command": "npm run test:contracts",
             "providerCommand": "npm run test:providers",
@@ -114,6 +120,7 @@ pub fn current() -> Result<Value, String> {
             "modelAdapterCertifierCommand": "npm run test:model-adapter-sdk",
             "adversarialCommand": "npm run test:adversarial",
             "mcpCommand": "npm run test:mcp",
+            "scenarioPackCommand": "npm test -- --run src/workspace/scenarioPack.test.ts src/workspace/ScenarioPackControls.ui.test.tsx",
             "auditCommand": "npm run audit"
         }
     }))
@@ -230,6 +237,15 @@ mod tests {
         assert_eq!(
             contracts["modelAdapterCertificationSchema"]["additionalProperties"],
             false
+        );
+        assert_eq!(
+            contracts["implementationStatus"]["scenarioPackCodec"],
+            "product-import-export-checksummed-atomic"
+        );
+        assert_eq!(contracts["scenarioPackSchema"]["additionalProperties"], false);
+        assert_eq!(
+            contracts["scenarioPackSchema"]["properties"]["format"]["const"],
+            "syzygy-scenario-pack"
         );
     }
 

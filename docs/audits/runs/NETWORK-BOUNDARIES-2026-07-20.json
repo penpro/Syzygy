@@ -1,12 +1,12 @@
 {
   "format": "syzygy-network-boundary-proof",
   "schemaVersion": 1,
-  "generatedAt": "2026-07-20T20:07:48.077Z",
-  "manifestDigest": "8c9dfa76c4561771e34ad965c846e53f00ca7204338e8ca613a5509aa99f689f",
-  "sourceDigest": "66c92f93d3247dbc7fe0c922897bd7f19384071b45f9d235c8f87e87426ae2af",
+  "generatedAt": "2026-07-20T22:10:05.680Z",
+  "manifestDigest": "a321ac1a2572bed86c71e6d19f098f63396bbc467d80fd9c40a0537114cc8f82",
+  "sourceDigest": "4e455260ff2e4e8a8b9008b21b24a7b6b7824915421b96338e1965d1ca44cd62",
   "summary": {
     "boundaryCount": 8,
-    "productionSourceCount": 157,
+    "productionSourceCount": 158,
     "observedLiteralCount": 51,
     "boundaryLiteralCounts": {
       "local-model": 0,
@@ -120,56 +120,56 @@
     },
     {
       "path": "frontend/src-tauri/src/provider_runtime.rs",
-      "line": 183,
+      "line": 186,
       "origin": "https://api.openai.com",
       "boundaryId": "remote-providers",
       "classification": "feature-destination"
     },
     {
       "path": "frontend/src-tauri/src/provider_runtime.rs",
-      "line": 187,
+      "line": 190,
       "origin": "https://platform.openai.com",
       "boundaryId": "remote-providers",
       "classification": "disclosed-policy-link"
     },
     {
       "path": "frontend/src-tauri/src/provider_runtime.rs",
-      "line": 193,
+      "line": 196,
       "origin": "https://api.anthropic.com",
       "boundaryId": "remote-providers",
       "classification": "feature-destination"
     },
     {
       "path": "frontend/src-tauri/src/provider_runtime.rs",
-      "line": 196,
+      "line": 199,
       "origin": "https://platform.claude.com",
       "boundaryId": "remote-providers",
       "classification": "disclosed-policy-link"
     },
     {
       "path": "frontend/src-tauri/src/provider_runtime.rs",
-      "line": 202,
+      "line": 205,
       "origin": "https://generativelanguage.googleapis.com",
       "boundaryId": "remote-providers",
       "classification": "feature-destination"
     },
     {
       "path": "frontend/src-tauri/src/provider_runtime.rs",
-      "line": 205,
+      "line": 208,
       "origin": "https://ai.google.dev",
       "boundaryId": "remote-providers",
       "classification": "disclosed-policy-link"
     },
     {
       "path": "frontend/src-tauri/src/provider_runtime.rs",
-      "line": 211,
+      "line": 214,
       "origin": "https://api.x.ai",
       "boundaryId": "remote-providers",
       "classification": "feature-destination"
     },
     {
       "path": "frontend/src-tauri/src/provider_runtime.rs",
-      "line": 214,
+      "line": 217,
       "origin": "https://docs.x.ai",
       "boundaryId": "remote-providers",
       "classification": "disclosed-policy-link"

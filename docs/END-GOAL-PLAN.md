@@ -606,11 +606,13 @@ adversarial execution as `injected-runner-no-product-executor`, and continue ret
 Progress: OpenAI Responses one-shot request construction, bounded whole-operation timeout,
 idempotent in-flight/inter-event cancellation, and fake-network incremental SSE dispatch now pass
 unwired Rust conformance suites and are reported as `request-and-stream-control-conformance`.
-Aggregate remote execution is now `native-disclosure-single-review-ui-no-live-proof`: the registered
-one-shot task bridge retrieves an OS-vault credential, applies native one-use
-disclosure/timeout/cancellation controls, normalizes the response, and authors content-free
-provenance. One workspace component calls it for a non-mutating exact-draft review; streamed tools,
-adversarial batch execution, and opt-in live evidence are also open.
+Aggregate remote execution is now `native-disclosure-openai-stream-review-ui-no-live-proof`: the registered task bridge
+retrieves an OS-vault credential, applies native one-use disclosure/timeout/cancellation controls,
+normalizes the response, and authors content-free provenance. OpenAI uses an ordered per-call Tauri
+channel and bounded Rust/TypeScript accumulators so one workspace component can render the exact-draft
+review incrementally without mutating shared state; Anthropic, Gemini, and xAI remain one-shot.
+Streamed tools, slow-consumer/backpressure proof, adversarial batch execution, and opt-in live
+evidence remain open.
 The cross-language record gate now passes: the Rust loopback execution record is explicitly marked
 as conformance evidence and passes both the public TypeScript schema and semantic validator without
 leaking its secret or prompt canaries.
@@ -626,8 +628,9 @@ response attestation; its stream/tool paths remain open, so it is not product-av
 Credential progress: the cross-platform OS-vault abstraction, zeroizing secret wrapper, memory
 contract tests, and an opt-in Windows Credential Manager create/read/delete/absence canary pass.
 Typed credential and generation/cancellation Tauri commands and wrappers now exist. A collapsed
-Settings surface calls status/set/delete for OpenAI, Anthropic, Gemini, and xAI, keeps keys out of
-React/store persistence, and has no generation import. No task workflow calls generation. The
+Settings surface calls status/set/delete for OpenAI, Anthropic, Gemini, and xAI and keeps keys out of
+React/store persistence. The exact-draft remote review calls one-shot generation for Anthropic,
+Gemini, and xAI and the scoped stream command for OpenAI. The
 generation request carries no approval boolean; a
 Rust-owned native dialog creates one-use approval, and denial is headlessly proven not to read the
 vault or contact the network. macOS/Linux live canaries, transient-entry and end-to-end leak scans,
@@ -693,8 +696,10 @@ Do not use the web port or upstream source as an implementation input. First:
 2. maintain the now-pinned Lexical/Yjs dependency and source ledger;
 3. add the extension contract harness and truthful MCP self-description (landed; keep it green);
 4. maintain the policy block's passing root-document-order convergence test, the formatting,
-   pointer/keyboard, and outline fixtures, then make the expected-failure move-versus-edit
-   partition case pass before enabling reorder on a remote provider;
+   pointer/keyboard, and outline fixtures, then replace tree-coupled policy content with stable
+   content identity plus separate placement before enabling reorder on a remote provider; the
+   expected-failure move-versus-edit partition loses text under V1, while an isolated V2 experiment
+   converged with the edit misattributed to the adjacent block and was rejected;
 5. maintain the now-landed two-editor `MemoryProvider` live/partition/reconnect suite and require
    Drive/WebSocket providers to pass the same contract;
 6. render it in paper and all retained dark themes;

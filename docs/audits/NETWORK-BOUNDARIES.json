@@ -45,7 +45,7 @@
         { "path": "frontend/src/workspace/RemoteResearchReview.tsx", "contains": "Send once" },
         { "path": "frontend/src/components/NetworkBoundarySummary.tsx", "contains": "remote AI is never automatic" }
       ],
-      "evidence": ["frontend/src-tauri/src/provider_runtime.rs", "frontend/src/workspace/remoteResearchTask.test.ts"]
+      "evidence": ["frontend/src-tauri/src/provider_runtime.rs", "frontend/src/providerStream.test.ts", "frontend/src/workspace/RemoteResearchReview.ui.test.tsx", "docs/audits/runs/REMOTE-PROVIDER-STREAMING-2026-07-20.json"]
     },
     {
       "id": "google-drive",

@@ -113,12 +113,14 @@ response rejection, secret/error-body redaction, request and stalled-body timeou
 in-flight cancellation. Invalid or overlong timeout controls fail before transport. The network
 stream path verifies the SSE media type, feeds real HTTP byte chunks through the same decoder,
 enforces start/finish/end order and a 32 MiB aggregate ceiling, serially dispatches normalized
-events, distinguishes sanitized provider failure, and cancels between events. The internal one-shot
-task bridge now retrieves saved keys and authors provenance behind a typed native-disclosure
-command. The single-review workspace calls that bridge with the current draft and an editable
-model ID, but no live service has been contacted. It does not handle streamed tools.
-`syzygy_platform_contracts` reports aggregate status as
-`native-disclosure-single-review-ui-no-live-proof`.
+events, distinguishes sanitized provider failure, and cancels between events. The product
+runtime now routes that stream through one ordered per-call Tauri channel, accumulates the same
+bounded normalized response in Rust, removes the cancellation registration on every terminal path,
+and marks the authoritative content-free run record as streamed. The workspace renders OpenAI text,
+usage, and warnings incrementally as a transient review; it never applies the response to the shared
+draft automatically. Anthropic, Gemini, and xAI still use the one-shot path. No live service has been
+contacted, and streamed tools are not handled. `syzygy_platform_contracts` reports aggregate status
+as `native-disclosure-openai-stream-review-ui-no-live-proof`.
 
 The incremental OpenAI SSE decoder accepts arbitrary byte fragmentation, including split Unicode;
 joins multiline `data:` fields; ignores keepalives; validates optional SSE event labels against
@@ -127,7 +129,8 @@ unknown future types as warnings; strips provider error messages; and bounds pen
 MiB. Malformed JSON, label mismatch, partial usage, oversized frames, and truncated streams fail
 closed. Function-call events, retry/duplicate semantics, slow-consumer stress, and reconnect remain
 open. Cancellation covers the complete one-shot request/body future and the fake-network stream
-through normalized event dispatch; product wiring must preserve the same control boundary.
+through normalized event dispatch. Product wiring preserves that boundary through a scoped ordered
+channel; slow-consumer/backpressure stress, reconnect, retries, and duplicate-event policy remain open.
 
 The credential-vault boundary uses `keyring` 3.6.3 (MIT/Apache-2.0; MSRV 1.75) with native Windows,
 macOS, and persistent Linux backends. Provider secret strings zeroize on drop. The ordinary suite

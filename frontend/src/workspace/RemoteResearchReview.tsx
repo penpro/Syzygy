@@ -4,9 +4,15 @@ import {
   providerCancel,
   providerCredentialStatus,
   providerGenerate,
+  providerGenerateStream,
   type ProviderTaskOutcome,
   type RemoteProviderId,
 } from '../tauri'
+import {
+  applyProviderStreamEvent,
+  initialProviderStreamState,
+  type ProviderStreamState,
+} from '../providerStream'
 import { getAutomationEditorController } from './editorAutomationRegistry'
 import type { ResearchProjectManifest } from './schema'
 import { buildRemoteReviewRequest, REMOTE_REVIEW_PROVIDERS } from './remoteResearchTask'
@@ -15,6 +21,31 @@ const DEFAULT_QUESTION = 'Identify the three most consequential unsupported assu
 
 type ReviewPhase = 'idle' | 'preparing' | 'running' | 'cancelling' | 'complete' | 'error'
 
+export type RemoteResearchReviewResultProps = {
+  provider: RemoteProviderId
+  model: string
+  outcome: ProviderTaskOutcome | null
+  streamState: ProviderStreamState | null
+}
+
+export function RemoteResearchReviewResult({ provider, model, outcome, streamState }: RemoteResearchReviewResultProps) {
+  const response = outcome?.response
+  const text = response?.text ?? streamState?.text ?? ''
+  if (!text) return null
+  const tokens = response?.usage?.totalTokens ?? streamState?.usage?.totalTokens
+  return (
+    <div className="remote-review-result" aria-live="polite">
+      <div className="remote-review-result-meta mono">
+        {response?.provider ?? provider} · {response?.model ?? model} · {tokens ?? (response ? 'usage unknown' : 'streaming')}{typeof tokens === 'number' ? ' tokens' : ''}
+      </div>
+      <div className="remote-review-result-text">{text}</div>
+      {streamState?.warnings.length ? <div className="remote-review-retention mono">Provider notices: {streamState.warnings.join(', ')}</div> : null}
+      {outcome?.zeroDataRetention !== null && outcome?.zeroDataRetention !== undefined && <div className="remote-review-retention mono">Provider reported zero data retention: {outcome.zeroDataRetention ? 'yes' : 'no'}</div>}
+      <div className="remote-review-retention mono">Transient review · never applied to the shared draft automatically</div>
+    </div>
+  )
+}
+
 export function RemoteResearchReview({ project }: { project: ResearchProjectManifest }) {
   const [provider, setProvider] = useState<RemoteProviderId>('openai')
   const [model, setModel] = useState(REMOTE_REVIEW_PROVIDERS[0].defaultModel)
@@ -22,12 +53,14 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
   const [phase, setPhase] = useState<ReviewPhase>('idle')
   const [message, setMessage] = useState('Nothing is sent until the native Send once confirmation.')
   const [outcome, setOutcome] = useState<ProviderTaskOutcome | null>(null)
+  const [streamState, setStreamState] = useState<ProviderStreamState | null>(null)
   const [activeCallId, setActiveCallId] = useState<string | null>(null)
 
   const chooseProvider = (next: RemoteProviderId) => {
     setProvider(next)
     setModel(REMOTE_REVIEW_PROVIDERS.find(({ id }) => id === next)?.defaultModel ?? '')
     setOutcome(null)
+    setStreamState(null)
     setPhase('idle')
     setMessage('Nothing is sent until the native Send once confirmation.')
   }
@@ -41,6 +74,7 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
     const callId = `remote-review-${crypto.randomUUID()}`
     setActiveCallId(callId)
     setOutcome(null)
+    setStreamState(null)
     setPhase('preparing')
     setMessage('Checking the OS credential vault…')
     try {
@@ -55,7 +89,22 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
       })
       setPhase('running')
       setMessage('Native approval or the provider response is pending. Research leaves only after Send once.')
-      const result = await providerGenerate(request)
+      let observedStream = initialProviderStreamState()
+      let streamProtocolError: Error | null = null
+      const result = provider === 'openai'
+        ? await providerGenerateStream(request, (event) => {
+            if (streamProtocolError) return
+            try {
+              observedStream = applyProviderStreamEvent(observedStream, event)
+              setStreamState(observedStream)
+              if (event.type === 'message-start') setMessage('OpenAI approved and connected. The response is streaming into this transient review.')
+            } catch (error) {
+              streamProtocolError = error instanceof Error ? error : new Error(String(error))
+              void providerCancel(callId)
+            }
+          })
+        : await providerGenerate(request)
+      if (streamProtocolError) throw streamProtocolError
       setOutcome(result)
       if (result.response) {
         setPhase('complete')
@@ -111,15 +160,7 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
         {busy && <button className="btn ghost danger" type="button" onClick={() => void cancelReview()}>Cancel</button>}
       </div>
       <div className={`remote-review-status ${phase}`} role="status">{message}</div>
-      {outcome?.response && (
-        <div className="remote-review-result">
-          <div className="remote-review-result-meta mono">
-            {outcome.response.provider} · {outcome.response.model ?? model} · {outcome.response.usage?.totalTokens ?? 'usage unknown'} tokens
-          </div>
-          <div className="remote-review-result-text">{outcome.response.text}</div>
-          {outcome.zeroDataRetention !== null && <div className="remote-review-retention mono">Provider reported zero data retention: {outcome.zeroDataRetention ? 'yes' : 'no'}</div>}
-        </div>
-      )}
+      <RemoteResearchReviewResult provider={provider} model={model} outcome={outcome} streamState={streamState} />
     </div>
   )
 }

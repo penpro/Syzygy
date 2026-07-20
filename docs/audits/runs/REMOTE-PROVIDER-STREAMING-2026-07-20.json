@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "runId": "REMOTE-PROVIDER-STREAMING-2026-07-20",
+  "date": "2026-07-20",
+  "appVersionAtRun": "0.1.19",
+  "capabilities": ["P-25"],
+  "status": "implemented_unverified",
+  "commands": [
+    "npm run test:provider-runtime",
+    "vitest run src/providerStream.test.ts src/workspace/RemoteResearchReview.ui.test.tsx",
+    "npm run build",
+    "npm run audit",
+    "npm run test:mcp",
+    "npm run check:supervised",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "providerRuntimeTestsPassed": 13,
+    "providerStreamStateTestsPassed": 4,
+    "providerStreamUiTestsPassed": 1,
+    "frontendModulesTransformed": 1049,
+    "fullSupervisedRunId": "20260720-221305-9b4a8e",
+    "fullSupervisedDurationSeconds": 20,
+    "frontendTestFilesPassed": 95,
+    "frontendTestsPassed": 377,
+    "expectedFailureTests": 1,
+    "skippedTests": 1,
+    "repositoryAuditPassed": true,
+    "rustCheckPassed": true,
+    "loopbackFakeNetworkUsed": true,
+    "scopedTauriChannelUsed": true,
+    "externalNetworkUsed": false,
+    "realCredentialsUsed": false,
+    "realProviderCalls": 0
+  },
+  "proved": [
+    "A product-facing OpenAI stream uses the same Rust-owned native Send once disclosure, OS-vault credential boundary, fixed endpoint, timeout, and exact-call cancellation registry as the existing one-shot task.",
+    "The loopback fake provider checks bearer authentication plus stream:true and store:false, dispatches five normalized events, and produces the same bounded normalized final response and content-free authoritative run record.",
+    "Disclosure denial reads no credential, contacts no network, and dispatches no event for both one-shot and streaming execution.",
+    "The Rust accumulator bounds response text and warning counts, removes the active-call registration on terminal paths, emits camelCase event fields, and excludes prompt and credential canaries from serialized events and outcomes.",
+    "The webview receives events through one ordered per-call Tauri Channel at the sole typed invoke boundary rather than a global event bus.",
+    "The TypeScript state machine rejects missing, duplicate, out-of-order, oversized, and inconsistent events while retaining only normalized provider error codes.",
+    "The workspace renders incremental OpenAI text, usage, and warnings as an aria-live transient review and states that it is never applied to the shared draft automatically.",
+    "Anthropic, Gemini, and xAI continue through the existing bounded one-shot path instead of being mislabeled as streamed."
+  ],
+  "notProved": [
+    "A live API credential, paid provider request, current provider policy behavior, output quality, latency, or cost accounting.",
+    "Anthropic, Gemini, or xAI streaming; tool calls; structured output; reconnect; retries; duplicate-event policy; or slow-consumer/backpressure behavior.",
+    "A packaged native-dialog click, installed-webview long-stream soak, cross-platform channel behavior, or OS-level packet capture.",
+    "Persistence, sharing, acceptance/rejection, or provenance export for the returned transient review artifact."
+  ]
+}

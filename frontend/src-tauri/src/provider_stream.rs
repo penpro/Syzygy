@@ -11,7 +11,11 @@ use serde_json::Value;
 const MAX_PENDING_BYTES: usize = 1024 * 1024;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(tag = "type", rename_all = "kebab-case")]
+#[serde(
+    tag = "type",
+    rename_all = "kebab-case",
+    rename_all_fields = "camelCase"
+)]
 pub enum NormalizedStreamEvent {
     MessageStart {
         provider: RemoteProviderId,

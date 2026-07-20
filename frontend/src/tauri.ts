@@ -2,11 +2,12 @@
 // calling `invoke('cmd', {...})` directly, so every command name, argument shape, and return type
 // lives in ONE place instead of being duplicated across ~40 call sites. Add a wrapper here for
 // every new `#[tauri::command]`; components should never import `invoke` themselves.
-import { invoke as rawInvoke, isTauri as rawIsTauri } from '@tauri-apps/api/core'
+import { Channel, invoke as rawInvoke, isTauri as rawIsTauri } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { download as downloadBlob } from './util'
 import { logError } from './log'
 import type { ProviderRunRecord } from './extensions/providerRunRecord'
+import type { ProviderStreamEvent } from './providerStream'
 
 /** Every backend call goes through here, so every backend FAILURE lands in the diagnostic log
  * automatically (command name + error text only — never arguments or file contents). */
@@ -514,6 +515,18 @@ export async function pickLanPairingKeyFile(): Promise<string | null> {
  */
 export const providerGenerate = (request: ProviderResearchTaskRequest): Promise<ProviderTaskOutcome> =>
   invoke('provider_generate', { request })
+
+/**
+ * Run one OpenAI request over a scoped, ordered IPC channel. The native command owns disclosure,
+ * credential access, transport validation, cancellation, and the final content-free run record.
+ */
+export const providerGenerateStream = (
+  request: ProviderResearchTaskRequest,
+  onEvent: (event: ProviderStreamEvent) => void,
+): Promise<ProviderTaskOutcome> => {
+  const channel = new Channel<ProviderStreamEvent>(onEvent)
+  return invoke('provider_generate_stream', { request, onEvent: channel })
+}
 
 /** Cancel an active provider call by its caller-generated ID. */
 export const providerCancel = (callId: string): Promise<boolean> =>

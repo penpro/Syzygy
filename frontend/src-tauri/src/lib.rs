@@ -199,6 +199,7 @@ pub fn run() {
             lan_dev_coordinator::lan_dev_coordinator_configure,
             mcp_setup::mcp_connection_info,
             provider_runtime::provider_generate,
+            provider_runtime::provider_generate_stream,
             provider_runtime::provider_cancel,
             provider_runtime::provider_adversarial_authorize,
             provider_runtime::provider_adversarial_revoke,

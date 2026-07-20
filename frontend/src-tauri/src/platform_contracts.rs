@@ -47,7 +47,7 @@ pub fn current() -> Result<Value, String> {
         "contractVersion": 1,
         "implementationStatus": {
             "localProvider": "available",
-            "remoteProviderAdapters": "native-disclosure-single-review-ui-no-live-proof",
+            "remoteProviderAdapters": "native-disclosure-openai-stream-review-ui-no-live-proof",
             "providerTaskRuntime": "native-disclosure-research-envelope",
             "providerBatchAuthorization": "native-scoped-authorizer-no-product-executor",
             "providerBatchReservation": "internal-atomic-reservation-no-executor",
@@ -144,7 +144,7 @@ mod tests {
         assert_eq!(contracts["contractVersion"], 1);
         assert_eq!(
             contracts["implementationStatus"]["remoteProviderAdapters"],
-            "native-disclosure-single-review-ui-no-live-proof"
+            "native-disclosure-openai-stream-review-ui-no-live-proof"
         );
         assert_eq!(
             contracts["implementationStatus"]["providerTaskRuntime"],

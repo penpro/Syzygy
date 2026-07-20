@@ -290,17 +290,18 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - Custom compatible model adapters now have strict profile/certification schemas, a non-executing
   package runner, hostile profile fixtures, exact endpoint probes, and a documented local-vLLM
   example. Runtime transport and credentials remain `contract-only`.
-- The built-in one-shot provider task bridge now proves vault lookup, fixed-endpoint dispatch,
-  sanitized normalized output, disclosure denial without network contact, and Rust-authored
-  content-free provenance. Credential and generation/cancellation Tauri commands exist. Generation
-  always asks through a Rust-owned native **Send once** dialog; approval is absent from the request,
-  and denial is proven to avoid both vault reads and network. The public request carries a
-  structured question plus labeled source snapshots; Rust derives disclosure categories and unique
-  provenance IDs from the same serialized payload. The workspace now calls it for one optional,
-  non-mutating current-draft review with editable provider/model/question and cancellation.
-  The headless proof and non-claims are recorded in
-  `docs/audits/runs/NATIVE-PROVIDER-DISCLOSURE-2026-07-15.json`.
-  Envelope binding evidence: `docs/audits/runs/PROVIDER-RESEARCH-ENVELOPE-2026-07-15.json`.
+- The built-in provider task bridge proves vault lookup, fixed-endpoint dispatch, sanitized
+  normalized output, disclosure denial without network contact, and Rust-authored content-free
+  provenance. Generation always asks through a Rust-owned native **Send once** dialog; approval is
+  absent from the request, and denial is proven to avoid both vault reads and network. The public
+  request carries a structured question plus labeled source snapshots; Rust derives disclosure
+  categories and unique provenance IDs from those same bytes. OpenAI now uses a scoped ordered Tauri
+  channel, bounded Rust accumulator, shared timeout/cancellation registry, and incremental transient
+  workspace result; other providers remain one-shot. No result automatically mutates shared work.
+  Fake-network, reducer, UI, and non-claim evidence is in
+  `docs/audits/runs/REMOTE-PROVIDER-STREAMING-2026-07-20.json`; native disclosure and envelope
+  evidence remain in `NATIVE-PROVIDER-DISCLOSURE-2026-07-15.json` and
+  `PROVIDER-RESEARCH-ENVELOPE-2026-07-15.json`.
 - The actual Rust-authored task record now crosses process serialization and passes the public
   TypeScript schema plus semantic validator. Loopback evidence is explicitly marked and cannot be
   mistaken for a production HTTPS call.
@@ -474,8 +475,9 @@ collaborators are not required to download large project folders.
    - Design target: the "research editor" panel of the approved mockup (version rail,
      evaluation panel, mono metadata stamps).
 3. **Certify the open research platform boundary** — the first OpenAI fake-server/key-canary
-   request/stream/control gates, Windows credential-vault canary, and native one-shot disclosure
-   command have landed; next build the provider settings/task workflow and streaming event bridge.
+   request/stream/control gates, Windows credential-vault canary, native disclosure, provider
+   settings/task workflow, and scoped OpenAI streaming event bridge have landed; next add equivalent
+   provider-native streams/tools and opt-in live/provider-policy evidence.
    Build the adversarial benchmark before
    claiming panel quality; implement a no-authority WASI host before loading third-party code.
 4. **Harden collaboration beyond the first Drive transport** — append-only Yjs Drive sharing,

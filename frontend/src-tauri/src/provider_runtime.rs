@@ -1,17 +1,20 @@
 //! Product boundary for opt-in remote model tasks.
 //!
 //! This is intentionally narrower than the transport module: built-in endpoints only, one default
-//! OS-vault credential per provider, explicit disclosure approval, one-shot execution, caller
-//! cancellation, sanitized output, and a content-free provenance record authored in Rust.
+//! OS-vault credential per provider, explicit disclosure approval, one-shot execution plus a
+//! scoped OpenAI event channel, caller cancellation, sanitized output, and a content-free
+//! provenance record authored in Rust.
 
 use crate::credential_vault::{CredentialId, CredentialVault, OsCredentialVault};
 use crate::model_provider::{
     execute_anthropic_response_controlled, execute_gemini_response_controlled,
-    execute_openai_response_controlled, execute_xai_response_controlled, provider_execution,
-    GenerationRequest, InputRole, NormalizedResponse, ProviderCancellation, ProviderError,
-    ProviderInput, RemoteProviderId, TransmissionApproval, ANTHROPIC_ADAPTER_STATUS,
-    GEMINI_ADAPTER_STATUS, OPENAI_ADAPTER_STATUS, XAI_ADAPTER_STATUS,
+    execute_openai_response_controlled, execute_openai_stream_controlled,
+    execute_xai_response_controlled, provider_execution, GenerationRequest, InputRole,
+    NormalizedResponse, NormalizedUsage, ProviderCancellation, ProviderError, ProviderInput,
+    RemoteProviderId, TransmissionApproval, ANTHROPIC_ADAPTER_STATUS, GEMINI_ADAPTER_STATUS,
+    OPENAI_ADAPTER_STATUS, XAI_ADAPTER_STATUS,
 };
+use crate::provider_stream::NormalizedStreamEvent;
 use chrono::{SecondsFormat, Utc};
 use reqwest::{Client, Url};
 use serde::{Deserialize, Serialize};
@@ -741,6 +744,208 @@ fn run_record(
     })
 }
 
+const MAX_ACCUMULATED_STREAM_BYTES: usize = 8 * 1024 * 1024;
+const MAX_STREAM_WARNINGS: usize = 64;
+
+#[derive(Default)]
+struct ProviderStreamAccumulator {
+    response_id: Option<String>,
+    text: String,
+    usage: Option<NormalizedUsage>,
+    status: Option<String>,
+    warnings: Vec<String>,
+}
+
+impl ProviderStreamAccumulator {
+    fn apply(&mut self, event: &NormalizedStreamEvent) -> Result<(), ProviderError> {
+        match event {
+            NormalizedStreamEvent::MessageStart { response_id, .. } => {
+                if self.response_id.replace(response_id.clone()).is_some() {
+                    return Err(ProviderError::MalformedResponse);
+                }
+            }
+            NormalizedStreamEvent::TextDelta { text } => {
+                let next_len = self
+                    .text
+                    .len()
+                    .checked_add(text.len())
+                    .ok_or(ProviderError::ResponseTooLarge)?;
+                if next_len > MAX_ACCUMULATED_STREAM_BYTES {
+                    return Err(ProviderError::ResponseTooLarge);
+                }
+                self.text.push_str(text);
+            }
+            NormalizedStreamEvent::Usage { usage } => {
+                if self.usage.replace(usage.clone()).is_some() {
+                    return Err(ProviderError::MalformedResponse);
+                }
+            }
+            NormalizedStreamEvent::Finish { status } => {
+                if self.status.replace(status.clone()).is_some() {
+                    return Err(ProviderError::MalformedResponse);
+                }
+            }
+            NormalizedStreamEvent::ProviderWarning { event_type } => {
+                if self.warnings.len() >= MAX_STREAM_WARNINGS {
+                    return Err(ProviderError::ResponseTooLarge);
+                }
+                self.warnings.push(event_type.clone());
+            }
+            NormalizedStreamEvent::ProviderError { .. } | NormalizedStreamEvent::StreamEnd => {}
+        }
+        Ok(())
+    }
+
+    fn into_response(
+        self,
+        request: &ProviderTaskRequest,
+    ) -> Result<NormalizedResponse, ProviderError> {
+        Ok(NormalizedResponse {
+            provider: RemoteProviderId::OpenAi,
+            id: self.response_id.ok_or(ProviderError::MalformedResponse)?,
+            status: self.status.ok_or(ProviderError::MalformedResponse)?,
+            model: Some(request.generation.model.clone()),
+            text: self.text,
+            refusals: Vec::new(),
+            unknown_output_types: self.warnings,
+            usage: self.usage,
+        })
+    }
+}
+
+fn stream_run_record(
+    request: &ProviderTaskRequest,
+    endpoint: &Url,
+    disclosure_accepted: bool,
+    started_at: &str,
+    completed_at: &str,
+    response: Option<&NormalizedResponse>,
+    error: Option<&ProviderError>,
+) -> Value {
+    let mut record = run_record(
+        request,
+        endpoint,
+        disclosure_accepted,
+        started_at,
+        completed_at,
+        response,
+        None,
+        error,
+    );
+    record["request"]["stream"] = Value::Bool(true);
+    record
+}
+
+#[doc(hidden)]
+pub async fn execute_stream_with<V, F>(
+    vault: &V,
+    state: &ProviderRuntimeState,
+    client: &Client,
+    endpoint: Url,
+    request: ProviderTaskRequest,
+    disclosure_accepted: bool,
+    mut on_event: F,
+) -> Result<ProviderTaskOutcome, String>
+where
+    V: CredentialVault,
+    F: FnMut(NormalizedStreamEvent) -> Result<(), ProviderError>,
+{
+    validate_task(&request)?;
+    if request.provider != RemoteProviderId::OpenAi {
+        return Err("Native streaming is currently available only for OpenAI".to_owned());
+    }
+    let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    if !disclosure_accepted {
+        let error = ProviderError::DisclosureRequired;
+        let completed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+        return Ok(ProviderTaskOutcome {
+            run_record: stream_run_record(
+                &request,
+                &endpoint,
+                false,
+                &started_at,
+                &completed_at,
+                None,
+                Some(&error),
+            ),
+            response: None,
+            zero_data_retention: None,
+            error_code: Some(error_code(&error).to_owned()),
+        });
+    }
+    let (execution, cancellation) = provider_execution(Duration::from_millis(request.timeout_ms))
+        .map_err(|error| error.to_string())?;
+    let credential_id = CredentialId::new(request.provider, DEFAULT_PROFILE.to_owned())
+        .map_err(|error| error.to_string())?;
+    let secret = vault
+        .get(&credential_id)
+        .map_err(|error| error.to_string())?;
+    {
+        let mut calls = state
+            .calls
+            .lock()
+            .map_err(|_| "Provider cancellation registry is unavailable".to_owned())?;
+        if calls.contains_key(&request.call_id) {
+            return Err("Provider call ID is already active".to_owned());
+        }
+        calls.insert(request.call_id.clone(), cancellation);
+    }
+    let approval = TransmissionApproval {
+        provider: request.provider,
+        content_categories: request.content_categories.clone(),
+        accepted: true,
+    };
+    let mut accumulator = ProviderStreamAccumulator::default();
+    let result = execute_openai_stream_controlled(
+        client,
+        &endpoint,
+        &secret,
+        &request.generation,
+        &approval,
+        execution,
+        |event| {
+            accumulator.apply(&event)?;
+            on_event(event)
+        },
+    )
+    .await
+    .and_then(|()| accumulator.into_response(&request));
+    if let Ok(mut calls) = state.calls.lock() {
+        calls.remove(&request.call_id);
+    }
+    let completed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    match result {
+        Ok(response) => Ok(ProviderTaskOutcome {
+            run_record: stream_run_record(
+                &request,
+                &endpoint,
+                true,
+                &started_at,
+                &completed_at,
+                Some(&response),
+                None,
+            ),
+            response: Some(response),
+            zero_data_retention: None,
+            error_code: None,
+        }),
+        Err(error) => Ok(ProviderTaskOutcome {
+            run_record: stream_run_record(
+                &request,
+                &endpoint,
+                true,
+                &started_at,
+                &completed_at,
+                None,
+                Some(&error),
+            ),
+            response: None,
+            zero_data_retention: None,
+            error_code: Some(error_code(&error).to_owned()),
+        }),
+    }
+}
+
 #[doc(hidden)]
 pub async fn execute_with<V: CredentialVault>(
     vault: &V,
@@ -902,6 +1107,44 @@ pub async fn provider_generate(
         endpoint,
         request,
         approved,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn provider_generate_stream(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, ProviderRuntimeState>,
+    request: ProviderResearchTaskRequest,
+    on_event: tauri::ipc::Channel<NormalizedStreamEvent>,
+) -> Result<ProviderTaskOutcome, String> {
+    if request.provider != RemoteProviderId::OpenAi {
+        return Err("Native streaming is currently available only for OpenAI".to_owned());
+    }
+    let endpoint = Url::parse(profile(request.provider).endpoint)
+        .map_err(|_| "Built-in provider endpoint is invalid".to_owned())?;
+    let request = build_research_task(request)?;
+    let message = disclosure_message(&request, &endpoint);
+    let approved = tauri::async_runtime::spawn_blocking(move || {
+        app.dialog()
+            .message(message)
+            .title("Remote model disclosure")
+            .buttons(MessageDialogButtons::OkCancelCustom(
+                "Send once".to_owned(),
+                "Cancel".to_owned(),
+            ))
+            .blocking_show()
+    })
+    .await
+    .map_err(|_| "Remote model disclosure dialog could not be shown".to_owned())?;
+    execute_stream_with(
+        &OsCredentialVault,
+        &state,
+        &Client::new(),
+        endpoint,
+        request,
+        approved,
+        move |event| on_event.send(event).map_err(|_| ProviderError::Transport),
     )
     .await
 }
@@ -1175,6 +1418,129 @@ mod tests {
     }
 
     #[test]
+    fn stream_accumulator_bounds_text_warnings_and_duplicate_terminal_metadata() {
+        let mut accumulator = ProviderStreamAccumulator::default();
+        accumulator
+            .apply(&NormalizedStreamEvent::MessageStart {
+                provider: RemoteProviderId::OpenAi,
+                response_id: "bounded-response".to_owned(),
+            })
+            .unwrap();
+        accumulator
+            .apply(&NormalizedStreamEvent::TextDelta {
+                text: "x".repeat(MAX_ACCUMULATED_STREAM_BYTES),
+            })
+            .unwrap();
+        assert_eq!(
+            accumulator.apply(&NormalizedStreamEvent::TextDelta {
+                text: "overflow".to_owned(),
+            }),
+            Err(ProviderError::ResponseTooLarge)
+        );
+
+        let mut warnings = ProviderStreamAccumulator::default();
+        for index in 0..MAX_STREAM_WARNINGS {
+            warnings
+                .apply(&NormalizedStreamEvent::ProviderWarning {
+                    event_type: format!("future-event-{index}"),
+                })
+                .unwrap();
+        }
+        assert_eq!(
+            warnings.apply(&NormalizedStreamEvent::ProviderWarning {
+                event_type: "one-too-many".to_owned(),
+            }),
+            Err(ProviderError::ResponseTooLarge)
+        );
+
+        let usage = NormalizedStreamEvent::Usage {
+            usage: NormalizedUsage {
+                input_tokens: 1,
+                output_tokens: 1,
+                total_tokens: 2,
+            },
+        };
+        warnings.apply(&usage).unwrap();
+        assert_eq!(
+            warnings.apply(&usage),
+            Err(ProviderError::MalformedResponse)
+        );
+    }
+
+    #[test]
+    fn runtime_streams_normalized_events_and_authors_content_free_record() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener");
+        let endpoint = Url::parse(&format!(
+            "http://{}/v1/responses",
+            listener.local_addr().unwrap()
+        ))
+        .unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = vec![0_u8; 16 * 1024];
+            let read = stream.read(&mut request).unwrap();
+            let request = String::from_utf8_lossy(&request[..read]);
+            assert!(request
+                .to_ascii_lowercase()
+                .contains("authorization: bearer runtime-stream-secret-canary"));
+            assert!(request.contains("\"stream\":true"));
+            assert!(request.contains("\"store\":false"));
+            let body = concat!(
+                "data: {\"type\":\"response.created\",\"response\":{\"id\":\"runtime-stream-response\"}}\n\n",
+                "data: {\"type\":\"response.output_text.delta\",\"delta\":\"bounded streamed answer\"}\n\n",
+                "data: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\",\"usage\":{\"input_tokens\":4,\"output_tokens\":3,\"total_tokens\":7}}}\n\n",
+                "data: [DONE]\n\n"
+            );
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+            .unwrap();
+        });
+        let vault = MemoryVault::default();
+        let id = CredentialId::new(RemoteProviderId::OpenAi, DEFAULT_PROFILE.to_owned()).unwrap();
+        vault
+            .set(
+                &id,
+                &ProviderSecret::new("runtime-stream-secret-canary".to_owned()).unwrap(),
+            )
+            .unwrap();
+        let mut events = Vec::new();
+        let state = ProviderRuntimeState::default();
+        let outcome = tauri::async_runtime::block_on(execute_stream_with(
+            &vault,
+            &state,
+            &Client::new(),
+            endpoint,
+            task(),
+            true,
+            |event| {
+                events.push(event);
+                Ok(())
+            },
+        ))
+        .expect("stream runtime outcome");
+        server.join().unwrap();
+        assert_eq!(
+            outcome.response.as_ref().map(|value| value.text.as_str()),
+            Some("bounded streamed answer")
+        );
+        assert_eq!(outcome.run_record["request"]["stream"], true);
+        assert_eq!(outcome.run_record["usage"]["totalTokens"], 7);
+        assert_eq!(events.len(), 5);
+        let serialized_events = serde_json::to_string(&events).unwrap();
+        assert!(serialized_events.contains("responseId"));
+        assert!(!serialized_events.contains("response_id"));
+        let serialized = serde_json::to_string(&outcome).unwrap();
+        assert!(!serialized.contains("runtime-stream-secret-canary"));
+        assert!(!serialized.contains("fixture question"));
+        assert!(!serialized.contains("selected research excerpts"));
+        assert!(state.calls.lock().unwrap().is_empty());
+    }
+
+    #[test]
     fn runtime_records_disclosure_denial_without_contacting_network() {
         struct VaultMustNotBeRead;
         impl CredentialVault for VaultMustNotBeRead {
@@ -1205,6 +1571,23 @@ mod tests {
         assert_eq!(outcome.error_code.as_deref(), Some("disclosure-required"));
         assert_eq!(outcome.run_record["result"]["status"], "failed");
         assert_eq!(outcome.run_record["disclosure"]["approved"], false);
+
+        let stream_outcome = tauri::async_runtime::block_on(execute_stream_with(
+            &VaultMustNotBeRead,
+            &ProviderRuntimeState::default(),
+            &Client::new(),
+            Url::parse("http://127.0.0.1:9/v1/responses").unwrap(),
+            task(),
+            false,
+            |_| panic!("denied stream must not dispatch events"),
+        ))
+        .expect("typed stream denial");
+        assert_eq!(
+            stream_outcome.error_code.as_deref(),
+            Some("disclosure-required")
+        );
+        assert_eq!(stream_outcome.run_record["request"]["stream"], true);
+        assert_eq!(stream_outcome.run_record["disclosure"]["approved"], false);
     }
 
     #[test]

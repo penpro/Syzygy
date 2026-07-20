@@ -29,7 +29,7 @@ const PIECES: { icon: string; title: string; body: string }[] = [
   {
     icon: '🔒',
     title: 'Local-first by design',
-    body: 'The whole AI loop runs on your PC — your prompts and the model\'s answers never leave the machine. Only the things you explicitly invoke touch the internet: model downloads, update checks, and Google Drive collaboration.',
+    body: 'The bundled local-model loop runs on your PC. Remote providers receive the disclosed request only when you choose Send once. Other network features are also explicit: model downloads, update checks, Google Drive collaboration, and opt-in crash reports.',
   },
 ]
 
@@ -65,7 +65,7 @@ export function Tutorial({ onClose }: { onClose: () => void }) {
             </defs>
 
             <rect x="146" y="26" width="466" height="120" rx="10" fill="none" stroke="var(--border-2)" strokeDasharray="4 4" />
-            <text x="152" y="20" fill="var(--muted)" fontSize="9.5" fontFamily="var(--font-mono)" letterSpacing="2">YOUR PC · AI LOOP 100% LOCAL</text>
+            <text x="152" y="20" fill="var(--muted)" fontSize="9.5" fontFamily="var(--font-mono)" letterSpacing="2">YOUR PC · BUNDLED MODEL PATH · LOCAL</text>
 
             <g fontFamily="'JetBrains Mono', monospace" textAnchor="middle">
               <rect x="6" y="50" width="120" height="56" rx="8" fill="var(--panel)" stroke="var(--border-2)" />

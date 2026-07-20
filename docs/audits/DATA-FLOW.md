@@ -24,6 +24,7 @@
 | MCP immutable checkpoint | Connected host explicitly calls `save_active_policy_version` | Exact live semantic editor snapshot + caller attribution → dual revision checks → canonical hash → immutable version + head | Current policy blocks enter the local version envelope; response returns revision/hash/attribution/count metadata and deterministic count note | Existing project Y.Doc/IndexedDB | Expected document revision checked before hashing and inside final transaction; expected head and parent bytes rechecked in same transaction; no draft edit/restore/Drive/model authority; caller identity is not authenticated |
 | MCP setup/self-description | User opens Settings guide or connected host calls `syzygy_installation` | Running Rust process → webview or MCP stdio | Executable path, parent install folder, app/protocol versions, generated config/prompts | None | Local process metadata only; no OAuth token, model secret, or research content |
 | Extension contract inspection | Connected host calls `syzygy_platform_contracts` or CI loads validators | Embedded schemas/status → MCP stdio/test process | Provider transports, adversarial phases, plugin permissions/schemas, implementation states | None | Static public contract data; unimplemented runtimes say `contract-only`; no project/key/account data |
+| Network boundary self-audit | CI, reviewer, or MCP client loads the S-06 contract | Versioned manifest + production source literals + product-copy anchors → strict headless classifier → sanitized proof | Feature IDs, activation/default state, service origins, route prefixes, payload classes, credential handling, source/copy paths and line numbers | Committed JSON proof only | Unknown fields, missing anchors, duplicate features, or an unclassified origin abort; proof stores origin only and excludes URL credentials, paths, queries, fragments, request bodies, and source text |
 | Remote credential management | User expands optional remote keys and saves/replaces/removes | Masked transient DOM field → typed wrapper → Rust → OS credential facility | Provider ID and API key; status returns only a boolean | OS credential store only | Field clears before awaited write; no key in React/Zustand/localStorage/project/backup/log/MCP; no get-secret command; saving has no generation authority |
 | Native-gated provider task | Typed workspace single-review call | Structured question/instructions/labeled snapshots → Rust-derived categories/provenance → native disclosure → OS vault → fixed provider HTTPS route → content-free record | Serialized research envelope leaves only after native **Send once**; hashes/derived source IDs/status/usage return | Key in OS vault; review output/run record remain transient | No caller approval/category/detached-provenance fields; unique source IDs; bounded content/model; denial precedes vault/network; fixed route; timeout/cancellation; MCP has no invoke authority |
 | Workspace remote review | Researcher chooses provider/model, edits a question, and sends once | Current semantic draft + revision → SHA-256 snapshot identity → typed provider task → native disclosure/runtime → normalized non-mutating result | Exact current draft and question may leave only after native approval; response text returns to transient UI state | No review persistence; key remains in OS vault; content-free run record is returned | Editable model ID; current-draft binding; explicit one-call UI; cancellation; output never auto-mutates shared state; no MCP/plugin authority or live-provider proof |
@@ -60,9 +61,12 @@ operations by folder ID and descendant enumeration. This is an application contr
 permission boundary; see ADR-0001. Any new Drive command must prove that it cannot operate outside
 the selected tree or must receive a separate explicit review.
 
+S-06 now has a reproducible source/copy/origin trace in `NETWORK-BOUNDARIES.json` and a sanitized
++proof artifact. It is `implemented_unverified`, not `verified`: cross-platform OS packet capture,
++dynamic DNS/CDN inspection, third-party SDK payload capture, and paid-provider live calls remain open.
++
 ## Evidence still required
 
-- sanitized per-feature network traces (S-06);
 - Windows/macOS/Linux app-data permission checks;
 - crash-dump inspection for prompt/token leakage;
 - two-account Drive harness evidence after restricted-scope reauthorization; and

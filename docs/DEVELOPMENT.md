@@ -763,3 +763,15 @@ tokens. Entries survive app restarts until **Clear**. First stop for any user-re
 - Save-shape changes go through `migrations.ts` with idempotent backfills.
 - Copy follows the local-first voice rules (`docs/DESIGN.md → Voice`).
 - Commit messages: what + why, wrapped ~72 cols.
+
+## Headless network-boundary proof
+
+Run S-06 without a model, API key, live network request, webview, or manual inspection:
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+npm run test:network-boundaries
+node ..\scripts\network-boundary-harness.mjs --write-proof
+```
+
+The first command adversarially rejects unknown manifest fields, duplicate boundary IDs, missing copy anchors, and new unclassified production origins. A secret-bearing URL canary proves the output omits credentials, paths, queries, and fragments. The second command refreshes `docs/audits/runs/NETWORK-BOUNDARIES-2026-07-20.json`; review its hashes and origin-only observations before committing. This is a source/copy/destination trace, not an OS packet capture or live-provider certification.

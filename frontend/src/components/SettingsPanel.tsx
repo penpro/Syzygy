@@ -10,6 +10,7 @@ import { UpdateCheck } from './UpdateCheck'
 import { McpSetupModal } from './McpSetupModal'
 import { RemoteProviderSettings } from './RemoteProviderSettings'
 import { LanAgentSettings } from './LanAgentSettings'
+import { NetworkBoundarySummary } from './NetworkBoundarySummary'
 import { crashReportsAvailable, startCrashReports, stopCrashReports } from '../crashReports'
 import { useConfirm } from './ConfirmDialog'
 import { STORE_KEY, exportData } from '../storage'
@@ -236,6 +237,8 @@ export function SettingsPanel({
     >
       <div className="form">
         <UpdateCheck />
+
+        <NetworkBoundarySummary />
 
         <div className="field">
           <span>Connect an LLM</span>

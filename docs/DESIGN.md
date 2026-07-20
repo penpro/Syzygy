@@ -308,3 +308,9 @@ Plugin permission screens use plain verbs and concrete scope: "Read this project
 change," "Fetch from doi.org," or "Use the configured local model." Native MCP plugins carry a
 stronger trust warning than capability-sandboxed WASI plugins. Advanced controls may be tucked
 away, but requested authority and remote transmission are never hidden there.
+
+## Network-boundary copy
+
+Settings must expose one expandable **What can use the network** summary. It distinguishes the bundled loopback model, one-use remote-provider sends, selected-workspace Google access, manual model/update downloads, off-by-default crash reporting, and local/private-LAN automation. Each item names when it activates, where it connects, and the data class involved.
+
+Do not say that the whole AI loop or the whole application “never phones home.” The accurate claim is narrower: the bundled local-model path stays on this computer; remote providers receive the disclosed request only after **Send once**; every other network feature follows the user action stated in the summary. Advanced placement may reduce clutter but must not hide authority or transmission.

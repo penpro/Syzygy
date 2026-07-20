@@ -20,6 +20,8 @@ const MODEL_ADAPTER_CERTIFICATION_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-model-adapter-certification-v1.schema.json");
 const SCENARIO_PACK_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-scenario-pack-v1.schema.json");
+const NETWORK_BOUNDARY_MANIFEST: &str =
+    include_str!("../../../docs/audits/NETWORK-BOUNDARIES.json");
 const PLUGIN_WIT_CONTRACT: &str = include_str!("../../../docs/wit/syzygy-research-plugin-v1.wit");
 
 pub fn current() -> Result<Value, String> {
@@ -39,6 +41,8 @@ pub fn current() -> Result<Value, String> {
         })?;
     let scenario_pack_schema: Value = serde_json::from_str(SCENARIO_PACK_SCHEMA)
         .map_err(|error| format!("Embedded scenario pack schema is invalid: {error}"))?;
+    let network_boundary_manifest: Value = serde_json::from_str(NETWORK_BOUNDARY_MANIFEST)
+        .map_err(|error| format!("Embedded network boundary manifest is invalid: {error}"))?;
     Ok(json!({
         "contractVersion": 1,
         "implementationStatus": {
@@ -56,7 +60,8 @@ pub fn current() -> Result<Value, String> {
             "pluginAuthorityBroker": "implemented-non-executing",
             "pluginWitContract": "published-zero-imports-no-runtime",
             "pluginLoader": "contract-only",
-            "scenarioPackCodec": "product-import-export-checksummed-atomic"
+            "scenarioPackCodec": "product-import-export-checksummed-atomic",
+            "networkBoundaryTrace": "source-copy-origin-harness-no-os-packet-capture"
         },
         "providerAdapterStatus": {
             "openai-responses": crate::model_provider::OPENAI_ADAPTER_STATUS,
@@ -107,6 +112,7 @@ pub fn current() -> Result<Value, String> {
         "modelAdapterProfileSchema": model_adapter_schema,
         "modelAdapterCertificationSchema": model_adapter_certification_schema,
         "scenarioPackSchema": scenario_pack_schema,
+        "networkBoundaryManifest": network_boundary_manifest,
         "selfCheck": {
             "command": "npm run test:contracts",
             "providerCommand": "npm run test:providers",
@@ -121,6 +127,7 @@ pub fn current() -> Result<Value, String> {
             "adversarialCommand": "npm run test:adversarial",
             "mcpCommand": "npm run test:mcp",
             "scenarioPackCommand": "npm test -- --run src/workspace/scenarioPack.test.ts src/workspace/ScenarioPackControls.ui.test.tsx",
+            "networkBoundaryCommand": "npm run test:network-boundaries",
             "auditCommand": "npm run audit"
         }
     }))
@@ -241,6 +248,15 @@ mod tests {
         assert_eq!(
             contracts["implementationStatus"]["scenarioPackCodec"],
             "product-import-export-checksummed-atomic"
+        );
+        assert_eq!(
+            contracts["implementationStatus"]["networkBoundaryTrace"],
+            "source-copy-origin-harness-no-os-packet-capture"
+        );
+        assert_eq!(contracts["networkBoundaryManifest"]["schemaVersion"], 1);
+        assert_eq!(
+            contracts["networkBoundaryManifest"]["status"],
+            "implemented-unverified"
         );
         assert_eq!(contracts["scenarioPackSchema"]["additionalProperties"], false);
         assert_eq!(

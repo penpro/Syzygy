@@ -87,6 +87,9 @@
 | `frontend/src/extensions/*.ts` | Penumbra original | Provider, adversarial-run, and researcher-plugin contracts and tests authored for Syzygy |
 | `frontend/src-tauri/src/platform_contracts.rs` and `docs/schemas/*.json` | Penumbra original | Strict extension schemas and truthful MCP self-description authored for Syzygy |
 
+| `frontend/src/networkBoundaries.ts` | Penumbra original | Plain-language catalog of local, remote-provider, Drive, download/update, crash-report, MCP, and private-LAN network boundaries |
+| `frontend/src/components/NetworkBoundarySummary.tsx` | Penumbra original | Settings disclosure that distinguishes default state, activation, destination, and transmitted data for every network-active feature |
+
 ## Approved exact dependencies
 
 All product dependencies below are exact-pinned in both `package.json` and `package-lock.json`.

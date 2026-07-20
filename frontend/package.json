@@ -15,6 +15,7 @@
     "build:cancel": "node ../scripts/supervised-build.mjs cancel",
     "test:build-supervisor": "node --test ../scripts/supervised-build.test.mjs",
     "test:watchdog": "node --test ../scripts/run-with-heartbeat.test.mjs",
+    "test:network-boundaries": "node --test ../scripts/network-boundary-harness.test.mjs && node ../scripts/network-boundary-harness.mjs",
     "test:goal-framework": "node --test ../scripts/goal-framework.test.mjs",
     "test:engine-shutdown": "cargo test --manifest-path src-tauri/Cargo.toml engine::tests:: -- --nocapture",
     "fetch-engine": "node ../scripts/fetch-engine.mjs",

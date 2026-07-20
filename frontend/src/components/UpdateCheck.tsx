@@ -14,7 +14,7 @@ const boxStyle: CSSProperties = {
   fontSize: 13,
 }
 
-/** Manual, disclosed updater. The AI is fully local; only on the user's click (after the
+/** Manual, disclosed updater. The bundled model path is local; only on the user's click (after the
  * disclosure) does it contact GitHub. If a newer signed release exists it downloads + installs it
  * in-app with a progress bar and relaunches — no browser, no installer prompts. */
 export function UpdateCheck() {
@@ -90,8 +90,8 @@ export function UpdateCheck() {
       {phase === 'disclose' && (
         <div style={boxStyle}>
           <p style={{ margin: '0 0 8px' }}>
-            The AI runs fully on your machine and never phones home. Like the other internet-touching features you
-            invoke yourself (model downloads, Google Drive), this one is explicit: the app (not the model) contacts{' '}
+            The bundled local model runs on your machine. Like remote providers, model downloads, Google Drive, and
+            opt-in crash reports, this network action is explicit: the app (not the local model) contacts{' '}
             <b>github.com</b> to look for a newer release and, if you choose, download it. Nothing about you, your
             threads, or your files is sent.
           </p>

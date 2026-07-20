@@ -678,7 +678,9 @@ The schema is discoverable through `syzygy_platform_contracts`. Authenticated id
 packaged OS file-dialog interaction, and external third-party reader interoperability remain unproven,
 so it is `implemented_unverified`.
 
-Status snapshot on 2026-07-19: the 42-row ledger has 41 `implemented_unverified`, 1 `planned`,
+S-06 now has a strict versioned manifest covering eight network boundaries, matching Settings/onboarding/update copy, a production-source URL-origin classifier, adversarial unknown-field/missing-copy/unlisted-origin fixtures, and a sanitized committed proof. The manifest is available through MCP. It makes source and copy drift mechanically reviewable but does not claim cross-platform packet capture, DNS/CDN pinning, third-party SDK payload inspection, or paid-provider live compatibility.
+
+Status snapshot on 2026-07-20: the 42-row ledger has 42 `implemented_unverified`, 0 `planned`,
 and 0 `verified` capabilities. The shipped local editor, Drive research path, local engine, and MCP
 pilot are meaningful foundations, but none substitutes for the decisive two-install, convergence,
 portable-archive, workflow, accessibility, and adversarial gates below. MCP setup/onboarding is

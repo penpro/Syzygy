@@ -554,6 +554,40 @@ record(
   'ancestor-closed authoring history, canonical SHA-256, strict schema/sample, adversarial decode, atomic collision refusal, explicit no-model/network product flow, MCP schema discovery, and truthful P-33 status are present',
 )
 
+const networkBoundaryManifestSource = text('docs/audits/NETWORK-BOUNDARIES.json')
+const networkBoundaryHarnessSource = text('scripts/network-boundary-harness.mjs')
+const networkBoundaryHarnessTestSource = text('scripts/network-boundary-harness.test.mjs')
+const networkBoundaryCatalogSource = text('frontend/src/networkBoundaries.ts')
+const networkBoundaryPanelSource = text('frontend/src/components/NetworkBoundarySummary.tsx')
+const networkBoundaryPanelTestSource = text('frontend/src/components/NetworkBoundarySummary.ui.test.tsx')
+const tutorialSource = text('frontend/src/components/Tutorial.tsx')
+const updateCheckSource = text('frontend/src/components/UpdateCheck.tsx')
+record(
+  'network-active features remain source-traced, copy-matched, fail-closed, and proof-sanitized',
+  networkBoundaryManifestSource.includes('"format": "syzygy-network-boundaries"') &&
+    networkBoundaryManifestSource.includes('"status": "implemented-unverified"') &&
+    networkBoundaryManifestSource.includes('"id": "remote-providers"') &&
+    networkBoundaryManifestSource.includes('"id": "private-lan"') &&
+    networkBoundaryManifestSource.includes('operating-system packet capture') &&
+    networkBoundaryHarnessSource.includes('Unclassified production URL origin') &&
+    networkBoundaryHarnessSource.includes('assertExactKeys(manifest, ROOT_KEYS') &&
+    networkBoundaryHarnessSource.includes('observations: inventory.observations') &&
+    networkBoundaryHarnessTestSource.includes('TOP_SECRET_CANARY') &&
+    networkBoundaryHarnessTestSource.includes('a boundary without matching product copy is rejected') &&
+    networkBoundaryCatalogSource.includes('Loopback on this computer only') &&
+    networkBoundaryCatalogSource.includes('Only after you review the disclosure and choose Send once') &&
+    networkBoundaryPanelSource.includes('aria-label="Network boundaries"') &&
+    networkBoundaryPanelTestSource.includes('remote AI is never automatic') &&
+    tutorialSource.includes('The bundled local-model loop runs on your PC') &&
+    !tutorialSource.includes('AI LOOP 100% LOCAL') &&
+    updateCheckSource.includes('this network action is explicit') &&
+    frontendPackage.scripts?.['test:network-boundaries'] === 'node --test ../scripts/network-boundary-harness.test.mjs && node ../scripts/network-boundary-harness.mjs' &&
+    scenarioPackPlatformContractSource.includes('"networkBoundaryManifest": network_boundary_manifest') &&
+    editorLedgerSource.includes('"id": "S-06", "phase": 9, "status": "implemented_unverified"') &&
+    existsSync(join(root, 'docs/audits/runs/NETWORK-BOUNDARIES-2026-07-20.json')),
+  'strict feature/destination/payload/credential/copy anchors, complete production URL-origin classification, redaction canaries, Settings disclosure, truthful limitations, MCP discovery, and S-06 evidence are present',
+)
+
 const heuristicsModelSource = text('frontend/src/workspace/heuristicsModel.ts')
 const heuristicsModelTestSource = text('frontend/src/workspace/heuristicsModel.test.ts')
 record(

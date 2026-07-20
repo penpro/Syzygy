@@ -43,7 +43,7 @@ export function WelcomeTour({
       body: (
         <>
           Models, providers, samplers, and updates live in <b>Settings</b>. A downloaded local model can keep answering
-          without a network connection. Remote providers and Google Drive use the network only when you choose those
+          without a network connection. Remote providers, Google Drive, model downloads, update checks, and opt-in crash reports use the network only when you choose the corresponding
           features.{' '}
           <button
             type="button"

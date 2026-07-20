@@ -227,7 +227,8 @@ It fails unless:
    overstate unimplemented runtimes; and
 8. the actual compiled application binary speaks newline-delimited JSON-RPC over stdio without
    contaminating stdout.
-9. research-state inspection rejects tampered hashes/lineage and omits synthetic secret bodies.
+9. research-state inspection rejects tampered hashes/lineage and omits synthetic secret bodies; and
+10. `syzygy_platform_contracts` returns the strict S-06 network-boundary manifest and its headless self-check command without research content.
 
 The harness uses a fake semantic live responder for protocol routing and the real Lexical editor
 for mutation behavior. A packaged-app live smoke proof remains a separate release check because
@@ -253,3 +254,7 @@ material is used. Protocol references checked 2026-07-14:
 - <https://modelcontextprotocol.io/specification/2025-11-25>
 - <https://modelcontextprotocol.io/specification/2025-11-25/basic/transports>
 - <https://modelcontextprotocol.io/specification/2025-11-25/server/tools>
+
+## Network-boundary contract
+
+`syzygy_platform_contracts` embeds `docs/audits/NETWORK-BOUNDARIES.json`. An external reviewer can enumerate each feature’s default state, activation, service origins/routes, payload classes, credential handling, source/copy anchors, evidence, and explicit limitations without opening the GUI. Run `npm run test:network-boundaries` to verify the checked-in manifest and scan every production URL literal. The returned contract is public metadata; it contains no credential, account, project, prompt, response, or file body.

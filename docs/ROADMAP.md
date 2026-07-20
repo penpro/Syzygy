@@ -443,14 +443,20 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   and the production frontend build pass. The 2026-07-18 physical probe still found only
   `office-primary` on v0.1.19; `office-secondary` and the physical convergence gate remain open.
 
+- S-06 now publishes a strict eight-feature network-boundary manifest, product Settings summary,
+  complete production URL-origin classifier, adversarial redaction tests, sanitized proof artifact, and
+  MCP discovery. It catches stale local-only copy and any new unclassified literal origin. Runtime packet
+  capture, DNS/CDN behavior, SDK internals, and live paid-provider calls remain unproven, so the honest
+  status is `implemented_unverified`. Evidence: `docs/audits/runs/NETWORK-BOUNDARIES-2026-07-20.json`.
+
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **42 capabilities**: **41 are
-`implemented_unverified`, 1 is `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **42 capabilities**: **42 are
+`implemented_unverified`, 0 are `planned`, and 0 are `verified`**. MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, remaining crash/recovery local
 lifecycle, Drive-backed Yjs convergence, optional presence, third-party scenario-pack interoperability,
-and network-trace certification. The definitive contracts and gates remain in `END-GOAL-PLAN.md` and
+cross-platform packet capture, and live-provider certification. The definitive contracts and gates remain in `END-GOAL-PLAN.md` and
 `docs/audits/CAPABILITIES.json`.
 
 ## Next (in intended order)

@@ -451,3 +451,9 @@ availability claim.
   Plugins declare capabilities and submit revision-guarded proposals. No plugin
   code executes in the webview and no contract-only feature may report itself as available. See
   `PROVIDER-API.md`, `PLUGIN-API.md`, and ADR-0002/0003.
+
+## Network-boundary evidence gate
+
+Every network-active feature has one entry in `docs/audits/NETWORK-BOUNDARIES.json`: default state, human activation, destination origins/routes, payload classes, credential handling, implementation anchors, matching product copy, and evidence. `scripts/network-boundary-harness.mjs` strictly validates that contract, walks production TypeScript/TSX/Rust/Tauri configuration, and fails on any unclassified literal origin. The sanitized proof records source path/line, origin, feature classification, and source hashes only—never a URL credential, path, query, fragment, request body, or source body.
+
+The contract is embedded in `syzygy_platform_contracts`. This closes the reproducible source/copy evidence slice only. It does not replace Windows/macOS/Linux packet capture, DNS/CDN observation, third-party SDK wire inspection, or opt-in live-provider canaries, so S-06 remains `implemented_unverified`.

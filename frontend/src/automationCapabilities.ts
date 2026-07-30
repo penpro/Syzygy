@@ -11,6 +11,7 @@ export const AUTOMATION_CAPABILITIES = {
     'research-revision-guarded MCP scenario creation, turn editing, aggregate voting, annotation lifecycle, and shared labels',
     'product scenario gallery, editing, voting, and stable-ID scenario links',
     'resumable MCP adversarial review jobs with exact document-source selection, native batch disclosure, cancellation, and no automatic shared mutation',
+    'explicit revision-guarded adversarial review archival and immutable human accept/reject history in the shared project',
   ],
   unavailable: [
     'scenario generation, response evaluation, and spotlight/embed workflows',

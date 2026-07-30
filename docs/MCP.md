@@ -8,7 +8,8 @@ window, which remains the owner of project navigation, Lexical editor state, Yjs
 This is an automation and interoperability surface, not ambient authority. Most tools remain
 semantic read/revision-guarded mutation operations. Adversarial review is the sole MCP model
 workflow: it uses exact selected blocks from the live revision, one native disclosure, built-in
-provider routes, resumable polling/cancellation, and a pending non-mutating result. Real-time
+provider routes, resumable polling/cancellation, an explicit shared-archive step, and a separate
+immutable human decision. No step edits the draft automatically. Real-time
 presence and live-provider compatibility must still be reported honestly.
 
 ## Connect an MCP host
@@ -60,10 +61,12 @@ Recommended first instruction to an MCP-capable model:
 | `open_project` | navigation | Opens a non-archived project by stable ID |
 | `rename_project` | yes | Changes project metadata only |
 | `read_active_project` | no | Returns the manifest plus structured blocks, plain text, and a revision |
-| `inspect_research_state` | no | Validates bounded live scenario/vote/flag/note/label/heuristic/version/head/lineage state and returns metadata summaries without policy, scenario, annotation, voter, label-event, guidance, edit-value, or version-note bodies |
+| `inspect_research_state` | no | Validates bounded live scenario/vote/flag/note/label/heuristic/adversarial-review/version/head/lineage state and returns metadata summaries without policy, adversarial question/source/result/decision-note, scenario, annotation, voter, label-event, guidance, edit-value, or version-note bodies |
 | `start_adversarial_review` | remote model job | Freezes selected block indexes from the exact live document revision, complete built-in-provider call graph, and limits; returns a job immediately before one native batch disclosure |
 | `inspect_adversarial_review` | no | Returns bounded lifecycle/heartbeat metadata while running and the validated pending-human-review result after completion |
 | `cancel_adversarial_review` | cancels model job | Aborts the shared job signal and active native provider call without changing project content |
+| `save_adversarial_review` | shared research history | Explicitly stores the completed full question, selected excerpts, results, baselines, and content-free provenance in the collaborative project against the exact research revision; Drive-backed projects can synchronize it |
+| `decide_adversarial_review` | decision event | Appends an immutable accept/reject event against the exact project revision, archive hash, and prior decision; never edits the draft |
 | `create_scenario` | scenario metadata | Creates one scenario/branch only when `expectedResearchRevision` exactly matches the revision from inspection; no model generation |
 | `add_scenario_turn` | scenario content | Adds one attributed system/user/assistant turn against the exact current research revision; never invokes a model |
 | `revise_scenario_turn` | scenario content | Adds an attributed immutable revision to an existing turn against the exact current research revision |
@@ -135,8 +138,11 @@ MCP host
   are derived from those blocks rather than accepted as arbitrary MCP text. Only built-in remote
   provider IDs are accepted. Start returns immediately; at most eight jobs run; heartbeats are 30
   seconds; the absolute deadline is 15 minutes; terminal results expire after one hour.
-  Cancellation reaches the native provider registry. Completion remains pending human review and
-  has no document or Drive mutation path.
+  Cancellation reaches the native provider registry. Completion remains transient and pending
+  human review. `save_adversarial_review` is the explicit boundary that makes the full question,
+  selected excerpts, and result shared project content; on Drive-backed projects it can therefore
+  synchronize to collaborators. `decide_adversarial_review` stores only an immutable decision
+  event. Both require the exact research revision and neither edits the document.
 - `create_scenario` requires the exact monotonic Yjs research revision returned by
   `inspect_research_state`. A stale revision fails before mutation; the frontend domain harness and
   packaged live harness assert zero stale writes. Participant identity/time remain caller/process
@@ -216,7 +222,7 @@ It fails unless:
 2. replace/append operations change the same editor and reject a stale revision;
 3. the loopback parser accepts an authenticated request and rejects browser origins;
 4. MCP initialization negotiates the current `2025-11-25` protocol revision;
-5. all twenty-nine semantic tools are discoverable and route to their intended live operation, including bounded Drive project catalog/share/join actions;
+5. all thirty-four semantic tools are discoverable and route to their intended live operation, including bounded Drive project catalog/share/join and adversarial archive/decision actions;
 6. self-description returns absolute paths and copy-ready configuration without a GUI;
 7. platform contracts parse, keep provider-run/adversarial/plugin schemas strict, and do not
    overstate unimplemented runtimes; and

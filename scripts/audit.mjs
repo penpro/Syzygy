@@ -839,6 +839,8 @@ const advertisedMcpTools = [
   'start_adversarial_review',
   'inspect_adversarial_review',
   'cancel_adversarial_review',
+  'save_adversarial_review',
+  'decide_adversarial_review',
   'create_scenario',
   'add_scenario_turn',
   'revise_scenario_turn',
@@ -1125,7 +1127,11 @@ const adversarialNativeExecutorSource = text('frontend/src/extensions/adversaria
 const adversarialNativeExecutorTestSource = text('frontend/src/extensions/adversarialNativeExecutor.test.ts')
 const adversarialAutomationSource = text('frontend/src/extensions/adversarialAutomation.ts')
 const adversarialAutomationTestSource = text('frontend/src/extensions/adversarialAutomation.test.ts')
+const adversarialHistorySource = text('frontend/src/extensions/adversarialHistory.ts')
+const adversarialHistoryTestSource = text('frontend/src/extensions/adversarialHistory.test.ts')
 const automationBridgeSource = text('frontend/src/automationBridge.ts')
+const researchStateInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
+const mcpHarnessSource = text('scripts/mcp-harness.mjs')
 record(
   'adversarial records remain evidence-gated',
   adversarialRecordSource.includes('leaks participant identity') &&
@@ -1172,6 +1178,32 @@ record(
     frontendPackage.scripts?.['test:adversarial']?.includes('adversarialNativeExecutor.test.ts') &&
     platformContractsSource.includes('"adversarialRunner": "native-multi-provider-executor-resumable-mcp-pending-human-review"'),
   'one native batch approval freezes the full graph and execution limits; exact upstream bytes, strict public results, content-free run records, equal baseline compute, cancellation, pending human review, and no automatic shared mutation are enforced',
+)
+record(
+  'collaborative adversarial archives and human decisions are bounded, immutable, revision-guarded, and non-mutating',
+  adversarialHistorySource.includes("const ARCHIVE_PREFIX = 'adversarial-review:v1:'") &&
+    adversarialHistorySource.includes("const DECISION_PREFIX = 'adversarial-review-decision:v1:'") &&
+    adversarialHistorySource.includes('const MAX_ARCHIVE_RECORDS = 2_000') &&
+    adversarialHistorySource.includes('const MAX_DECISION_EVENTS = 20_000') &&
+    adversarialHistorySource.includes('const MAX_ARCHIVE_BYTES = 32 * 1024 * 1024') &&
+    adversarialHistorySource.includes('recordSha256: await sha256(canonical)') &&
+    adversarialHistorySource.includes('projectStateFingerprint(doc) !== input.expectedResearchRevision') &&
+    adversarialHistorySource.includes('Adversarial review run ID conflicts with a different archive') &&
+    adversarialHistorySource.includes('Adversarial review decision history is conflicted') &&
+    adversarialHistorySource.includes('Adversarial review decision changed; inspect again') &&
+    !adversarialHistorySource.includes('editorRoot') &&
+    adversarialHistoryTestSource.includes('converges identical peer archives and fails closed on same-run content conflicts') &&
+    adversarialHistoryTestSource.includes('appends revision-guarded human decisions without changing policy content') &&
+    adversarialHistoryTestSource.includes('retains concurrent decision branches and reports the conflict instead of choosing a winner') &&
+    adversarialHistoryTestSource.includes('counts hostile collaborative records without returning their bodies') &&
+    automationBridgeSource.includes("case 'research.saveAdversarialReview'") &&
+    automationBridgeSource.includes("case 'research.decideAdversarialReview'") &&
+    researchStateInspectionSource.includes('adversarial-review question/source/result/decision-note bodies') &&
+    mcpSource.includes('"save_adversarial_review"') &&
+    mcpSource.includes('"decide_adversarial_review"') &&
+    mcpHarnessSource.includes('tools.length < 34') &&
+    frontendPackage.scripts?.['test:adversarial']?.includes('adversarialHistory.test.ts'),
+  'full archives persist only by explicit revision-guarded save; canonical hashes, provider provenance, peer convergence, exact-parent decision history, fail-closed conflicts, content-minimized inspection, and zero draft authority are enforced',
 )
 record(
   'adversarial MCP jobs are revision-guarded, resumable, bounded, and cancellable',

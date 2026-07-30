@@ -2,9 +2,16 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { AUTOMATION_CAPABILITIES } from './automationCapabilities'
 import {
   cancelAdversarialAutomationJob,
+  getPersistableAdversarialAutomationJob,
   inspectAdversarialAutomationJob,
   startAdversarialAutomationJob,
 } from './extensions/adversarialAutomation'
+import {
+  decideAdversarialReview,
+  saveAdversarialReviewArchive,
+  type AdversarialReviewArchive,
+  type AdversarialReviewDecisionSummary,
+} from './extensions/adversarialHistory'
 import { appVersion, automationReady, automationRespond } from './tauri'
 import { useStore } from './store'
 import {
@@ -484,6 +491,55 @@ export async function dispatchAutomationRequest(
       return { job: inspectAdversarialAutomationJob(requiredString(params, 'jobId')) }
     case 'research.cancelAdversarialReview':
       return { job: cancelAdversarialAutomationJob(requiredString(params, 'jobId')) }
+    case 'research.saveAdversarialReview': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const completed = getPersistableAdversarialAutomationJob(requiredString(params, 'jobId'))
+      if (completed.projectId !== project.id) {
+        throw new Error('Adversarial review job belongs to a different project')
+      }
+      const saved = await saveAdversarialReviewArchive(getAutomationProjectDocument(project.id), {
+        expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
+        projectId: project.id,
+        sourceDocumentRevision: completed.documentRevision,
+        request: completed.request,
+        outcome: completed.outcome,
+        participantId: requiredString(params, 'participantId'),
+        displayName: requiredString(params, 'displayName'),
+        createdAt: Date.now(),
+      })
+      return {
+        archive: summarizeAdversarialReviewArchive(saved.archive),
+        researchRevision: saved.researchRevision,
+      }
+    }
+    case 'research.decideAdversarialReview': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const changed = await decideAdversarialReview(getAutomationProjectDocument(project.id), {
+        expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
+        projectId: project.id,
+        runId: requiredString(params, 'runId'),
+        recordSha256: requiredString(params, 'recordSha256'),
+        expectedCurrentDecisionId: optionalString(params, 'expectedCurrentDecisionId'),
+        decision: requiredString(params, 'decision') as 'accepted' | 'rejected',
+        eventId: `mcp-${crypto.randomUUID()}`,
+        participantId: requiredString(params, 'participantId'),
+        displayName: requiredString(params, 'displayName'),
+        notes: optionalString(params, 'notes') ?? '',
+        timestamp: Date.now(),
+      })
+      return {
+        decision: summarizeAdversarialReviewDecision(changed.decision),
+        researchRevision: changed.researchRevision,
+      }
+    }
     case 'workspace.walkthrough':
       return buildWalkthrough()
     default:
@@ -584,6 +640,36 @@ function summarizeProject(
     archivedAt: project.archivedAt ?? null,
     transport: project.transport,
     active: project.id === activeProjectId,
+  }
+}
+
+function summarizeAdversarialReviewArchive(archive: AdversarialReviewArchive) {
+  return {
+    runId: archive.runId,
+    recordSha256: archive.recordSha256,
+    sourceDocumentRevision: archive.sourceDocumentRevision,
+    researchRevisionAtSave: archive.researchRevisionAtSave,
+    createdBy: { ...archive.createdBy },
+    createdAt: archive.createdAt,
+    sourceCount: archive.request.sources.length,
+    participantCount: archive.outcome.plan.participantCount,
+    providerCount: archive.outcome.plan.providerCount,
+    totalRemoteCalls: archive.outcome.authorization.totalRemoteCalls,
+    decision: 'pending' as const,
+  }
+}
+
+function summarizeAdversarialReviewDecision(summary: AdversarialReviewDecisionSummary) {
+  return {
+    runId: summary.runId,
+    recordSha256: summary.recordSha256,
+    current: {
+      eventId: summary.current.eventId,
+      decision: summary.current.decision,
+      participantId: summary.current.participantId,
+      timestamp: summary.current.timestamp,
+    },
+    eventCount: summary.history.length,
   }
 }
 

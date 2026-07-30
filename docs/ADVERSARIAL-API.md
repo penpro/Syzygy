@@ -1,10 +1,11 @@
 # Adversarial review API
 
-**Contract version:** 1. **Runtime status:** native multi-provider execution and resumable MCP
-jobs are implemented and conformance-tested against loopback providers. Results remain pending
+**Contract version:** 1. **Runtime status:** native multi-provider execution, resumable MCP
+jobs, explicit collaborative archival, and immutable human accept/reject history are implemented
+and conformance-tested against loopback providers and in-memory Yjs peers. Results remain pending
 human review and never mutate the shared draft automatically. Packaged native-dialog interaction,
-live paid-provider compatibility, durable run history/UI, and research-quality superiority remain
-unproved.
+live paid-provider compatibility, product history/decision UI, and research-quality superiority
+remain unproved.
 
 Syzygy publishes its adversarial evidence record so researchers, plugins, headless harnesses, and
 independent reviewers can inspect the same artifact without depending on React or a provider SDK.
@@ -18,10 +19,12 @@ independent reviewers can inspect the same artifact without depending on React o
 - Frozen native call graph: `../frontend/src/extensions/adversarialNativePlan.ts`.
 - Native frontend executor: `../frontend/src/extensions/adversarialNativeExecutor.ts`.
 - Resumable job registry: `../frontend/src/extensions/adversarialAutomation.ts`.
+- Collaborative archive and decision ledger: `../frontend/src/extensions/adversarialHistory.ts`.
 - Native authorization, transport, output validation, and dependency hashes:
   `../frontend/src-tauri/src/provider_runtime.rs`.
 - Headless entrypoints: MCP tools `start_adversarial_review`,
-  `inspect_adversarial_review`, and `cancel_adversarial_review`.
+  `inspect_adversarial_review`, `cancel_adversarial_review`,
+  `save_adversarial_review`, and `decide_adversarial_review`.
 - Installed-runtime discovery: `syzygy_platform_contracts`.
 
 Repository files are authoritative for a checkout. The MCP payload is authoritative for the
@@ -52,8 +55,9 @@ judge-visible artifacts, and revokes the batch capability in a `finally` path.
 
 The base runner still owns phase isolation, blinding, bounded artifacts, compute matching,
 minority retention, semantic record validation, and the pending human decision. It has no shared
-mutation authority. A future accept/apply workflow must independently recheck the live document
-revision and retain attribution.
+mutation authority. The implemented accept/reject ledger records human judgment only. A future
+apply workflow must be a separate explicit proposal operation that independently rechecks the live
+document revision and retains attribution.
 
 ## Resumable MCP job contract
 
@@ -68,6 +72,29 @@ pending result when complete. `cancel_adversarial_review` aborts the shared sign
 the native call cancellation path. These tools provide explicit model authority only for this
 revision-guarded workflow; they do not grant general Drive, filesystem, credential, arbitrary
 endpoint, prompt, or project-mutation authority.
+
+## Collaborative archive and decision contract
+
+Completed jobs remain transient until an explicit `save_adversarial_review` call. Saving requires
+the exact current Yjs research revision and caller attribution. It writes a canonical SHA-256
+archive containing the original question, selected source excerpts, validated result, baselines,
+call ledger, and content-free provider provenance into the existing provider-neutral
+`project:discussions` collection. A Drive-backed project can therefore synchronize that full
+research content to collaborators. No persisted Zustand shape changed, so no migration was
+required.
+
+Archives are limited to 32 MiB each and 2,000 per project. Peer-namespaced internal keys preserve
+same-run collisions so reads fail closed instead of choosing one. Decode revalidates the request,
+reconstructs the exact native plan, rechecks source order, public run semantics, every planned call,
+and every strict provider provenance record before accepting the canonical hash.
+
+`decide_adversarial_review` is separate. It requires the exact research revision, archive hash,
+and current decision event (or null for the first decision), then appends one immutable
+accepted/rejected event. Exact retries are idempotent. Concurrent branches remain in Yjs and make
+the decision conflicted; no timestamp winner is selected. Up to 20,000 bounded events are retained.
+Neither saving nor deciding reads or changes the Lexical draft. Routine
+`inspect_research_state` returns only IDs, hashes, counts, attribution metadata, decision state,
+and integrity issues; question, source, result, and decision-note bodies are omitted.
 
 ## Validation pipeline
 
@@ -113,8 +140,10 @@ full phase graph, route/budget/dependency/order forgery cases, exact upstream-by
 malformed/private-reasoning/usage-free output rejection, cancellation, and the resumable job
 lifecycle. Rust loopback tests exercise the same native executor used by the Tauri command and
 prove secret/content/authorization-token exclusion from run records, atomic duplicate refusal,
-and malformed-output fail-closed consumption. The MCP harness requires all 32 semantic tools and
-clean stdio.
+and malformed-output fail-closed consumption. The MCP harness requires all 34 semantic tools and
+clean stdio. Collaborative-history tests cover identical-peer convergence, same-run archive
+conflicts, stale zero-write refusal, provider-provenance tampering, hostile nested records,
+idempotent decision replay, and concurrent decision branches.
 
 None of these checks calls a paid provider. They establish local conformance and security
 properties, not provider availability, policy compliance, output correctness, or superiority.

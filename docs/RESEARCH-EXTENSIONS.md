@@ -1,7 +1,8 @@
 # Adversarial research and extension evidence
 
-**Status:** native content-bound adversarial execution and resumable MCP orchestration are
-implemented with loopback conformance evidence; plugin loading remains unimplemented.
+**Status:** native content-bound adversarial execution, resumable MCP orchestration, explicit
+collaborative archival, and immutable human decision history are implemented with loopback/Yjs
+conformance evidence; plugin loading remains unimplemented.
 **Research date:** 2026-07-14; implementation evidence updated 2026-07-29. This document records
 the evidence and falsifiers so another person or model can challenge both the design and claims.
 
@@ -68,9 +69,12 @@ provider calls—prove this boundary.
 
 The MCP surface starts a revision-guarded job from selected live document blocks, returns
 immediately, supports bounded inspection and cancellation, heartbeats every 30 seconds, and aborts
-after 15 minutes. It never applies the result to shared work. Durable run history/UI, public
-benchmark corpus, live-provider evidence, quality statistics, and any superiority claim remain
-unimplemented or unproved.
+after 15 minutes. It never applies the result to shared work. A completed job becomes durable only
+through an explicit exact-revision save that stores its full canonical archive in the collaborative
+Yjs project; a separate exact-parent event records accepted/rejected human judgment. Routine
+inspection returns only content-minimized metadata and integrity. Product history/decision UI,
+authenticated identity, public benchmark corpus, live-provider evidence, quality statistics, and
+any superiority claim remain unimplemented or unproved.
 
 The researcher-plugin side now publishes `syzygy:research/plugin@1.0.0` as a zero-import WIT
 world. It receives only a bounded optional project snapshot and returns only no-change or typed

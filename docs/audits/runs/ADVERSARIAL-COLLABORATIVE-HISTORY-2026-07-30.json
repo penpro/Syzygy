@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "runId": "ADVERSARIAL-COLLABORATIVE-HISTORY-2026-07-30",
+  "date": "2026-07-30",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "bf99168",
+  "runtimeStatus": "explicit-collaborative-archive-and-immutable-human-decision-history",
+  "commands": [
+    "npm run test:adversarial",
+    "npm run test:mcp",
+    "npm run audit",
+    "npm run check:supervised",
+    "npm run build:status -- 20260730-212104-aeaa4b"
+  ],
+  "result": {
+    "focusedAdversarialTestsPassed": 34,
+    "focusedCollaborativeHistoryTestsPassed": 7,
+    "mcpRoutingTestsPassed": 15,
+    "mcpToolCount": 34,
+    "mcpProtocolClean": true,
+    "structuralAuditPassed": true,
+    "fullSupervisedValidation": "succeeded",
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0,
+    "qualityClaimAuthorized": false,
+    "fullFrontendTestFilesPassed": 99,
+    "fullFrontendTestFilesSkipped": 1,
+    "fullFrontendTestsPassed": 395,
+    "fullFrontendTestsExpectedFail": 1,
+    "fullFrontendTestsSkipped": 1,
+    "frontendModulesTransformed": 1057,
+    "rustCheckPassed": true,
+    "supervisedRunId": "20260730-212104-aeaa4b",
+    "supervisedElapsedSeconds": 20
+  },
+  "proved": [
+    "A completed adversarial job remains transient until an explicit save action names the exact current project research revision and human attribution; the archive separately retains the exact source document revision and research revision at save.",
+    "The saved canonical archive includes the original question, exact selected source excerpts, validated public result, compute-matched baselines, call ledger, native authorization metadata, and content-free provider provenance.",
+    "Every archive read rechecks exact fields, size, canonical SHA-256, request validity, reconstructed deterministic plan, exact source ordering, run semantics, call graph coverage, call-ledger accounting, provider/model/task/timeout/output-limit routing, provider usage, and provider-run semantic validity.",
+    "Archive records are limited to 32 MiB each and 2,000 per project; decision history is limited to 20,000 bounded events.",
+    "Peer-namespaced Yjs keys allow identical disconnected archives to converge while preserving same-run different-content collisions for fail-closed inspection.",
+    "Human accepted/rejected decisions are separate immutable exact-parent events bound to the archive SHA-256 and exact project revision; exact domain retries are idempotent and concurrent branches remain conflicted instead of selecting a timestamp winner.",
+    "Saving and deciding use the existing provider-neutral project discussions collection, require no persisted Zustand save-shape migration, and never read or mutate the Lexical editor root.",
+    "Routine research inspection returns bounded IDs, hashes, counts, attribution metadata, decision state, and integrity issues while omitting question, source, result, and decision-note bodies.",
+    "MCP exposes explicit save_adversarial_review and decide_adversarial_review tools. The save tool description discloses that full research content becomes shared project content and may synchronize through Drive.",
+    "Headless tests reject stale saves, extra provider payload fields, substituted provider routes, substituted usage, malformed nested archives, mismatched decision/archive hashes, reused identities, same-run archive conflicts, and concurrent decision branches.",
+    "The embedded MCP advertises 34 strict semantic tools over protocol 2025-11-25 with clean stdio."
+  ],
+  "notProved": [
+    "A packaged user has exercised save or decision controls through a product history UI; no such product UI is claimed in this slice.",
+    "Two physical installations synchronized a large adversarial archive or concurrent decision branches through Drive.",
+    "Drive compaction, quota behavior, or recovery from an intentionally corrupted remote archive was exercised.",
+    "Participant identity or timestamps are authenticated across installations.",
+    "A human accept decision authorizes or applies any policy edit; the implemented decision ledger deliberately has no draft-mutation authority.",
+    "OpenAI, Anthropic, Gemini, or xAI accepted a live adversarial request or returned a compatible response.",
+    "The adversarial protocol improves correctness, citation quality, decision quality, or human preference over its compute-matched baseline.",
+    "A connected same-user MCP host is sandboxed from the completed transient result or from full archive content it explicitly saves."
+  ]
+}

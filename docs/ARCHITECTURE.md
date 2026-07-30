@@ -139,6 +139,13 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   while `policyVersionModel.ts`
   stores canonical version envelopes as SHA-256-addressed strings whose hash is rechecked on every
   read. The Lexical/Yjs editor owns the `root` shared type.
+  `extensions/adversarialHistory.ts` uses versioned peer-namespaced keys inside the existing
+  provider-neutral `discussions` map for explicit full adversarial-review archives and separate
+  immutable human decision events. Archives are canonical SHA-256 envelopes and every read
+  reconstructs the native plan and revalidates public/provenance records. Save/decide require the
+  exact live Yjs revision; conflicts fail closed; routine inspection omits question/source/result/
+  note bodies; neither path touches the editor root. Because this reuses an existing reserved Yjs
+  collection and adds no persisted Zustand field, no save-shape migration is required.
   `PolicyVersionRail.tsx` subscribes to that same live document, saves the exact semantic editor
   revision against the exact version head, and presents verified immutable checkpoints plus
   deterministic parent diffs. `projectArchive.ts` exports a size-bounded, SHA-256-protected

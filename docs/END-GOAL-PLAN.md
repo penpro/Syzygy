@@ -562,8 +562,12 @@ phase prompts, uses fixed built-in transports plus the OS vault, rejects malform
 reasoning output, and returns content-free provenance. Three MCP tools start, inspect, and cancel
 a revision-guarded resumable job from selected live document blocks; jobs have 30-second
 heartbeats, a 15-minute deadline, one-hour terminal retention, and no shared-mutation authority.
+Two additional MCP tools explicitly archive a completed full review into the existing collaborative
+Yjs discussions namespace and append immutable, exact-parent human accept/reject events. Canonical
+hashing, provider-provenance replay validation, bounded peer convergence, stale-write refusal,
+conflict retention, content-minimized inspection, and zero draft mutation are headlessly tested.
 
-Still open: durable run history/configuration/acceptance UI, packaged dialog interaction, live
+Still open: product run history/configuration/acceptance UI, packaged dialog interaction, live
 provider compatibility/cost/rate-limit evidence, public benchmark corpus, statistical review, and
 any quality or superiority claim.
 

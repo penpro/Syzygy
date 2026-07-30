@@ -20,6 +20,7 @@ interface AdversarialAutomationJob {
   runId: string
   projectId: string
   documentRevision: string
+  request: AdversarialRunnerRequest
   sourceSnapshotIds: string[]
   totalRemoteCalls: number
   status: AdversarialAutomationJobStatus
@@ -31,6 +32,14 @@ interface AdversarialAutomationJob {
   outcome: NativeAdversarialPanelOutcome | null
   controller: AbortController
   heartbeat: ReturnType<typeof setInterval>
+}
+
+export interface PersistableAdversarialAutomationJob {
+  jobId: string
+  projectId: string
+  documentRevision: string
+  request: AdversarialRunnerRequest
+  outcome: NativeAdversarialPanelOutcome
 }
 
 export interface AdversarialAutomationJobView {
@@ -191,6 +200,7 @@ export function startAdversarialAutomationJob(
     runId: request.runId,
     projectId: document.projectId,
     documentRevision: document.revision,
+    request: structuredClone(request),
     sourceSnapshotIds: request.sources.map(({ snapshotId }) => snapshotId),
     totalRemoteCalls,
     status: 'running' as const,
@@ -233,6 +243,25 @@ export function startAdversarialAutomationJob(
       clearInterval(job.heartbeat)
     })
   return view(job)
+}
+
+export function getPersistableAdversarialAutomationJob(
+  jobIdValue: unknown,
+): PersistableAdversarialAutomationJob {
+  cleanExpiredJobs()
+  const jobId = string(jobIdValue, 'jobId', 200)
+  const job = jobs.get(jobId)
+  if (!job) throw new Error('No adversarial review job has this ID')
+  if (job.status !== 'completed' || !job.outcome) {
+    throw new Error('Adversarial review job is not complete and cannot be saved')
+  }
+  return {
+    jobId: job.jobId,
+    projectId: job.projectId,
+    documentRevision: job.documentRevision,
+    request: structuredClone(job.request),
+    outcome: structuredClone(job.outcome),
+  }
 }
 
 export function inspectAdversarialAutomationJob(jobIdValue: unknown): AdversarialAutomationJobView {

@@ -92,7 +92,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, and immutable history. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. On any conflict, read again and reconcile. Adversarial model review is available only through start_adversarial_review followed by inspect_adversarial_review or cancel_adversarial_review; it requires configured built-in provider credentials and one native disclosure approval, and its result remains pending human review. Never claim real-time collaborator presence is available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, adversarial review archives/decisions, and immutable history. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. On any conflict, read again and reconcile. Adversarial model review starts with start_adversarial_review followed by inspect_adversarial_review or cancel_adversarial_review; it requires configured built-in provider credentials and one native disclosure approval, and its result remains transient and pending human review. Call save_adversarial_review only with explicit authority to make the full question, selected source excerpts, and results shared project content that can synchronize through Drive. Call decide_adversarial_review separately to append an immutable accept/reject event; it never edits the draft. Never claim real-time collaborator presence is available."
             })
         }
         "ping" => json!({}),
@@ -135,6 +135,8 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "start_adversarial_review" => live("research.startAdversarialReview", arguments),
         "inspect_adversarial_review" => live("research.inspectAdversarialReview", arguments),
         "cancel_adversarial_review" => live("research.cancelAdversarialReview", arguments),
+        "save_adversarial_review" => live("research.saveAdversarialReview", arguments),
+        "decide_adversarial_review" => live("research.decideAdversarialReview", arguments),
         "create_scenario" => live("project.createScenario", arguments),
         "add_scenario_turn" => live("project.addScenarioTurn", arguments),
         "revise_scenario_turn" => live("project.reviseScenarioTurn", arguments),
@@ -282,6 +284,39 @@ fn tool_definitions() -> Vec<Value> {
             "cancel_adversarial_review",
             "Cancel one running adversarial review job by exact job ID. Cancellation propagates to the active native provider call and leaves the shared draft unchanged.",
             object_schema(&[("jobId", string_schema("Exact job ID returned by start_adversarial_review."))], &["jobId"]),
+        ),
+        tool(
+            "save_adversarial_review",
+            "Explicitly archive one completed transient job into the active collaborative project. This stores the full question, selected source excerpts, validated results, baselines, and content-free provider provenance as shared project content, so Drive-backed projects can synchronize it to collaborators. Requires the exact research revision and never edits the draft.",
+            object_schema(
+                &[
+                    ("jobId", string_schema("Exact completed job ID returned by start_adversarial_review.")),
+                    ("expectedResearchRevision", string_schema("Exact revision from inspect_research_state.")),
+                    ("participantId", string_schema("Caller-supplied participant ID; identity is not authenticated across installs.")),
+                    ("displayName", string_schema("Display name frozen into the archive attribution.")),
+                ],
+                &["jobId", "expectedResearchRevision", "participantId", "displayName"],
+            ),
+        ),
+        tool(
+            "decide_adversarial_review",
+            "Append an immutable human accept/reject event to one saved adversarial review. Requires the exact archive hash, exact current research revision, and exact current decision event when revising a prior decision. Stores optional notes in shared history but omits their body from bounded inspection and the tool response. Never edits the draft.",
+            object_schema(
+                &[
+                    ("expectedResearchRevision", string_schema("Exact revision from inspect_research_state or the prior review mutation.")),
+                    ("runId", string_schema("Exact saved adversarial review run ID from inspect_research_state.")),
+                    ("recordSha256", string_schema("Exact archive hash from inspect_research_state or save_adversarial_review.")),
+                    ("expectedCurrentDecisionId", string_schema("Exact current decision ID; omit only when the review is still pending.")),
+                    ("decision", json!({ "type": "string", "enum": ["accepted", "rejected"], "description": "Human review decision." })),
+                    ("participantId", string_schema("Caller-supplied participant ID; identity is not authenticated across installs.")),
+                    ("displayName", string_schema("Display name retained with the decision event.")),
+                    ("notes", string_schema("Optional notes retained in shared history but omitted from MCP readback.")),
+                ],
+                &[
+                    "expectedResearchRevision", "runId", "recordSha256", "decision",
+                    "participantId", "displayName",
+                ],
+            ),
         ),
         tool(
             "create_scenario",
@@ -712,6 +747,9 @@ mod tests {
         assert!(names.contains(&"start_adversarial_review"));
         assert!(names.contains(&"inspect_adversarial_review"));
         assert!(names.contains(&"cancel_adversarial_review"));
+        assert!(names.contains(&"save_adversarial_review"));
+        assert!(names.contains(&"decide_adversarial_review"));
+        assert_eq!(names.len(), 34);
         assert!(names.contains(&"replace_active_document"));
     }
 
@@ -806,6 +844,14 @@ mod tests {
             (
                 "cancel_adversarial_review",
                 "research.cancelAdversarialReview",
+            ),
+            (
+                "save_adversarial_review",
+                "research.saveAdversarialReview",
+            ),
+            (
+                "decide_adversarial_review",
+                "research.decideAdversarialReview",
             ),
         ] {
             let arguments = json!({

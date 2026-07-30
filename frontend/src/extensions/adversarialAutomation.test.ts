@@ -4,6 +4,7 @@ import type { NativeAdversarialPanelOutcome } from './adversarialNativeExecutor'
 import {
   buildAdversarialAutomationRequest,
   cancelAdversarialAutomationJob,
+  getPersistableAdversarialAutomationJob,
   inspectAdversarialAutomationJob,
   resetAdversarialAutomationJobsForTests,
   startAdversarialAutomationJob,
@@ -67,6 +68,7 @@ describe('adversarial automation jobs', () => {
     expect(started.totalRemoteCalls).toBe(14)
     expect(started.outcome).toBeNull()
     expect(run).not.toHaveBeenCalled()
+    expect(() => getPersistableAdversarialAutomationJob(started.jobId)).toThrow('not complete')
 
     await Promise.resolve()
     expect(run).toHaveBeenCalledTimes(1)
@@ -81,6 +83,11 @@ describe('adversarial automation jobs', () => {
     const inspected = inspectAdversarialAutomationJob(started.jobId)
     expect(inspected.outcome?.record.humanDecision.status).toBe('pending')
     expect(inspected.outcome?.record.sharedMutation.applied).toBe(false)
+    const persistable = getPersistableAdversarialAutomationJob(started.jobId)
+    expect(persistable.request.input.question).toBe(params().question)
+    expect(persistable.request.sources.map(({ excerpt }) => excerpt)).toEqual(['Supported fact.', 'Conflicting fact.'])
+    persistable.request.input.question = 'mutated clone'
+    expect(getPersistableAdversarialAutomationJob(started.jobId).request.input.question).toBe(params().question)
   })
 
   it('cancels through the shared abort signal and sanitizes the terminal job state', async () => {

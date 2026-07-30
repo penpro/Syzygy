@@ -453,6 +453,17 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   capture, DNS/CDN behavior, SDK internals, and live paid-provider calls remain unproven, so the honest
   status is `implemented_unverified`. Evidence: `docs/audits/runs/NETWORK-BOUNDARIES-2026-07-20.json`.
 
+- The adversarial workflow now has an explicit durable collaboration boundary. Completed jobs
+  remain transient until `save_adversarial_review` stores the full canonical question, selected
+  source excerpts, results, baselines, and content-free provider provenance in the existing Yjs
+  discussions namespace against the exact research revision. `decide_adversarial_review` appends
+  immutable exact-parent accept/reject events and never edits policy text. Identical peer archives
+  converge; conflicting archives or decision branches remain visible and fail closed; hostile
+  records and stale writes add nothing; routine MCP inspection omits all research and note bodies.
+  This closes the durable headless domain/API slice, not product history/decision UI, authenticated
+  identity, packaged two-install interaction, live-provider proof, benchmark quality, or an
+  accept-and-apply workflow.
+
 ## Current completion snapshot
 
 The machine-readable end-goal ledger currently contains **42 capabilities**: **42 are

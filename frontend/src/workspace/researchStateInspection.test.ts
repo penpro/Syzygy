@@ -144,6 +144,10 @@ describe('research state inspection', () => {
       suggestionCount: 1, pendingCount: 1, invalidRecords: 0, conflictedSuggestionIds: [],
       items: [{ id: 'appeal-proposal', status: 'pending', sourceKind: 'model', decisionCount: 0 }],
     })
+    expect(result.adversarialReviews).toEqual({
+      archiveCount: 0, decisionCount: 0, invalidRecords: 0,
+      conflictedRunIds: [], truncated: false, items: [],
+    })
     expect(result.versions).toMatchObject({ totalRecords: 1, validRecords: 1, invalidRecords: 0, headVersionId: version.versionId, headLineageDepth: 1 })
     const serialized = JSON.stringify(result)
     expect(serialized).not.toContain('Secret guidance')

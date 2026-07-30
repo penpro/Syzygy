@@ -1,58 +1,73 @@
-# Adversarial run record API
+# Adversarial review API
 
-**Contract version:** 1. **Runtime status:** structural schema, plan-relative validator, and an
-injected headless phase runner are implemented. No product executor, live-provider panel, or
-quality benchmark is implemented.
+**Contract version:** 1. **Runtime status:** native multi-provider execution and resumable MCP
+jobs are implemented and conformance-tested against loopback providers. Results remain pending
+human review and never mutate the shared draft automatically. Packaged native-dialog interaction,
+live paid-provider compatibility, durable run history/UI, and research-quality superiority remain
+unproved.
 
 Syzygy publishes its adversarial evidence record so researchers, plugins, headless harnesses, and
-independent reviewers can inspect the same artifact without depending on the React application or a
-particular model provider.
+independent reviewers can inspect the same artifact without depending on React or a provider SDK.
 
 ## Canonical artifacts
 
-- JSON interchange: `schemas/syzygy-adversarial-run-v1.schema.json` (JSON Schema Draft 2020-12).
-- TypeScript record and semantic validator: `../frontend/src/extensions/adversarialRunRecord.ts`.
-- Deterministic plan: `../frontend/src/extensions/adversarialProtocol.ts`.
-- Injected orchestration runner: `../frontend/src/extensions/adversarialRunner.ts`.
-- Headless discovery: call MCP tool `syzygy_platform_contracts` and read
-  `adversarialRunRecordSchema` plus `adversarialProtocol`.
+- Public record: `schemas/syzygy-adversarial-run-v1.schema.json` and
+  `../frontend/src/extensions/adversarialRunRecord.ts`.
+- Deterministic protocol: `../frontend/src/extensions/adversarialProtocol.ts` and
+  `../frontend/src/extensions/adversarialRunner.ts`.
+- Frozen native call graph: `../frontend/src/extensions/adversarialNativePlan.ts`.
+- Native frontend executor: `../frontend/src/extensions/adversarialNativeExecutor.ts`.
+- Resumable job registry: `../frontend/src/extensions/adversarialAutomation.ts`.
+- Native authorization, transport, output validation, and dependency hashes:
+  `../frontend/src-tauri/src/provider_runtime.rs`.
+- Headless entrypoints: MCP tools `start_adversarial_review`,
+  `inspect_adversarial_review`, and `cancel_adversarial_review`.
+- Installed-runtime discovery: `syzygy_platform_contracts`.
 
-The repository files are authoritative for a source checkout. The MCP payload is authoritative for
-the installed executable being inspected, which lets an external tool detect version drift.
+Repository files are authoritative for a checkout. The MCP payload is authoritative for the
+installed executable being inspected, allowing external reviewers to detect version drift.
 
-## Injected runner boundary
+## Native execution boundary
 
-`runAdversarialPanel` accepts frozen source snapshots and an injected executor. For `N`
-participants it runs `N` independent proposals, `N` cyclic cross-critiques, one evidence audit,
-and two order-swapped judgments, then runs a separate baseline with the same `2N + 3` call budget.
-Calls within a phase use `Promise.allSettled`; later phases do not start after a failed phase.
-Cancellation is checked before every phase.
+For `N` participants, one authorization freezes `N` independent proposals, `N` cyclic
+cross-critiques, one evidence audit, two order-swapped judgments, and a separate `2N + 3` call
+baseline. The authorization binds the exact question/source bytes, call IDs, phase order,
+provider/model routes, dependencies, judge presentation order, final-pass flag, per-call timeout,
+per-call output ceiling, route budgets, and total budget. Any change requires a new native
+disclosure decision.
 
-Routing identity lives on the executor call beside, never inside, the judge-visible payload. The
-returned public record remains blinded. A separate execution ledger records route identity,
-status, sanitized error code, and usage without prompt or output content. Baseline text is returned
-as separate benchmark material and must receive the same access and retention controls as other
-research output. To remain within the declared call budget, the second judgment also returns the
-minority findings and synthesis; a future protocol that adds calls must bump its protocol and
-baseline budgets together.
+Rust stores the approved scope as a random 256-bit, process-memory capability for at most 30
+minutes. It reads no credential before a call is atomically reserved. Reservation consumes a call
+ID and both budgets once, checks that every dependency completed, and compares the caller-supplied
+upstream bytes with the SHA-256 recorded for the authorized prior output. A transport failure,
+timeout, cancellation, malformed JSON result, or unsafe result shape remains consumed and cannot
+be replayed. Only a successful strict result is recorded as a later dependency.
 
-The runner rejects malformed or duplicate source identity and bounded output violations, converts
-unknown executor failures to `executor-failed`, validates the assembled record, and always emits a
-pending human decision with shared mutation disabled. It deliberately imports no provider bridge.
-The future product executor must enforce native disclosure, vault/network isolation, route-policy
-checks, output bounds, cancellation, and content-free provider provenance. The present native
-provider command asks once per call. A native non-executing batch authorizer now validates and
-discloses exact remote provider/model routes, per-route and total call ceilings, frozen source
-identity, cross-provider artifact sharing, policy profiles, and a 30-minute lifetime. Denial stores
-nothing; approval returns a random process-memory capability with status/revoke commands. The
-authorized call consumer is deliberately absent, so the capability cannot yet bypass the per-call
-dialog or transmit content.
-A private reservation function now proves atomic accounting under parallel calls: it checks exact
-authorization/run/source/route identity, expiry, revocation, and a globally one-use call ID while
-holding the authorization mutex, then decrements route and total budgets together. It has no
-Tauri or MCP command and cannot read credentials or reach a network. Its source check is
-identity-only; binding actual question, excerpt, task, and cross-phase artifact bytes to the
-approved digest remains a prerequisite for the real executor.
+Rust—not the webview—constructs phase instructions and the serialized research task, retrieves the
+OS-vault credential, selects a built-in fixed provider endpoint, applies timeout/cancellation, and
+authors a content-free provider run record. Provider output must be strict phase-specific JSON and
+must not contain private-reasoning keys. The frontend forwards only the exact raw bytes returned by
+completed dependencies, validates the public result shape again, keeps provider routing outside
+judge-visible artifacts, and revokes the batch capability in a `finally` path.
+
+The base runner still owns phase isolation, blinding, bounded artifacts, compute matching,
+minority retention, semantic record validation, and the pending human decision. It has no shared
+mutation authority. A future accept/apply workflow must independently recheck the live document
+revision and retain attribution.
+
+## Resumable MCP job contract
+
+`start_adversarial_review` accepts an exact live document revision and 1–200 block indexes; the
+webview derives source snapshots from those live blocks, so an MCP caller cannot substitute
+arbitrary source bytes. It allows only the four built-in remote-provider IDs and returns a job
+immediately. At most eight jobs run at once. Jobs heartbeat every 30 seconds, abort at an absolute
+15-minute deadline, and retain terminal state for one hour.
+
+`inspect_adversarial_review` returns bounded lifecycle metadata while running and the validated
+pending result when complete. `cancel_adversarial_review` aborts the shared signal, which invokes
+the native call cancellation path. These tools provide explicit model authority only for this
+revision-guarded workflow; they do not grant general Drive, filesystem, credential, arbitrary
+endpoint, prompt, or project-mutation authority.
 
 ## Validation pipeline
 
@@ -93,9 +108,13 @@ npm run test:mcp
 npm run audit
 ```
 
-The adversarial suite compiles the public schema in strict Draft 2020-12 mode against the typed
-valid fixture and hostile identity, reasoning, accounting, and mutation cases. The semantic suite
-then exercises plan-relative invariants and the injected runner's phase ordering, blinding,
-equal-call baseline, cancellation, and error redaction. The MCP harness proves the
-installed/headless contract contains the same schema and reports
-`injected-runner-no-product-executor`. None of these commands calls a paid model API.
+The adversarial suite compiles the public schema in strict Draft 2020-12 mode, exercises the
+full phase graph, route/budget/dependency/order forgery cases, exact upstream-byte forwarding,
+malformed/private-reasoning/usage-free output rejection, cancellation, and the resumable job
+lifecycle. Rust loopback tests exercise the same native executor used by the Tauri command and
+prove secret/content/authorization-token exclusion from run records, atomic duplicate refusal,
+and malformed-output fail-closed consumption. The MCP harness requires all 32 semantic tools and
+clean stdio.
+
+None of these checks calls a paid provider. They establish local conformance and security
+properties, not provider availability, policy compliance, output correctness, or superiority.

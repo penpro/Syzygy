@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "runId": "ADVERSARIAL-NATIVE-EXECUTION-2026-07-29",
+  "date": "2026-07-29",
+  "appVersionAtRun": "0.1.19",
+  "runtimeStatus": "native-multi-provider-executor-resumable-mcp-pending-human-review",
+  "commands": [
+    "npm run test:adversarial",
+    "cargo test --manifest-path src-tauri/Cargo.toml provider_runtime::tests::adversarial_ -- --nocapture",
+    "cargo test --manifest-path src-tauri/Cargo.toml platform_contracts::tests -- --nocapture",
+    "npm run test:mcp",
+    "npm run audit",
+    "npm run check:supervised"
+  ],
+  "result": {
+    "focusedAdversarialTestsPassed": 27,
+    "focusedNativeAdversarialTestsPassed": 7,
+    "platformContractTestsPassed": 2,
+    "mcpRoutingTestsPassed": 15,
+    "mcpToolCount": 32,
+    "mcpProtocolClean": true,
+    "structuralAuditPassed": true,
+    "fullSupervisedValidation": "succeeded",
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0,
+    "qualityClaimAuthorized": false,
+    "fullFrontendTestFilesPassed": 98,
+    "fullFrontendTestFilesSkipped": 1,
+    "fullFrontendTestsPassed": 388,
+    "fullFrontendTestsExpectedFail": 1,
+    "fullFrontendTestsSkipped": 1,
+    "frontendModulesTransformed": 1055,
+    "rustCheckPassed": true,
+    "supervisedRunId": "20260730-063847-cc8d8d",
+    "supervisedElapsedSeconds": 42
+  },
+  "proved": [
+    "One authorization binds the exact question and source bytes, full protocol call graph, call IDs, phase order, provider/model routes, dependencies, judgment presentation order, final-pass flag, per-call timeout and output ceiling, per-route budgets, total budget, and compute-matched baseline.",
+    "The Rust registry stores only a random 256-bit capability, content identity, route/call state, dependency output hashes, budgets, and expiry for at most 30 minutes; denial stores no authority and explicit revocation is available.",
+    "Atomic reservation consumes each call and both budgets once, rejects graph/content/route/budget substitution, refuses duplicates under concurrent attempts, and accepts dependency bytes only when their SHA-256 matches a successful prior authorized output.",
+    "The product Tauri command uses the same tested native executor that derives phase instructions, retrieves an OS-vault credential, dispatches through a built-in provider transport, validates phase-specific strict JSON, records successful output hashes, and authors content-free provider run records.",
+    "Loopback transport tests prove the approved question/source bytes and derived phase instructions enter the request while the credential, research bytes, and authorization capability do not enter the serialized outcome or run record.",
+    "Malformed remote output is rejected, remains consumed, and is not recorded as a dependency.",
+    "The frontend executes the exact frozen graph, forwards only exact raw completed upstream bytes, rejects arbitrary graph nodes and malformed, extra-field, private-reasoning, or usage-free results, and revokes authorization after the run.",
+    "The assembled research result remains pending human review and has sharedMutation.applied false.",
+    "MCP start derives sources only from selected blocks of the exact live document revision, returns a job immediately, restricts routes to built-in remote providers, caps active jobs at eight, heartbeats every 30 seconds, aborts at 15 minutes, retains terminal state for one hour, and exposes inspect/cancel without shared mutation authority.",
+    "The embedded MCP advertises 32 strict semantic tools over protocol 2025-11-25 with clean stderr."
+  ],
+  "notProved": [
+    "A packaged user has visually exercised the native batch disclosure dialog.",
+    "OpenAI, Anthropic, Gemini, or xAI accepted a live adversarial request or returned a compatible response.",
+    "Provider retention, training, zero-retention, cost, latency, rate-limit, retry, billing-after-cancellation, or policy behavior matches the local conformance model.",
+    "A completed adversarial result is durably stored, revisited, compared, exported, accepted, rejected, or revision-guardedly applied through product UI.",
+    "The protocol improves correctness, citation quality, decision quality, or human preference over the compute-matched baseline.",
+    "The synthetic fixtures represent real policy research workloads or establish statistical power.",
+    "A same-user MCP host is sandboxed from research output; it is explicitly trusted to select inputs and inspect the completed result."
+  ]
+}

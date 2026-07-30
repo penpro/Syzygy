@@ -1,10 +1,9 @@
 # Adversarial research and extension evidence
 
-**Status:** contract foundation, adversarial run-record validator, injected headless phase runner,
-provider request/stream conformance, credential vault, plugin certifier, and non-executing plugin
-authority broker implemented; product adversarial execution and plugin loading are not yet
-implemented. **Research date:** 2026-07-14. This document records the
-evidence behind the design so another person or model can challenge it.
+**Status:** native content-bound adversarial execution and resumable MCP orchestration are
+implemented with loopback conformance evidence; plugin loading remains unimplemented.
+**Research date:** 2026-07-14; implementation evidence updated 2026-07-29. This document records
+the evidence and falsifiers so another person or model can challenge both the design and claims.
 
 ## Claim under test
 
@@ -36,11 +35,12 @@ The pure planner in `frontend/src/extensions/adversarialProtocol.ts` emits:
 6. explicit human acceptance before shared-state mutation; and
 7. a single-agent/self-consistency baseline with the same model-call budget.
 
-The execution record must eventually include provider, model, endpoint class, prompt/protocol
-version, sampler controls, seed where supported, start/end time, token/cost counters, cancellation,
-retention class, source snapshot identifiers, every raw candidate, every judgment, disagreement,
-and the human decision. Hidden chain-of-thought is neither requested nor stored; provider-visible
-reasoning summaries may be retained only when the provider explicitly returns them as output.
+The combined run evidence separates provider/model/endpoint/disclosure/retention/usage provenance
+from blinded research artifacts. It retains protocol version, source snapshot identities, every
+candidate and judgment, disagreement/minority disposition, compute-matched baseline, and the human
+decision; sampler and seed fields are recorded only when the provider exposes trustworthy values.
+Hidden chain-of-thought is neither requested nor stored; concise provider-visible reasoning belongs
+only in an allowed public result field.
 
 The public interchange shape is `docs/schemas/syzygy-adversarial-run-v1.schema.json` (Draft
 2020-12, strict unknown-field rejection) and is embedded in the headless
@@ -56,21 +56,21 @@ stability, minority retention, budget matching, and mutation authorization; they
 answer quality. Schema tests prove the typed valid fixture remains portable and reject identity
 fields, hidden-reasoning fields, unsafe numeric accounting, and unguarded mutation. Plan-relative
 coverage, source membership, equal compute, and minority-retention checks remain semantic-validator
-responsibilities and cannot be inferred from schema success. See `ADVERSARIAL-API.md`. The
-The injected runner now executes this phase graph against a caller-supplied executor, sanitizes
-failures, preserves route identity outside judge payloads, emits a content-free execution ledger,
-and runs the equal-call baseline. Its synthetic tests contact no model. A product executor, batch
-authorization consumption, workflow persistence/UI, public benchmark corpus, live-provider evidence, and
-quality statistics remain unimplemented.
+responsibilities and cannot be inferred from schema success. See `ADVERSARIAL-API.md`.
 
-The native batch authorizer now closes the consent-planning half of that boundary. It validates the
-real question/source scope, exact remote provider/model routes, per-route and total ceilings, and
-discloses cross-provider artifact sharing plus dated provider handling profiles. Approval is a
-random 30-minute process-memory capability with content-free status and explicit revocation;
-denial creates none. A private reservation function now atomically checks expiry, exact
-run/source-ID/route scope, unique call identity, and route plus total budgets under concurrency.
-No consumer exists, so it binds no actual task bytes, reads no credential, and cannot execute a
-call.
+The runner executes this phase graph through a native product executor while keeping routing
+outside judge-visible artifacts. Before one disclosure, TypeScript freezes the full call graph,
+compute-matched baseline, routes, dependencies, judge order, timeout, and output ceilings. Rust
+binds the exact question/source bytes, atomically consumes each planned call, verifies upstream
+output hashes, derives phase prompts, reads the OS vault, uses a fixed built-in endpoint, rejects
+malformed/private-reasoning output, and records content-free provenance. Loopback tests—not paid
+provider calls—prove this boundary.
+
+The MCP surface starts a revision-guarded job from selected live document blocks, returns
+immediately, supports bounded inspection and cancellation, heartbeats every 30 seconds, and aborts
+after 15 minutes. It never applies the result to shared work. Durable run history/UI, public
+benchmark corpus, live-provider evidence, quality statistics, and any superiority claim remain
+unimplemented or unproved.
 
 The researcher-plugin side now publishes `syzygy:research/plugin@1.0.0` as a zero-import WIT
 world. It receives only a bounded optional project snapshot and returns only no-change or typed

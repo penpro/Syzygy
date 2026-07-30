@@ -62,7 +62,8 @@ versions/evaluation evidence.
 | Stale MCP descriptor targets the wrong process | Descriptor includes schema/PID/version; connection and per-process token fail closed; normal shutdown removes it | Abrupt termination leaves a harmless stale descriptor until the next GUI launch; add PID liveness cleanup |
 | Same-user malware steals the MCP token | User-local temp ACL (and `0600` on Unix); token rotates every GUI process | Not a same-user sandbox; evaluate OS named pipes/peer credentials before exposing higher-risk tools |
 | Generated MCP instructions point to the wrong binary | UI and `syzygy_installation` share Rust `current_exe` discovery; JSON/TOML path-with-spaces tests run against the real binary | Reinstall/move can invalidate configuration; the guide tells users to regenerate it from the running app |
-| Contract scaffolding is mistaken for a working feature | MCP separates adapter conformance, `native-disclosure-research-envelope` task runtime, `native-disclosure-openai-stream-review-ui-no-live-proof` aggregate status, and truly `contract-only` runners | The single-review caller and OpenAI event bridge exist, but live-provider, other-provider streaming, tools, adversarial execution, and output-quality evidence remain absent; update availability only with the named end-to-end evidence |
+| MCP starts an adversarial job with stale/substituted research or gains ambient model authority | Start requires the exact live document revision and selected block indexes; webview derives sources; only built-in routes and the frozen graph are accepted; native disclosure precedes vault/network; result is non-mutating | Connected local MCP host still chooses the question, blocks, routes, and can read the completed research output; same-user host trust, packaged disclosure UX, per-project retention controls, and live-provider evidence remain open |
+| Contract scaffolding is mistaken for a working feature | MCP exposes distinct truthful states for adapter conformance, ordinary native tasks, content-bound adversarial authorization/execution, and contract-only plugins/custom adapters | Adversarial execution has loopback conformance but not packaged-dialog, live-provider, durable-history, or quality evidence; availability claims must name the evidence tier |
 | Remote review sends a stale or hidden draft or silently edits shared work | UI snapshots the current semantic editor revision, derives a SHA-256 source identity, and passes only typed question/source fields; Rust derives disclosure; result remains a transient non-mutating artifact | Snapshot content is not persisted for later independent audit; concurrent edits after snapshot do not alter the in-flight call, and acceptance/rejection/provenance-export UI remains open |
 | Fake-network record falsely names a production destination | Provider-run schema has an explicit `loopback-conformance` marker; semantic validation requires literal loopback in that mode and HTTPS otherwise; Rust→TypeScript harness validates the actual serialized record | Marker establishes test environment only, not live compatibility or provider policy behavior |
 | New network code or stale privacy copy silently introduces an undisclosed destination | A strict versioned S-06 manifest anchors each active feature to activation/default state, destinations, payload/credential classes, source, and matching product copy; the headless scanner fails every unclassified production URL origin and emits origin-only proof with credential/query redaction canaries | Source literals do not prove runtime packet behavior, dynamic custom/LAN targets, SDK internals, DNS/CDN resolution, or paid-provider behavior; cross-platform OS packet capture and live opt-in canaries remain required before `verified` |
@@ -74,8 +75,8 @@ versions/evaluation evidence.
 | xAI Responses compatibility hides different retention semantics | Fake `/v1/responses` server checks `store:false`, no thread/cache identifier, bearer auth, bounded controls, and a mandatory boolean `x-zero-data-retention` response header preserved in the typed result | Standard API traffic may still have 30-day retention when the header is false; streaming/WebSocket, tools, encrypted reasoning, UI disclosure, and live evidence remain open |
 | Fragmented or future provider stream corrupts research evidence | Incremental OpenAI decoder tests split UTF-8 at every byte, join multiline data, surface unknown types, order usage before finish, sanitize errors, and fail malformed/mismatched/oversized/truncated frames; fake HTTP streaming proves media type, real chunk dispatch, terminal order, aggregate bounds, distinct sanitized provider failure, timeout, cancellation, ordered scoped IPC delivery, bounded UI accumulation, and transient-only rendering | Slow-consumer/backpressure stress, retry/duplicate semantics, tool arguments, adversarial long-stream fuzzing, and a live packaged call remain open |
 | Remote provider retains or trains on unexpected data | Provider profile separates state/training/ZDR and task disclosure is required | Policies change; re-check primary terms at adapter release and record policy date |
-| Multi-model panel creates false confidence | Blind proposals, evidence pass, reversed judge order, minority report, compute-matched baseline | Protocol execution and domain benchmark are not implemented; no quality claim yet |
-| Adversarial run record hides unfavorable evidence or spends more compute than its baseline | Public strict Draft 2020-12 schema rejects unknown/identity/reasoning fields and unsafe shapes; the plan-relative typed validator requires every claim audit, known source snapshots, both planned judge orders, supported-minority retention, equal actual calls, finite accounting, and human acceptance before mutation | Schema validity alone cannot prove plan-relative semantics; real orchestration, failure/cancellation accounting, corpus scoring, and statistical review remain open |
+| Multi-model panel creates false confidence | Blind proposals, evidence audit, reversed judge order, minority retention, compute-matched baseline, strict result validation, and pending human review are executed | Protocol execution does not prove correctness or superiority; a public policy-research corpus, held-out scoring, statistics, and human review remain required |
+| Adversarial run record hides unfavorable evidence or spends more compute than its baseline | Strict schema/semantic gates plus a content-bound native graph require complete audits, both judge orders, supported-minority disposition, exact compute-matched baseline calls, finite accounting, and no automatic mutation | Provider honesty, lost responses, billing after cancellation, corpus representativeness, and semantic correctness remain unproved |
 | Plugin manifest grants itself authority | Manifests are requests; broker grants and rechecks permissions | Runtime broker not implemented; hostile permission suite required |
 | Plugin package escapes its folder or fakes certification with only happy-path fixtures | Certifier resolves real paths, rejects traversal/symlink escape and unknown fields, requires valid+invalid proposal fixtures and at least one denied-authority probe | Runtime artifact parsing/signature, archive extraction, TOCTOU, install lifecycle, and actual denied-operation tests remain open |
 | Native plugin escapes product controls | Native MCP is labeled an advanced unsandboxed process; WASI is preferred | Same-user native code retains OS authority; hashes/signatures do not make it a sandbox |
@@ -103,19 +104,17 @@ versions/evaluation evidence.
   network/model/Drive decisions for downstream recheck. A future network host must resolve and
   reject local/private/link-local destinations and revalidate every redirect after the broker's
   hostname decision; a future loader must not treat a session ID as an OS security boundary.
-- The injected adversarial runner stores provider/model routing only in its separate execution
-  ledger and omits it from judge/baseline payloads. A future executor must not copy route identity
-  into prompts, outputs, or public records and must preserve native disclosure and provider-run
-  provenance per call or authorized batch. The runner itself has no product executor and cannot
-  mutate shared state.
-- The native batch authorizer accepts the real question/source scope so Rust, rather than a
-  caller-authored category list, derives what the dialog says. It binds exact remote routes and
-  budgets, expires after 30 minutes, and supports status/revocation. Its random capability currently
-  has no consumer. The private reservation function now proves atomic route and total decrements,
-  one-use call IDs, exact run/source-ID/route checks, and expiry cleanup under concurrency. Before
-  consumption ships, tests must bind actual question/source/task/artifact bytes to the approved
-  scope, recheck expiry/revocation immediately before vault/network access, preserve per-call
-  provenance, and fail closed under parallel calls.
+- The adversarial runner keeps provider/model routing outside judge-visible artifacts and never
+  mutates shared state. The native executor must continue binding exact research bytes and the full
+  graph before disclosure, consuming calls atomically, verifying dependency hashes, deriving
+  prompts in Rust, restricting endpoints to built-ins, and recording content-free provenance.
+  Failures are intentionally consumed; retries require a new authorization and may incur duplicate
+  provider billing.
+- MCP adversarial jobs derive sources from the exact live revision, are bounded to eight active
+  jobs, heartbeat every 30 seconds, abort at 15 minutes, and retain terminal results for one hour.
+  This is explicit narrow model authority for the connected same-user host, not a sandbox or a
+  general provider/Drive/filesystem/project-mutation capability. Packaged dialog and live-provider
+  proof remain release evidence gaps.
 - A WIT file is not a sandbox by itself. The published plugin baseline has no imports and bounded
   typed input/output validators, which prevents the contract from naming filesystem, network,
   environment, clock, randomness, Drive, model, or mutation authority. A future host must still

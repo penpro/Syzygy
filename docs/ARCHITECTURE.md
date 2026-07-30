@@ -97,7 +97,7 @@ packaged MCP surface before succeeding.
 | `mcp_setup.rs` | Running-executable discovery plus copy-ready JSON/TOML configuration and connection prompts shared by the UI and MCP. |
 | `platform_contracts.rs` | Machine-readable provider-run, adversarial-review, and researcher-plugin schemas/status exposed to headless MCP clients. |
 | `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses one-shot/SSE plus Anthropic Messages, Gemini Interactions, and xAI Responses one-shot wire contracts have fake-server evidence with bounded controls and sanitized normalization. |
-| `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. The public command accepts a structured question plus labeled source snapshots; Rust derives disclosure categories and provenance IDs from that exact payload. Every ordinary call uses a blocking native dialog to create one-use approval before any vault read or network access. The workspace's optional draft-review, scenario-response, and versioned scenario-evaluation panels are product callers; both preserve cancellation, and only validated scenario output enters the collaborative response graph. A separate adversarial command can create/status/revoke an exact-route, bounded, expiring batch authorization. A private, non-executing reservation function atomically proves run/source-ID/route/call-ID checks and route+total decrements, but no command consumes it or calls a model. Fake-network one-shot execution and Rust→TypeScript record validation are proven; live-provider execution is not. |
+| `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. Ordinary tasks use one native Send-once decision. Adversarial execution uses one content-bound batch decision that freezes exact research bytes, graph/routes/dependencies/order/limits/budgets; atomically consumes calls; verifies upstream output hashes; derives phase prompts; uses fixed built-in endpoints and the OS vault; rejects unsafe JSON; and records content-free provenance. The product executor is reachable through typed Tauri wrappers and revision-guarded resumable MCP jobs. Loopback transport is proven; packaged dialog interaction and live-provider behavior are not. |
 | `provider_stream.rs` | Incremental provider SSE normalization. The OpenAI decoder handles byte-fragmented Unicode, multiline frames, usage/finish events, unknown future events, sanitized provider errors, and bounded malformed/truncated input. |
 | `credential_vault.rs` | Provider-secret abstraction backed by Windows Credential Manager, macOS Keychain, or Linux Secret Service/keyutils. Unit tests use only a memory implementation; a separate live harness creates and deletes a random OS-store canary. |
 
@@ -361,16 +361,15 @@ harness proves exact checkpoint readback after a temporary divergence, rejects s
 stale head attempts without adding a version, and rechecks bounded research-state integrity. It
 does not authenticate caller identity or prove Drive/WebSocket restore convergence.
 
-The frontend `extensions/` folder owns provider-neutral model descriptors, a content-free
-provider-run provenance record, deterministic adversarial-run planning plus an evidence-gated
-run-record validator and injected headless phase runner, strict researcher-plugin manifests/proposals, declarative custom model-adapter
-profiles, public Draft 2020-12 schemas, and their headless contract tests. The plugin and adapter
-certifiers use the committed schemas to certify
-package containment, proposal fixtures, documentation/license presence, and declared-authority
-probes without executing plugin/adapter code or contacting a model endpoint. The adversarial
-runner accepts an injected executor and has no provider/product binding; its routing ledger is
-separate from blinded judge artifacts, and its output cannot mutate shared state. These contracts
-do not imply that remote adapters or plugin execution have shipped.
+The frontend `extensions/` folder owns provider-neutral model descriptors, content-free
+provider-run provenance, deterministic adversarial planning/validation, the native call-graph
+builder/executor, revision-guarded resumable jobs, strict researcher-plugin manifests/proposals,
+declarative custom model-adapter profiles, public Draft 2020-12 schemas, and headless contract
+tests. The adversarial runner keeps route identity outside judge-visible artifacts, forwards only
+exact completed upstream bytes, and can return only a pending non-mutating result. The job registry
+limits concurrency, heartbeats every 30 seconds, aborts at 15 minutes, and retains terminal results
+for one hour. Plugin and adapter certifiers still inspect packages without executing them; plugin
+loading and custom-adapter execution remain unavailable.
 
 The non-executing plugin authority broker turns a validated manifest plus explicit grant into a
 short-lived in-memory session. It returns detached project snapshots, pending revision-guarded
@@ -434,20 +433,15 @@ availability claim.
   closed on concurrent change; the MCP receives no ambient Drive, filesystem, or model authority.
   Setup data is generated from `current_exe` in Rust and reused by the app and the
   `syzygy_installation` tool. See `MCP.md`.
-- **Extensions request narrow authority.** Remote provider secrets and HTTPS stay in Rust. The
-  OpenAI request/stream plus Anthropic, Gemini, and xAI one-shot boundaries are fake-server
-  certified. Typed vault and generation commands now exist. Generation cannot accept an approval
-  boolean, arbitrary disclosure categories, or detached source IDs from the webview. Rust derives
-  categories/provenance from the structured research payload, shows a native per-send disclosure, and denial returns provenance
-  before vault or network access. The bridge proves normalized execution, cancellation, and
-  content-free Rust-to-TypeScript provenance. A separate adversarial batch authorizer validates
-  exact remote routes and call ceilings, derives content categories from the real question/source
-  scope plus cross-provider artifacts, and holds an expiring/revocable random capability in Rust
-  process memory. Its private reservation state machine atomically enforces exact run/source-ID/
-  route/call identity and route+total budgets under concurrency. It does not bind actual task bytes,
-  read a credential, execute a call, or grant MCP authority; the authorized executor remains open.
-  Two opt-in product workflows invoke provider execution (draft review and scenario variants); no MCP tool or adversarial batch invokes it;
-  streamed tools, live-provider certification, and other remote adapters remain open.
+- **Extensions request narrow authority.** Remote provider secrets and HTTPS stay in Rust.
+  Ordinary calls cannot forge approval, disclosure categories, or detached provenance. The
+  adversarial path freezes the exact research bytes and complete call graph before one native
+  decision; Rust atomically consumes call and route budgets, verifies dependency-output hashes,
+  derives phase prompts, and dispatches only through built-in provider transports. MCP may start,
+  inspect, or cancel this one revision-guarded workflow, but cannot choose arbitrary source bytes,
+  prompts, endpoints, credentials, Drive content, or shared mutations. Results remain pending
+  human review. Conformance uses loopback providers; live-provider certification, streamed tools,
+  durable run UI/history, and quality evidence remain open.
   Plugins declare capabilities and submit revision-guarded proposals. No plugin
   code executes in the webview and no contract-only feature may report itself as available. See
   `PROVIDER-API.md`, `PLUGIN-API.md`, and ADR-0002/0003.

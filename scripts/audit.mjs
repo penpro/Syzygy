@@ -836,6 +836,9 @@ const advertisedMcpTools = [
   'rename_project',
   'read_active_project',
   'inspect_research_state',
+  'start_adversarial_review',
+  'inspect_adversarial_review',
+  'cancel_adversarial_review',
   'create_scenario',
   'add_scenario_turn',
   'revise_scenario_turn',
@@ -1116,6 +1119,13 @@ record(
 const adversarialRecordSource = text('frontend/src/extensions/adversarialRunRecord.ts')
 const adversarialRunnerSource = text('frontend/src/extensions/adversarialRunner.ts')
 const adversarialRunnerTestSource = text('frontend/src/extensions/adversarialRunner.test.ts')
+const adversarialNativePlanSource = text('frontend/src/extensions/adversarialNativePlan.ts')
+const adversarialNativePlanTestSource = text('frontend/src/extensions/adversarialNativePlan.test.ts')
+const adversarialNativeExecutorSource = text('frontend/src/extensions/adversarialNativeExecutor.ts')
+const adversarialNativeExecutorTestSource = text('frontend/src/extensions/adversarialNativeExecutor.test.ts')
+const adversarialAutomationSource = text('frontend/src/extensions/adversarialAutomation.ts')
+const adversarialAutomationTestSource = text('frontend/src/extensions/adversarialAutomation.test.ts')
+const automationBridgeSource = text('frontend/src/automationBridge.ts')
 record(
   'adversarial records remain evidence-gated',
   adversarialRecordSource.includes('leaks participant identity') &&
@@ -1129,25 +1139,62 @@ record(
     adversarialRunSchema.properties?.recordVersion?.const === 1 &&
     platformContractsSource.includes('"adversarialRunRecordSchema"') &&
     platformContractsSource.includes('"adversarialRecordValidator": "implemented"') &&
-    platformContractsSource.includes('"adversarialRunner": "injected-runner-no-product-executor"'),
+    platformContractsSource.includes('"adversarialRunner": "native-multi-provider-executor-resumable-mcp-pending-human-review"'),
   'public strict schema plus identity blinding, evidence, minority, equal-budget, human-mutation, and no-hidden-reasoning gates present',
 )
 record(
-  'adversarial runner remains injected, bounded, blinded, and non-mutating',
-    adversarialRunnerSource.includes('Promise.allSettled') &&
+  'adversarial runner is native, content-bound, bounded, blinded, and non-mutating',
+  adversarialRunnerSource.includes('Promise.allSettled') &&
     adversarialRunnerSource.includes('computeMatchedBaselineCallBudget') &&
     adversarialRunnerSource.includes('result.entries.length > 10_000') &&
     adversarialRunnerSource.includes('result.synthesis.text.length > 4 * 1024 * 1024') &&
     adversarialRunnerSource.includes("humanDecision: { status: 'pending'") &&
     adversarialRunnerSource.includes("sharedMutation: { applied: false") &&
     adversarialRunnerSource.includes("throw new AdversarialRunnerError('invalid-run-record'") &&
-    adversarialRunnerSource.includes("typeof value === 'string' && /^[a-z][a-z0-9-]{0,63}$/.test(value)") &&
-    !adversarialRunnerSource.includes('providerGenerate') &&
+    adversarialNativePlanSource.includes('validateNativeAdversarialScope') &&
+    adversarialNativePlanSource.includes('totalRemoteCalls: calls.length') &&
+    adversarialNativePlanSource.includes('timeoutMs: 120_000') &&
+    adversarialNativeExecutorSource.includes('providerAdversarialAuthorize') &&
+    adversarialNativeExecutorSource.includes('providerAdversarialExecute') &&
+    adversarialNativeExecutorSource.includes('providerAdversarialRevoke') &&
+    adversarialNativeExecutorSource.includes('providerCancel') &&
+    adversarialNativeExecutorSource.includes('const rawOutputs = new Map<string, string>()') &&
+    adversarialNativeExecutorSource.includes('rawOutputs.set(call.callId, outcome.response!.text)') &&
+    adversarialNativeExecutorSource.includes('hasPrivateReasoning(parsed)') &&
+    adversarialNativeExecutorSource.includes('onRunRecord: (record) => providerRunRecords.push(record)') &&
+    adversarialNativePlanTestSource.includes('rejects substituted routes, budgets, dependencies, order, and run namespaces') &&
+    adversarialNativeExecutorTestSource.includes('forwards only exact completed upstream bytes') &&
+    adversarialNativeExecutorTestSource.includes('rejects arbitrary graph nodes before invoking native transport') &&
+    adversarialNativeExecutorTestSource.includes('private-reasoning, and usage-free provider results') &&
     adversarialRunnerTestSource.includes('keeps candidate/provider routing outside judge-visible and baseline payloads') &&
     adversarialRunnerTestSource.includes('provider-body-secret-canary') &&
-    frontendPackage.scripts?.['test:adversarial']?.includes('adversarialRunner.test.ts') &&
-    platformContractsSource.includes('"adversarialRunner": "injected-runner-no-product-executor"'),
-  'injected executor only; phased all-settled calls, bounded intermediates, equal baseline budget, blinded payloads, sanitized failure, semantic record gate, pending human decision, and no product provider import',
+    frontendPackage.scripts?.['test:adversarial']?.includes('adversarialNativePlan.test.ts') &&
+    frontendPackage.scripts?.['test:adversarial']?.includes('adversarialNativeExecutor.test.ts') &&
+    platformContractsSource.includes('"adversarialRunner": "native-multi-provider-executor-resumable-mcp-pending-human-review"'),
+  'one native batch approval freezes the full graph and execution limits; exact upstream bytes, strict public results, content-free run records, equal baseline compute, cancellation, pending human review, and no automatic shared mutation are enforced',
+)
+record(
+  'adversarial MCP jobs are revision-guarded, resumable, bounded, and cancellable',
+  adversarialAutomationSource.includes('const MAX_ACTIVE_JOBS = 8') &&
+    adversarialAutomationSource.includes('const JOB_DEADLINE_MS = 15 * 60_000') &&
+    adversarialAutomationSource.includes('const JOB_HEARTBEAT_MS = 30_000') &&
+    adversarialAutomationSource.includes('const TERMINAL_RETENTION_MS = 60 * 60_000') &&
+    adversarialAutomationSource.includes('expectedRevision !== document.revision') &&
+    adversarialAutomationSource.includes('sourceBlockIndexes must select between 1 and 200 live document blocks') &&
+    adversarialAutomationSource.includes('void Promise.resolve()') &&
+    adversarialAutomationSource.includes('job.controller.abort()') &&
+    adversarialAutomationTestSource.includes('returns immediately, exposes bounded polling state, and retains no shared mutation authority') &&
+    adversarialAutomationTestSource.includes('cancels through the shared abort signal') &&
+    adversarialAutomationTestSource.includes('checks running jobs every 30 seconds and aborts at the absolute fifteen-minute deadline') &&
+    automationBridgeSource.includes("case 'research.startAdversarialReview'") &&
+    automationBridgeSource.includes("case 'research.inspectAdversarialReview'") &&
+    automationBridgeSource.includes("case 'research.cancelAdversarialReview'") &&
+    mcpSource.includes('"start_adversarial_review"') &&
+    mcpSource.includes('"inspect_adversarial_review"') &&
+    mcpSource.includes('"cancel_adversarial_review"') &&
+    mcpSource.includes('"sourceBlockIndexes"') &&
+    frontendPackage.scripts?.['test:adversarial']?.includes('adversarialAutomation.test.ts'),
+  'MCP start returns a job immediately; exact live blocks and revision are frozen before disclosure, polling is content-bounded while running, cancellation shares the native abort path, and terminal results expire',
 )
 const providerRunRecordSource = text('frontend/src/extensions/providerRunRecord.ts')
 const providerRuntimeInteropSource = text('scripts/provider-runtime-interop.mjs')
@@ -1226,6 +1273,7 @@ record(
     rustWiringSource.includes('provider_runtime::provider_generate_stream') &&
     rustWiringSource.includes('provider_runtime::provider_cancel') &&
     rustWiringSource.includes('provider_runtime::provider_adversarial_authorize') &&
+    rustWiringSource.includes('provider_runtime::provider_adversarial_execute') &&
     rustWiringSource.includes('provider_runtime::provider_adversarial_revoke') &&
     rustWiringSource.includes('provider_runtime::provider_adversarial_authorization_status') &&
     providerTaskRuntimeSource.includes('execute_openai_response_controlled') &&
@@ -1259,6 +1307,7 @@ record(
     text('frontend/src/workspace/remoteResearchTask.ts').includes("crypto.subtle.digest('SHA-256'") &&
     text('frontend/src/workspace/remoteResearchTask.test.ts').includes('without forging disclosure or provenance fields') &&
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_authorize'") &&
+    text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_execute'") &&
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_revoke'") &&
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_authorization_status'") &&
     !text('frontend/src/tauri.ts').includes('disclosureAccepted') &&
@@ -1266,9 +1315,12 @@ record(
   'OpenAI request/stream plus Anthropic, Gemini, and xAI request wire contracts, scoped OpenAI product event channel, content-free task runtime, native non-forgeable disclosure, cancellation, transient exact-draft UI, and truthful no-live-proof status present',
 )
 record(
-  'adversarial batch authorization is native, scoped, expiring, and non-executing',
+  'adversarial batch authorization is native, content-bound, exact, and expiring',
   providerTaskRuntimeSource.includes('ProviderAdversarialAuthorizationRequest') &&
+    providerTaskRuntimeSource.includes('fn validate_batch_call_graph(') &&
     providerTaskRuntimeSource.includes('summed_calls != Some(request.total_remote_calls)') &&
+    providerTaskRuntimeSource.includes('research_content_sha256') &&
+    providerTaskRuntimeSource.includes('completed_output_sha256: HashMap::new()') &&
     providerTaskRuntimeSource.includes('BATCH_AUTHORIZATION_LIFETIME') &&
     providerTaskRuntimeSource.includes('MAX_BATCH_AUTHORIZATIONS') &&
     providerTaskRuntimeSource.includes('remote model outputs and review artifacts') &&
@@ -1276,23 +1328,30 @@ record(
     providerTaskRuntimeSource.includes('random_authorization_id()') &&
     providerTaskRuntimeSource.includes('authorization_id: None') &&
     providerTaskRuntimeSource.includes('revoke_batch_with(&state, &authorization_id)') &&
-    platformContractsSource.includes('"providerBatchAuthorization": "native-scoped-authorizer-no-product-executor"'),
-  'native dialog derives a bounded route/source/call scope, denial stores nothing, approval expires, explicit revocation exists, and no authorized executor is claimed',
+    providerTaskRuntimeSource.includes('adversarial_batch_scope_rejects_budget_route_and_source_forgery') &&
+    platformContractsSource.includes('"providerBatchAuthorization": "native-content-bound-call-graph-authorizer"'),
+  'native dialog freezes exact research bytes, routes, budgets, graph identities, dependencies, phase order, presentation order, execution limits, and compute-matched baselines; denial stores nothing and approval expires or revokes',
 )
 record(
-  'adversarial batch reservations are atomic, scoped, and still non-executing',
+  'adversarial execution atomically binds dependencies and uses the native provider boundary',
   providerTaskRuntimeSource.includes('fn reserve_batch_call(') &&
     providerTaskRuntimeSource.includes('used_call_ids: HashSet<String>') &&
-    providerTaskRuntimeSource.includes('authorization.used_call_ids.contains(&scope.call_id)') &&
+    providerTaskRuntimeSource.includes('authorization.used_call_ids.contains(&request.call_id)') &&
+    providerTaskRuntimeSource.includes('completed_output_sha256.get(call_id)') &&
+    providerTaskRuntimeSource.includes('sha256(output.as_bytes())') &&
     providerTaskRuntimeSource.includes('authorization.remaining_calls -= 1') &&
     providerTaskRuntimeSource.includes('route.remaining_calls -= 1') &&
-    providerTaskRuntimeSource.includes('ProviderBatchReservationError::Expired') &&
-    providerTaskRuntimeSource.includes('adversarial_batch_reservations_atomically_enforce_scope_ids_and_budgets') &&
-    providerTaskRuntimeSource.includes('adversarial_batch_reservation_removes_expired_authority_without_consuming') &&
-    platformContractsSource.includes('"providerBatchReservation": "internal-atomic-reservation-no-executor"') &&
-    !tauriSource.includes("invoke('provider_adversarial_reserve'") &&
-    !providerTaskRuntimeSource.includes('pub async fn provider_adversarial_reserve'),
-  'one Rust mutex atomically checks exact run/source/route/call scope, rejects reuse and expiry, decrements route and total budgets, and exposes no public executor command',
+    providerTaskRuntimeSource.includes('async fn execute_adversarial_with') &&
+    providerTaskRuntimeSource.includes('build_adversarial_task(&request, &reservation)') &&
+    providerTaskRuntimeSource.includes('validate_adversarial_output') &&
+    providerTaskRuntimeSource.includes('record_batch_output(') &&
+    providerTaskRuntimeSource.includes('adversarial_batch_reservations_atomically_enforce_graph_dependencies_and_budgets') &&
+    providerTaskRuntimeSource.includes('adversarial_executor_uses_authorized_transport_and_records_only_valid_output') &&
+    providerTaskRuntimeSource.includes('adversarial_executor_consumes_malformed_remote_output_without_recording_it') &&
+    platformContractsSource.includes('"providerBatchReservation": "native-atomic-dependency-bound-executor"') &&
+    tauriSource.includes("invoke('provider_adversarial_execute'") &&
+    rustWiringSource.includes('provider_runtime::provider_adversarial_execute'),
+  'one Rust mutex atomically consumes exact authorized calls and budgets; only successful strict outputs become dependency hashes; built-in native transports and the OS vault execute the frozen task; malformed failures remain consumed',
 )
 record(
   'provider research task derives disclosure and provenance',

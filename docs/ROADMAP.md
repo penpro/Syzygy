@@ -73,13 +73,13 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   starter task used by both the UI and the new `syzygy_installation` MCP tool. The headless harness
   rejects relative paths or configuration that is not tied to the binary under test; the packaged
   proof is recorded in `docs/audits/runs/MCP-SETUP-2026-07-14.json`.
-- The post-0.1.10 development slice defines provider-neutral descriptors for local, OpenAI,
-  Anthropic, Gemini, xAI, and custom adapters; a deterministic adversarial-review planner; strict
-  plugin/proposal schemas; and a twelfth headless MCP inspection tool. Remote adapters and plugin
-  loading remain explicitly unavailable. Adversarial execution now has an injected headless phase
-  runner but no product executor or live-provider panel. The evidence and
-  falsification design is in `RESEARCH-EXTENSIONS.md`; APIs are in `PROVIDER-API.md` and
-  `PLUGIN-API.md`.
+- The post-0.1.10 provider/extension foundation now includes provider-neutral descriptors,
+  strict plugin/proposal schemas, the public adversarial record, native content-bound
+  multi-provider execution, and three resumable MCP job tools. The execution path is loopback
+  conformance-tested and remains non-mutating/pending-human-review; live-provider compatibility,
+  durable run UI/history, benchmark quality, and plugin loading remain open. Evidence and
+  falsifiers are in `RESEARCH-EXTENSIONS.md`; APIs are in `ADVERSARIAL-API.md`,
+  `PROVIDER-API.md`, and `PLUGIN-API.md`.
 - The same slice adds a provider-neutral collaboration lifecycle and a deterministic two-editor
   Memory transport. Its headless suite proves bidirectional live document/domain updates,
   partition isolation, offline edits, reconnect merging, awareness cleanup, and identical final
@@ -261,17 +261,20 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - Adversarial run record v1 is now a public strict Draft 2020-12 schema, embedded in the headless
   MCP platform contract and checked for drift against the typed valid fixture. Structural schema
   success is explicitly separate from plan-relative semantic validation and any quality claim.
-- The adversarial protocol also has an injected headless runner. For `N` participants it proves
-  `N` independent proposals, `N` cyclic critiques, one evidence audit, two order-swapped
-  judgments, and a separate `2N + 3` call baseline. Synthetic executors prove phase isolation,
-  route blinding, cancellation, sanitized failure, pending human review, and no shared mutation.
-  Native batch scope validation/disclosure plus expiring/revocable authorization now exist without
-  a consumer. An internal concurrency-tested reservation function now enforces exact run/source-ID/
-  route/call identity and atomic route+total decrements, but binds no task bytes and executes
-  nothing. A content-bound product provider executor, UI/persistence, public fixtures, and live
-  comparative evidence remain open; this is not a quality or superiority claim.
-  Evidence: `docs/audits/runs/ADVERSARIAL-BATCH-AUTHORIZATION-2026-07-15.json` and
-  `docs/audits/runs/ADVERSARIAL-BATCH-RESERVATION-2026-07-15.json`.
+- The adversarial protocol now has a native product executor behind one content-bound batch
+  approval. For `N` participants it freezes `N` proposals, `N` cyclic critiques, one audit,
+  two reversed-order judgments, and a `2N + 3` call baseline. Exact question/source bytes,
+  routes, dependencies, presentation order, timeouts, output ceilings, and budgets are authorized
+  together. Rust atomically consumes calls, verifies prior-output hashes, derives prompts, uses the
+  OS vault/fixed endpoints, and records only validated outputs as dependencies. Loopback tests prove
+  transport, forgery rejection, concurrency, duplicate refusal, malformed-output consumption, and
+  secret/content/token exclusion.
+- Three MCP tools bring semantic discovery to 32 tools: start returns a revision-guarded job
+  immediately from selected live blocks, inspect polls bounded state/result, and cancel reaches the
+  native provider call. Jobs heartbeat every 30 seconds, abort at 15 minutes, expire after one hour,
+  and never mutate shared work. Durable product history/UI, packaged native-dialog proof, live
+  provider evidence, public fixtures/statistics, and any superiority claim remain open.
+  Evidence: `docs/audits/runs/ADVERSARIAL-NATIVE-EXECUTION-2026-07-29.json`.
 - Anthropic Messages now has a one-shot `request-control-conformance` slice. A fake server
   proves the current `/v1/messages` path, `x-api-key`, pinned API version, system/user mapping,
   bounds, normalized text/usage, thinking-block non-retention, sanitized failure, timeout, and

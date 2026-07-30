@@ -554,21 +554,19 @@ position stability, minority retention, human preference, latency, tokens, and c
 ship as experimental even when it loses, but Syzygy cannot claim superiority unless held-out,
 compute-matched results and limitations are published.
 
-Progress: the deterministic planner and typed run-record validator now pass synthetic hostile
-fixtures for identity leakage, hidden reasoning, missing audits, unequal calls, wrong judge order,
-silent minority deletion, invalid accounting, and mutation without human acceptance. An injected
-headless runner now executes the full phase graph and equal-call baseline against synthetic
-executors while keeping routing outside judge payloads. The product provider executor, batch
-authorization consumption, workflow UI/persistence, live panel evidence, and benchmark corpus remain open;
-no quality claim is authorized.
+Progress: the deterministic planner, strict public record, semantic validator, and native
+product executor now pass hostile synthetic and loopback fixtures. One batch approval freezes the
+exact content, complete graph, routes, dependencies, judge order, per-call limits, and
+compute-matched baseline. Rust atomically consumes calls, verifies upstream-output hashes, derives
+phase prompts, uses fixed built-in transports plus the OS vault, rejects malformed/private
+reasoning output, and returns content-free provenance. Three MCP tools start, inspect, and cancel
+a revision-guarded resumable job from selected live document blocks; jobs have 30-second
+heartbeats, a 15-minute deadline, one-hour terminal retention, and no shared-mutation authority.
 
-The native batch authorizer now validates exact remote routes, per-route and total ceilings, the
-real question/frozen-source scope, cross-provider artifact sharing, and policy handling before a
-single native decision. Approval is random, process-memory-only, expires after 30 minutes, exposes
-content-free status, and can be revoked; denial stores nothing. It cannot execute a model call.
-Its internal reservation boundary now proves exact run/source-ID/route/call-ID checks and atomic
-route plus total budget decrements under parallel attempts. It exposes no command and still cannot
-bind actual task bytes, read a credential, or execute a model call.
+Still open: durable run history/configuration/acceptance UI, packaged dialog interaction, live
+provider compatibility/cost/rate-limit evidence, public benchmark corpus, statistical review, and
+any quality or superiority claim.
+
 The run-record interchange is now published as strict Draft 2020-12 JSON Schema and embedded in
 MCP. Its typed plan-relative validator remains the authority for cross-record semantics that JSON
 Schema alone cannot establish.
@@ -596,11 +594,11 @@ Gate: unknown/undeclared authority fails closed; WASI begins with no project, Dr
 model, or filesystem access; native MCP is never described as sandboxed; all mutations are bounded
 revision-guarded proposals with a human-visible diff and attribution.
 
-Machine-readable inspection is available through `syzygy_platform_contracts`. It must distinguish
-the native-disclosure research envelope and bounded single-review caller separately from live product availability, report
-adversarial execution as `injected-runner-no-product-executor`, and continue returning
-`native-scoped-authorizer-no-product-executor` for provider batch authorization, plus
-`internal-atomic-reservation-no-executor` for the private budget boundary, plus
+Machine-readable inspection is available through `syzygy_platform_contracts`. It must keep
+live-provider certification separate from local conformance and report:
+`native-multi-provider-executor-resumable-mcp-pending-human-review` for adversarial execution,
+`native-content-bound-call-graph-authorizer` for batch authorization,
+`native-atomic-dependency-bound-executor` for native reservation/execution, and
 `contract-only` for custom-adapter execution and plugin loading.
 
 Progress: OpenAI Responses one-shot request construction, bounded whole-operation timeout,
@@ -611,8 +609,8 @@ retrieves an OS-vault credential, applies native one-use disclosure/timeout/canc
 normalizes the response, and authors content-free provenance. OpenAI uses an ordered per-call Tauri
 channel and bounded Rust/TypeScript accumulators so one workspace component can render the exact-draft
 review incrementally without mutating shared state; Anthropic, Gemini, and xAI remain one-shot.
-Streamed tools, slow-consumer/backpressure proof, adversarial batch execution, and opt-in live
-evidence remain open.
+Streamed tools, slow-consumer/backpressure proof, durable adversarial workflow UI/history, and
+opt-in live-provider evidence remain open.
 The cross-language record gate now passes: the Rust loopback execution record is explicitly marked
 as conformance evidence and passes both the public TypeScript schema and semantic validator without
 leaking its secret or prompt canaries.

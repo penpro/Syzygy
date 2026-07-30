@@ -22,7 +22,7 @@
     "test": "vitest run",
     "test:workspace": "vitest run src/workspace src/migrations.test.ts --reporter=verbose",
     "test:contracts": "vitest run src/extensions --reporter=verbose",
-    "test:adversarial": "vitest run src/extensions/adversarialProtocol.test.ts src/extensions/adversarialRunRecord.test.ts src/extensions/adversarialRunner.test.ts --reporter=verbose",
+    "test:adversarial": "vitest run src/extensions/adversarialProtocol.test.ts src/extensions/adversarialRunRecord.test.ts src/extensions/adversarialRunner.test.ts src/extensions/adversarialNativePlan.test.ts src/extensions/adversarialNativeExecutor.test.ts src/extensions/adversarialAutomation.test.ts --reporter=verbose",
     "test:plugin-sdk": "node --test ../scripts/plugin-certifier.test.mjs",
     "test:plugin-host": "vitest run src/extensions/pluginAuthorityBroker.test.ts --reporter=verbose",
     "certify:plugin": "node ../scripts/plugin-certifier.mjs",

@@ -136,12 +136,41 @@ export interface ProviderBatchRoute {
   maxCalls: number
 }
 
+export type ProviderBatchPhase = 'proposal' | 'critique' | 'evidence-audit' | 'judgment' | 'baseline'
+
+export interface ProviderBatchPlannedCall {
+  callId: string
+  phase: ProviderBatchPhase
+  provider: RemoteProviderId
+  model: string
+  upstreamCallIds: string[]
+  presentationOrder: string[]
+  finalPass: boolean
+  timeoutMs: number
+  maxOutputTokens: number
+}
+
 export interface ProviderAdversarialAuthorizationRequest {
   runId: string
   question: string
   sources: ProviderResearchSource[]
   routes: ProviderBatchRoute[]
   totalRemoteCalls: number
+  calls: ProviderBatchPlannedCall[]
+}
+
+export interface ProviderAdversarialUpstreamOutput {
+  callId: string
+  output: string
+}
+
+export interface ProviderAdversarialCallRequest {
+  authorizationId: string
+  runId: string
+  callId: string
+  question: string
+  sources: ProviderResearchSource[]
+  upstreamOutputs: ProviderAdversarialUpstreamOutput[]
 }
 
 export interface ProviderBatchAuthorizationOutcome {
@@ -533,12 +562,17 @@ export const providerCancel = (callId: string): Promise<boolean> =>
   invoke('provider_cancel', { callId })
 
 /**
- * Ask once for a bounded adversarial panel scope. This only creates ephemeral authority; no key is
- * read and no model call is made until a separately implemented authorized executor consumes it.
+ * Ask once for a bounded adversarial panel scope. This creates ephemeral authority without reading
+ * a key or contacting a provider; the authorized executor consumes only exact graph nodes.
  */
 export const providerAdversarialAuthorize = (
   request: ProviderAdversarialAuthorizationRequest,
 ): Promise<ProviderBatchAuthorizationOutcome> => invoke('provider_adversarial_authorize', { request })
+
+/** Execute one exact graph node from a previously approved adversarial batch. */
+export const providerAdversarialExecute = (
+  request: ProviderAdversarialCallRequest,
+): Promise<ProviderTaskOutcome> => invoke('provider_adversarial_execute', { request })
 
 /** Revoke an unused or remaining adversarial batch authorization. */
 export const providerAdversarialRevoke = (authorizationId: string): Promise<boolean> =>

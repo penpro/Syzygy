@@ -1,37 +1,38 @@
 # Model provider API
 
-**Contract version:** 1. **Runtime status:** local adapter available; OpenAI Responses request,
-bounded timeout/cancellation, and fake-network incremental stream dispatch are at
-`request-and-stream-control-conformance`; Anthropic
-Messages, Gemini Interactions, and xAI Responses one-shot requests are at
-`request-control-conformance`. A Rust one-shot task bridge is fake-network certified and registered
-with typed generation/cancellation commands. Each call obtains one-use approval from a native
-dialog before vault or network access; the request cannot provide its own approval. Credential
-set/status/delete are also typed commands and a collapsed Settings surface calls them without
-persisting keys in app state. The workspace now has one optional, non-mutating remote-review
-caller: it reads the exact current draft, derives a content-addressed snapshot ID, and displays the
-normalized result as a local review artifact after the native **Send once** decision. Custom remote
-adapters are contract-only; no live provider call or product streaming claim is made.
+**Contract version:** 1. **Runtime status:** local inference remains available; OpenAI Responses
+request and stream controls are at `request-and-stream-control-conformance`; Anthropic Messages,
+Gemini Interactions, and xAI Responses one-shot requests are at
+`request-control-conformance`. Ordinary remote review and content-bound adversarial execution
+use registered Rust commands, OS-vault credentials, fixed built-in endpoints, native disclosure,
+bounded timeout/cancellation, normalized results, and content-free run records. Tests use
+loopback providers only; no live-provider compatibility or quality claim is made. Custom remote
+adapters remain contract-only.
 
-The native adversarial batch authorizer is a separate, non-executing boundary. Its request contains
-the actual research question, frozen source snapshots, exact remote provider/model routes,
-per-route ceilings, and a total remote-call ceiling. Rust validates the content and identity,
-derives the disclosure categories (including cross-provider model outputs/review artifacts), and
-shows one native dialog without displaying the research text. Approval creates a random ephemeral
-capability for 30 minutes; denial stores nothing. The content-free scope/status can be inspected
-and explicitly revoked through typed commands. No credential is read and no network request is
-made by authorization. The status is `native-scoped-authorizer-no-product-executor`: an authorized
-call consumer has not been implemented and the capability cannot currently transmit anything.
-An internal reservation state machine now proves the next boundary without exposing a command:
-under one Rust mutex it rechecks capability expiry, exact run, frozen source-ID set, exact
-provider/model route, and one-use call identity, then decrements route and total budgets together.
-Parallel and expiry tests prove fail-closed accounting. It binds source identity rather than the
-actual task bytes and cannot read a key, contact a provider, or return model authority. The future
-consumer must bind the authorized question/source content and derived phase artifact to a per-call
-record before reserving and transmitting.
-The reproducible proof and explicit non-claims are in
-`docs/audits/runs/ADVERSARIAL-BATCH-AUTHORIZATION-2026-07-15.json` and
-`docs/audits/runs/ADVERSARIAL-BATCH-RESERVATION-2026-07-15.json`.
+The adversarial path uses one native batch decision. Its request contains the exact research
+question, frozen source objects, complete call graph, provider/model routes, dependencies,
+presentation order, per-call execution limits, route ceilings, and total ceiling. Rust validates
+the compute-matched protocol and hashes the exact research bytes before displaying route/count/
+retention information. Approval creates a random 30-minute process-memory capability; denial
+stores nothing.
+
+Each call is atomically consumed before vault/network access. Rust rechecks the run, exact research
+digest, planned call, dependencies, route, and remaining budgets. Dependency outputs must match
+the SHA-256 recorded from successful earlier calls. Rust derives phase prompts, uses only built-in
+provider endpoints, and accepts only strict phase-specific JSON without private-reasoning fields.
+Failures and malformed outputs remain consumed; only successful validated output becomes a
+dependency. Status is content-free and revocation is explicit.
+
+The frontend product executor exposes this path through a deterministic blinded runner and
+resumable MCP jobs. MCP source selection is restricted to exact indexes from the current live
+document revision, start returns immediately, heartbeats occur every 30 seconds, the absolute
+deadline is 15 minutes, and cancellation reaches the native provider registry. Results remain
+pending human review and never modify shared state automatically.
+
+Conformance evidence is recorded in
+`docs/audits/runs/ADVERSARIAL-NATIVE-EXECUTION-2026-07-29.json`. Earlier authorization and
+reservation artifacts remain useful historical checkpoints but their “no executor” limitations
+are superseded.
 
 The callable command takes `ProviderResearchTaskRequest`, not a raw provider request. Its fields are
 run/call/task identity, provider/model/bounds, an optional developer instruction, a research
@@ -45,7 +46,7 @@ The canonical TypeScript contract is `frontend/src/extensions/providerContract.t
 research workflows from depending on a vendor response shape and keeps provider availability
 separate from provider capability.
 
-Every eventual invocation must also produce the content-free public record defined by
+Every native invocation must also produce the content-free public record defined by
 `docs/schemas/syzygy-provider-run-v1.schema.json` and
 `frontend/src/extensions/providerRunRecord.ts`. The record links a call to frozen source snapshot
 IDs and input/output hashes without embedding prompts, outputs, provider errors, or credentials.
@@ -86,12 +87,13 @@ domain semantic validation both pass.
   provider state must say so and request separate acceptance.
 - A task disclosure names provider, content categories, retention/training profile, and estimated
   call count before first transmission. Changing provider or expanding content invalidates it.
-- An adversarial batch authorization names every remote provider/model route, its ceiling, the
-  total ceiling, frozen source count, cross-provider artifact category, retention profile, and a
-  fixed expiration. It is process-memory-only and explicitly revocable. Internal reservation now
-  atomically checks route/run/source identity plus a one-use call ID and decrements both route and
-  total budgets before any possible vault/network access. It is not a public consumer and does not
-  yet bind actual prompt/source bytes.
+- An adversarial batch authorization binds exact research bytes, the complete call graph,
+  built-in provider/model routes, dependencies, judge order, execution limits, route budgets, and
+  total budget for a fixed expiration. Atomic reservation consumes a call before vault/network
+  access; prior output bytes must match recorded SHA-256 values; failures cannot be replayed.
+- The resumable MCP surface derives sources only from an exact live-document revision and selected
+  block indexes. It grants no arbitrary prompt, endpoint, credential, Drive, filesystem, or shared
+  mutation authority.
 - Custom endpoints are visibly unverified and require HTTPS unless the user explicitly selects a
   loopback development endpoint.
 

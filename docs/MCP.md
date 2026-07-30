@@ -5,12 +5,11 @@ starts a stdio MCP process; launching it normally starts the desktop UI. The MCP
 second project database or scrape pixels. It sends semantic operations to the running Syzygy
 window, which remains the owner of project navigation, Lexical editor state, Yjs, and IndexedDB.
 
-This is an automation and interoperability surface, not a claim that unfinished research
-features exist. `syzygy_status`, `workspace_walkthrough`, and `inspect_research_state` explicitly
-report the difference between usable domain foundations and unfinished model-generation, evaluation,
-and real-time-presence slices. `inspect_drive_project_discovery` is a separate explicit, content-free
-selected-workspace metadata read for comparing physical installations. Guarded scenario/
-branch/turn mutation, aggregate voting, and flag/note lifecycle are narrow automation surfaces.
+This is an automation and interoperability surface, not ambient authority. Most tools remain
+semantic read/revision-guarded mutation operations. Adversarial review is the sole MCP model
+workflow: it uses exact selected blocks from the live revision, one native disclosure, built-in
+provider routes, resumable polling/cancellation, and a pending non-mutating result. Real-time
+presence and live-provider compatibility must still be reported honestly.
 
 ## Connect an MCP host
 
@@ -62,6 +61,9 @@ Recommended first instruction to an MCP-capable model:
 | `rename_project` | yes | Changes project metadata only |
 | `read_active_project` | no | Returns the manifest plus structured blocks, plain text, and a revision |
 | `inspect_research_state` | no | Validates bounded live scenario/vote/flag/note/label/heuristic/version/head/lineage state and returns metadata summaries without policy, scenario, annotation, voter, label-event, guidance, edit-value, or version-note bodies |
+| `start_adversarial_review` | remote model job | Freezes selected block indexes from the exact live document revision, complete built-in-provider call graph, and limits; returns a job immediately before one native batch disclosure |
+| `inspect_adversarial_review` | no | Returns bounded lifecycle/heartbeat metadata while running and the validated pending-human-review result after completion |
+| `cancel_adversarial_review` | cancels model job | Aborts the shared job signal and active native provider call without changing project content |
 | `create_scenario` | scenario metadata | Creates one scenario/branch only when `expectedResearchRevision` exactly matches the revision from inspection; no model generation |
 | `add_scenario_turn` | scenario content | Adds one attributed system/user/assistant turn against the exact current research revision; never invokes a model |
 | `revise_scenario_turn` | scenario content | Adds an attributed immutable revision to an existing turn against the exact current research revision |
@@ -129,6 +131,12 @@ MCP host
   ancestry plus vote/annotation/label targets are checked; peer-colliding public identities or
   events fail closed. Aggregate vote counts, annotation lifecycle/event totals, and label names/
   assignments are metadata returned to the connected host.
+- Adversarial start requires the exact live document revision and 1–200 block indexes. Sources
+  are derived from those blocks rather than accepted as arbitrary MCP text. Only built-in remote
+  provider IDs are accepted. Start returns immediately; at most eight jobs run; heartbeats are 30
+  seconds; the absolute deadline is 15 minutes; terminal results expire after one hour.
+  Cancellation reaches the native provider registry. Completion remains pending human review and
+  has no document or Drive mutation path.
 - `create_scenario` requires the exact monotonic Yjs research revision returned by
   `inspect_research_state`. A stale revision fails before mutation; the frontend domain harness and
   packaged live harness assert zero stale writes. Participant identity/time remain caller/process
@@ -164,26 +172,13 @@ MCP host
 - `syzygy_installation` discloses the executable and parent-folder paths to the already-connected
   local MCP host. These paths are local machine metadata, contain no OAuth token or research
   content, and are also visible to the user in Settings.
-- `syzygy_platform_contracts` embeds public plugin, custom-adapter, provider-run, and adversarial-run schemas plus implementation-state labels only. It
-  reports the OpenAI adapter as `request-and-stream-control-conformance` and Anthropic
-  Messages, Gemini Interactions, and xAI Responses as the narrower `request-control-conformance`.
-  It reports the OS-vault Settings surface as `settings-vault-ui`, the native-disclosure one-shot task
-  bridge as `native-disclosure-research-envelope`, and aggregate remote execution as
-  `native-disclosure-single-review-ui-no-live-proof`. MCP itself has no provider-generation or credential
-  tool and therefore cannot bypass the native send boundary. It reports adversarial batch
-  authorization as `native-scoped-authorizer-no-product-executor`; the authorizer itself is not an
-  MCP tool and has no call consumer. It separately reports its private concurrency-tested budget
-  boundary as `internal-atomic-reservation-no-executor`; that function also has no MCP/Tauri
-  command, content binding, credential access, or network access. It reports the non-executing
-  plugin certifier as `contract-certified-runner`, adversarial execution as
-  `injected-runner-no-product-executor`, and plugin loading and custom-adapter execution as
-  `contract-only`; the non-executing adapter
-  certifier is `contract-certified-runner`, while provider-run and adversarial record validators are
-  reported separately as `implemented` without implying product model calls run;
-  the in-process plugin authority broker is `implemented-non-executing` without implying a plugin
-  can be installed or loaded; the embedded `syzygy:research/plugin@1.0.0` WIT source is reported as
-  `published-zero-imports-no-runtime`, and the harness rejects any host import or runtime claim;
-  it returns no key, provider account, project content, or Drive credential.
+- `syzygy_platform_contracts` embeds the public schemas and truthful implementation states.
+  It reports ordinary remote execution separately from live-provider proof; adversarial execution
+  is `native-multi-provider-executor-resumable-mcp-pending-human-review`, authorization is
+  `native-content-bound-call-graph-authorizer`, and reservation/execution is
+  `native-atomic-dependency-bound-executor`. Plugin loading and custom-adapter execution remain
+  `contract-only`. The platform-contract response contains no provider key, account, project
+  content, Drive credential, prompt, or model output.
 
 ## Private-LAN multi-install control
 

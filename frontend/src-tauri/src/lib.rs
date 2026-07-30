@@ -202,6 +202,7 @@ pub fn run() {
             provider_runtime::provider_generate_stream,
             provider_runtime::provider_cancel,
             provider_runtime::provider_adversarial_authorize,
+            provider_runtime::provider_adversarial_execute,
             provider_runtime::provider_adversarial_revoke,
             provider_runtime::provider_adversarial_authorization_status,
             provider_runtime::provider_credential_set,

@@ -131,7 +131,7 @@ export class AdversarialRunnerError extends Error {
   }
 }
 
-function validateRequest(request: AdversarialRunnerRequest) {
+export function validateAdversarialRunnerRequest(request: AdversarialRunnerRequest) {
   if (!validIdentifier(request.runId)) throw new Error('runId is invalid')
   if (!request.input.question.trim() || request.input.question.length > 4 * 1024 * 1024) {
     throw new Error('question is invalid')
@@ -227,7 +227,7 @@ export async function runAdversarialPanel(
   executor: AdversarialExecutor,
   signal?: AbortSignal,
 ): Promise<AdversarialRunnerOutcome> {
-  validateRequest(request)
+  validateAdversarialRunnerRequest(request)
   const plan = createAdversarialRunPlan(request.input)
   const ledger: AdversarialCallLedgerEntry[] = []
 

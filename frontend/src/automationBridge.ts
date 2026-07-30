@@ -1,5 +1,10 @@
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { AUTOMATION_CAPABILITIES } from './automationCapabilities'
+import {
+  cancelAdversarialAutomationJob,
+  inspectAdversarialAutomationJob,
+  startAdversarialAutomationJob,
+} from './extensions/adversarialAutomation'
 import { appVersion, automationReady, automationRespond } from './tauri'
 import { useStore } from './store'
 import {
@@ -466,6 +471,19 @@ export async function dispatchAutomationRequest(
       const content = requiredString(params, 'content', true)
       return { document: getAutomationEditorController().append(expectedRevision, content) }
     }
+    case 'research.startAdversarialReview': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const document = getAutomationEditorController(project.id).read()
+      return { job: startAdversarialAutomationJob(params, document) }
+    }
+    case 'research.inspectAdversarialReview':
+      return { job: inspectAdversarialAutomationJob(requiredString(params, 'jobId')) }
+    case 'research.cancelAdversarialReview':
+      return { job: cancelAdversarialAutomationJob(requiredString(params, 'jobId')) }
     case 'workspace.walkthrough':
       return buildWalkthrough()
     default:

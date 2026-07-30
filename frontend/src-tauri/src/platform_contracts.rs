@@ -49,13 +49,13 @@ pub fn current() -> Result<Value, String> {
             "localProvider": "available",
             "remoteProviderAdapters": "native-disclosure-openai-stream-review-ui-no-live-proof",
             "providerTaskRuntime": "native-disclosure-research-envelope",
-            "providerBatchAuthorization": "native-scoped-authorizer-no-product-executor",
-            "providerBatchReservation": "internal-atomic-reservation-no-executor",
+            "providerBatchAuthorization": "native-content-bound-call-graph-authorizer",
+            "providerBatchReservation": "native-atomic-dependency-bound-executor",
             "providerRunRecordValidator": "implemented",
             "modelAdapterCertifier": "contract-certified-runner",
             "credentialVault": "settings-vault-ui",
             "adversarialRecordValidator": "implemented",
-            "adversarialRunner": "injected-runner-no-product-executor",
+            "adversarialRunner": "native-multi-provider-executor-resumable-mcp-pending-human-review",
             "pluginCertifier": "contract-certified-runner",
             "pluginAuthorityBroker": "implemented-non-executing",
             "pluginWitContract": "published-zero-imports-no-runtime",
@@ -152,11 +152,11 @@ mod tests {
         );
         assert_eq!(
             contracts["implementationStatus"]["providerBatchAuthorization"],
-            "native-scoped-authorizer-no-product-executor"
+            "native-content-bound-call-graph-authorizer"
         );
         assert_eq!(
             contracts["implementationStatus"]["providerBatchReservation"],
-            "internal-atomic-reservation-no-executor"
+            "native-atomic-dependency-bound-executor"
         );
         assert_eq!(
             contracts["implementationStatus"]["credentialVault"],
@@ -203,7 +203,7 @@ mod tests {
         );
         assert_eq!(
             contracts["implementationStatus"]["adversarialRunner"],
-            "injected-runner-no-product-executor"
+            "native-multi-provider-executor-resumable-mcp-pending-human-review"
         );
         assert_eq!(
             contracts["implementationStatus"]["providerRunRecordValidator"],
@@ -258,7 +258,10 @@ mod tests {
             contracts["networkBoundaryManifest"]["status"],
             "implemented-unverified"
         );
-        assert_eq!(contracts["scenarioPackSchema"]["additionalProperties"], false);
+        assert_eq!(
+            contracts["scenarioPackSchema"]["additionalProperties"],
+            false
+        );
         assert_eq!(
             contracts["scenarioPackSchema"]["properties"]["format"]["const"],
             "syzygy-scenario-pack"

@@ -92,7 +92,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, and immutable history. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. On any conflict, read again and reconcile. Never claim model generation or real-time collaborator presence is available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, and immutable history. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. On any conflict, read again and reconcile. Adversarial model review is available only through start_adversarial_review followed by inspect_adversarial_review or cancel_adversarial_review; it requires configured built-in provider credentials and one native disclosure approval, and its result remains pending human review. Never claim real-time collaborator presence is available."
             })
         }
         "ping" => json!({}),
@@ -132,6 +132,9 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "rename_project" => live("project.rename", arguments),
         "read_active_project" => live("project.readActive", json!({})),
         "inspect_research_state" => live("project.readResearchState", json!({})),
+        "start_adversarial_review" => live("research.startAdversarialReview", arguments),
+        "inspect_adversarial_review" => live("research.inspectAdversarialReview", arguments),
+        "cancel_adversarial_review" => live("research.cancelAdversarialReview", arguments),
         "create_scenario" => live("project.createScenario", arguments),
         "add_scenario_turn" => live("project.addScenarioTurn", arguments),
         "revise_scenario_turn" => live("project.reviseScenarioTurn", arguments),
@@ -264,6 +267,21 @@ fn tool_definitions() -> Vec<Value> {
             "inspect_research_state",
             "Inspect bounded read-only metadata and integrity checks for the active project's collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and immutable policy-version history. Omits policy text, scenario/annotation/voter bodies, label-event bodies, heuristic guidance/edit values, and version notes; grants no mutation authority.",
             object_schema(&[], &[]),
+        ),
+        tool(
+            "start_adversarial_review",
+            "Start a resumable, compute-matched multi-provider adversarial review against exact selected blocks from the current live document revision. Returns a job immediately; the app then shows one native batch disclosure before any credential or network access. Results remain pending human review and never mutate the shared draft automatically.",
+            adversarial_review_schema(),
+        ),
+        tool(
+            "inspect_adversarial_review",
+            "Poll one adversarial review job by exact job ID. Running jobs expose only bounded status and heartbeats; completed jobs expose the validated research record, baselines, call ledger, and content-free provider run records.",
+            object_schema(&[("jobId", string_schema("Exact job ID returned by start_adversarial_review."))], &["jobId"]),
+        ),
+        tool(
+            "cancel_adversarial_review",
+            "Cancel one running adversarial review job by exact job ID. Cancellation propagates to the active native provider call and leaves the shared draft unchanged.",
+            object_schema(&[("jobId", string_schema("Exact job ID returned by start_adversarial_review."))], &["jobId"]),
         ),
         tool(
             "create_scenario",
@@ -462,6 +480,42 @@ fn tool(name: &str, description: &str, input_schema: Value) -> Value {
     })
 }
 
+fn adversarial_review_schema() -> Value {
+    let route = json!({
+        "type": "object",
+        "properties": {
+            "slotId": { "type": "string", "minLength": 1, "maxLength": 200 },
+            "providerId": { "type": "string", "enum": ["openai", "anthropic", "gemini", "xai"] },
+            "modelId": { "type": "string", "minLength": 1, "maxLength": 200 }
+        },
+        "required": ["slotId", "providerId", "modelId"],
+        "additionalProperties": false
+    });
+    json!({
+        "type": "object",
+        "properties": {
+            "expectedDocumentRevision": string_schema("Exact revision from read_active_project; the review refuses stale document blocks."),
+            "runId": { "type": "string", "minLength": 1, "maxLength": 200 },
+            "question": { "type": "string", "minLength": 1, "maxLength": 4194304 },
+            "seed": { "type": "string", "minLength": 1, "maxLength": 10000 },
+            "sourceBlockIndexes": {
+                "type": "array", "items": { "type": "integer", "minimum": 0 },
+                "minItems": 1, "maxItems": 200, "uniqueItems": true
+            },
+            "participants": {
+                "type": "array", "items": route.clone(), "minItems": 2, "maxItems": 200
+            },
+            "judge": route.clone(),
+            "baseline": route
+        },
+        "required": [
+            "expectedDocumentRevision", "runId", "question", "seed", "sourceBlockIndexes",
+            "participants", "judge", "baseline"
+        ],
+        "additionalProperties": false
+    })
+}
+
 fn scenario_turn_schema() -> Value {
     object_schema(
         &[
@@ -655,6 +709,9 @@ mod tests {
         assert!(names.contains(&"set_scenario_label_assignment"));
         assert!(names.contains(&"save_active_policy_version"));
         assert!(names.contains(&"restore_active_policy_version"));
+        assert!(names.contains(&"start_adversarial_review"));
+        assert!(names.contains(&"inspect_adversarial_review"));
+        assert!(names.contains(&"cancel_adversarial_review"));
         assert!(names.contains(&"replace_active_document"));
     }
 
@@ -732,6 +789,51 @@ mod tests {
             } else {
                 assert_eq!(response["result"]["structuredContent"]["params"], arguments);
             }
+        }
+    }
+
+    #[test]
+    fn routes_resumable_adversarial_review_jobs_without_synchronous_blocking() {
+        for (tool_name, method) in [
+            (
+                "start_adversarial_review",
+                "research.startAdversarialReview",
+            ),
+            (
+                "inspect_adversarial_review",
+                "research.inspectAdversarialReview",
+            ),
+            (
+                "cancel_adversarial_review",
+                "research.cancelAdversarialReview",
+            ),
+        ] {
+            let arguments = json!({
+                "expectedDocumentRevision": "lexical-1",
+                "runId": "run-1",
+                "question": "What survives review?",
+                "seed": "seed-1",
+                "sourceBlockIndexes": [0],
+                "participants": [
+                    { "slotId": "a", "providerId": "openai", "modelId": "model-a" },
+                    { "slotId": "b", "providerId": "anthropic", "modelId": "model-b" }
+                ],
+                "judge": { "slotId": "judge", "providerId": "gemini", "modelId": "judge-model" },
+                "baseline": { "slotId": "baseline", "providerId": "xai", "modelId": "baseline-model" },
+                "jobId": "job-1"
+            });
+            let response = dispatch_message(
+                &json!({
+                    "jsonrpc": "2.0",
+                    "id": tool_name,
+                    "method": "tools/call",
+                    "params": { "name": tool_name, "arguments": arguments }
+                }),
+                &fake_live,
+            )
+            .unwrap();
+            assert_eq!(response["result"]["structuredContent"]["method"], method);
+            assert_eq!(response["result"]["structuredContent"]["params"], arguments);
         }
     }
 

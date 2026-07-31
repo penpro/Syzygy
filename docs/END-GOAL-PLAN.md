@@ -567,9 +567,14 @@ Yjs discussions namespace and append immutable, exact-parent human accept/reject
 hashing, provider-provenance replay validation, bounded peer convergence, stale-write refusal,
 conflict retention, content-minimized inspection, and zero draft mutation are headlessly tested.
 
-Still open: product run history/configuration/acceptance UI, packaged dialog interaction, live
-provider compatibility/cost/rate-limit evidence, public benchmark corpus, statistical review, and
-any quality or superiority claim.
+The product workflow now selects exact draft blocks, configures two to eight perspectives plus
+judge/baseline routes, reports the full call count, reuses the resumable native job, separately
+shares full archives, renders every evidence class and conflict, and appends immutable human
+accept/reject history with no draft mutation.
+
+Still open: packaged native-dialog interaction evidence, physical two-install archive/decision
+interaction, live provider compatibility/cost/rate-limit evidence, public benchmark corpus,
+statistical review, scalable very-large-archive presentation, and any quality or superiority claim.
 
 The run-record interchange is now published as strict Draft 2020-12 JSON Schema and embedded in
 MCP. Its typed plan-relative validator remains the authority for cross-record semantics that JSON
@@ -613,8 +618,8 @@ retrieves an OS-vault credential, applies native one-use disclosure/timeout/canc
 normalizes the response, and authors content-free provenance. OpenAI uses an ordered per-call Tauri
 channel and bounded Rust/TypeScript accumulators so one workspace component can render the exact-draft
 review incrementally without mutating shared state; Anthropic, Gemini, and xAI remain one-shot.
-Streamed tools, slow-consumer/backpressure proof, durable adversarial workflow UI/history, and
-opt-in live-provider evidence remain open.
+Streamed tools, slow-consumer/backpressure proof, packaged adversarial UI interaction, and
+opt-in live-provider evidence remain open; the durable product workflow and shared history are implemented.
 The cross-language record gate now passes: the Rust loopback execution record is explicitly marked
 as conformance evidence and passes both the public TypeScript schema and semantic validator without
 leaking its secret or prompt canaries.

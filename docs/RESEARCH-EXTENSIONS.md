@@ -72,9 +72,12 @@ immediately, supports bounded inspection and cancellation, heartbeats every 30 s
 after 15 minutes. It never applies the result to shared work. A completed job becomes durable only
 through an explicit exact-revision save that stores its full canonical archive in the collaborative
 Yjs project; a separate exact-parent event records accepted/rejected human judgment. Routine
-inspection returns only content-minimized metadata and integrity. Product history/decision UI,
-authenticated identity, public benchmark corpus, live-provider evidence, quality statistics, and
-any superiority claim remain unimplemented or unproved.
+inspection returns only content-minimized metadata and integrity. The product now uses the same
+registry and ledger for exact source/route configuration, bounded progress and cancellation,
+separate full-content sharing, complete evidence inspection, conflict visibility, and immutable
+accept/reject history with no draft mutation. Authenticated identity, physical two-install product
+interaction, public benchmark corpus, live-provider evidence, scalable worst-case archive rendering,
+quality statistics, and any superiority claim remain unimplemented or unproved.
 
 The researcher-plugin side now publishes `syzygy:research/plugin@1.0.0` as a zero-import WIT
 world. It receives only a bounded optional project snapshot and returns only no-change or typed

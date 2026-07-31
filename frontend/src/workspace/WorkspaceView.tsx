@@ -3,6 +3,7 @@ import { GoogleDriveButton } from '../components/GoogleDriveButton'
 import { DriveProjectControls } from './DriveProjectControls'
 import { ResearchEditor } from './ResearchEditor'
 import { RemoteResearchReview } from './RemoteResearchReview'
+import { AdversarialReviewWorkspace } from './AdversarialReviewWorkspace'
 import { PolicyVersionRail } from './PolicyVersionRail'
 import { ProjectArchiveControls } from './ProjectArchiveControls'
 import { ScenarioWorkspace } from './ScenarioWorkspace'
@@ -103,6 +104,7 @@ export function WorkspaceView() {
         <aside className="workspace-evaluate" aria-label="Scenario workspace">
           <ScenarioWorkspace project={project} />
           <RemoteResearchReview project={project} />
+          <AdversarialReviewWorkspace project={project} />
         </aside>
       </div>
     </section>

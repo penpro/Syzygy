@@ -1,11 +1,12 @@
 # Adversarial review API
 
 **Contract version:** 1. **Runtime status:** native multi-provider execution, resumable MCP
-jobs, explicit collaborative archival, and immutable human accept/reject history are implemented
-and conformance-tested against loopback providers and in-memory Yjs peers. Results remain pending
-human review and never mutate the shared draft automatically. Packaged native-dialog interaction,
-live paid-provider compatibility, product history/decision UI, and research-quality superiority
-remain unproved.
+jobs, explicit collaborative archival, immutable human accept/reject history, and the product
+configuration/history/decision workflow are implemented and conformance-tested against loopback
+providers, in-memory Yjs peers, and headless React rendering. Results remain pending human review
+and never mutate the shared draft automatically. Packaged native-dialog interaction, live
+paid-provider compatibility, physical two-install archive interaction, and research-quality
+superiority remain unproved.
 
 Syzygy publishes its adversarial evidence record so researchers, plugins, headless harnesses, and
 independent reviewers can inspect the same artifact without depending on React or a provider SDK.
@@ -20,6 +21,8 @@ independent reviewers can inspect the same artifact without depending on React o
 - Native frontend executor: `../frontend/src/extensions/adversarialNativeExecutor.ts`.
 - Resumable job registry: `../frontend/src/extensions/adversarialAutomation.ts`.
 - Collaborative archive and decision ledger: `../frontend/src/extensions/adversarialHistory.ts`.
+- Product configuration, transient-job, evidence-history, and decision adapter:
+  `../frontend/src/workspace/AdversarialReviewWorkspace.tsx`.
 - Native authorization, transport, output validation, and dependency hashes:
   `../frontend/src-tauri/src/provider_runtime.rs`.
 - Headless entrypoints: MCP tools `start_adversarial_review`,
@@ -95,6 +98,28 @@ the decision conflicted; no timestamp winner is selected. Up to 20,000 bounded e
 Neither saving nor deciding reads or changes the Lexical draft. Routine
 `inspect_research_state` returns only IDs, hashes, counts, attribution metadata, decision state,
 and integrity issues; question, source, result, and decision-note bodies are omitted.
+
+## Product workflow contract
+
+The workspace product surface reuses the same registry and ledger as MCP. It selects exact live
+semantic blocks from one displayed editor revision, supports two to eight configurable perspectives,
+and shows the deterministic `4N + 6` total call count before native approval. It preflights only
+whether each required OS-vault credential exists. The authoritative native approval still freezes
+the full content-bound graph.
+
+The running view polls bounded job metadata, names the 30-second heartbeat and absolute deadline,
+and uses the shared cancellation path. Completion does not persist automatically. **Share full
+review with project** separately writes the complete canonical archive and explicitly warns that a
+Drive project may deliver it to collaborators. The product can then inspect frozen sources,
+proposals, critiques, claim audit, minority findings, baseline outputs, route provenance, accounting,
+and decision history. Invalid or branched state disables decisions and remains visibly conflicted.
+Accept/reject appends history only; there is deliberately no Apply control or editor mutation path.
+
+Headless product tests cover exact source selection, panel/call bounds, disclosure copy, evidence
+classes, provenance separation, and absence of an apply action. Domain convergence, stale-write,
+tamper, branch, and no-editor-mutation tests remain authoritative for shared writes. The bounded
+run and honest limitations are recorded in
+`audits/runs/ADVERSARIAL-PRODUCT-WORKFLOW-2026-07-30.json`.
 
 ## Validation pipeline
 

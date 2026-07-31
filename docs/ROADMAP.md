@@ -272,13 +272,14 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - Three MCP tools bring semantic discovery to 32 tools: start returns a revision-guarded job
   immediately from selected live blocks, inspect polls bounded state/result, and cancel reaches the
   native provider call. Jobs heartbeat every 30 seconds, abort at 15 minutes, expire after one hour,
-  and never mutate shared work. Durable product history/UI, packaged native-dialog proof, live
-  provider evidence, public fixtures/statistics, and any superiority claim remain open.
+  and never mutate shared work. At that checkpoint durable product history/UI was still open;
+  the later collaborative-history and product-workflow slices below close it. Packaged native-dialog
+  proof, live provider evidence, public fixtures/statistics, and any superiority claim remain open.
   Evidence: `docs/audits/runs/ADVERSARIAL-NATIVE-EXECUTION-2026-07-29.json`.
 - Anthropic Messages now has a one-shot `request-control-conformance` slice. A fake server
   proves the current `/v1/messages` path, `x-api-key`, pinned API version, system/user mapping,
   bounds, normalized text/usage, thinking-block non-retention, sanitized failure, timeout, and
-  cancellation. Anthropic streaming, tools, product workflow UI, and live proof remain open.
+  cancellation. Anthropic streaming, tool-specific UI, and live proof remain open; the shared adversarial product workflow can route Anthropic one-shot calls.
 - Gemini Interactions now has a stable-v1 `request-control-conformance` slice. Its fake
   server proves header auth, storage/background/stream off, thought-summary suppression, system and
   user mapping, output bounds, text-only retention, consistent aggregate usage, sanitized failure,
@@ -460,9 +461,14 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   immutable exact-parent accept/reject events and never edits policy text. Identical peer archives
   converge; conflicting archives or decision branches remain visible and fail closed; hostile
   records and stale writes add nothing; routine MCP inspection omits all research and note bodies.
-  This closes the durable headless domain/API slice, not product history/decision UI, authenticated
-  identity, packaged two-install interaction, live-provider proof, benchmark quality, or an
-  accept-and-apply workflow.
+  The product now reuses that exact job and ledger: researchers select exact draft blocks, configure
+  two to eight panel routes plus judge/baseline, see the deterministic total call count, cancel the
+  bounded job, separately share full content, inspect frozen evidence/provenance/baselines, and append
+  accept/reject history. Conflicts stay visible and no action edits the draft. This closes the
+  headless plus product workflow implementation slice, not authenticated identity, packaged
+  two-install interaction, live-provider proof, scalable worst-case archive rendering, benchmark
+  quality, or a separate revision-guarded proposal/apply workflow.
+  Evidence: `docs/audits/runs/ADVERSARIAL-PRODUCT-WORKFLOW-2026-07-30.json`.
 
 ## Current completion snapshot
 

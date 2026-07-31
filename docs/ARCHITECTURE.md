@@ -146,6 +146,12 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   exact live Yjs revision; conflicts fail closed; routine inspection omits question/source/result/
   note bodies; neither path touches the editor root. Because this reuses an existing reserved Yjs
   collection and adds no persisted Zustand field, no save-shape migration is required.
+  `AdversarialReviewWorkspace.tsx` is the product adapter over the same automation registry and
+  shared domain. It reads exact live semantic blocks through the registered editor controller,
+  preflights only credential presence, starts/cancels the bounded native job, and requires a separate
+  full-content share action. History observes only the discussions map, decodes fail-closed archives,
+  exposes every evidence class and conflict, and appends exact-parent decisions. It has no editor
+  mutation import or apply control. `adversarial-workspace.css` contains only theme-token styling.
   `PolicyVersionRail.tsx` subscribes to that same live document, saves the exact semantic editor
   revision against the exact version head, and presents verified immutable checkpoints plus
   deterministic parent diffs. `projectArchive.ts` exports a size-bounded, SHA-256-protected

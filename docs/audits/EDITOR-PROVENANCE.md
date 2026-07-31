@@ -76,6 +76,8 @@
 | `frontend/src/workspace/WorkspaceView.tsx` | Penumbra original | Original three-column research workspace scaffold |
 | `frontend/src/workspace/PolicyVersionRail.tsx` | Penumbra original | Live-document subscribed exact-revision checkpoint UI, historical metadata rail, and deterministic engine-free parent-diff presentation |
 | `frontend/src/workspace/RemoteResearchReview.tsx` | Penumbra original | Optional single-provider review UI with native disclosure, cancellation, and non-mutating result presentation |
+| `frontend/src/workspace/AdversarialReviewWorkspace.tsx` | Penumbra original | Exact-block and route configuration over the bounded native job registry, explicit full-content collaborative archive action, complete evidence/conflict history, and immutable no-draft-mutation human decisions |
+| `frontend/src/workspace/AdversarialReviewWorkspace.ui.test.tsx` | Penumbra original | Headless product contract for source/call bounds, safety disclosure, evidence/provenance rendering, and absence of implicit Apply authority |
 | `frontend/src/workspace/remoteResearchTask.ts` | Penumbra original | Exact-draft content-addressed remote review envelope with editable current provider model defaults |
 | `frontend/src/workspace/editorAutomation.ts` | Penumbra original | Semantic live-editor controller, deterministic text-block adapter, and optimistic revision guard |
 | `frontend/src/workspace/editorAutomationRegistry.ts` | Penumbra original | Lightweight active-editor capability registry that preserves lazy workspace loading |

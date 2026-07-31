@@ -1129,6 +1129,10 @@ const adversarialAutomationSource = text('frontend/src/extensions/adversarialAut
 const adversarialAutomationTestSource = text('frontend/src/extensions/adversarialAutomation.test.ts')
 const adversarialHistorySource = text('frontend/src/extensions/adversarialHistory.ts')
 const adversarialHistoryTestSource = text('frontend/src/extensions/adversarialHistory.test.ts')
+const adversarialWorkspaceSource = text('frontend/src/workspace/AdversarialReviewWorkspace.tsx')
+const adversarialWorkspaceTestSource = text('frontend/src/workspace/AdversarialReviewWorkspace.ui.test.tsx')
+const adversarialWorkspaceCss = text('frontend/src/adversarial-workspace.css')
+const workspaceViewSource = text('frontend/src/workspace/WorkspaceView.tsx')
 const automationBridgeSource = text('frontend/src/automationBridge.ts')
 const researchStateInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
 const mcpHarnessSource = text('scripts/mcp-harness.mjs')
@@ -1204,6 +1208,30 @@ record(
     mcpHarnessSource.includes('tools.length < 34') &&
     frontendPackage.scripts?.['test:adversarial']?.includes('adversarialHistory.test.ts'),
   'full archives persist only by explicit revision-guarded save; canonical hashes, provider provenance, peer convergence, exact-parent decision history, fail-closed conflicts, content-minimized inspection, and zero draft authority are enforced',
+)
+record(
+  'product adversarial review is explicit, inspectable, collaborative, bounded, and non-mutating',
+  workspaceViewSource.includes('<AdversarialReviewWorkspace project={project} />') &&
+    adversarialWorkspaceSource.includes('startAdversarialAutomationJob(params, current)') &&
+    adversarialWorkspaceSource.includes('getPersistableAdversarialAutomationJob(job.jobId)') &&
+    adversarialWorkspaceSource.includes('saveAdversarialReviewArchive(doc, {') &&
+    adversarialWorkspaceSource.includes('decideAdversarialReview(doc, {') &&
+    adversarialWorkspaceSource.includes('providerCredentialStatus(providerId)') &&
+    adversarialWorkspaceSource.includes('const MAX_SELECTED_SOURCES = 200') &&
+    adversarialWorkspaceSource.includes('MAX_PRODUCT_ADVERSARIAL_PARTICIPANTS = 8') &&
+    adversarialWorkspaceSource.includes('return 4 * participantCount + 6') &&
+    adversarialWorkspaceSource.includes('activeDiscussions?.observe(onHistoryUpdate)') &&
+    adversarialWorkspaceSource.includes('Nothing is sent until one native batch approval') &&
+    adversarialWorkspaceSource.includes('Share full review with project') &&
+    adversarialWorkspaceSource.includes('Nothing is added to the policy draft') &&
+    adversarialWorkspaceSource.includes('No winner was selected') &&
+    adversarialWorkspaceSource.includes('it does not change, replace, or apply text to the policy draft') &&
+    adversarialWorkspaceTestSource.includes('builds exact revision-bound job parameters') &&
+    adversarialWorkspaceTestSource.includes('renders frozen evidence, minority artifacts, baselines, provenance') &&
+    adversarialWorkspaceTestSource.includes("expect(html).not.toContain('Apply to draft')") &&
+    frontendPackage.scripts?.['test:adversarial']?.includes('AdversarialReviewWorkspace.ui.test.tsx') &&
+    !/#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})(?:\\b|$)/i.test(adversarialWorkspaceCss),
+  'the product reuses the resumable native job and shared ledger; users select exact sources/routes, see total calls, separately share full content, inspect every evidence class and conflict, append guarded decisions, and never gain implicit draft authority',
 )
 record(
   'adversarial MCP jobs are revision-guarded, resumable, bounded, and cancellable',

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "runId": "ADVERSARIAL-PRODUCT-WORKFLOW-2026-07-30",
+  "date": "2026-07-30",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "9f4f932",
+  "runtimeStatus": "product-configuration-transient-job-explicit-share-evidence-history-and-human-decision",
+  "commands": [
+    "npm run test:adversarial",
+    "npm run test:workspace",
+    "npm run audit",
+    "npm run check:supervised",
+    "npm run build:status -- 20260731-022208-1f76a2"
+  ],
+  "result": {
+    "focusedAdversarialTestFilesPassed": 8,
+    "focusedAdversarialTestsPassed": 38,
+    "workspaceTestFilesPassed": 69,
+    "workspaceTestsPassed": 262,
+    "workspaceTestsExpectedFail": 1,
+    "fullFrontendTestFilesPassed": 100,
+    "fullFrontendTestFilesSkipped": 1,
+    "fullFrontendTestsPassed": 399,
+    "fullFrontendTestsExpectedFail": 1,
+    "fullFrontendTestsSkipped": 1,
+    "frontendModulesTransformed": 1059,
+    "structuralAuditPassed": true,
+    "rustCheckPassed": true,
+    "appAssetEmbedRecompiled": true,
+    "supervisedRunId": "20260731-022208-1f76a2",
+    "supervisedElapsedSeconds": 20,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0,
+    "qualityClaimAuthorized": false
+  },
+  "proved": [
+    "The research workspace renders an adversarial-review product surface over the same resumable job registry and collaborative archive/decision domain exposed through MCP.",
+    "The product selects 1 to 200 exact non-empty semantic blocks from one displayed Lexical revision and refuses to start after that live revision changes.",
+    "The product supports 2 to 8 independently configurable built-in provider perspectives plus explicit blinded-judge and compute-matched-baseline routes.",
+    "Before native authority, the product reports the deterministic 4N + 6 remote-call count and preflights only OS-vault credential presence for the exact provider set.",
+    "The native content-bound batch approval remains authoritative for research bytes, routes, graph, dependencies, order, output limits, and budgets.",
+    "The product polls the bounded job, names its 30-second heartbeat and absolute deadline, and uses the shared native cancellation path.",
+    "A completed product result remains transient until Share full review with project explicitly states that question, excerpts, outputs, baselines, provenance, and optional Drive synchronization become shared project content.",
+    "The product history displays the frozen question and sources, blinded independent proposals, cross-critiques, claim-level evidence audit, minority findings, compute-matched baseline outputs, separate route provenance, token and available cost accounting, and immutable decision history.",
+    "History refresh observes only the provider-neutral discussions collection rather than decoding archives after every policy-editor update.",
+    "Invalid or concurrent archive and decision state remains visible, disables decision actions, and never selects a hidden winner.",
+    "Record accepted and Record rejected append exact-parent human decisions only; product copy, tests, imports, and the mechanical audit expose no Apply control or editor mutation authority.",
+    "The product stylesheet uses theme tokens without hard-coded colors, the source/test files are registered as Penumbra-original work, and synchronized design, architecture, API, roadmap, data-flow, and threat-model documents describe the same boundary."
+  ],
+  "notProved": [
+    "A packaged user completed or declined the real native batch-approval dialog through this product surface.",
+    "OpenAI, Anthropic, Gemini, or xAI accepted a live product batch or returned compatible production responses.",
+    "Two physical installations synchronized and interacted with one saved product archive or concurrent decision branch through Drive.",
+    "A near-32-MiB archive or a project near the 2,000-archive and 20,000-decision bounds remains responsive and understandable in the product UI.",
+    "Provider billing, cancellation charges, rate limits, retention attestations, or policy behavior match local conformance fixtures.",
+    "Researcher identity or timestamps are authenticated.",
+    "A human accept decision creates, applies, or authorizes any policy-text proposal.",
+    "The adversarial panel improves correctness, evidence quality, decision quality, or human preference over its compute-matched baseline.",
+    "The product workflow has cross-platform accessibility, screen-reader, keyboard-only, or visual-regression evidence beyond headless markup and existing theme-token gates."
+  ]
+}

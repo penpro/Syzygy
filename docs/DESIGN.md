@@ -299,10 +299,26 @@ themes.
 Browser-only design previews show a neutral **Available in the installed app** state rather than a
 false credential failure; the installed Tauri webview performs the real vault presence check.
 
-An adversarial review panel shows candidates blinded during judgment, source support, disagreement,
-minority findings, order-swap instability, the compute-matched baseline, latency, and cost. Call it
-"review" or "panel," not consensus or truth. Nothing enters the shared draft until the person sees
-a diff and accepts it.
+The **Adversarial review** surface is a distinct, optional workflow below the single-provider
+perspective. It lets the researcher select 1–200 exact non-empty draft blocks, configure two to
+eight independent perspectives plus a blinded judge and compute-matched baseline, and see the exact
+total remote-call count before native batch approval. Provider-key preflight reveals only
+stored/not-stored state. The native dialog remains authoritative for exact bytes, routes, call graph,
+limits, and budget.
+
+While running, the product polls the same resumable registry exposed to MCP, reports its 30-second
+heartbeat and absolute deadline, and offers cancellation. A completed result remains transient until
+**Share full review with project** explicitly discloses that question, excerpts, outputs, baselines,
+and provenance enter shared Yjs history and may sync through Drive. The history view exposes the
+frozen question/sources, blinded proposals, cross-critiques, claim audit, minority findings,
+order-swapped judgment evidence, compute-matched baseline, separate route provenance, token/cost
+accounting, and immutable decision history. Conflicting archives or decision branches remain visible
+with no selected winner.
+
+Call the result "review" or "panel," never consensus or truth. **Record accepted** and **Record
+rejected** append exact-parent human judgment only. Neither action changes, replaces, proposes, or
+applies policy text. Any later apply workflow must be a separate revision-guarded proposal and diff.
+Installation researcher names and timestamps remain self-reported, not authenticated.
 
 Plugin permission screens use plain verbs and concrete scope: "Read this project," "Propose a
 change," "Fetch from doi.org," or "Use the configured local model." Native MCP plugins carry a

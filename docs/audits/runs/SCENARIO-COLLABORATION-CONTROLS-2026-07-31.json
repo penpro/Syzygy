@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "runId": "SCENARIO-COLLABORATION-CONTROLS-2026-07-31",
+  "date": "2026-07-31",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "32a1f0b",
+  "status": "implemented_unverified",
+  "claim": "Researchers can manage shared scenario and turn annotations plus project context labels through engine-free product controls that preserve exact-parent collaborative history.",
+  "commands": [
+    "npm --prefix frontend run test -- src/workspace/ScenarioCollaborationPanel.ui.test.tsx src/workspace/ScenarioWorkspace.ui.test.ts src/workspace/scenarioAnnotationModel.test.ts src/workspace/scenarioLabelModel.test.ts --reporter=verbose",
+    "npm --prefix frontend run test:workspace",
+    "npm --prefix frontend test",
+    "node scripts/audit.mjs",
+    "npm --prefix frontend run check:supervised",
+    "npm --prefix frontend run build:status -- 20260731-211125-9706a7"
+  ],
+  "result": {
+    "focusedTestFilesPassed": 4,
+    "focusedTestsPassed": 18,
+    "workspaceTestFilesPassed": 70,
+    "workspaceTestsPassed": 267,
+    "workspaceTestsExpectedFail": 1,
+    "fullFrontendTestFilesPassed": 101,
+    "fullFrontendTestFilesSkipped": 1,
+    "fullFrontendTestsPassed": 404,
+    "fullFrontendTestsExpectedFail": 1,
+    "fullFrontendTestsSkipped": 1,
+    "frontendModulesTransformed": 1061,
+    "structuralAuditPassed": true,
+    "rustCheckPassed": true,
+    "appAssetEmbedRecompiled": true,
+    "supervisedRunId": "20260731-211125-9706a7",
+    "supervisedElapsedSeconds": 47,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "The selected-scenario product surface exposes whole-scenario or turn-scoped note and flag creation without requiring a model.",
+    "Open annotations expose exact-parent edit and resolve controls; resolved annotations expose reopen and do not expose edit until reopened.",
+    "Annotation bodies, lifecycle status, last-action attribution, event count, and scenario/turn target are visibly inspectable.",
+    "Researchers can create shared project labels, rename them against the displayed current event, and assign or remove them from the selected scenario against the displayed assignment event.",
+    "Every product mutation rechecks scenario graph, annotation history, and label history immediately before writing; invalid history is visible and write controls fail closed.",
+    "Annotation and label projections advance in deterministic 50-item pages, and assignment lookup is performed only for the visible label page.",
+    "The product copy states that notes, flags, labels, and history are shared project data and that installation-provided researcher identity is not authenticated.",
+    "The existing domain fixtures still prove 80 reordered or duplicate delivery cases for annotations and labels, exact replay, stale-parent refusal, concurrent branches, disconnected merges, collisions, and orphan detection.",
+    "The complete workspace, frontend, structural-audit, production frontend, and native Rust compile gates pass with the new product assets re-embedded."
+  ],
+  "notProved": [
+    "A packaged user clicked the annotation or label controls in a webview; product interaction evidence is server-rendered markup plus compiled wiring.",
+    "Two physical installations created, edited, resolved, renamed, or assigned the same records through Drive or the LAN bridge.",
+    "Researcher identity, display names, timestamps, or ordering clocks are authenticated or trusted.",
+    "Moderation, notification delivery, permissions, deletion or retention policy, or branch-reconciliation UI exists.",
+    "A project near the 20,000-bucket or 100,000-event bounds remains within a measured memory or interaction-latency budget.",
+    "Labels filter the scenario gallery; the current product control manages the selected scenario assignment only.",
+    "No live provider, credential, model-quality, policy-text mutation, or network boundary was exercised."
+  ]
+}

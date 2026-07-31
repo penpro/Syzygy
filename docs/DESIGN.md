@@ -152,9 +152,12 @@ creates independent local state after import.
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,
 empty, integrity-error, and mutation-error states; creates and selects stable scenarios; edits title,
 background, and workflow state; appends ordered role/content turns; and exposes support, oppose,
-abstain, and withdraw controls with aggregate counts. A stale detail form must reload instead of
-overwriting a newer shared scenario edit. When graph integrity fails, all mutation controls are
-disabled. Copy states that the installation researcher identity is not authenticated.
+abstain, and withdraw controls with aggregate counts. The selected scenario also exposes shared
+scenario/turn notes and flags with edit, resolve, and reopen history, plus project context-label
+creation, assignment, removal, and rename. Lists advance in deterministic 50-item pages. A stale
+detail, annotation, label, or assignment write must fail instead of overwriting newer shared history.
+When scenario, annotation, or label integrity fails, the affected mutation controls are disabled.
+Copy states that the installation researcher identity is not authenticated.
 
 **Portable scenario packs** sit inside the scenario workspace and remain usable without AI. Researchers
 can export the selected scenario plus its required ancestors or every scenario, and can set a title,

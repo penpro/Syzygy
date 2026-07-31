@@ -313,8 +313,11 @@ fail closed. Independent scalar edits and turn insertions converge; turn revisio
 attributed alternative and select a deterministic current value. A graph inspector detects invalid
 records, missing parents, and cycles. `ScenarioWorkspace.tsx` provides an engine-free product gallery with create/select/edit/status
 controls, ordered turn addition, and attributed vote/withdraw controls against the same live Y.Doc.
-It observes peer updates, refuses stale detail saves when any scenario edit identity changed, and
-makes graph-integrity failures read-only. P-16 adds optional generation without making the gallery
+`ScenarioCollaborationPanel.tsx` adds scenario/turn note and flag create/edit/resolve/reopen plus
+project-label create/rename/assignment controls. It pages both projections at 50 items, captures
+exact event parents when editing, and rechecks graph, annotation, and label integrity immediately
+before every write. The workspace observes peer updates, refuses stale detail saves when any scenario
+edit identity changed, and makes integrity failures read-only. P-16 adds optional generation without making the gallery
 dependent on AI: local inference is available only while the model is loaded, remote routes reuse
 the native one-shot disclosure boundary, and both write through the attributed response domain only
 if the selected scenario revision is unchanged. Turn revision editing, arbitrary historical-parent
@@ -334,13 +337,16 @@ flag/note lifecycle events. Create, edit, resolve, and reopen operations retain 
 at-the-time metadata. Every non-create event names its exact parent; product writes require the
 current event, while concurrent children remain as auditable branches and one timestamp/event-ID
 ordering supplies the deterministic projection. Missing scenario/turn targets and colliding public
-annotation identities are integrity failures. No annotations UI or authenticated identity is claimed.
+annotation identities are integrity failures. The product exposes the lifecycle without claiming
+authenticated identity, moderation, notification delivery, or a trusted clock.
 
 `scenarioLabelModel.ts` stores context-label and scenario-assignment event histories in separate
 versioned namespaces inside the reserved settings collection. Label renames and add/remove
 assignments name their exact parent; disconnected concurrent renames remain in history and one
 timestamp/event-ID ordering produces a deterministic current name. Filtering projects only active
 assignments. Colliding roots and orphan scenario/label targets fail closed or surface in inspection.
+The product exposes creation, exact-parent rename, and per-scenario assignment without claiming
+authenticated identity, moderation, or a trusted clock.
 `scenarioAutomation.ts` exposes label create/rename/assignment operations to the live automation
 bridge. Every call consumes the exact research-state revision; rename and follow-up assignment
 also consume the projected current event, so stale requests add no event. Responses expose bounded

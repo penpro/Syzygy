@@ -378,12 +378,17 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   parent-linked lifecycle events. Edit, resolve, and reopen retain historical attribution; stale
   writes reject; disconnected creation and concurrent edit-versus-resolve converge across eighty
   seeded deliveries; collisions and orphan scenario/turn targets surface in MCP integrity metadata.
-  This closes P-20 domain evidence, not annotation UI, moderation, or authenticated identity.
+  The product now creates scenario/turn notes or flags, edits open bodies, resolves/reopens lifecycle
+  history, pages large projections, and rechecks integrity before each write. Moderation,
+  notifications, authenticated identity, trusted clocks, and packaged two-install interaction remain open.
+  Evidence: `docs/audits/runs/SCENARIO-COLLABORATION-CONTROLS-2026-07-31.json`.
 - Collaborative context labels now use immutable create/rename and scenario add/remove events in
   separate settings namespaces. Exact-current guards reject stale writes; disconnected assignments
   and concurrent rename branches converge across eighty duplicate/reordered deliveries; filtering,
-  collision, and orphan checks fail closed. This closes P-21 domain evidence, not label UI,
-  authentication, moderation, MCP mutation, or remote transport.
+  collision, and orphan checks fail closed. The product now creates and renames project labels and
+  assigns/removes them on the selected scenario with exact-parent conflict refusal and bounded paging.
+  Authentication, moderation, trusted clocks, and packaged remote interaction remain open.
+  Evidence: `docs/audits/runs/SCENARIO-COLLABORATION-CONTROLS-2026-07-31.json`.
 - MCP now advertises a fifteenth semantic tool, `create_scenario`. Research inspection returns a
   monotonic Yjs revision and rejects a read that changes during validation; scenario creation
   requires that exact revision and live project identity. Pure tests prove stale zero-write and

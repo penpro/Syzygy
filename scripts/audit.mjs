@@ -635,6 +635,8 @@ record(
 const scenarioVoteSource = text('frontend/src/workspace/scenarioVoteModel.ts')
 const scenarioWorkspaceSource = text('frontend/src/workspace/ScenarioWorkspace.tsx')
 const scenarioWorkspaceTestSource = text('frontend/src/workspace/ScenarioWorkspace.ui.test.ts')
+const scenarioCollaborationSource = text('frontend/src/workspace/ScenarioCollaborationPanel.tsx')
+const scenarioCollaborationTestSource = text('frontend/src/workspace/ScenarioCollaborationPanel.ui.test.tsx')
 record(
   'scenario product workspace remains live, engine-free, stale-safe, and integrity-read-only',
   scenarioWorkspaceSource.includes('subscribeAutomationProjectDocument(project.id') &&
@@ -712,6 +714,30 @@ record(
     scenarioLabelTestSource.includes("scenario-labels:v1:malformed") &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-21", "phase": 6, "status": "implemented_unverified"'),
   'separate label/assignment namespaces, immutable replay-safe exact-parent events, 80 delivery orders, deterministic filtering, stale/collision/orphan/malformed gates, and truthful P-21 status are present',
+)
+
+record(
+  'scenario annotation and label product controls remain shared, stale-safe, bounded, and engine-free',
+  scenarioWorkspaceSource.includes("import { ScenarioCollaborationPanel } from './ScenarioCollaborationPanel'") &&
+    scenarioWorkspaceSource.includes('collaboration={doc && selected ? <ScenarioCollaborationPanel') &&
+    scenarioCollaborationSource.includes('SCENARIO_COLLABORATION_PAGE_SIZE = 50') &&
+    scenarioCollaborationSource.includes('allAnnotations.slice(0, annotationLimit)') &&
+    scenarioCollaborationSource.includes('allLabels.slice(0, labelLimit)') &&
+    scenarioCollaborationSource.includes('createScenarioAnnotation(shared.discussions, shared.scenarios') &&
+    scenarioCollaborationSource.includes('updateScenarioAnnotation(shared.discussions, shared.scenarios') &&
+    scenarioCollaborationSource.includes('setScenarioAnnotationResolution(shared.discussions, shared.scenarios') &&
+    scenarioCollaborationSource.includes('createScenarioLabel(shared.settings') &&
+    scenarioCollaborationSource.includes('renameScenarioLabel(shared.settings') &&
+    scenarioCollaborationSource.includes('setScenarioLabelAssignment(shared.settings, shared.scenarios') &&
+    scenarioCollaborationSource.includes('assertWritable()') &&
+    scenarioCollaborationSource.includes('identity is not authenticated') &&
+    scenarioCollaborationTestSource.includes('renders shared annotation lifecycle and exact label assignment controls without an AI dependency') &&
+    scenarioCollaborationTestSource.includes('shows edit and reopen workflows while preserving explicit shared-history language') &&
+    scenarioCollaborationTestSource.includes('fails visibly closed on invalid collaboration history') &&
+    scenarioCollaborationTestSource.includes('discloses deterministic paging for hostile large histories') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-20", "phase": 6, "status": "implemented_unverified"') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-21", "phase": 6, "status": "implemented_unverified"'),
+  'selected-scenario note/flag create-edit-resolve-reopen, project-label create-rename-assignment, exact-parent conflict refusal, live integrity rechecks, 50-item paging, and truthful P-20/P-21 statuses are present',
 )
 
 const policyVersionSource = text('frontend/src/workspace/policyVersionModel.ts')

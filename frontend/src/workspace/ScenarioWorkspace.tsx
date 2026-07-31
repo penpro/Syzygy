@@ -26,6 +26,7 @@ import { ScenarioGenerator } from './ScenarioGenerator'
 import { HeuristicWorkspace } from './HeuristicWorkspace'
 import { ScenarioRerunQueuePanel } from './ScenarioRerunQueuePanel'
 import { ScenarioPackControls } from './ScenarioPackControls'
+import { ScenarioCollaborationPanel } from './ScenarioCollaborationPanel'
 
 interface ScenarioWorkspaceContentProps {
   ready: boolean
@@ -35,6 +36,7 @@ interface ScenarioWorkspaceContentProps {
   currentVote: ScenarioVoteChoice | null
   integrityIssues: string[]
   generation?: ReactNode
+  collaboration?: ReactNode
   heuristics?: ReactNode
   reruns?: ReactNode
   packs?: ReactNode
@@ -73,6 +75,7 @@ export function ScenarioWorkspaceContent({
   currentVote,
   integrityIssues,
   generation,
+  collaboration,
   heuristics,
   reruns,
   packs,
@@ -234,6 +237,7 @@ export function ScenarioWorkspaceContent({
             )}
           </div>
           <p className="scenario-identity-note">Votes use this installation’s researcher identity; identity is not authenticated.</p>
+          {collaboration}
         </section>
       )}
 
@@ -411,6 +415,9 @@ export function ScenarioWorkspace({ project }: { project: ResearchProjectManifes
       ready={Boolean(doc)} scenarios={snapshot.scenarios} selected={selected}
       voteSummary={voteSummary} currentVote={currentVote} integrityIssues={snapshot.issues}
       generation={doc && selected ? <ScenarioGenerator key={selected.id} project={project} doc={doc} scenario={selected} /> : undefined}
+      collaboration={doc && selected ? <ScenarioCollaborationPanel
+        key={selected.id} doc={doc} scenario={selected} writesDisabled={snapshot.issues.length > 0}
+      /> : undefined}
       heuristics={doc ? <HeuristicWorkspace project={project} doc={doc} /> : undefined}
       reruns={doc ? <ScenarioRerunQueuePanel project={project} doc={doc} /> : undefined}
       packs={<ScenarioPackControls project={project} doc={doc} scenarios={snapshot.scenarios} selected={selected} integrityIssues={snapshot.issues} />}

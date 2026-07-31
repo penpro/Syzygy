@@ -180,18 +180,21 @@ pack interchange remain open; votes, annotations, and labels are separate domain
 P-19 now has a Penumbra-original collaborative vote-event ledger. Exact replay is idempotent;
 re-votes and withdrawals retain attributed history; peer-specific namespaced buckets preserve
 disconnected first votes; concurrent votes by one participant select a deterministic current event;
-and conflicting event identity fails closed. Authenticated identity, a trusted distributed clock,
-and visible vote controls remain open.
+and conflicting event identity fails closed. Visible vote controls have landed; authenticated
+identity, a trusted distributed clock, moderation, and packaged two-install interaction remain open.
 
 P-20 now has a Penumbra-original flag/note lifecycle ledger. Immutable create/edit/resolve/reopen
 events retain attribution and exact parent links. Stale product writes fail, concurrent children
 remain auditable, and missing scenario/turn targets or colliding annotation identities fail closed.
-Visible annotation controls, authenticated identity, moderation, and notifications remain open.
+Visible scenario/turn create, edit, resolve, and reopen controls now use exact event parents and
+write-time integrity checks. Authenticated identity, moderation, notifications, trusted clocks,
+and packaged two-install interaction remain open.
 
 P-21 now has a Penumbra-original context-label ledger. Immutable create/rename and scenario
 add/remove events use exact-parent guards; disconnected assignments merge, concurrent rename
 branches remain auditable, filtering is deterministic, and colliding roots or orphan targets fail
-closed. Visible label controls, authentication, moderation, and remote-provider proof remain open.
+closed. Visible create, rename, assign, and remove controls now use exact event parents and bounded
+lists. Authentication, moderation, trusted clocks, and packaged remote interaction remain open.
 
 P-28/P-29 now have exact-head commit, restore-as-new-child, and deterministic engine-free diff
 services. A stale head fails before creating an orphan; two concurrent restores preserve both

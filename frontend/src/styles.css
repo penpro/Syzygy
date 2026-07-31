@@ -2906,6 +2906,13 @@ input.workspace-title-input:focus {
   color: var(--faint);
   cursor: default;
 }
+
+.research-reorder-note {
+  max-width: 220px;
+  color: var(--warn);
+  font-size: 9px;
+  line-height: 1.35;
+}
 .scenario-reference-control {
   display: inline-flex;
   min-width: 0;

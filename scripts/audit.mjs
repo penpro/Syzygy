@@ -160,6 +160,7 @@ record(
 
 const editorStructureSource = text('frontend/src/workspace/editorStructure.ts')
 const editorStructureTestSource = text('frontend/src/workspace/editorStructure.test.ts')
+const editorProductSource = text('frontend/src/workspace/ResearchEditor.tsx')
 const editorFormattingTestSource = text('frontend/src/workspace/ResearchEditorFormatting.test.ts')
 const editorOutlineSource = text('frontend/src/workspace/ResearchTableOfContents.tsx')
 const editorOutlineTestSource = text('frontend/src/workspace/ResearchTableOfContents.ui.test.ts')
@@ -170,8 +171,13 @@ record(
   editorStructureSource.includes("createCommand<PolicyMoveDirection>('syzygy-move-policy-block')") &&
     editorStructureSource.includes('KEY_ARROW_UP_COMMAND') &&
     editorStructureSource.includes('KEY_ARROW_DOWN_COMMAND') &&
+    editorStructureSource.includes("policyReorderSafety(transportKind: 'local' | 'drive')") &&
+    editorStructureSource.includes('Reordering is paused for Drive-shared projects') &&
     editorStructureSource.includes('$isHeadingNode(node)') &&
+    editorStructureTestSource.includes('fails Drive-shared reorder visibly closed') &&
     editorStructureTestSource.includes('uses one command for pointer controls and guarded keyboard reorder') &&
+    editorProductSource.includes('reorderSafety.allowed ? registerPolicyReorderCommands(editor) : () => {}') &&
+    editorProductSource.includes('research-reorder-note') &&
     editorFormattingTestSource.includes('round-trips headings, paragraphs, quotes, policy identity, Unicode, and supported marks') &&
     editorOutlineSource.includes('readResearchHeadings(editorState)') &&
     editorOutlineSource.includes('aria-label="Document outline"') &&
@@ -180,7 +186,7 @@ record(
     editorLedgerSource.includes('"id": "P-09", "phase": 2, "status": "implemented_unverified"') &&
     editorLedgerSource.includes('"id": "P-10", "phase": 2, "status": "implemented_unverified"') &&
     editorLedgerSource.includes('"id": "P-34", "phase": 2, "status": "implemented_unverified"'),
-  'shared pointer/keyboard command, live heading projection, formatting and UI fixtures, explicit remote-safety expected failure, and truthful P-09/P-10/P-34 statuses are present',
+  'local pointer/keyboard command, visible Drive-shared fail-closed gate, live heading projection, formatting/UI fixtures, explicit remote-safety expected failure, and truthful P-09/P-10/P-34 statuses are present',
 )
 
 const scenarioReferenceSource = text('frontend/src/workspace/nodes/ScenarioReferenceNode.tsx')

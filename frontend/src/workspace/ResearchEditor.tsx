@@ -29,6 +29,7 @@ import { registerAutomationEditor } from './editorAutomation'
 import { getAutomationEditorController } from './editorAutomationRegistry'
 import {
   MOVE_POLICY_BLOCK_COMMAND,
+  policyReorderSafety,
   readPolicyMoveAvailability,
   registerPolicyReorderCommands,
 } from './editorStructure'
@@ -64,6 +65,7 @@ const editorTheme = {
 
 function Toolbar({ shared }: { shared: boolean }) {
   const [editor] = useLexicalComposerContext()
+  const reorderSafety = policyReorderSafety(shared ? 'drive' : 'local')
   const { ready: scenariosReady, scenarios } = useScenarioReferenceState()
   const { projectId, ready: suggestionsReady, healthy: suggestionsHealthy, createHumanSuggestion } = useSuggestionState()
   const [canUndo, setCanUndo] = useState(false)
@@ -88,12 +90,14 @@ function Toolbar({ shared }: { shared: boolean }) {
   }, [editor])
 
   useEffect(() => {
-    const update = (editorState = editor.getEditorState()) => setMoveAvailability(readPolicyMoveAvailability(editorState))
+    const update = (editorState = editor.getEditorState()) => setMoveAvailability(
+      reorderSafety.allowed ? readPolicyMoveAvailability(editorState) : { up: false, down: false },
+    )
     const removeUpdate = editor.registerUpdateListener(({ editorState }) => update(editorState))
-    const removeCommands = registerPolicyReorderCommands(editor)
+    const removeCommands = reorderSafety.allowed ? registerPolicyReorderCommands(editor) : () => {}
     update()
     return () => { removeUpdate(); removeCommands() }
-  }, [editor])
+  }, [editor, reorderSafety.allowed])
 
   const setBlock = (kind: 'paragraph' | 'h1' | 'h2' | 'quote') => {
     editor.update(() => {
@@ -205,17 +209,18 @@ function Toolbar({ shared }: { shared: boolean }) {
       <button
         type="button"
         aria-label="Move selected policy block up"
-        title="Move selected policy block up (Alt+Shift+Up)"
-        disabled={!moveAvailability.up}
+        title={reorderSafety.reason ?? 'Move selected policy block up (Alt+Shift+Up)'}
+        disabled={!reorderSafety.allowed || !moveAvailability.up}
         onClick={() => editor.dispatchCommand(MOVE_POLICY_BLOCK_COMMAND, 'up')}
       >Move ↑</button>
       <button
         type="button"
         aria-label="Move selected policy block down"
-        title="Move selected policy block down (Alt+Shift+Down)"
-        disabled={!moveAvailability.down}
+        title={reorderSafety.reason ?? 'Move selected policy block down (Alt+Shift+Down)'}
+        disabled={!reorderSafety.allowed || !moveAvailability.down}
         onClick={() => editor.dispatchCommand(MOVE_POLICY_BLOCK_COMMAND, 'down')}
       >Move ↓</button>
+      {!reorderSafety.allowed ? <span className="research-reorder-note">{reorderSafety.reason}</span> : null}
       <span className="research-toolbar-rule" aria-hidden="true" />
       <button type="button" disabled={!canRedo} onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}>Redo</button>
       <span className="research-save-state mono">{shared ? 'Drive shared · local copy persists' : 'Local changes persist automatically'}</span>

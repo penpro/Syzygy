@@ -340,9 +340,10 @@ Gate: P-02–P-10/P-34/P-35 pass; 100-page stress budget passes; bundle contains
 PolicyPad, Firebase, Next, or copied template code; every theme is reviewed.
 
 Progress: an original Lexical/Yjs policy surface, heading/quote/mark fixtures, undo, local IndexedDB
-persistence, the three-panel workspace shell, shared pointer/keyboard policy reordering, and a
-live heading-derived table of contents exist. The partitioned move-versus-edit fixture remains an
-explicit expected failure, so remote-safe structural edits, more custom research nodes, stress
+persistence, the three-panel workspace shell, local pointer/keyboard policy reordering, and a
+live heading-derived table of contents exist. Drive-shared reorder now fails closed with disabled
+controls, visible rationale, and no registered move commands. The partitioned move-versus-edit
+fixture remains an explicit expected failure, so remote-safe structural edits, more custom research nodes, stress
 tests, cross-theme visual review, and Drive collaboration remain.
 
 ### Phase 3 — local project lifecycle (`L`)
@@ -707,7 +708,8 @@ Do not use the web port or upstream source as an implementation input. First:
 2. maintain the now-pinned Lexical/Yjs dependency and source ledger;
 3. add the extension contract harness and truthful MCP self-description (landed; keep it green);
 4. maintain the policy block's passing root-document-order convergence test, the formatting,
-   pointer/keyboard, and outline fixtures, then replace tree-coupled policy content with stable
+   pointer/keyboard, and outline fixtures; the product now fails Drive-shared reorder closed with
+   disabled controls and no registered commands. Replace tree-coupled policy content with stable
    content identity plus separate placement before enabling reorder on a remote provider; the
    expected-failure move-versus-edit partition loses text under V1, while an isolated V2 experiment
    converged with the edit misattributed to the adjacent block and was rejected;

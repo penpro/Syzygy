@@ -16,9 +16,19 @@ import { $isPolicyBlockNode, $movePolicyBlock, type PolicyBlockNode } from './no
 
 export type PolicyMoveDirection = 'up' | 'down'
 export interface PolicyMoveAvailability { up: boolean; down: boolean }
+export interface PolicyReorderSafety { allowed: boolean; reason: string | null }
 export interface ResearchHeading { key: string; level: 1 | 2; text: string }
 
 export const MOVE_POLICY_BLOCK_COMMAND = createCommand<PolicyMoveDirection>('syzygy-move-policy-block')
+
+export function policyReorderSafety(transportKind: 'local' | 'drive'): PolicyReorderSafety {
+  return transportKind === 'local'
+    ? { allowed: true, reason: null }
+    : {
+        allowed: false,
+        reason: 'Reordering is paused for Drive-shared projects until concurrent move-and-edit safety is proven.',
+      }
+}
 
 function $selectedPolicyBlock(): PolicyBlockNode | null {
   const selection = $getSelection()

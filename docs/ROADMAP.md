@@ -93,10 +93,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   reorder convergence. The first apparent reorder failure was a harness defect: it compared
   Lexical node-map enumeration rather than root document order. The corrected oracle passes and
   is documented in the run evidence. P-03 is `implemented_unverified`. The product now has one
-  semantic reorder command shared by pointer controls and Alt+Shift+Arrow shortcuts, plus a live
-  heading-derived outline and formatting fixtures. P-09/P-10/P-34 are therefore
-  `implemented_unverified`; P-10 remains blocked from remote-safe claims by the explicit expected-
-  failure move-versus-edit partition fixture.
+  semantic reorder command shared by pointer controls and Alt+Shift+Arrow shortcuts for local
+  projects, plus a live heading-derived outline and formatting fixtures. Drive-shared projects now
+  fail closed with disabled controls, a visible explanation, and no registered reorder command.
+  P-09/P-10/P-34 remain `implemented_unverified`; P-10 remains blocked from remote-safe claims by
+  the explicit expected-failure move-versus-edit partition fixture. Safety-gate evidence:
+  `docs/audits/runs/POLICY-REORDER-SAFETY-2026-07-31.json`.
 - P-05 now has a Penumbra-original inline `ScenarioReferenceNode`. The toolbar inserts links from
   the live shared scenario list; persisted state contains only the stable scenario ID; current
   titles resolve reactively from the project Y.Doc; missing targets stay visible. JSON reload,

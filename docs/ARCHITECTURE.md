@@ -216,9 +216,11 @@ Its `nodes/PolicyBlockNode.ts` is the first original domain editor node: stable 
 review state live with editable Lexical content and survive JSON/MCP serialization and two-editor
 convergence. `editorStructure.ts` owns one semantic reorder command shared by toolbar buttons and
 Alt+Shift+Arrow shortcuts, while `ResearchTableOfContents.tsx` derives navigation directly from
-live heading nodes rather than storing a second outline. Reordering is enabled for the current
-single IndexedDB document; the explicit partitioned move-versus-edit expected-failure fixture must
-pass before any remote provider may claim structural-edit safety.
+live heading nodes rather than storing a second outline. Reordering is enabled only for the
+current local IndexedDB document. `policyReorderSafety` fails Drive-shared projects closed:
+`ResearchEditor` does not register the pointer/keyboard commands, disables both controls, and
+shows the reason. The explicit partitioned move-versus-edit expected-failure fixture must pass
+before any remote provider may enable or claim structural-edit safety.
 
 `nodes/ScenarioReferenceNode.tsx` is a Penumbra-original inline domain node that persists only a
 stable scenario ID. `ScenarioReferenceContext.tsx` resolves its title from the same live project

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "runId": "POLICY-REORDER-SAFETY-2026-07-31",
+  "date": "2026-07-31",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "20f6467",
+  "capabilities": ["P-03", "P-10"],
+  "status": "implemented_unverified",
+  "claim": "Policy-block reorder remains available for local projects while Drive-shared projects fail visibly closed until concurrent move-and-edit safety is proved.",
+  "commands": [
+    "npm --prefix frontend run test -- src/workspace/editorStructure.test.ts src/workspace/nodes/PolicyBlockNode.test.ts --reporter=verbose",
+    "npm --prefix frontend test",
+    "npm --prefix frontend run build",
+    "node scripts/audit.mjs",
+    "npm --prefix frontend run check:supervised",
+    "npm --prefix frontend run build:status -- 20260731-212641-a406ee"
+  ],
+  "result": {
+    "focusedTestFilesPassed": 2,
+    "focusedTestsPassed": 6,
+    "focusedTestsExpectedFail": 1,
+    "fullFrontendTestFilesPassed": 101,
+    "fullFrontendTestFilesSkipped": 1,
+    "fullFrontendTestsPassed": 405,
+    "fullFrontendTestsExpectedFail": 1,
+    "fullFrontendTestsSkipped": 1,
+    "frontendModulesTransformed": 1061,
+    "structuralAuditPassed": true,
+    "rustCheckPassed": true,
+    "appAssetEmbedRecompiled": true,
+    "supervisedRunId": "20260731-212641-a406ee",
+    "supervisedElapsedSeconds": 14,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "The transport policy permits policy-block reorder only for a local project and returns a stable user-facing denial reason for a Drive-shared project.",
+    "A Drive-shared editor does not register the semantic pointer or keyboard reorder commands.",
+    "Both Drive-shared move controls are disabled and expose the same visible safety explanation; local controls retain selection-derived direction availability.",
+    "The focused harness still exercises local pointer-command and Alt+Shift+Arrow reorder behavior.",
+    "The explicit partitioned move-versus-edit fixture remains an expected failure, preventing the safety gate from being confused with a CRDT correctness fix.",
+    "The complete frontend suite, production frontend build, structural audit, Rust check, and native asset re-embed compile pass under bounded supervision."
+  ],
+  "notProved": [
+    "Remote-safe policy-block structural editing; the V1 Lexical/Yjs tree can still lose a concurrent edit when another peer moves that block during a partition.",
+    "Stable policy content identity separated from CRDT placement.",
+    "A packaged user visually inspected the disabled controls, explanation, focus behavior, screen-reader output, narrow layout, or every retained theme.",
+    "Two physical installations attempted concurrent policy-block move and edit through Drive or the LAN bridge.",
+    "Drag-and-drop reorder; the current local pointer interaction remains the toolbar move control.",
+    "A release/updater artifact contains this development checkpoint."
+  ]
+}

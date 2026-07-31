@@ -13,6 +13,7 @@ import {
 import { describe, expect, it, vi } from 'vitest'
 import {
   MOVE_POLICY_BLOCK_COMMAND,
+  policyReorderSafety,
   readPolicyMoveAvailability,
   readResearchHeadings,
   registerPolicyReorderCommands,
@@ -61,6 +62,14 @@ const keyboardEvent = () => ({
 }) as unknown as KeyboardEvent
 
 describe('research editor structure', () => {
+  it('keeps local reorder available and fails Drive-shared reorder visibly closed', () => {
+    expect(policyReorderSafety('local')).toEqual({ allowed: true, reason: null })
+    expect(policyReorderSafety('drive')).toEqual({
+      allowed: false,
+      reason: 'Reordering is paused for Drive-shared projects until concurrent move-and-edit safety is proven.',
+    })
+  })
+
   it('derives the outline from live heading nodes and selects a current heading', () => {
     const editor = fixture()
     const headings = readResearchHeadings(editor.getEditorState())

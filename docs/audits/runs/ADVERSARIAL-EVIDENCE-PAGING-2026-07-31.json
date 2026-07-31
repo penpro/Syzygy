@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "runId": "ADVERSARIAL-EVIDENCE-PAGING-2026-07-31",
+  "date": "2026-07-31",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "502eb3c",
+  "runtimeStatus": "lazy-evidence-categories-progressive-artifact-and-nested-claim-pages",
+  "commands": [
+    "npm --prefix frontend run test -- src/workspace/AdversarialReviewWorkspace.ui.test.tsx --reporter=verbose",
+    "node scripts/audit.mjs",
+    "npm --prefix frontend run test:adversarial",
+    "npm --prefix frontend run test:workspace",
+    "npm --prefix frontend test",
+    "npm --prefix frontend run check:supervised",
+    "npm --prefix frontend run build:follow -- 20260731-103235-562a8d"
+  ],
+  "result": {
+    "focusedWorkspaceTestFilesPassed": 1,
+    "focusedWorkspaceTestsPassed": 5,
+    "focusedAdversarialTestFilesPassed": 8,
+    "focusedAdversarialTestsPassed": 39,
+    "workspaceTestFilesPassed": 69,
+    "workspaceTestsPassed": 263,
+    "workspaceTestsExpectedFail": 1,
+    "fullFrontendTestFilesPassed": 100,
+    "fullFrontendTestFilesSkipped": 1,
+    "fullFrontendTestsPassed": 400,
+    "fullFrontendTestsExpectedFail": 1,
+    "fullFrontendTestsSkipped": 1,
+    "frontendModulesTransformed": 1060,
+    "structuralAuditPassed": true,
+    "rustCheckPassed": true,
+    "appAssetEmbedRecompiled": true,
+    "supervisedRunId": "20260731-103235-562a8d",
+    "supervisedElapsedSeconds": 57,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "Selecting an adversarial archive does not materialize frozen source, proposal, critique, audit, baseline, provenance, or decision bodies while their evidence categories remain closed.",
+    "Opening an evidence category renders at most 50 top-level artifacts initially and exposes the exact remaining count through a bounded Show next control.",
+    "Proposal claim lists use the same 50-item progressive boundary, preventing a protocol-valid proposal with thousands of claims from eagerly materializing its complete nested claim history.",
+    "The hostile server-rendered fixture places 51 proposals and 51 claims behind their respective boundaries and proves item 50 is present while item 51 is absent from initial opened markup.",
+    "Synthesis and the model-evidence safety warning remain immediately visible without opening archived evidence.",
+    "The paging implementation is isolated from the orchestration workspace, uses theme-token styling, and is registered in the source provenance ledger.",
+    "The full frontend, collaborative workspace, adversarial, repository-audit, production frontend, and native Rust compile gates pass with the changed assets re-embedded by Compiling app v0.1.19."
+  ],
+  "notProved": [
+    "The Show next control was clicked in a packaged webview; the headless fixture verifies initial state and source wiring rather than browser interaction.",
+    "A near-32-MiB archive or a project near the 2,000-archive and 20,000-decision bounds was decoded, retained in memory, navigated, or measured for responsiveness.",
+    "Fifty individually maximum-sized artifact bodies fit within a specific memory, layout, or interaction latency budget.",
+    "Two physical installations opened the same large archive through Drive or the LAN bridge.",
+    "The evidence view has packaged screen-reader, keyboard-only, cross-platform, or visual-regression evidence.",
+    "Any live provider, credential, network request, model-quality improvement, or policy-text mutation was exercised."
+  ]
+}

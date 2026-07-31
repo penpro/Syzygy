@@ -151,7 +151,9 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   preflights only credential presence, starts/cancels the bounded native job, and requires a separate
   full-content share action. History observes only the discussions map, decodes fail-closed archives,
   exposes every evidence class and conflict, and appends exact-parent decisions. It has no editor
-  mutation import or apply control. `adversarial-workspace.css` contains only theme-token styling.
+  mutation import or apply control. `AdversarialEvidenceView.tsx` keeps artifact categories lazy
+  and pages opened categories and nested proposal claims in deterministic 50-item increments; closed
+  categories materialize no body markup. `adversarial-workspace.css` contains only theme-token styling.
   `PolicyVersionRail.tsx` subscribes to that same live document, saves the exact semantic editor
   revision against the exact version head, and presents verified immutable checkpoints plus
   deterministic parent diffs. `projectArchive.ts` exports a size-bounded, SHA-256-protected

@@ -465,10 +465,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   two to eight panel routes plus judge/baseline, see the deterministic total call count, cancel the
   bounded job, separately share full content, inspect frozen evidence/provenance/baselines, and append
   accept/reject history. Conflicts stay visible and no action edits the draft. This closes the
-  headless plus product workflow implementation slice, not authenticated identity, packaged
-  two-install interaction, live-provider proof, scalable worst-case archive rendering, benchmark
-  quality, or a separate revision-guarded proposal/apply workflow.
-  Evidence: `docs/audits/runs/ADVERSARIAL-PRODUCT-WORKFLOW-2026-07-30.json`.
+  headless plus product workflow implementation slice. Evidence categories now stay out of the
+  DOM until opened and advance in deterministic 50-item pages. Remaining gaps include authenticated
+  identity, packaged two-install interaction, live-provider proof, near-32-MiB decode/memory and
+  usability evidence, benchmark quality, and a separate revision-guarded proposal/apply workflow.
+  Evidence: `docs/audits/runs/ADVERSARIAL-PRODUCT-WORKFLOW-2026-07-30.json` and
+  `docs/audits/runs/ADVERSARIAL-EVIDENCE-PAGING-2026-07-31.json`.
 
 ## Current completion snapshot
 

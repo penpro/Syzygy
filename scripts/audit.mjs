@@ -1130,6 +1130,7 @@ const adversarialAutomationTestSource = text('frontend/src/extensions/adversaria
 const adversarialHistorySource = text('frontend/src/extensions/adversarialHistory.ts')
 const adversarialHistoryTestSource = text('frontend/src/extensions/adversarialHistory.test.ts')
 const adversarialWorkspaceSource = text('frontend/src/workspace/AdversarialReviewWorkspace.tsx')
+const adversarialEvidenceSource = text('frontend/src/workspace/AdversarialEvidenceView.tsx')
 const adversarialWorkspaceTestSource = text('frontend/src/workspace/AdversarialReviewWorkspace.ui.test.tsx')
 const adversarialWorkspaceCss = text('frontend/src/adversarial-workspace.css')
 const workspaceViewSource = text('frontend/src/workspace/WorkspaceView.tsx')
@@ -1226,7 +1227,16 @@ record(
     adversarialWorkspaceSource.includes('Nothing is added to the policy draft') &&
     adversarialWorkspaceSource.includes('No winner was selected') &&
     adversarialWorkspaceSource.includes('it does not change, replace, or apply text to the policy draft') &&
+    adversarialEvidenceSource.includes('ADVERSARIAL_EVIDENCE_PAGE_SIZE = 50') &&
+    adversarialEvidenceSource.includes('{open ? children : null}') &&
+    adversarialEvidenceSource.includes('items.slice(0, visibleCount)') &&
+    adversarialEvidenceSource.includes('items={candidate.claims}') &&
+    adversarialEvidenceSource.includes('Show next {nextCount} · {remaining} remaining') &&
     adversarialWorkspaceTestSource.includes('builds exact revision-bound job parameters') &&
+    adversarialWorkspaceTestSource.includes('keeps closed evidence out of markup and pages an opened near-limit artifact list') &&
+    adversarialWorkspaceTestSource.includes("expect(closed).not.toContain('proposal-canary-1')") &&
+    adversarialWorkspaceTestSource.includes("expect(opened).not.toContain('proposal-canary-51')") &&
+    adversarialWorkspaceTestSource.includes("expect(opened).not.toContain('claim-canary-51')") &&
     adversarialWorkspaceTestSource.includes('renders frozen evidence, minority artifacts, baselines, provenance') &&
     adversarialWorkspaceTestSource.includes("expect(html).not.toContain('Apply to draft')") &&
     frontendPackage.scripts?.['test:adversarial']?.includes('AdversarialReviewWorkspace.ui.test.tsx') &&

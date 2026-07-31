@@ -572,9 +572,10 @@ judge/baseline routes, reports the full call count, reuses the resumable native 
 shares full archives, renders every evidence class and conflict, and appends immutable human
 accept/reject history with no draft mutation.
 
-Still open: packaged native-dialog interaction evidence, physical two-install archive/decision
-interaction, live provider compatibility/cost/rate-limit evidence, public benchmark corpus,
-statistical review, scalable very-large-archive presentation, and any quality or superiority claim.
+Evidence categories now remain unmounted until opened and progress in 50-item pages. Still open:
+packaged native-dialog interaction evidence, physical two-install archive/decision interaction,
+live provider compatibility/cost/rate-limit evidence, public benchmark corpus, statistical review,
+near-32-MiB decode/memory and end-to-end usability proof, and any quality or superiority claim.
 
 The run-record interchange is now published as strict Draft 2020-12 JSON Schema and embedded in
 MCP. Its typed plan-relative validator remains the authority for cross-record semantics that JSON

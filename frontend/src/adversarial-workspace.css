@@ -375,3 +375,7 @@
   color: var(--muted);
   font-weight: 400;
 }
+
+.adversarial-artifact-more {
+  margin-top: 8px;
+}

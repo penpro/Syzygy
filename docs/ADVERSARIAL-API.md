@@ -113,13 +113,16 @@ review with project** separately writes the complete canonical archive and expli
 Drive project may deliver it to collaborators. The product can then inspect frozen sources,
 proposals, critiques, claim audit, minority findings, baseline outputs, route provenance, accounting,
 and decision history. Invalid or branched state disables decisions and remains visibly conflicted.
-Accept/reject appends history only; there is deliberately no Apply control or editor mutation path.
+Evidence categories are lazy and opened lists, including nested proposal claims, render deterministic
+50-item pages, so hidden bodies do not enter the DOM merely because an archive was selected. Accept/reject appends history only;
+there is deliberately no Apply control or editor mutation path.
 
 Headless product tests cover exact source selection, panel/call bounds, disclosure copy, evidence
 classes, provenance separation, and absence of an apply action. Domain convergence, stale-write,
 tamper, branch, and no-editor-mutation tests remain authoritative for shared writes. The bounded
 run and honest limitations are recorded in
-`audits/runs/ADVERSARIAL-PRODUCT-WORKFLOW-2026-07-30.json`.
+`audits/runs/ADVERSARIAL-PRODUCT-WORKFLOW-2026-07-30.json` and
++`audits/runs/ADVERSARIAL-EVIDENCE-PAGING-2026-07-31.json`.
 
 ## Validation pipeline
 

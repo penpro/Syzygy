@@ -313,7 +313,9 @@ and provenance enter shared Yjs history and may sync through Drive. The history 
 frozen question/sources, blinded proposals, cross-critiques, claim audit, minority findings,
 order-swapped judgment evidence, compute-matched baseline, separate route provenance, token/cost
 accounting, and immutable decision history. Conflicting archives or decision branches remain visible
-with no selected winner.
+with no selected winner. Evidence categories start closed so large bodies are not eagerly materialized;
+opening one renders at most 50 artifacts per list, including nested proposal claims, with an explicit
+bounded **Show next** control until every stored item is reachable. The synthesis and safety warning remain immediately visible.
 
 Call the result "review" or "panel," never consensus or truth. **Record accepted** and **Record
 rejected** append exact-parent human judgment only. Neither action changes, replaces, proposes, or

@@ -164,6 +164,7 @@ describe('adversarial product workflow', () => {
         decision={null}
         sourceDocumentRevision={snapshot.revision}
         recordSha256={'b'.repeat(64)}
+        initialOpenSections={['sources', 'minority', 'proposals', 'critiques', 'audit', 'baseline', 'provenance', 'decisions']}
       />,
     )
 
@@ -175,5 +176,50 @@ describe('adversarial product workflow', () => {
     expect(html).toContain('Execution provenance · not shown to judges')
     expect(html).toContain('not truth, consensus, or an automatic policy edit')
     expect(html).toContain('No human decision has been recorded.')
+  })
+
+  it('keeps closed evidence out of markup and pages an opened near-limit artifact list', () => {
+    const candidates = Array.from({ length: 51 }, (_, index) => ({
+      candidateId: `candidate-${index + 1}`,
+      proposal: `proposal-canary-${index + 1}`,
+      claims: index === 0
+        ? Array.from({ length: 51 }, (_, claimIndex) => ({
+            claimId: `claim-${claimIndex + 1}`,
+            text: `claim-canary-${claimIndex + 1}`,
+          }))
+        : [],
+    }))
+    const largeOutcome = {
+      ...outcome,
+      record: { ...outcome.record, candidates },
+    }
+    const closed = renderToStaticMarkup(
+      <AdversarialEvidenceView
+        request={request}
+        outcome={largeOutcome}
+        decision={null}
+        sourceDocumentRevision={snapshot.revision}
+      />,
+    )
+    expect(closed).toContain('Independent proposals · 51')
+    expect(closed).not.toContain('proposal-canary-1')
+    expect(closed).not.toContain('proposal-canary-51')
+
+    const opened = renderToStaticMarkup(
+      <AdversarialEvidenceView
+        request={request}
+        outcome={largeOutcome}
+        decision={null}
+        sourceDocumentRevision={snapshot.revision}
+        initialOpenSections={['proposals']}
+      />,
+    )
+    expect(opened).toContain('proposal-canary-1')
+    expect(opened).toContain('proposal-canary-50')
+    expect(opened).not.toContain('proposal-canary-51')
+    expect(opened).toContain('claim-canary-1')
+    expect(opened).toContain('claim-canary-50')
+    expect(opened).not.toContain('claim-canary-51')
+    expect(opened.match(/Show next 1 · 1 remaining/g)).toHaveLength(2)
   })
 })

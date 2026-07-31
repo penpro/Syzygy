@@ -21,9 +21,7 @@ import {
   type AdversarialReviewDecisionSummary,
   type AdversarialReviewSummary,
 } from '../extensions/adversarialHistory'
-import type { NativeAdversarialPanelOutcome } from '../extensions/adversarialNativeExecutor'
 import type { AdversarialParticipant } from '../extensions/adversarialProtocol'
-import type { AdversarialRunnerRequest } from '../extensions/adversarialRunner'
 import {
   automationEditorReady,
   getAutomationEditorController,
@@ -31,6 +29,7 @@ import {
 } from './editorAutomationRegistry'
 import { getProjectSharedTypes, projectStateFingerprint } from './projectModel'
 import { REMOTE_REVIEW_PROVIDERS } from './remoteResearchTask'
+import { AdversarialEvidenceView } from './AdversarialEvidenceView'
 import type { ResearchProjectManifest } from './schema'
 import { subscribeAutomationProjectDocument } from './workspaceAutomationRegistry'
 
@@ -188,133 +187,7 @@ function DecisionBadge({ decision }: { decision: AdversarialReviewSummary['decis
   return <span className={`adversarial-decision-badge ${decision}`}>{decision}</span>
 }
 
-export function AdversarialEvidenceView({
-  request,
-  outcome,
-  decision,
-  sourceDocumentRevision,
-  recordSha256,
-}: {
-  request: AdversarialRunnerRequest
-  outcome: NativeAdversarialPanelOutcome
-  decision: AdversarialReviewDecisionSummary | null
-  sourceDocumentRevision: string
-  recordSha256?: string
-}) {
-  const record = outcome.record
-  const routes = [
-    ...request.input.participants.map((entry) => ({ role: entry.slotId, ...entry })),
-    { role: 'judge', ...request.input.judge },
-    { role: 'compute-matched baseline', ...request.input.baseline },
-  ]
-  return (
-    <div className="adversarial-evidence">
-      <div className="adversarial-evidence-meta mono">
-        Run {request.runId} · source {shortId(sourceDocumentRevision)}
-        {recordSha256 ? ` · archive ${recordSha256.slice(0, 12)}` : ''}
-      </div>
-      <section>
-        <h3>Research question</h3>
-        <p className="adversarial-body">{request.input.question}</p>
-      </section>
-      <section>
-        <h3>Synthesis pending human review</h3>
-        <p className="adversarial-body">{record.synthesis.text}</p>
-        <p className="adversarial-safety-note">
-          This is model-produced research evidence, not truth, consensus, or an automatic policy edit.
-        </p>
-      </section>
-      <details>
-        <summary>Selected evidence · {request.sources.length} block{request.sources.length === 1 ? '' : 's'}</summary>
-        <ol className="adversarial-artifact-list">
-          {request.sources.map((source) => <li key={source.snapshotId}>
-            <strong>{source.label}</strong>
-            <p className="adversarial-body">{source.excerpt}</p>
-            <span className="mono">{source.snapshotId}</span>
-          </li>)}
-        </ol>
-      </details>
-      <details open>
-        <summary>Minority findings · {record.minorityFindings.length}</summary>
-        {record.minorityFindings.length === 0
-          ? <p className="scenario-state">No minority findings were returned.</p>
-          : <ol className="adversarial-artifact-list">
-              {record.minorityFindings.map((finding) => <li key={finding.findingId}>
-                <div className="adversarial-artifact-meta mono">
-                  {finding.evidenceStatus} · {finding.disposition} · {finding.candidateIds.join(', ')}
-                </div>
-                <p className="adversarial-body">{finding.rationale}</p>
-              </li>)}
-            </ol>}
-      </details>
-      <details>
-        <summary>Independent proposals · {record.candidates.length}</summary>
-        <ol className="adversarial-artifact-list">
-          {record.candidates.map((candidate) => <li key={candidate.candidateId}>
-            <strong>{candidate.candidateId}</strong>
-            <p className="adversarial-body">{candidate.proposal}</p>
-            {candidate.claims.length > 0 && <ul>
-              {candidate.claims.map((claim) => <li key={claim.claimId}><span className="mono">{claim.claimId}</span> {claim.text}</li>)}
-            </ul>}
-          </li>)}
-        </ol>
-      </details>
-      <details>
-        <summary>Cross-critiques · {record.critiques.length}</summary>
-        <ol className="adversarial-artifact-list">
-          {record.critiques.map((critique, index) => <li key={`${critique.criticCandidateId}-${critique.targetCandidateId}-${index}`}>
-            <div className="adversarial-artifact-meta mono">{critique.criticCandidateId} → {critique.targetCandidateId}</div>
-            <p className="adversarial-body">{critique.summary}</p>
-          </li>)}
-        </ol>
-      </details>
-      <details>
-        <summary>Evidence audit · {record.evidenceAudit.length} claim{record.evidenceAudit.length === 1 ? '' : 's'}</summary>
-        <ol className="adversarial-artifact-list">
-          {record.evidenceAudit.map((entry) => <li key={`${entry.candidateId}-${entry.claimId}`}>
-            <span className="mono">{entry.candidateId} · {entry.claimId} · {entry.verdict}</span>
-            <div>{entry.sourceIds.length ? `Sources: ${entry.sourceIds.join(', ')}` : 'No supporting source identified'}</div>
-          </li>)}
-        </ol>
-      </details>
-      <details>
-        <summary>Compute-matched baseline · {outcome.baselineArtifacts.length} output{outcome.baselineArtifacts.length === 1 ? '' : 's'}</summary>
-        <ol className="adversarial-artifact-list">
-          {outcome.baselineArtifacts.map((artifact) => <li key={artifact.callId}>
-            <span className="mono">{artifact.callId}</span>
-            <p className="adversarial-body">{artifact.text}</p>
-          </li>)}
-        </ol>
-      </details>
-      <details>
-        <summary>Execution provenance · not shown to judges</summary>
-        <ul className="adversarial-route-summary">
-          {routes.map((entry) => <li key={entry.role}>
-            <strong>{entry.role}</strong>
-            <span>{providerName(entry.providerId)} · {entry.modelId}</span>
-          </li>)}
-        </ul>
-        <div className="adversarial-accounting mono">
-          {record.accounting.adversarialCalls} panel calls · {record.accounting.baselineCalls} baseline calls ·{' '}
-          {record.accounting.inputTokens.toLocaleString()} input tokens · {record.accounting.outputTokens.toLocaleString()} output tokens ·{' '}
-          {record.accounting.costUsd === null ? 'provider cost unavailable' : `$${record.accounting.costUsd.toFixed(4)}`}
-        </div>
-      </details>
-      <details open={Boolean(decision)}>
-        <summary>Human decision history · {decision?.history.length ?? 0}</summary>
-        {!decision && <p className="scenario-state">No human decision has been recorded.</p>}
-        {decision && <ol className="adversarial-artifact-list">
-          {decision.history.map((event) => <li key={event.eventId}>
-            <div className="adversarial-artifact-meta mono">
-              {event.decision} · {event.displayName} · {formatTimestamp(event.timestamp)}
-            </div>
-            {event.notes && <p className="adversarial-body">{event.notes}</p>}
-          </li>)}
-        </ol>}
-      </details>
-    </div>
-  )
-}
+export { AdversarialEvidenceView }
 
 export function AdversarialReviewWorkspace({ project }: { project: ResearchProjectManifest }) {
   const researcherId = useStore((state) => state.settings.researcherId)

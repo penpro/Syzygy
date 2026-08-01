@@ -1,11 +1,12 @@
-import { useMemo, useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import type * as Y from 'yjs'
 import { useStore } from '../store'
 import { desktopRuntimeAvailable, providerCredentialStatus, type RemoteProviderId } from '../tauri'
 import { now, uid } from '../util'
 import { getProjectSharedTypes } from './projectModel'
 import type { ResearchScenario } from './scenarioModel'
-import { readScenarioResponses, type ScenarioResponse } from './scenarioResponseModel'
+import type { ScenarioResponse } from './scenarioResponseModel'
+import { inspectScenarioResponseWorkspace, ScenarioResponseWorkspace } from './ScenarioResponseWorkspace'
 import type { ResearchProjectManifest } from './schema'
 import {
   buildScenarioGenerationRequest,
@@ -28,12 +29,13 @@ export interface ScenarioGeneratorContentProps {
   localAvailable: boolean
   phase: GenerationPhase
   message: string
-  responses: ScenarioResponse[]
+  generationDisabled: boolean
+  generationBlockReason: string
+  responseWorkspace?: ReactNode
   onProvider: (provider: ScenarioGenerationProviderId) => void
   onModel: (model: string) => void
   onInstructions: (instructions: string) => void
   onGenerate: () => void
-  onRegenerate: (response: ScenarioResponse) => void
   onCancel: () => void
 }
 
@@ -42,8 +44,7 @@ export function ScenarioGeneratorContent(props: ScenarioGeneratorContentProps) {
   return (
     <section className="scenario-generator" aria-label="Generate scenario response">
       <div className="scenario-section-heading">
-        <h3>Response variants</h3>
-        <span className="mono">{props.responses.length}</span>
+        <h3>Generate a response</h3>
       </div>
       <p className="scenario-generation-intro">
         Generate an attributed variant from this scenario only. Nothing is applied to the policy draft.
@@ -68,48 +69,18 @@ export function ScenarioGeneratorContent(props: ScenarioGeneratorContentProps) {
           Local AI is off or no text model is loaded. Manual scenario work still functions; turn local AI on or choose an API provider.
         </p>
       )}
+      {props.generationDisabled && (
+        <p className="scenario-generation-note" role="alert">Response generation is paused: {props.generationBlockReason}</p>
+      )}
       <div className="scenario-actions">
-        <button className="btn sm" type="button" disabled={busy || !props.model.trim() || (props.provider === 'local' && !props.localAvailable)} onClick={props.onGenerate}>
+        <button className="btn sm" type="button" disabled={busy || props.generationDisabled || !props.model.trim() || (props.provider === 'local' && !props.localAvailable)} onClick={props.onGenerate}>
           Generate variant
         </button>
         {busy && <button className="btn ghost danger sm" type="button" onClick={props.onCancel}>Cancel</button>}
       </div>
       <div className={`scenario-generation-status ${props.phase}`} role="status">{props.message}</div>
-      {props.responses.length > 0 && (
-        <ol className="scenario-responses" aria-label="Scenario response variants">
-          {props.responses.map((response) => {
-            const current = response.revisions.find(({ revisionId }) => revisionId === response.currentRevisionId)
-            return (
-              <li key={response.id}>
-                <div className="scenario-turn-meta mono">
-                  {current?.sourceKind === 'model' ? `${current.providerId} · ${current.modelId}` : current?.authorDisplayName}
-                  {' · '}{response.revisions.length} revision{response.revisions.length === 1 ? '' : 's'}
-                </div>
-                <div className="scenario-turn-content">{response.content}</div>
-                <div className="scenario-actions">
-                  <button className="btn sm" type="button" disabled={busy} onClick={() => props.onRegenerate(response)}>Regenerate</button>
-                </div>
-                <details className="scenario-response-lineage">
-                  <summary>Variant lineage · {response.revisions.length} retained</summary>
-                  <ol>
-                    {response.revisions.map((revision) => (
-                      <li key={revision.revisionId}>
-                        <div className="scenario-turn-meta mono">
-                          {revision.sourceKind === 'model'
-                            ? `${revision.providerId} · ${revision.modelId}`
-                            : revision.authorDisplayName}
-                          {' · '}parent {revision.parentRevisionId?.slice(0, 12) ?? 'root'}
-                        </div>
-                        <div className="scenario-turn-content">{revision.content}</div>
-                      </li>
-                    ))}
-                  </ol>
-                </details>
-              </li>
-            )
-          })}
-        </ol>
-      )}
+      {props.responseWorkspace}
+
     </section>
   )
 }
@@ -131,10 +102,8 @@ export function ScenarioGenerator({
   const [phase, setPhase] = useState<GenerationPhase>('idle')
   const [message, setMessage] = useState('Choose a provider when you want a generated variant.')
   const active = useRef<{ runId: string; controller: AbortController; adapter: ReturnType<typeof createLocalScenarioGenerationAdapter> } | null>(null)
-  const responses = useMemo(() => readScenarioResponses(
-    getProjectSharedTypes(doc).discussions, scenario.id,
-  ) ?? [], [doc, scenario])
   const localAvailable = settings.localAiEnabled && Boolean(loadedModel)
+  const responseIntegrity = inspectScenarioResponseWorkspace(doc)
 
   const chooseProvider = (next: ScenarioGenerationProviderId) => {
     setProvider(next)
@@ -155,6 +124,10 @@ export function ScenarioGenerator({
     setPhase(provider === 'local' ? 'running' : 'checking')
     setMessage(provider === 'local' ? 'Generating locally…' : 'Checking the provider key…')
     try {
+      const currentIntegrity = inspectScenarioResponseWorkspace(doc)
+      if (!currentIntegrity.healthy) {
+        throw new Error(`Response generation is paused: ${currentIntegrity.issues.join('; ')}`)
+      }
       if (provider !== 'local') {
         if (!desktopRuntimeAvailable()) throw new Error('API generation is available in the installed app')
         if (!await providerCredentialStatus(provider as RemoteProviderId)) {
@@ -201,8 +174,17 @@ export function ScenarioGenerator({
 
   return <ScenarioGeneratorContent
     provider={provider} model={model} instructions={instructions} localAvailable={localAvailable}
-    phase={phase} message={message} responses={responses} onProvider={chooseProvider}
+    phase={phase} message={message}
+    generationDisabled={!responseIntegrity.healthy}
+    generationBlockReason={responseIntegrity.issues.join('; ')}
+    onProvider={chooseProvider}
     onModel={setModel} onInstructions={setInstructions} onGenerate={() => void generate()}
-    onRegenerate={(response) => void generate(response)} onCancel={() => void cancel()}
+    onCancel={() => void cancel()}
+    responseWorkspace={<ScenarioResponseWorkspace
+      doc={doc}
+      scenario={scenario}
+      generationBusy={['checking', 'running', 'cancelling'].includes(phase)}
+      onRegenerate={(response) => void generate(response)}
+    />}
   />
 }

@@ -251,7 +251,14 @@ new top-level save shape. Every revision retains response/scenario identity, exa
 author ID and display-name snapshot, timestamp, and human or provider/model/run provenance. Exact-
 current guards reject stale edits; concurrent sibling edits both survive and select a deterministic
 current projection. Reused identities, malformed graphs, and disconnected root collisions fail
-closed. `ScenarioGenerator.tsx` now projects those variants in the selected scenario, while `scenarioGeneration.ts` owns the bounded, provider-neutral P-16 request/output contract and exact-source commit guard. `Regenerate` supplies the exact current response revision as bounded context and appends a new exact-parent model revision to the same response identity. Earlier and concurrent sibling variants remain inspectable; arbitrary historical-parent selection and human conflict resolution are not yet exposed.
+closed. `ScenarioResponseWorkspace.tsx` is the live selected-scenario product controller: it uses
+the same model for manual no-AI roots, human edits, generated variants, and regeneration; rechecks
+scenario and response integrity before writes or provider/credential work; preserves stale drafts while disabling save; and
+bounds rendering to 50 response cards and 50 recent lineage revisions. `ScenarioGenerator.tsx`
+owns only provider selection/execution and passes generated exact-parent variants into that shared
+workspace. `scenarioGeneration.ts` retains the bounded provider-neutral request/output and exact-
+source commit guards. Arbitrary historical-parent selection and explicit sibling-branch resolution
+remain open.
 
 `suggestionModel.ts` stores immutable proposal and decision events in a separate versioned,
 peer-namespaced section of the existing shared discussions map, so no save-shape migration or

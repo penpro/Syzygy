@@ -167,11 +167,15 @@ fixtures retain the stable spotlight identity. Vitest discovery explicitly inclu
 production TypeScript/Vite build is part of the same gate. Packaged pointer insertion and the
 physical two-install LAN/Drive run remain separate environment checks.
 
-`scenarioResponseModel.test.ts` is the P-07 domain gate. It proves immutable author/display-name
-snapshots, exact-parent edits, model provider/model/run provenance, replay safety, stale rejection,
-two-peer concurrent sibling retention, deterministic convergence, disconnected root collision
-failure, and hostile bucket validation. It does not prove a product editing panel, authenticated
-identity, or packaged two-client interaction.
+`scenarioResponseModel.test.ts` and `ScenarioResponseWorkspace.ui.test.tsx` are the P-07
+domain/product gates. They prove immutable author/display-name snapshots, exact-parent human edits,
+model provider/model/run provenance, replay safety, stale zero-write rejection, hostile-history
+write denial, pre-provider generation denial, two-peer concurrent sibling retention, deterministic
+convergence, manual no-AI authoring, accessible stale-draft recovery, and bounded response/lineage rendering.
+`ScenarioGenerator.ui.test.tsx` proves the provider controls host the shared editor rather than a
+second response store. Run those files together with `ScenarioWorkspace.ui.test.ts`; the
+production TypeScript/Vite build and repository audit are mandatory. These gates do not prove
+authenticated identity, trusted clocks, packaged two-client interaction, or near-limit latency.
 
 `scenarioGeneration.test.ts`, `scenarioGenerationRuntime.test.ts`, and
 `ScenarioGenerator.ui.test.tsx` are the P-16 gates. They require a detached, selected-scenario-only

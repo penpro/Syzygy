@@ -68,9 +68,10 @@
 | `frontend/src/workspace/nodes/ScenarioReferenceNode.tsx` | Penumbra original | Inline stable-ID scenario link with strict JSON/Yjs round-trip and live-title decorator |
 | `frontend/src/workspace/nodes/ScenarioSpotlightNode.tsx` | Penumbra original | Block-level stable-ID scenario projection with live content, shared embed/collapse, and exact semantic/version round-trip |
 | `frontend/src/workspace/scenarioResponseModel.ts` | Penumbra original | Versioned peer-namespaced response revisions with human/model provenance, exact-parent edits, and collision-safe projection |
+| `frontend/src/workspace/ScenarioResponseWorkspace.tsx` | Penumbra original | Manual no-AI response authoring, exact-parent editing, stale-draft recovery, integrity gating, and bounded lineage/product paging |
 | `frontend/src/workspace/scenarioGeneration.ts` | Penumbra original | Bounded provider-neutral selected-scenario request/output contract with route binding and exact-source commit guard |
 | `frontend/src/workspace/scenarioGenerationRuntime.ts` | Penumbra original | Optional local-stream and native-approved remote-provider adapters for the shared generation contract |
-| `frontend/src/workspace/ScenarioGenerator.tsx` | Penumbra original | Manual-safe local/API variant controls, non-destructive regeneration, and complete parent-attributed lineage projection |
+| `frontend/src/workspace/ScenarioGenerator.tsx` | Penumbra original | Local/API generation controls and non-destructive regeneration delegated into the shared editable response workspace |
 | `frontend/src/workspace/suggestionModel.ts` | Penumbra original | Immutable peer-namespaced proposal/decision ledger with exact-proposal guards, replay safety, model provenance, and explicit concurrent decision conflicts |
 | `frontend/src/workspace/suggestionApplication.ts` | Penumbra original | Deterministic suggestion-excluding policy fingerprint plus exact proposal/decision/editor-revision and marker-identity guards for linked review-policy application |
 | `frontend/src/workspace/SuggestionContext.tsx` | Penumbra original | Live project-Y.Doc suggestion projection and attributed human proposal/decision actions |

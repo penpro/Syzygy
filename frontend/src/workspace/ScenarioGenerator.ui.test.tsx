@@ -4,8 +4,9 @@ import { ScenarioGeneratorContent, type ScenarioGeneratorContentProps } from './
 
 const props = (): ScenarioGeneratorContentProps => ({
   provider: 'local', model: 'local-model', instructions: 'Continue carefully.', localAvailable: true,
-  phase: 'idle', message: 'Ready.', responses: [], onProvider: vi.fn(), onModel: vi.fn(),
-  onInstructions: vi.fn(), onGenerate: vi.fn(), onRegenerate: vi.fn(), onCancel: vi.fn(),
+  phase: 'idle', message: 'Ready.', generationDisabled: false, generationBlockReason: '',
+  onProvider: vi.fn(), onModel: vi.fn(),
+  onInstructions: vi.fn(), onGenerate: vi.fn(), onCancel: vi.fn(),
 })
 
 describe('scenario generator product surface', () => {
@@ -18,20 +19,25 @@ describe('scenario generator product surface', () => {
     expect(html).toContain('disabled=""')
   })
 
-  it('renders attributed response variants without claiming they changed policy', () => {
-    const html = renderToStaticMarkup(<ScenarioGeneratorContent {...props()} responses={[{
-      id: 'response-1', scenarioId: 'scenario-1', createdBy: 'model-local', createdByDisplayName: 'Local model',
-      createdAt: 1, currentRevisionId: 'revision-1', content: 'Generated variant.', revisions: [{
-        schemaVersion: 1, revisionId: 'revision-1', responseId: 'response-1', scenarioId: 'scenario-1',
-        parentRevisionId: null, content: 'Generated variant.', authorId: 'model-local', authorDisplayName: 'Local model',
-        timestamp: 1, sourceKind: 'model', providerId: 'local', modelId: 'local-model', runId: 'run-1',
-      }],
-    }]} />)
-    expect(html).toContain('local · local-model')
-    expect(html).toContain('Generated variant.')
-    expect(html).toContain('1 revision')
-    expect(html).toContain('Regenerate')
-    expect(html).toContain('Variant lineage · 1 retained')
-    expect(html).toContain('parent root')
+  it('hosts the shared editable response workspace after the generation controls', () => {
+    const html = renderToStaticMarkup(<ScenarioGeneratorContent
+      {...props()}
+      responseWorkspace={<section aria-label="Shared scenario responses">Editable attributed history</section>}
+    />)
+    expect(html).toContain('Generate a response')
+    expect(html).toContain('Shared scenario responses')
+    expect(html).toContain('Editable attributed history')
+    expect(html.indexOf('Ready.')).toBeLessThan(html.indexOf('Editable attributed history'))
+  })
+
+  it('disables generation before provider work when shared response integrity fails', () => {
+    const html = renderToStaticMarkup(<ScenarioGeneratorContent
+      {...props()}
+      generationDisabled
+      generationBlockReason="1 scenario response record failed validation"
+    />)
+    expect(html).toContain('Response generation is paused')
+    expect(html).toContain('failed validation')
+    expect(html).toMatch(/type="button" disabled="">Generate variant/)
   })
 })

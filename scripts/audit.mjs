@@ -218,6 +218,8 @@ const scenarioSpotlightTestSource = text('frontend/src/workspace/nodes/ScenarioS
 const scenarioVersionModelSource = text('frontend/src/workspace/policyVersionModel.ts')
 const scenarioResponseSource = text('frontend/src/workspace/scenarioResponseModel.ts')
 const scenarioResponseTestSource = text('frontend/src/workspace/scenarioResponseModel.test.ts')
+const scenarioResponseWorkspaceSource = text('frontend/src/workspace/ScenarioResponseWorkspace.tsx')
+const scenarioResponseWorkspaceTestSource = text('frontend/src/workspace/ScenarioResponseWorkspace.ui.test.tsx')
 const suggestionModelSource = text('frontend/src/workspace/suggestionModel.ts')
 const suggestionModelTestSource = text('frontend/src/workspace/suggestionModel.test.ts')
 const suggestionNodeSource = text('frontend/src/workspace/nodes/SuggestionNode.tsx')
@@ -326,7 +328,7 @@ record(
   'stable-ID-only live projection, toolbar embed, link collapse, undo/redo, Yjs convergence, semantic marker, immutable restore, and truthful P-06 status are present',
 )
 record(
-  'editable scenario responses retain attributed revision history and model provenance',
+  'editable scenario responses retain attributed history, stale-safe product editing, and bounded lineage',
   scenarioResponseSource.includes('SCENARIO_RESPONSE_SCHEMA_VERSION = 1') &&
     scenarioResponseSource.includes("RESPONSE_BUCKET_PREFIX = 'scenario-responses:v1:'") &&
     scenarioResponseSource.includes('parentRevisionId: string | null') &&
@@ -336,10 +338,27 @@ record(
     scenarioResponseTestSource.includes('retains concurrent sibling edits and converges deterministically') &&
     scenarioResponseTestSource.includes('disconnected peers collide on response identity') &&
     scenarioResponseTestSource.includes('detects hostile bucket mutation') &&
+    scenarioResponseWorkspaceSource.includes('createHumanScenarioResponse') &&
+    scenarioResponseWorkspaceSource.includes('editHumanScenarioResponse') &&
+    scenarioResponseWorkspaceSource.includes('This response changed while you were editing') &&
+    scenarioResponseWorkspaceSource.includes('RESPONSE_PAGE_SIZE = 50') &&
+    scenarioResponseWorkspaceSource.includes('LINEAGE_PAGE_SIZE = 50') &&
+    scenarioResponseWorkspaceSource.includes('props.generationBusy || props.writesDisabled') &&
+    scenarioResponseWorkspaceSource.includes('Identity is not authenticated') &&
+    scenarioResponseWorkspaceTestSource.includes('rejects a stale product save before mutating the shared document') &&
+    scenarioResponseWorkspaceTestSource.includes('retains disconnected product edits as siblings and converges deterministically') &&
+    scenarioResponseWorkspaceTestSource.includes('fails closed on hostile response history without adding a product write') &&
+    scenarioResponseWorkspaceTestSource.includes('bounds visible lineage and exposes response pagination') &&
+    scenarioGeneratorSource.includes('responseWorkspace={<ScenarioResponseWorkspace') &&
+    scenarioGeneratorTestSource.includes('hosts the shared editable response workspace') &&
+    editorLedgerSource.includes('frontend/src/workspace/ScenarioResponseWorkspace.tsx') &&
+    editorLedgerSource.includes('docs/audits/runs/SCENARIO-RESPONSE-WORKSPACE-2026-08-01.json') &&
     editorLedgerSource.includes('"id": "P-07", "phase": 6, "status": "implemented_unverified"') &&
-    existsSync(join(root, 'docs/audits/runs/SCENARIO-RESPONSE-2026-07-18.json')),
-  'versioned peer-namespaced events, exact-parent edits, human/model provenance, replay safety, concurrent sibling retention, collision failure, and truthful P-07 status are present',
+    existsSync(join(root, 'docs/audits/runs/SCENARIO-RESPONSE-2026-07-18.json')) &&
+    existsSync(join(root, 'docs/audits/runs/SCENARIO-RESPONSE-WORKSPACE-2026-08-01.json')),
+  'manual no-AI creation, exact-parent human/model attribution, stale-draft zero-write recovery, hostile-history denial, bounded paging/lineage, product wiring, sibling convergence, and truthful P-07 status are present',
 )
+
 record(
   'suggestions require explicit attributed decisions without applying proposal text',
   suggestionModelSource.includes('SUGGESTION_SCHEMA_VERSION = 1') &&
@@ -430,7 +449,10 @@ record(
     scenarioGenerationRuntimeTestSource.includes('builds a one-source remote disclosure envelope') &&
     scenarioGeneratorSource.includes('Manual scenario work still functions') &&
     scenarioGeneratorSource.includes('Nothing is applied to the policy draft') &&
+    scenarioGeneratorSource.includes('inspectScenarioResponseWorkspace(doc)') &&
+    scenarioGeneratorSource.includes('Response generation is paused') &&
     scenarioGeneratorTestSource.includes('keeps local, API, and no-AI/manual paths explicit') &&
+    scenarioGeneratorTestSource.includes('disables generation before provider work when shared response integrity fails') &&
     scenarioWorkspaceGenerationSource.includes('generation={doc && selected ? <ScenarioGenerator') &&
     editorLedgerSource.includes('"id": "P-16", "phase": 6, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-GENERATION-2026-07-18.json')),
@@ -447,9 +469,10 @@ record(
     scenarioRegenerationTestSource.includes('fails without mutation when the response changes while regeneration is running') &&
     scenarioRegenerationTestSource.includes('retains concurrent sibling regenerations and converges deterministically') &&
     scenarioRegenerationTestSource.includes('rejects a parent from another scenario') &&
-    scenarioGeneratorSource.includes('Variant lineage') &&
-    scenarioGeneratorSource.includes('onRegenerate(response)') &&
-    scenarioGeneratorTestSource.includes('Variant lineage · 1 retained') &&
+    scenarioResponseWorkspaceSource.includes('Variant lineage') &&
+    scenarioResponseWorkspaceSource.includes('props.onRegenerate(response)') &&
+    scenarioGeneratorSource.includes('onRegenerate={(response) => void generate(response)}') &&
+    scenarioResponseWorkspaceTestSource.includes('bounds visible lineage and exposes response pagination') &&
     editorLedgerSource.includes('"id": "P-17", "phase": 6, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-REGENERATION-2026-07-18.json')),
   'bounded parent context, exact-current response guard, appended model revision, retained root/siblings, convergence, stale/cross-scenario denial, lineage UI, and truthful P-17 status are present',

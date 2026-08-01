@@ -131,11 +131,14 @@ presentation transition through undo/redo and two-editor Yjs updates. Exact sema
 immutable checkpoint restore are covered headlessly. Packaged two-install pointer interaction
 remains open, so the capability is `implemented_unverified`.
 
-P-07 now has an original collaborative response-revision domain. Every human/model revision retains
-author and display-name snapshots, timestamp, exact parent, and provider/model/run provenance.
-Exact-current guards reject stale edits, concurrent siblings remain retained and deterministic,
-and malformed or colliding identity graphs fail closed. The visible editable response surface and
-packaged two-client interaction remain open, so the capability is `implemented_unverified`.
+P-07 now has an original collaborative response-revision domain and a visible selected-scenario
+workspace. Manual no-AI creation and human editing append exact-parent revisions with stable author
+and display-name snapshots; model revisions retain provider/model/run provenance. The product keeps
+a stale unsaved draft visible, refuses its save before mutation, rechecks hostile history before
+manual or provider work, exposes explicit reload, and bounds response/lineage rendering. Disconnected product edits retain sibling
+branches and converge deterministically. Authenticated identity, trusted clocks, explicit sibling
+resolution, packaged physical two-client interaction, and near-limit performance remain open, so
+the capability remains `implemented_unverified`.
 
 P-08 now has an original shared proposal/decision ledger and live stable-ID editor card. Proposals
 retain exact source revision plus human/model provenance; decisions retain reviewer attribution and

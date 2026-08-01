@@ -167,16 +167,19 @@ validate the checksum/schema/graph first, then explicitly confirm the collision-
 duplicates are skipped; a same-ID/different-content collision blocks the entire import. Neither path
 contacts a model or network. The hidden file input follows the existing portable-archive affordance.
 
-The **Response variants** surface is optional and never blocks manual scenario work. It distinguishes
-local generation on this computer from API routes that require the native **Send once** disclosure.
-With local AI off or unloaded, the local action is disabled while manual editing and API selection
-remain available. A run receives only the selected bounded scenario, and output is added as a shared,
-attributed variant only if that scenario's source revision is still current. Provider/model metadata
-is visible; copy must not imply that a variant changed the policy draft, was evaluated, or is true.
-**Regenerate** creates a child of the exact current revision. It never replaces or hides earlier
-content: a collapsed **Variant lineage** lists every retained revision with its parent and human or
-model attribution. If the response changes while a provider runs, the stale result is refused and
-the researcher is told to review the new variant before trying again.
+The **Response variants** surface is optional and never blocks manual scenario work. **Write
+response** creates a shared human variant without starting a model; **Edit** appends an attributed
+revision against the exact displayed parent and retains every earlier model or human version.
+Installation-provided researcher identity is explicitly unauthenticated. If the shared current
+revision changes during editing, the unsaved draft remains visible, saving is disabled, and **Reload
+shared** is the explicit recovery. Invalid scenario or response history pauses manual edits,
+**Generate variant**, and **Regenerate** before model, credential, or network work. The surface distinguishes local generation on this computer from API routes that require the native
+**Send once** disclosure. With local AI off or unloaded, local generation is disabled while manual
+editing and API selection remain available. Provider/model metadata is visible; copy must not imply
+that a variant changed the policy draft, was evaluated, or is true. **Regenerate** creates a child of
+the exact current revision. It never replaces or hides earlier content. Response lists page at 50;
+expanded **Variant lineage** shows at most the 50 most recent revisions while reporting the complete
+retained count. If a response changes while a provider runs, the stale result is refused.
 
 The **Shared evaluation examples** surface remains useful with AI disabled. Researchers can create
 project heuristics, select required/recommended/watch priority, and attach explicit positive or

@@ -117,13 +117,18 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   TSX test discovery, focused suites, and production build pass. Packaged two-install pointer
   interaction remains unverified, so status is `implemented_unverified`.
   Evidence: `docs/audits/runs/SCENARIO-SPOTLIGHT-2026-07-18.json`.
-- P-07 now has a Penumbra-original collaborative response-revision domain. Human and model revisions
-  retain author/display-name snapshots, exact parents, timestamps, and provider/model/run provenance.
-  Stale edits fail before mutation; concurrent siblings remain inspectable and converge to one
-  deterministic projection; replay is idempotent; malformed graphs and disconnected root collisions
-  fail closed. Focused tests and the production build pass. A product editor and packaged two-client
-  interaction remain open, so status is `implemented_unverified`.
-  Evidence: `docs/audits/runs/SCENARIO-RESPONSE-2026-07-18.json`.
+- P-07 now has a Penumbra-original collaborative response-revision domain and visible product
+  workspace. Researchers can create manual responses without AI, edit the exact current revision,
+  retain human/model attribution and complete immutable lineage, and recover visibly when a shared
+  response changes without losing their draft. Product writes and model starts recheck scenario/
+  response integrity; stale saves and hostile history write nothing, while generation is refused before
+  credential or provider work. Two disconnected product-controller edits survive
+  as siblings and converge deterministically. Response cards page at 50 and lineage renders the 50
+  most recent revisions while naming the complete retained count. Focused tests and the production
+  build pass. Authenticated identity, trusted clocks, explicit sibling resolution, near-limit
+  performance, and packaged physical two-client interaction remain open, so P-07 stays
+  `implemented_unverified`. Evidence: `docs/audits/runs/SCENARIO-RESPONSE-2026-07-18.json` and
+  `docs/audits/runs/SCENARIO-RESPONSE-WORKSPACE-2026-08-01.json`.
 - P-08 now has a Penumbra-original collaborative suggestion review surface. Immutable proposals
   retain source revision and human/model provenance; accept/reject decisions retain reviewer
   snapshots and name the exact proposal event. Stale or reused identities fail before mutation,

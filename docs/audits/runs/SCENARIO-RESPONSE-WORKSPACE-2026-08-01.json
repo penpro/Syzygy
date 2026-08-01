@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "runId": "SCENARIO-RESPONSE-WORKSPACE-2026-08-01",
+  "date": "2026-08-01",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "64dde30",
+  "capabilities": ["P-07", "P-12"],
+  "status": "implemented_unverified",
+  "claim": "Researchers can create and edit shared scenario responses without a model while retaining exact-parent human attribution, immutable lineage, visible stale-draft recovery, and deterministic concurrent sibling convergence.",
+  "commands": [
+    "npm --prefix frontend run test -- src/workspace/ScenarioResponseWorkspace.ui.test.tsx src/workspace/ScenarioGenerator.ui.test.tsx src/workspace/scenarioResponseModel.test.ts src/workspace/ScenarioWorkspace.ui.test.ts --reporter=verbose",
+    "npm --prefix frontend test",
+    "npm --prefix frontend run build",
+    "node scripts/audit.mjs",
+    "npm --prefix frontend run check:supervised"
+  ],
+  "result": {
+    "focusedTestFilesPassed": 4,
+    "focusedTestsPassed": 20,
+    "fullFrontendTestFilesPassed": 106,
+    "fullFrontendTestFilesSkipped": 1,
+    "fullFrontendTestsPassed": 427,
+    "fullFrontendTestsExpectedFail": 0,
+    "fullFrontendTestsSkipped": 1,
+    "frontendModulesTransformed": 1066,
+    "structuralAuditPassed": true,
+    "rustCheckPassed": true,
+    "appAssetEmbedRecompiled": true,
+    "supervisedRunId": "20260801-182105-31f26e",
+    "supervisedElapsedSeconds": 20,
+    "pendingNativeValidation": false,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "The selected-scenario product surface exposes a manual Write response path that performs no model or network call.",
+    "Creating a human response stores the installation researcher ID and display-name snapshot, exact scenario/response/revision identities, timestamp, and null provider/model/run provenance.",
+    "Editing appends one immutable exact-parent human revision and retains every earlier model or human revision in lineage.",
+    "A stale edit is refused before any Yjs mutation; the product keeps the unsaved draft visible, disables Save revision, and offers Reload shared.",
+    "Two disconnected product-controller edits against the same parent survive as siblings and converge to the same deterministic current response on both peers.",
+    "Malformed response history disables manual writes, generation, and regeneration before a new event, credential lookup, model call, or network request.",
+    "The product renders no more than 50 response cards per page and no more than the 50 most recent lineage revisions per expanded card.",
+    "The product states that installation-provided researcher identity is not authenticated and that response work does not alter the policy draft.",
+    "The same response workspace receives both generated model variants and manual human edits; no parallel response store was introduced."
+  ],
+  "notProved": [
+    "Two packaged physical installations edited the same response through a real Drive workspace and displayed the sibling lineage after reconnect.",
+    "Authenticated participant identity, trusted timestamps, moderation, or explicit sibling-branch reconciliation beyond deterministic projection.",
+    "Packaged pointer, keyboard, focus, screen-reader, narrow-layout, reduced-motion, and every-theme interaction.",
+    "Near-limit response counts, 500,000-character bodies, or 100,000-revision histories meet a measured latency and memory budget.",
+    "A live local or paid provider generated or regenerated a response in this evidence run.",
+    "A release/updater artifact contains this development checkpoint."
+  ]
+}

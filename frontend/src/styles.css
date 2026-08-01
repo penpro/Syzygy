@@ -3547,6 +3547,39 @@ input.workspace-title-input:focus {
   .scenario-comparison-sides { grid-template-columns: minmax(0, 1fr); }
 }
 
+.scenario-response-workspace {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+
+.scenario-response-workspace .scenario-section-heading > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.scenario-response-workspace h4 {
+  margin: 0;
+}
+
+.scenario-response-editor {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 4%, var(--panel));
+}
+
+.scenario-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
 /* P17 retained response lineage */
 .scenario-response-lineage {
   margin-top: 0.55rem;

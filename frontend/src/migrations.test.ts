@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { mergePersisted, migratePersistedVersion, PERSISTED_STORE_VERSION } from './migrations'
+import * as Y from 'yjs'
+import {
+  mergePersisted,
+  migrateLocalPolicyContentDocument,
+  migratePersistedVersion,
+  PERSISTED_STORE_VERSION,
+} from './migrations'
 import { defaultSettings } from './seed'
 import { createProjectManifest } from './workspace/schema'
+import { createProjectDocument, getProjectSharedTypes } from './workspace/projectModel'
+import { readPolicyContent, readPolicyContentStatus } from './workspace/policyContentModel'
 
 const current = {
   settings: defaultSettings,
@@ -50,6 +58,36 @@ describe('persisted-store migrations', () => {
     expect(once.activeProjectId).toBeNull()
     expect(twice.projects).toEqual(once.projects)
     expect(twice.activeProjectId).toBe(once.activeProjectId)
+  })
+
+  it('migrates local policy content atomically and idempotently before sharing', () => {
+    const manifest = createProjectManifest({ id: 'policy-migration', documentId: 'policy-migration-doc', timestamp: 1 })
+    const doc = createProjectDocument(manifest)
+    const seeds = [
+      { policyId: 'policy-a', status: 'review' as const, delta: [{ insert: 'Alpha' }] },
+      { policyId: 'policy-b', status: 'draft' as const, delta: [{ insert: 'Beta', attributes: { format: 1 } }] },
+    ]
+    expect(migrateLocalPolicyContentDocument(doc, seeds)).toEqual({ schemaVersion: 1, initialized: 2, existing: 0 })
+    expect(migrateLocalPolicyContentDocument(doc, seeds)).toEqual({ schemaVersion: 1, initialized: 0, existing: 2 })
+    expect(readPolicyContent(doc, 'policy-b')).toEqual(seeds[1].delta)
+    expect(readPolicyContentStatus(doc, 'policy-a')).toBe('review')
+    expect(getProjectSharedTypes(doc).metadata.get('policyContentSchemaVersion')).toBe(1)
+  })
+
+  it('rejects a conflicting policy-content migration before writing any pending seed', () => {
+    const manifest = createProjectManifest({ id: 'policy-conflict', documentId: 'policy-conflict-doc', timestamp: 1 })
+    const doc = createProjectDocument(manifest)
+    migrateLocalPolicyContentDocument(doc, [{ policyId: 'policy-a', status: 'draft', delta: [{ insert: 'Original' }] }])
+    expect(() => migrateLocalPolicyContentDocument(doc, [
+      { policyId: 'policy-b', status: 'draft', delta: [{ insert: 'Must not be written' }] },
+      { policyId: 'policy-a', status: 'draft', delta: [{ insert: 'Conflict' }] },
+    ])).toThrow('conflicts')
+    expect(readPolicyContent(doc, 'policy-b')).toBeNull()
+    expect(getProjectSharedTypes(doc).policyContents.has('policy-b')).toBe(false)
+
+    const future = new Y.Doc({ guid: 'future-policy-document' })
+    getProjectSharedTypes(future).metadata.set('policyContentSchemaVersion', 99)
+    expect(() => migrateLocalPolicyContentDocument(future, [])).toThrow('unsupported')
   })
 
   it('drops malformed manifests and selects a valid surviving project', () => {

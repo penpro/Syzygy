@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "runId": "STABLE-POLICY-CONTENT-2026-07-31",
+  "date": "2026-07-31",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "c514de3",
+  "capabilities": ["P-03", "P-10", "P-12", "P-13"],
+  "status": "implemented_unverified",
+  "claim": "Policy content, supported inline structure, and review status have stable Yjs identity separate from Lexical root placement, allowing readiness-gated shared reorder without move-versus-edit loss.",
+  "commands": [
+    "npm --prefix frontend run test -- src/workspace/policyContentModel.test.ts src/workspace/policyContentLexical.test.ts src/workspace/policyContentBridge.test.ts src/workspace/PolicyContentBridgeProvider.ui.test.tsx src/workspace/editorStructure.test.ts src/migrations.test.ts src/workspace/projectModel.test.ts src/workspace/projectArchive.test.ts --reporter=verbose",
+    "npm --prefix frontend test",
+    "npm --prefix frontend run build",
+    "node scripts/audit.mjs",
+    "npm --prefix frontend run check:supervised"
+  ],
+  "result": {
+    "focusedTestFilesPassed": 8,
+    "focusedTestsPassed": 29,
+    "fullFrontendTestFilesPassed": 105,
+    "fullFrontendTestFilesSkipped": 1,
+    "fullFrontendTestsPassed": 419,
+    "fullFrontendTestsExpectedFail": 0,
+    "fullFrontendTestsSkipped": 1,
+    "frontendModulesTransformed": 1065,
+    "structuralAuditPassed": true,
+    "rustCheckPassed": true,
+    "appAssetEmbedRecompiled": true,
+    "supervisedRunId": "20260801-090041-db4b62",
+    "supervisedElapsedSeconds": 56,
+    "pendingNativeValidation": false,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "Each stable policy ID maps to one deterministically named top-level Y.Text carrying schema version, draft/review/approved state, character content, supported text attributes, and bounded serialized inline embeds.",
+    "Content updates use character-level Yjs operations and attribute formatting rather than replacing an opaque whole-text value.",
+    "The strict Lexical adapter round-trips bold/italic text, style, line breaks, scenario-reference embeds, and policy status, and rejects block embeds before mutation.",
+    "Local project migration validates every seed before the first write, initializes all pending records in one Yjs transaction, is idempotent, and rejects conflicts without partial backfill.",
+    "The live bridge mirrors genuine local edits into stable records and projects canonical remote records with Yjs writeback skipped, preventing duplicate transport packets and local undo-history pollution.",
+    "Two bound editors preserve the edited policy ID, text formatting, and status when a peer moves that block during a partition and both reconnect.",
+    "Separate append-only move and edit/status packets converge to the same visible order and content when replayed move-first or edit-first.",
+    "Stable policy records survive normal project Yjs replication and the checksummed portable project archive.",
+    "Drive reorder is enabled only after the live bridge is healthy with zero legacy policy IDs; checking, invalid, and legacy states show a reason and register no move command.",
+    "The obsolete expected-failure fixture is gone; the complete frontend suite has no expected failures."
+  ],
+  "notProved": [
+    "Two packaged physical installations reordered and edited the same stable policy block through a real Drive workspace.",
+    "Existing Drive-shared legacy policy blocks have a safe automatic multi-peer baseline migration; they remain visibly reorder-closed.",
+    "Delete-versus-edit policy semantics, coordinated legacy migration, compaction, or recovery after malicious canonical-record damage.",
+    "A 100-page or 500,000-code-unit policy document meets a measured typing, migration, projection, memory, and reconnect latency budget.",
+    "Packaged pointer, keyboard, undo/redo, screen-reader, narrow-layout, reduced-motion, and every-theme interaction.",
+    "A release/updater artifact contains this development checkpoint."
+  ]
+}

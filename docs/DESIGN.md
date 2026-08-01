@@ -224,10 +224,11 @@ The first original research node is a **policy block**: an editable statement wi
 border, colored left rule, and mono status stamp. The status is descriptive, not a truth claim or
 access-control decision. A toolbar action adds a block; later review controls and keyboard/pointer
 reordering must preserve the same node contract. The toolbar exposes matching Move up/down
-buttons and Alt+Shift+Arrow shortcuts for local projects, with unavailable directions disabled.
-Drive-shared projects show both controls disabled with a visible safety explanation and do not
-register pointer or keyboard reorder commands until the partitioned move-versus-edit fixture
-passes. A compact horizontal
+buttons and Alt+Shift+Arrow shortcuts, with unavailable directions disabled. Local projects
+idempotently backfill stable content records. A Drive-shared project enables the commands only
+after its live bridge reports every policy block has stable content and review-state identity;
+while checking, unhealthy, or carrying legacy tree-only blocks, both controls stay disabled and
+show the exact reason. A compact horizontal
 outline derives from the live Heading 1/2 nodes, announces its empty state, scrolls on narrow
 surfaces, and focuses the selected heading. All outline states use theme tokens.
 

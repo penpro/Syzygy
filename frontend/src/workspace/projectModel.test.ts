@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
 import { applyProjectUpdate, createProjectDocument, encodeProjectState, getProjectSharedTypes, projectStateFingerprint } from './projectModel'
 import { createProjectManifest } from './schema'
+import { initializePolicyContent, readPolicyContent, readPolicyContentStatus } from './policyContentModel'
 
 const manifest = createProjectManifest({ id: 'project-1', documentId: 'document-1', title: 'Safety policy', timestamp: 10 })
 
@@ -44,6 +45,7 @@ describe('project Yjs model', () => {
     types.scenarios.set('scenario-1', { title: 'A difficult case' })
     types.heuristics.set('heuristic-1', { text: 'State limitations' })
     types.versions.set('version-1', '{"immutable":true}')
+    initializePolicyContent(source, 'policy-1', [{ insert: 'Stable content', attributes: { format: 1 } }], { status: 'review' })
 
     const restored = replicaFrom(source)
     const restoredTypes = getProjectSharedTypes(restored)
@@ -52,5 +54,8 @@ describe('project Yjs model', () => {
     expect(restoredTypes.scenarios.get('scenario-1')).toEqual({ title: 'A difficult case' })
     expect(restoredTypes.heuristics.get('heuristic-1')).toEqual({ text: 'State limitations' })
     expect(restoredTypes.versions.get('version-1')).toBe('{"immutable":true}')
+    expect(restoredTypes.policyContents.get('policy-1')).toBe(1)
+    expect(readPolicyContent(restored, 'policy-1')).toEqual([{ insert: 'Stable content', attributes: { format: 1 } }])
+    expect(readPolicyContentStatus(restored, 'policy-1')).toBe('review')
   })
 })

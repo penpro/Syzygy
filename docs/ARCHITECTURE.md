@@ -212,15 +212,23 @@ awareness packets and disconnect tombstones for two-client tests. Local mode is 
 Drive polling carries durable Yjs edits but no awareness packets, so it is labeled as lacking live
 cursors and online status. Awareness is ephemeral and never written to Yjs, IndexedDB, Drive,
 archives, diagnostics, or immutable versions.
-Its `nodes/PolicyBlockNode.ts` is the first original domain editor node: stable identity and
-review state live with editable Lexical content and survive JSON/MCP serialization and two-editor
-convergence. `editorStructure.ts` owns one semantic reorder command shared by toolbar buttons and
-Alt+Shift+Arrow shortcuts, while `ResearchTableOfContents.tsx` derives navigation directly from
-live heading nodes rather than storing a second outline. Reordering is enabled only for the
-current local IndexedDB document. `policyReorderSafety` fails Drive-shared projects closed:
-`ResearchEditor` does not register the pointer/keyboard commands, disables both controls, and
-shows the reason. The explicit partitioned move-versus-edit expected-failure fixture must pass
-before any remote provider may enable or claim structural-edit safety.
+Its `nodes/PolicyBlockNode.ts` is the first original domain editor node. The node now represents
+placement and a render projection; `policyContentModel.ts` owns the canonical content record in a
+deterministically named top-level Y.Text keyed by stable policy ID. Character data, bounded Lexical
+inline embeds, text attributes, schema version, and draft/review/approved state therefore survive
+independently of the root delete/insert used for a move. A versioned index supports enumeration and
+archive inspection. `migrateLocalPolicyContentDocument` in `migrations.ts` validates every seed
+before one idempotent local backfill transaction. It never auto-migrates an already-shared legacy
+Drive baseline.
+
+`policyContentBridge.ts` mirrors genuine local policy edits into the stable record and projects
+canonical remote changes back into Lexical with `SKIP_COLLAB_TAG`, so projection does not create a
+second Drive packet or enter local undo history. It reprojects after both collaboration-tagged
+editor updates and arbitrary Yjs transactions, covering separately delivered append-only move and
+edit packets. `editorStructure.ts` owns one semantic reorder command shared by toolbar buttons and
+Alt+Shift+Arrow shortcuts, while `ResearchTableOfContents.tsx` derives navigation from live
+headings. Local projects enable reorder. Drive projects enable it only when the bridge is healthy
+and reports zero legacy policy IDs; checking, malformed, and legacy states fail visibly closed.
 
 `nodes/ScenarioReferenceNode.tsx` is a Penumbra-original inline domain node that persists only a
 stable scenario ID. `ScenarioReferenceContext.tsx` resolves its title from the same live project

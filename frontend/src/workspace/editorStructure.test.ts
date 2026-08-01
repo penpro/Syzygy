@@ -62,12 +62,21 @@ const keyboardEvent = () => ({
 }) as unknown as KeyboardEvent
 
 describe('research editor structure', () => {
-  it('keeps local reorder available and fails Drive-shared reorder visibly closed', () => {
+  it('keeps local reorder available and requires stable Drive-shared content', () => {
     expect(policyReorderSafety('local')).toEqual({ allowed: true, reason: null })
     expect(policyReorderSafety('drive')).toEqual({
       allowed: false,
-      reason: 'Reordering is paused for Drive-shared projects until concurrent move-and-edit safety is proven.',
+      reason: 'Checking stable policy content before shared reordering.',
     })
+    expect(policyReorderSafety('drive', { healthy: false, legacyPolicyCount: 0 })).toEqual({
+      allowed: false,
+      reason: 'Shared reordering is paused because stable policy content is unavailable.',
+    })
+    expect(policyReorderSafety('drive', { healthy: true, legacyPolicyCount: 2 })).toEqual({
+      allowed: false,
+      reason: '2 legacy policy blocks need a stable baseline before shared reordering.',
+    })
+    expect(policyReorderSafety('drive', { healthy: true, legacyPolicyCount: 0 })).toEqual({ allowed: true, reason: null })
   })
 
   it('derives the outline from live heading nodes and selects a current heading', () => {

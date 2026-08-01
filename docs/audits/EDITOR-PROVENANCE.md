@@ -60,7 +60,11 @@
 | `frontend/src/workspace/presenceModel.ts` | Penumbra original | Bounded fail-closed projection of schema-versioned ephemeral researcher awareness metadata |
 | `frontend/src/workspace/presenceRegistry.ts` | Penumbra original | Identity-safe active-provider presence lifecycle plus content-free MCP session-count inspection |
 | `frontend/src/workspace/ResearchPresence.tsx` | Penumbra original | Accessible transport-honest local/Drive/live presence surface with invalid-state disclosure |
-| `frontend/src/workspace/nodes/PolicyBlockNode.ts` | Penumbra original | Stable-identity editable policy statement node with review state and strict JSON round-trip |
+| `frontend/src/workspace/nodes/PolicyBlockNode.ts` | Penumbra original | Stable-identity policy placement/projection node with review state and strict JSON round-trip |
+| `frontend/src/workspace/policyContentModel.ts` | Penumbra original | Bounded deterministic policy-ID Y.Text content/status record with character/format/embed merge operations |
+| `frontend/src/workspace/policyContentLexical.ts` | Penumbra original | Strict bidirectional adapter between supported Lexical inline children and stable policy-content deltas |
+| `frontend/src/workspace/policyContentBridge.ts` | Penumbra original | Local-edit canonicalization plus skip-writeback remote projection across root placement changes |
+| `frontend/src/workspace/PolicyContentBridgeProvider.tsx` | Penumbra original | Provider-lifecycle wiring, legacy/invalid disclosure, and Drive reorder-readiness context |
 | `frontend/src/workspace/nodes/ScenarioReferenceNode.tsx` | Penumbra original | Inline stable-ID scenario link with strict JSON/Yjs round-trip and live-title decorator |
 | `frontend/src/workspace/nodes/ScenarioSpotlightNode.tsx` | Penumbra original | Block-level stable-ID scenario projection with live content, shared embed/collapse, and exact semantic/version round-trip |
 | `frontend/src/workspace/scenarioResponseModel.ts` | Penumbra original | Versioned peer-namespaced response revisions with human/model provenance, exact-parent edits, and collision-safe projection |

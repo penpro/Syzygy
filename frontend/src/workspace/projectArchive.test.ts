@@ -17,6 +17,7 @@ import {
   projectStateFingerprint,
 } from './projectModel'
 import { createPolicyVersion } from './policyVersionModel'
+import { initializePolicyContent, readPolicyContent, readPolicyContentStatus } from './policyContentModel'
 import { createProjectManifest, type ResearchProjectManifest } from './schema'
 
 function manifest(suffix: string): ResearchProjectManifest {
@@ -42,6 +43,9 @@ async function fixture(suffix: string) {
   shared.discussions.set('discussion-1', { note: 'Review the counterexample.' })
   shared.settings.set('evaluationMode', 'adversarial')
   shared.editorRoot.insert(0, 'lexical-yjs-root-fixture')
+  initializePolicyContent(doc, 'rule-1', [{ insert: 'Require cited ', attributes: { format: 1 } }, { insert: 'evidence.' }], {
+    status: 'review',
+  })
   await createPolicyVersion(shared.versions, {
     projectId: project.id,
     blocks: [
@@ -80,6 +84,12 @@ describe('portable project archive', () => {
     expect(restored.discussions.get('discussion-1')).toEqual({ note: 'Review the counterexample.' })
     expect(restored.settings.get('evaluationMode')).toBe('adversarial')
     expect(restored.editorRoot.toString()).toContain('lexical-yjs-root-fixture')
+    expect(restored.policyContents.get('rule-1')).toBe(1)
+    expect(readPolicyContent(decoded.doc, 'rule-1')).toEqual([
+      { insert: 'Require cited ', attributes: { format: 1 } },
+      { insert: 'evidence.' },
+    ])
+    expect(readPolicyContentStatus(decoded.doc, 'rule-1')).toBe('review')
     expect(restored.versions.size).toBe(1)
   })
 

@@ -2,11 +2,91 @@
 // shape lives here, out of store.ts. This is zustand-persist's `merge` — it runs on every boot,
 // shallow-merging the persisted slices over the defaults and backfilling fields added since the
 // save was written. Every block is idempotent: a fully-migrated save passes through unchanged.
+import type * as Y from 'yjs'
 import type { Settings, Expert, Ask } from './types'
 import { defaultExperts } from './seed'
 import { isResearchProjectManifest, type ResearchProjectManifest } from './workspace/schema'
+import { getProjectSharedTypes } from './workspace/projectModel'
+import {
+  getPolicyContentText,
+  initializePolicyContent,
+  normalizePolicyContentDelta,
+  POLICY_CONTENT_SCHEMA_VERSION,
+  policyContentFingerprint,
+  readPolicyContent,
+  readPolicyContentStatus,
+  type PolicyContentDelta,
+  type StablePolicyStatus,
+} from './workspace/policyContentModel'
 
 export const PERSISTED_STORE_VERSION = 3
+
+export interface LegacyPolicyContentSeed {
+  policyId: string
+  status: StablePolicyStatus
+  delta: unknown
+}
+
+export interface PolicyContentDocumentMigrationResult {
+  schemaVersion: typeof POLICY_CONTENT_SCHEMA_VERSION
+  initialized: number
+  existing: number
+}
+
+/**
+ * Idempotently backfills the stable policy-content roots for a local project before it is shared.
+ * Every seed is validated before the first Yjs write so a conflict cannot leave a partial migration.
+ * Existing Drive projects do not call this automatically: their reorder gate remains closed until a
+ * coordinated migration can prove one baseline for every peer.
+ */
+export function migrateLocalPolicyContentDocument(
+  doc: Y.Doc,
+  seedsValue: readonly LegacyPolicyContentSeed[],
+): PolicyContentDocumentMigrationResult {
+  const { metadata } = getProjectSharedTypes(doc)
+  const currentVersion = metadata.get('policyContentSchemaVersion')
+  if (currentVersion !== undefined && currentVersion !== POLICY_CONTENT_SCHEMA_VERSION) {
+    throw new Error('Policy content document schema version is unsupported')
+  }
+  const seen = new Set<string>()
+  const seeds = seedsValue.map((seed) => {
+    if (seen.has(seed.policyId)) throw new Error('Policy content migration contains a duplicate policyId')
+    seen.add(seed.policyId)
+    if (!['draft', 'review', 'approved'].includes(seed.status)) throw new Error('Policy content migration status is invalid')
+    return {
+      policyId: seed.policyId,
+      status: seed.status,
+      delta: normalizePolicyContentDelta(seed.delta) as PolicyContentDelta,
+    }
+  })
+  let existing = 0
+  const pending = seeds.filter((seed) => {
+    const current = readPolicyContent(doc, seed.policyId)
+    if (current) {
+      if (policyContentFingerprint(current) !== policyContentFingerprint(seed.delta) ||
+        readPolicyContentStatus(doc, seed.policyId) !== seed.status) {
+        throw new Error('Policy content migration conflicts with an existing stable record')
+      }
+      existing += 1
+      return false
+    }
+    const shared = getPolicyContentText(doc, seed.policyId)
+    if (shared.length !== 0 || Object.keys(shared.getAttributes()).length !== 0) {
+      throw new Error('Policy content migration found unindexed shared data')
+    }
+    return true
+  })
+  doc.transact(() => {
+    for (const seed of pending) {
+      initializePolicyContent(doc, seed.policyId, seed.delta, {
+        status: seed.status,
+        origin: 'syzygy-policy-content-document-migration',
+      })
+    }
+    metadata.set('policyContentSchemaVersion', POLICY_CONTENT_SCHEMA_VERSION)
+  }, 'syzygy-policy-content-document-migration')
+  return { schemaVersion: POLICY_CONTENT_SCHEMA_VERSION, initialized: pending.length, existing }
+}
 
 /**
  * Zustand rewrites storage only when its numbered migration runs. Version 3 makes the generated

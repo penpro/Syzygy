@@ -1,5 +1,6 @@
 import * as Y from 'yjs'
 import type { ResearchProjectManifest } from './schema'
+import { POLICY_CONTENT_INDEX_TYPE } from './policyContentModel'
 
 export const PROJECT_SHARED_TYPES = {
   metadata: 'project:metadata',
@@ -8,6 +9,7 @@ export const PROJECT_SHARED_TYPES = {
   versions: 'project:versions',
   discussions: 'project:discussions',
   settings: 'project:settings',
+  policyContents: POLICY_CONTENT_INDEX_TYPE,
   editorRoot: 'root',
 } as const
 
@@ -18,6 +20,7 @@ export interface ProjectSharedTypes {
   versions: Y.Map<unknown>
   discussions: Y.Map<unknown>
   settings: Y.Map<unknown>
+  policyContents: Y.Map<unknown>
   editorRoot: Y.XmlText
 }
 
@@ -29,6 +32,7 @@ export function getProjectSharedTypes(doc: Y.Doc): ProjectSharedTypes {
     versions: doc.getMap(PROJECT_SHARED_TYPES.versions),
     discussions: doc.getMap(PROJECT_SHARED_TYPES.discussions),
     settings: doc.getMap(PROJECT_SHARED_TYPES.settings),
+    policyContents: doc.getMap(PROJECT_SHARED_TYPES.policyContents),
     editorRoot: doc.get(PROJECT_SHARED_TYPES.editorRoot, Y.XmlText) as Y.XmlText,
   }
 }

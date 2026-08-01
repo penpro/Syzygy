@@ -165,28 +165,44 @@ const editorFormattingTestSource = text('frontend/src/workspace/ResearchEditorFo
 const editorOutlineSource = text('frontend/src/workspace/ResearchTableOfContents.tsx')
 const editorOutlineTestSource = text('frontend/src/workspace/ResearchTableOfContents.ui.test.ts')
 const policyBlockTestSource = text('frontend/src/workspace/nodes/PolicyBlockNode.test.ts')
+const policyContentModelSource = text('frontend/src/workspace/policyContentModel.ts')
+const policyContentBridgeSource = text('frontend/src/workspace/policyContentBridge.ts')
+const policyContentBridgeTestSource = text('frontend/src/workspace/policyContentBridge.test.ts')
+const policyContentProviderSource = text('frontend/src/workspace/PolicyContentBridgeProvider.tsx')
+const policyContentMigrationTestSource = text('frontend/src/migrations.test.ts')
+const policyContentArchiveTestSource = text('frontend/src/workspace/projectArchive.test.ts')
 const editorLedgerSource = text('docs/audits/CAPABILITIES.json')
 record(
-  'editor formatting, live outline, and bounded local reorder stay evidence honest',
+  'stable policy content, live outline, formatting, and readiness-gated reorder stay evidence honest',
   editorStructureSource.includes("createCommand<PolicyMoveDirection>('syzygy-move-policy-block')") &&
-    editorStructureSource.includes('KEY_ARROW_UP_COMMAND') &&
-    editorStructureSource.includes('KEY_ARROW_DOWN_COMMAND') &&
-    editorStructureSource.includes("policyReorderSafety(transportKind: 'local' | 'drive')") &&
-    editorStructureSource.includes('Reordering is paused for Drive-shared projects') &&
-    editorStructureSource.includes('$isHeadingNode(node)') &&
-    editorStructureTestSource.includes('fails Drive-shared reorder visibly closed') &&
-    editorStructureTestSource.includes('uses one command for pointer controls and guarded keyboard reorder') &&
+    editorStructureSource.includes('legacyPolicyCount') &&
+    editorStructureSource.includes('Shared reordering is paused because stable policy content is unavailable.') &&
+    editorStructureTestSource.includes('requires stable Drive-shared content') &&
+    editorStructureTestSource.includes("policyReorderSafety('drive', { healthy: true, legacyPolicyCount: 0 })") &&
+    editorProductSource.includes('usePolicyContentBridgeState()') &&
     editorProductSource.includes('reorderSafety.allowed ? registerPolicyReorderCommands(editor) : () => {}') &&
     editorProductSource.includes('research-reorder-note') &&
+    policyContentModelSource.includes("POLICY_CONTENT_TYPE_PREFIX = 'project:policy-content:v1:'") &&
+    policyContentModelSource.includes('doc.get(policyContentTypeName(policyId), Y.Text)') &&
+    policyContentModelSource.includes('MAX_POLICY_CONTENT_CODE_UNITS = 500_000') &&
+    policyContentBridgeSource.includes('migrateLocalPolicyContentDocument') &&
+    policyContentBridgeSource.includes('SKIP_COLLAB_TAG') &&
+    policyContentBridgeSource.includes('tags.has(COLLABORATION_TAG)') &&
+    policyContentBridgeTestSource.includes('preserves the edited block identity when another peer moves it during a partition') &&
+    policyContentBridgeTestSource.includes('converges separate append-only move and edit packets in either delivery order') &&
+    policyContentProviderSource.includes('one stable baseline is coordinated') &&
+    policyContentMigrationTestSource.includes('migrates local policy content atomically and idempotently before sharing') &&
+    policyContentArchiveTestSource.includes("readPolicyContent(decoded.doc, 'rule-1')") &&
     editorFormattingTestSource.includes('round-trips headings, paragraphs, quotes, policy identity, Unicode, and supported marks') &&
     editorOutlineSource.includes('readResearchHeadings(editorState)') &&
-    editorOutlineSource.includes('aria-label="Document outline"') &&
     editorOutlineTestSource.includes('renders an honest empty state and substitutes an untitled label') &&
-    policyBlockTestSource.includes("it.fails('preserves a concurrent text edit when that policy block moves during a partition'") &&
+    !policyBlockTestSource.includes("it.fails('preserves a concurrent text edit") &&
+    existsSync(join(root, 'docs/audits/runs/STABLE-POLICY-CONTENT-2026-07-31.json')) &&
+    editorLedgerSource.includes('docs/audits/runs/STABLE-POLICY-CONTENT-2026-07-31.json') &&
     editorLedgerSource.includes('"id": "P-09", "phase": 2, "status": "implemented_unverified"') &&
     editorLedgerSource.includes('"id": "P-10", "phase": 2, "status": "implemented_unverified"') &&
     editorLedgerSource.includes('"id": "P-34", "phase": 2, "status": "implemented_unverified"'),
-  'local pointer/keyboard command, visible Drive-shared fail-closed gate, live heading projection, formatting/UI fixtures, explicit remote-safety expected failure, and truthful P-09/P-10/P-34 statuses are present',
+  'deterministic Y.Text content/status identity, strict Lexical adapter, atomic local migration, skip-writeback projection, partition and append-only delivery-order convergence, legacy/invalid fail-closed UI, archive persistence, and truthful statuses are present',
 )
 
 const scenarioReferenceSource = text('frontend/src/workspace/nodes/ScenarioReferenceNode.tsx')

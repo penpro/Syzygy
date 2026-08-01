@@ -39,6 +39,11 @@ import { $createScenarioSpotlightNode, ScenarioSpotlightNode } from './nodes/Sce
 import { $createSuggestionNode, SuggestionNode } from './nodes/SuggestionNode'
 import { ResearchTableOfContents } from './ResearchTableOfContents'
 import { ResearchPresence } from './ResearchPresence'
+import {
+  ConnectedPolicyContentBridgeNotice,
+  PolicyContentBridgeProvider,
+  usePolicyContentBridgeState,
+} from './PolicyContentBridgeProvider'
 import { ScenarioReferenceProvider, useScenarioReferenceState } from './ScenarioReferenceContext'
 import { SuggestionProvider, useSuggestionState } from './SuggestionContext'
 import { suggestionSourceRevision } from './suggestionApplication'
@@ -65,7 +70,10 @@ const editorTheme = {
 
 function Toolbar({ shared }: { shared: boolean }) {
   const [editor] = useLexicalComposerContext()
-  const reorderSafety = policyReorderSafety(shared ? 'drive' : 'local')
+  const policyContentState = usePolicyContentBridgeState()
+  const reorderSafety = policyReorderSafety(shared ? 'drive' : 'local', policyContentState
+    ? { healthy: policyContentState.healthy, legacyPolicyCount: policyContentState.legacyPolicyIds.length }
+    : undefined)
   const { ready: scenariosReady, scenarios } = useScenarioReferenceState()
   const { projectId, ready: suggestionsReady, healthy: suggestionsHealthy, createHumanSuggestion } = useSuggestionState()
   const [canUndo, setCanUndo] = useState(false)
@@ -262,6 +270,7 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
   return (
     <LexicalCollaboration>
       <LexicalComposer initialConfig={initialConfig}>
+        <PolicyContentBridgeProvider project={project}>
         <ScenarioReferenceProvider projectId={project.id}>
           <SuggestionProvider projectId={project.id}>
           <AutomationEditorRegistration projectId={project.id} />
@@ -292,9 +301,11 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
               )
             }}
           />
+          <ConnectedPolicyContentBridgeNotice />
           </div>
           </SuggestionProvider>
         </ScenarioReferenceProvider>
+        </PolicyContentBridgeProvider>
       </LexicalComposer>
     </LexicalCollaboration>
   )

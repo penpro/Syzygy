@@ -17,17 +17,27 @@ import { $isPolicyBlockNode, $movePolicyBlock, type PolicyBlockNode } from './no
 export type PolicyMoveDirection = 'up' | 'down'
 export interface PolicyMoveAvailability { up: boolean; down: boolean }
 export interface PolicyReorderSafety { allowed: boolean; reason: string | null }
+export interface PolicyReorderReadiness { healthy: boolean; legacyPolicyCount: number }
 export interface ResearchHeading { key: string; level: 1 | 2; text: string }
 
 export const MOVE_POLICY_BLOCK_COMMAND = createCommand<PolicyMoveDirection>('syzygy-move-policy-block')
 
-export function policyReorderSafety(transportKind: 'local' | 'drive'): PolicyReorderSafety {
-  return transportKind === 'local'
-    ? { allowed: true, reason: null }
-    : {
-        allowed: false,
-        reason: 'Reordering is paused for Drive-shared projects until concurrent move-and-edit safety is proven.',
-      }
+export function policyReorderSafety(
+  transportKind: 'local' | 'drive',
+  readiness?: PolicyReorderReadiness,
+): PolicyReorderSafety {
+  if (transportKind === 'local') return { allowed: true, reason: null }
+  if (!readiness) return { allowed: false, reason: 'Checking stable policy content before shared reordering.' }
+  if (!readiness.healthy) return { allowed: false, reason: 'Shared reordering is paused because stable policy content is unavailable.' }
+  if (readiness.legacyPolicyCount) {
+    return {
+      allowed: false,
+      reason: readiness.legacyPolicyCount + (readiness.legacyPolicyCount === 1
+        ? ' legacy policy block needs a stable baseline before shared reordering.'
+        : ' legacy policy blocks need a stable baseline before shared reordering.'),
+    }
+  }
+  return { allowed: true, reason: null }
 }
 
 function $selectedPolicyBlock(): PolicyBlockNode | null {

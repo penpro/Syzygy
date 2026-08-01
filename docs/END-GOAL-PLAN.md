@@ -340,11 +340,13 @@ Gate: P-02–P-10/P-34/P-35 pass; 100-page stress budget passes; bundle contains
 PolicyPad, Firebase, Next, or copied template code; every theme is reviewed.
 
 Progress: an original Lexical/Yjs policy surface, heading/quote/mark fixtures, undo, local IndexedDB
-persistence, the three-panel workspace shell, local pointer/keyboard policy reordering, and a
-live heading-derived table of contents exist. Drive-shared reorder now fails closed with disabled
-controls, visible rationale, and no registered move commands. The partitioned move-versus-edit
-fixture remains an explicit expected failure, so remote-safe structural edits, more custom research nodes, stress
-tests, cross-theme visual review, and Drive collaboration remain.
+persistence, the three-panel workspace shell, pointer/keyboard policy reordering, and a live
+heading-derived table of contents exist. Stable ID-keyed Y.Text records now separate policy
+content/marks/embeds/review state from root placement. The former partitioned move-versus-edit case
+and both separate append-only delivery orders pass; local backfill is atomic/idempotent, and only a
+healthy zero-legacy Drive bridge enables reorder. Existing shared legacy baselines remain gated.
+Packaged two-install Drive interaction, randomized/large-document stress, more custom research
+nodes, and cross-theme visual review remain.
 
 ### Phase 3 — local project lifecycle (`L`)
 
@@ -707,12 +709,10 @@ Do not use the web port or upstream source as an implementation input. First:
    SBOM/license/sample-fixture/reviewer gates;
 2. maintain the now-pinned Lexical/Yjs dependency and source ledger;
 3. add the extension contract harness and truthful MCP self-description (landed; keep it green);
-4. maintain the policy block's passing root-document-order convergence test, the formatting,
-   pointer/keyboard, and outline fixtures; the product now fails Drive-shared reorder closed with
-   disabled controls and no registered commands. Replace tree-coupled policy content with stable
-   content identity plus separate placement before enabling reorder on a remote provider; the
-   expected-failure move-versus-edit partition loses text under V1, while an isolated V2 experiment
-   converged with the edit misattributed to the adjacent block and was rejected;
+4. maintain the policy block's root-order, stable-content, formatting, pointer/keyboard, and
+   outline fixtures. Stable Y.Text content/status identity and separate placement now pass the
+   move-versus-edit partition plus both append-only delivery orders; keep legacy Drive baselines
+   gated until a coordinated migration exists, and finish packaged two-install/stress evidence;
 5. maintain the now-landed two-editor `MemoryProvider` live/partition/reconnect suite and require
    Drive/WebSocket providers to pass the same contract;
 6. render it in paper and all retained dark themes;

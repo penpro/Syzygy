@@ -147,12 +147,13 @@ and S-04 remain `implemented_unverified` until packaged two-install interaction 
 Evidence: `docs/audits/runs/SCENARIO-BRANCH-ARCHIVE-2026-07-19.json`.
 
 The editor structure slice is covered by `ResearchEditorFormatting.test.ts`,
-`editorStructure.test.ts`, `ResearchTableOfContents.ui.test.ts`, and `PolicyBlockNode.test.ts`.
-The first three prove supported heading/quote/mark structure, a shared pointer/keyboard reorder
-command, and a live-derived accessible outline. The policy fixture intentionally includes one
-`it.fails` partition case: moving a block on one peer while another peer edits that same block can
-lose the edit in Lexical's Yjs root delete/insert representation. That expected failure is a
-release gate for remote collaboration, not a passing convergence claim.
+`editorStructure.test.ts`, `ResearchTableOfContents.ui.test.ts`, `PolicyBlockNode.test.ts`,
+and the `policyContent*` suites. They prove supported heading/quote/mark structure, a shared
+pointer/keyboard reorder command, a live-derived accessible outline, and stable policy identity
+across a partition where one peer moves a block while another edits, formats, and changes its
+status. Canonical policy content lives in deterministic top-level Y.Text records, independent of
+Lexical root placement. Drive-shared reorder stays readiness-gated for legacy or invalid documents;
+packaged physical two-install interaction remains a separate environment check.
 
 `ScenarioReferenceNode.test.tsx` is the P-05 headless gate. It requires strict stable-ID JSON
 round-trip, rejects missing identity, proves rename-safe live label resolution, and converges the

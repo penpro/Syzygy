@@ -111,10 +111,10 @@ export function $isPolicyBlockNode(node: LexicalNode | null | undefined): node i
 }
 
 /**
- * Move the existing live node without also copying its adjacent sibling. Lexical's Yjs binding
- * still serializes a root move as delete/insert, so the expected-failure partition fixture remains
- * the gate before remote transports may claim move-versus-edit safety. Current product use is the
- * single local IndexedDB provider.
+ * Move the existing placement node without copying its adjacent sibling. Lexical's Yjs binding
+ * still serializes a root move as delete/insert; PolicyContentBridge therefore keeps content and
+ * review status in a stable Y.Text keyed by policyId and projects that record after remote root
+ * changes. Legacy shared blocks without that record remain visibly reorder-closed.
  */
 export function $movePolicyBlock(node: PolicyBlockNode, direction: 'up' | 'down'): PolicyBlockNode | null {
   const sibling = direction === 'up' ? node.getPreviousSibling() : node.getNextSibling()

@@ -173,12 +173,17 @@ restore now replaces exact semantic blocks and appends a new current-head child 
 transaction with rollback evidence. Branch reconciliation, Drive/WebSocket convergence, packaged
 interaction, crash-durability injection, and archive interchange remain open.
 
-P-14/P-15 now have a Penumbra-original collaborative scenario domain service. Stable scenarios
-contain lifecycle state, background, ordered multi-turn content, attributed immutable turn
-revisions, attributed scenario edits, and optional branch parents. Peer-specific internal keys
-preserve disconnected public-ID collisions for fail-closed projection; graph inspection detects
-missing/cyclic ancestry. The gallery, generation, response variants, evaluation, and open scenario-
-pack interchange remain open; votes, annotations, and labels are separate domain services below.
+P-14/P-15 now have a Penumbra-original collaborative scenario domain and engine-free product
+workspace. Stable scenarios contain lifecycle state, background, ordered multi-turn content,
+attributed immutable turn revisions, attributed scenario edits, and optional branch parents.
+Peer-specific internal keys preserve disconnected public-ID collisions for fail-closed projection;
+graph inspection detects missing/cyclic ancestry. Researchers can create turns and append exact-
+current revisions manually without AI; stale drafts stay visible but add no write, disconnected
+siblings remain auditable and converge deterministically, and product conversation/lineage views are
+bounded. Generation, manual/generated response variants, evaluation, votes, annotations, labels, and
+open scenario-pack interchange are implemented as separately audited layers. Authenticated identity
+and time, explicit branch reconciliation, near-limit performance, packaged accessibility, and
+physical two-install reconnect proof remain open.
 
 P-19 now has a Penumbra-original collaborative vote-event ledger. Exact replay is idempotent;
 re-votes and withdrawals retain attributed history; peer-specific namespaced buckets preserve

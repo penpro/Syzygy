@@ -1,6 +1,6 @@
 import type * as Y from 'yjs'
 import { getProjectSharedTypes, projectStateFingerprint } from './projectModel'
-import { addScenarioTurn, createScenario, type ScenarioStatus, type ScenarioTurnRole, updateScenarioTurn } from './scenarioModel'
+import { addScenarioTurn, createScenario, readScenario, type ScenarioStatus, type ScenarioTurnRole, updateScenarioTurn } from './scenarioModel'
 import { castScenarioVote, type ScenarioVoteChoice } from './scenarioVoteModel'
 import {
   createScenarioAnnotation,
@@ -142,9 +142,13 @@ export function addAutomationScenarioTurn(doc: Y.Doc, expectedProjectId: string,
 
 export function reviseAutomationScenarioTurn(doc: Y.Doc, expectedProjectId: string, input: MutateAutomationScenarioTurnInput) {
   const scenarios = guardedScenarios(doc, expectedProjectId, input.expectedResearchRevision)
+  const current = readScenario(scenarios, input.scenarioId)
+  const currentTurn = current?.turns.find((turn) => turn.id === input.turnId)
+  const expectedCurrentEditId = currentTurn?.revisions[currentTurn.revisions.length - 1]?.editId
+  if (!expectedCurrentEditId) throw new Error('Scenario turn not found or invalid')
   const scenario = updateScenarioTurn(scenarios, {
     scenarioId: input.scenarioId, turnId: input.turnId, role: input.role, content: input.content,
-    authorId: input.participantId, timestamp: input.timestamp, editId: input.editId,
+    authorId: input.participantId, timestamp: input.timestamp, editId: input.editId, expectedCurrentEditId,
   })
   const turn = scenario.turns.find((candidate) => candidate.id === input.turnId)!
   return { scenario, turn, researchRevision: projectStateFingerprint(doc) }

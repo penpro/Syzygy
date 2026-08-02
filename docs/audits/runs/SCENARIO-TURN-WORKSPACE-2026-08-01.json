@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "runId": "SCENARIO-TURN-WORKSPACE-2026-08-01",
+  "date": "2026-08-01",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "d25c1bd",
+  "capabilities": [
+    "P-12",
+    "P-15"
+  ],
+  "status": "implemented_unverified",
+  "claim": "Researchers can add and revise shared scenario turns without a model while retaining exact-parent attribution, immutable lineage, visible stale-draft recovery, and deterministic concurrent sibling convergence.",
+  "commands": [
+    "npm --prefix frontend run test -- src/workspace/ScenarioTurnWorkspace.ui.test.tsx src/workspace/ScenarioWorkspace.ui.test.ts src/workspace/scenarioModel.test.ts src/workspace/scenarioAutomation.test.ts src/workspace/scenarioPack.test.ts --reporter=verbose",
+    "npm --prefix frontend test",
+    "npm --prefix frontend run build",
+    "node scripts/audit.mjs",
+    "npm --prefix frontend run check:supervised"
+  ],
+  "result": {
+    "focusedTestFilesPassed": 5,
+    "focusedTestsPassed": 34,
+    "fullFrontendTestFilesPassed": 107,
+    "fullFrontendTestFilesSkipped": 1,
+    "fullFrontendTestsPassed": 434,
+    "fullFrontendTestsExpectedFail": 0,
+    "fullFrontendTestsSkipped": 1,
+    "frontendModulesTransformed": 1067,
+    "structuralAuditPassed": true,
+    "rustCheckPassed": true,
+    "appAssetEmbedRecompiled": true,
+    "supervisedRunId": "20260801-222842-2fe690",
+    "supervisedElapsedSeconds": 20,
+    "pendingNativeValidation": false,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "The selected-scenario product surface exposes manual Add turn and Edit actions that perform no model or network call.",
+    "Creating a turn stores its role, content, installation researcher ID, timestamp, and stable turn/revision identities.",
+    "Editing appends one immutable exact-parent attributed revision and retains every earlier revision in lineage.",
+    "The domain refuses a stale expected-current revision before mutation while preserving exact-retry idempotence.",
+    "A stale product edit keeps the unsaved draft visible, disables Save revision, and offers Reload shared.",
+    "Two disconnected exact-parent product-controller edits survive as siblings and converge to the same deterministic current turn on both peers.",
+    "Malformed scenario history disables manual writes before a new turn revision is added.",
+    "The product renders no more than 50 conversation turns per page and no more than the 50 most recent lineage revisions per turn.",
+    "The product states that installation-provided researcher identity and local time are not authenticated.",
+    "The editable turn workspace is injected into the existing live-Y.Doc scenario workspace; no parallel turn store was introduced."
+  ],
+  "notProved": [
+    "Two packaged physical installations edited the same turn through a real Drive workspace and displayed sibling lineage after reconnect.",
+    "Authenticated participant identity, trusted timestamps, moderation, or explicit sibling-branch reconciliation beyond deterministic projection.",
+    "Packaged pointer, keyboard, focus, screen-reader, narrow-layout, reduced-motion, and every-theme interaction.",
+    "Near-limit turn counts, 500,000-character bodies, or 10,000-revision histories meet a measured latency and memory budget.",
+    "A release/updater artifact contains this development checkpoint."
+  ]
+}

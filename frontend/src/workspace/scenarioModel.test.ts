@@ -49,7 +49,7 @@ describe('collaborative scenario model', () => {
     ])
     updateScenarioTurn(scenarios, {
       scenarioId: root.id, turnId: 'turn-answer', role: 'assistant', content: 'Two primary sources support it.',
-      authorId: 'researcher-2', timestamp: 20, editId: 'revise-turn-answer',
+      authorId: 'researcher-2', timestamp: 20, editId: 'revise-turn-answer', expectedCurrentEditId: 'create-turn-answer',
     })
     addScenarioTurn(scenarios, {
       scenarioId: root.id, turnId: 'turn-followup', role: 'user', content: 'What remains uncertain?',
@@ -128,7 +128,7 @@ describe('collaborative scenario model', () => {
     deleteScenario(getProjectSharedTypes(left).scenarios, 'source-review')
     updateScenarioTurn(getProjectSharedTypes(right).scenarios, {
       scenarioId: 'source-review', turnId: 'turn-answer', role: 'assistant', content: 'Late nested revision.',
-      authorId: 'researcher-right', timestamp: 40, editId: 'late-turn-revision',
+      authorId: 'researcher-right', timestamp: 40, editId: 'late-turn-revision', expectedCurrentEditId: 'create-turn-answer',
     })
     for (let seed = 1; seed <= 40; seed += 1) {
       const merged = replica(origin)

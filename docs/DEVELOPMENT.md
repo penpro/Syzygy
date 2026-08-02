@@ -255,14 +255,16 @@ the final peer Lexical projection is asserted separately. Packaged pointer inter
 Drive/WebSocket transport remain separate gates.
 
 `scenarioModel.test.ts` is the P-14/P-15 domain gate. It covers lifecycle CRUD, ordered multi-turn
-round-trip, attributed immutable turn revisions, branch lineage, independent concurrent field and
-turn additions, delete-versus-nested-edit, peer-colliding public scenario/turn IDs, exact record
-shapes, malformed order, and missing-parent inspection. Eighty seeded duplicate/reordered delivery
-checks must converge. `ScenarioWorkspace.ui.test.ts` adds an engine-free product contract for
-loading/empty/error states, create/select/detail controls, ordered turn addition, vote controls,
-the unauthenticated-identity disclosure, deterministic stale-detail detection, and read-only
-integrity failure. This does not prove turn revision editing, generation, evaluation, annotations,
-labels, packaged pointer/focus behavior, or a remote collaboration provider.
+round-trip, attributed immutable turn revisions, exact-current conflict refusal, exact-retry
+idempotence, branch lineage, independent concurrent field and turn additions, delete-versus-nested-
+edit, peer-colliding public scenario/turn IDs, exact record shapes, malformed order, and missing-
+parent inspection. Eighty seeded duplicate/reordered delivery checks must converge.
+`ScenarioWorkspace.ui.test.ts` covers the engine-free gallery shell. The product-level
+`ScenarioTurnWorkspace.ui.test.tsx` gate proves manual no-AI add/edit, immutable attribution, stale
+zero-write recovery with the draft retained, hostile-state write refusal, deterministic disconnected
+sibling convergence, accessible empty/identity copy, and 50-item conversation/lineage bounds. These
+headless gates do not prove authenticated identity or time, explicit sibling reconciliation,
+packaged pointer/focus/screen-reader behavior, physical two-install reconnect, or near-limit latency.
 
 `scenarioVoteModel.test.ts` is the P-19 domain gate. It covers exact replay idempotency, attributed
 re-voting, abstention, withdrawal without history erasure, disconnected first-vote merge,

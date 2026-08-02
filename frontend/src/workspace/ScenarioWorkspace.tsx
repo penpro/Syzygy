@@ -5,7 +5,6 @@ import { useStore } from '../store'
 import { getProjectSharedTypes } from './projectModel'
 import type { ResearchProjectManifest } from './schema'
 import {
-  addScenarioTurn,
   createScenario,
   inspectScenarioGraph,
   listScenarios,
@@ -13,7 +12,6 @@ import {
   updateScenario,
   type ResearchScenario,
   type ScenarioStatus,
-  type ScenarioTurnRole,
 } from './scenarioModel'
 import {
   castScenarioVote,
@@ -27,6 +25,7 @@ import { HeuristicWorkspace } from './HeuristicWorkspace'
 import { ScenarioRerunQueuePanel } from './ScenarioRerunQueuePanel'
 import { ScenarioPackControls } from './ScenarioPackControls'
 import { ScenarioCollaborationPanel } from './ScenarioCollaborationPanel'
+import { ScenarioTurnWorkspace } from './ScenarioTurnWorkspace'
 
 interface ScenarioWorkspaceContentProps {
   ready: boolean
@@ -40,13 +39,12 @@ interface ScenarioWorkspaceContentProps {
   heuristics?: ReactNode
   reruns?: ReactNode
   packs?: ReactNode
+  turnWorkspace?: ReactNode
   createOpen: boolean
   createTitle: string
   createBackground: string
   editTitle: string
   editBackground: string
-  turnRole: ScenarioTurnRole
-  turnContent: string
   error: string
   onSelect: (id: string) => void
   onOpenCreate: () => void
@@ -59,9 +57,6 @@ interface ScenarioWorkspaceContentProps {
   onSaveDetails: () => void
   onReloadDetails: () => void
   onSetStatus: (status: ScenarioStatus) => void
-  onTurnRole: (role: ScenarioTurnRole) => void
-  onTurnContent: (value: string) => void
-  onAddTurn: (event: FormEvent<HTMLFormElement>) => void
   onVote: (choice: ScenarioVoteChoice) => void
 }
 
@@ -79,13 +74,12 @@ export function ScenarioWorkspaceContent({
   heuristics,
   reruns,
   packs,
+  turnWorkspace,
   createOpen,
   createTitle,
   createBackground,
   editTitle,
   editBackground,
-  turnRole,
-  turnContent,
   error,
   onSelect,
   onOpenCreate,
@@ -98,9 +92,6 @@ export function ScenarioWorkspaceContent({
   onSaveDetails,
   onReloadDetails,
   onSetStatus,
-  onTurnRole,
-  onTurnContent,
-  onAddTurn,
   onVote,
 }: ScenarioWorkspaceContentProps) {
   const canWrite = ready && integrityIssues.length === 0
@@ -184,34 +175,7 @@ export function ScenarioWorkspaceContent({
             </select>
           </label>
 
-          <div className="scenario-section-heading">
-            <h3>Conversation turns</h3>
-            <span className="mono">{selected.turns.length}</span>
-          </div>
-          {selected.turns.length === 0 && <p className="scenario-state">No turns yet.</p>}
-          <ol className="scenario-turns">
-            {selected.turns.map((turn) => (
-              <li key={turn.id}>
-                <div className="scenario-turn-meta mono">{turn.role} · {turn.revisions.length} revision{turn.revisions.length === 1 ? '' : 's'}</div>
-                <div className="scenario-turn-content">{turn.content || <em>Empty turn</em>}</div>
-              </li>
-            ))}
-          </ol>
-          <form className="scenario-form compact" aria-label="Add scenario turn" onSubmit={onAddTurn}>
-            <label>
-              Role
-              <select value={turnRole} onChange={(event) => onTurnRole(event.target.value as ScenarioTurnRole)}>
-                <option value="system">System</option>
-                <option value="user">User</option>
-                <option value="assistant">Assistant</option>
-              </select>
-            </label>
-            <label>
-              Turn content
-              <textarea value={turnContent} maxLength={200_000} required onChange={(event) => onTurnContent(event.target.value)} />
-            </label>
-            <button className="btn sm" type="submit" disabled={!canWrite}>Add turn</button>
-          </form>
+          {turnWorkspace}
 
           {generation}
 
@@ -264,8 +228,6 @@ export function ScenarioWorkspace({ project }: { project: ResearchProjectManifes
   const [editTitle, setEditTitle] = useState('')
   const [editBackground, setEditBackground] = useState('')
   const [editingHead, setEditingHead] = useState('')
-  const [turnRole, setTurnRole] = useState<ScenarioTurnRole>('user')
-  const [turnContent, setTurnContent] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -386,20 +348,6 @@ export function ScenarioWorkspace({ project }: { project: ResearchProjectManifes
     loadDetails(updated)
   })
 
-  const addTurn = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    mutate(() => {
-      const author = identity()
-      const current = currentScenario()
-      if (!turnContent.trim()) throw new Error('Turn content is required')
-      addScenarioTurn(writableShared().scenarios, {
-        scenarioId: current.id, turnId: uid(), role: turnRole, content: turnContent,
-        authorId: author.authorId, timestamp: now(), editId: uid(),
-      })
-      setTurnContent('')
-    })
-  }
-
   const vote = (choice: ScenarioVoteChoice) => mutate(() => {
     const author = identity()
     const current = currentScenario()
@@ -421,14 +369,20 @@ export function ScenarioWorkspace({ project }: { project: ResearchProjectManifes
       heuristics={doc ? <HeuristicWorkspace project={project} doc={doc} /> : undefined}
       reruns={doc ? <ScenarioRerunQueuePanel project={project} doc={doc} /> : undefined}
       packs={<ScenarioPackControls project={project} doc={doc} scenarios={snapshot.scenarios} selected={selected} integrityIssues={snapshot.issues} />}
+      turnWorkspace={doc && selected ? <ScenarioTurnWorkspace
+        key={selected.id}
+        doc={doc}
+        scenario={selected}
+        parentWritesDisabled={snapshot.issues.length > 0}
+      /> : undefined}
       createOpen={createOpen} createTitle={createTitle} createBackground={createBackground}
-      editTitle={editTitle} editBackground={editBackground} turnRole={turnRole} turnContent={turnContent}
+      editTitle={editTitle} editBackground={editBackground}
       error={error} onSelect={selectScenario} onOpenCreate={() => { setCreateOpen(true); setError('') }}
       onCancelCreate={() => setCreateOpen(false)} onCreateTitle={setCreateTitle}
       onCreateBackground={setCreateBackground} onCreate={create} onEditTitle={setEditTitle}
       onEditBackground={setEditBackground} onSaveDetails={saveDetails}
       onReloadDetails={() => loadDetails(selected)} onSetStatus={setStatus}
-      onTurnRole={setTurnRole} onTurnContent={setTurnContent} onAddTurn={addTurn} onVote={vote}
+      onVote={vote}
     />
   )
 }

@@ -666,6 +666,8 @@ record(
     scenarioModelSource.includes('scenarioEntries') &&
     scenarioModelSource.includes("collection.doc.transact(operation, 'syzygy-scenarios')") &&
     scenarioModelSource.includes('inspectScenarioGraph') &&
+    scenarioModelSource.includes('expectedCurrentEditId: string') &&
+    scenarioModelSource.includes('Scenario turn revision conflict') &&
     scenarioModelTestSource.includes('lifecycle CRUD, attributed multi-turn revisions, and branch lineage') &&
     (scenarioModelTestSource.match(/seed <= 40/g) ?? []).length === 2 &&
     scenarioModelTestSource.includes('one public turn identity') &&
@@ -674,12 +676,14 @@ record(
     scenarioModelTestSource.includes('malformed turn order') &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-14", "phase": 6, "status": "implemented_unverified"') &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-15", "phase": 6, "status": "implemented_unverified"'),
-  'nested ordered turn/revision/edit CRDTs, peer-collision fail-closed IDs, branch inspection, lifecycle/multi-turn CRUD, 80 delivery orders, delete authority, malformed-input tests, and truthful P-14/P-15 statuses are present',
+  'nested ordered turn/revision/edit CRDTs, exact-current conflict refusal, idempotent retry, peer-collision fail-closed IDs, branch inspection, lifecycle/multi-turn CRUD, 80 delivery orders, delete authority, malformed-input tests, and truthful P-14/P-15 statuses are present',
 )
 
 const scenarioVoteSource = text('frontend/src/workspace/scenarioVoteModel.ts')
 const scenarioWorkspaceSource = text('frontend/src/workspace/ScenarioWorkspace.tsx')
 const scenarioWorkspaceTestSource = text('frontend/src/workspace/ScenarioWorkspace.ui.test.ts')
+const scenarioTurnWorkspaceSource = text('frontend/src/workspace/ScenarioTurnWorkspace.tsx')
+const scenarioTurnWorkspaceTestSource = text('frontend/src/workspace/ScenarioTurnWorkspace.ui.test.tsx')
 const scenarioCollaborationSource = text('frontend/src/workspace/ScenarioCollaborationPanel.tsx')
 const scenarioCollaborationTestSource = text('frontend/src/workspace/ScenarioCollaborationPanel.ui.test.tsx')
 record(
@@ -688,17 +692,28 @@ record(
     scenarioWorkspaceSource.includes('scenarioDetailsRevision(current) !== editingHead') &&
     scenarioWorkspaceSource.includes('if (!graph.healthy)') &&
     scenarioWorkspaceSource.includes('createScenario(writableShared().scenarios') &&
-    scenarioWorkspaceSource.includes('addScenarioTurn(writableShared().scenarios') &&
+    scenarioWorkspaceSource.includes('turnWorkspace={doc && selected ? <ScenarioTurnWorkspace') &&
     scenarioWorkspaceSource.includes('castScenarioVote(types.discussions, types.scenarios') &&
     scenarioWorkspaceSource.includes('identity is not authenticated') &&
+    scenarioTurnWorkspaceSource.includes('createHumanScenarioTurn') &&
+    scenarioTurnWorkspaceSource.includes('editHumanScenarioTurn') &&
+    scenarioTurnWorkspaceSource.includes('expectedCurrentEditId') &&
+    scenarioTurnWorkspaceSource.includes('This turn changed while you were editing') &&
+    scenarioTurnWorkspaceSource.includes('TURN_PAGE_SIZE = 50') &&
+    scenarioTurnWorkspaceSource.includes('TURN_LINEAGE_SIZE = 50') &&
     scenarioWorkspaceTestSource.includes('offers engine-free creation from an honest empty state') &&
     scenarioWorkspaceTestSource.includes('reports loading, integrity, and mutation failures accessibly') &&
     scenarioWorkspaceTestSource.includes('changes the stale-edit revision when any scenario edit identity appears') &&
+    scenarioTurnWorkspaceTestSource.includes('rejects a stale turn save before mutating the shared document') &&
+    scenarioTurnWorkspaceTestSource.includes('retains disconnected exact-parent edits and converges deterministically') &&
+    scenarioTurnWorkspaceTestSource.includes('fails closed on hostile scenario data without adding a turn revision') &&
+    scenarioTurnWorkspaceTestSource.includes('bounds visible turn lineage and exposes conversation pagination') &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-14", "phase": 6, "status": "implemented_unverified"') &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-15", "phase": 6, "status": "implemented_unverified"') &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-19", "phase": 6, "status": "implemented_unverified"') &&
-    existsSync(join(root, 'docs/audits/runs/SCENARIO-WORKSPACE-2026-07-16.json')),
-  'live Y.Doc subscription, scenario CRUD/status, ordered turn add, vote/withdraw, stale-detail guard, graph-integrity write denial, accessible states, and truthful P-14/P-15/P-19 statuses are present',
+    existsSync(join(root, 'docs/audits/runs/SCENARIO-WORKSPACE-2026-07-16.json')) &&
+    existsSync(join(root, 'docs/audits/runs/SCENARIO-TURN-WORKSPACE-2026-08-01.json')),
+  'live Y.Doc subscription, scenario CRUD/status, exact-current manual turn add/edit, visible stale-draft recovery, deterministic sibling retention, bounded conversation/lineage, vote/withdraw, graph-integrity write denial, accessible states, and truthful P-14/P-15/P-19 statuses are present',
 )
 
 const scenarioVoteTestSource = text('frontend/src/workspace/scenarioVoteModel.test.ts')

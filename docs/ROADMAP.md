@@ -362,8 +362,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   attributed turn revisions, scenario edit history, and branch parents. Forty seeded concurrent
   field/turn-add deliveries and forty delete-versus-turn-edit deliveries converge; disconnected
   public scenario/turn ID collisions, malformed order, unknown fields, and missing parents fail
-  closed. The product panel now exposes engine-free create/select/edit/status, ordered turn
-  addition, and integrity-error states. Turn revision UI and some advanced reconciliation remain open.
+  closed. The product panel exposes engine-free create/select/edit/status plus manual ordered-turn
+  creation and exact-current revision editing. Stale drafts remain visible but cannot write; sibling
+  revisions remain retained and converge deterministically; conversation and lineage views are bounded
+  to 50 items. Authenticated identity/time, explicit branch reconciliation, packaged interaction, and
+  physical two-install reconnect proof remain open.
 - P-33 adds a strict checksummed open scenario-pack codec and product workflow. Selected exports include
   required ancestors and preserve ordered turns plus complete revision/edit attribution; import validates
   the public Draft 2020-12 schema semantics, checksum, canonical history, and closed graph before one

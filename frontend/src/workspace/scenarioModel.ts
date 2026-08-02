@@ -72,6 +72,10 @@ export interface AddScenarioTurnInput {
   editId: string
 }
 
+export interface UpdateScenarioTurnInput extends AddScenarioTurnInput {
+  expectedCurrentEditId: string
+}
+
 const statuses = new Set<ScenarioStatus>(['draft', 'ready', 'archived'])
 const roles = new Set<ScenarioTurnRole>(['system', 'user', 'assistant'])
 const MAX_SCENARIOS = 10_000
@@ -238,11 +242,16 @@ export function addScenarioTurn(collection: Y.Map<unknown>, input: AddScenarioTu
   return readScenario(collection, input.scenarioId)!
 }
 
-export function updateScenarioTurn(collection: Y.Map<unknown>, input: AddScenarioTurnInput): ResearchScenario {
+export function updateScenarioTurn(collection: Y.Map<unknown>, input: UpdateScenarioTurnInput): ResearchScenario {
   validateIdentity(input.turnId, input.authorId, input.timestamp, input.editId)
-  if (!roles.has(input.role) || !validText(input.content, 200_000, true)) throw new Error('Invalid scenario turn revision')
+  if (!stableId(input.expectedCurrentEditId) || !roles.has(input.role) || !validText(input.content, 200_000, true)) {
+    throw new Error('Invalid scenario turn revision')
+  }
+  const scenario = readScenario(collection, input.scenarioId)
   const record = scenarioRecord(collection, input.scenarioId)
-  if (!readScenario(collection, input.scenarioId) || !(record instanceof Y.Map)) throw new Error('Scenario not found or invalid')
+  if (!scenario || !(record instanceof Y.Map)) throw new Error('Scenario not found or invalid')
+  const currentTurn = scenario.turns.find((turn) => turn.id === input.turnId)
+  if (!currentTurn) throw new Error('Scenario turn not found or identity is ambiguous')
   const turns = record.get('turns')
   if (!(turns instanceof Y.Map)) throw new Error('Scenario turns are invalid')
   const matches = Array.from(turns.values()).filter((turn) => turn instanceof Y.Map && turn.get('id') === input.turnId) as Y.Map<unknown>[]
@@ -255,7 +264,11 @@ export function updateScenarioTurn(collection: Y.Map<unknown>, input: AddScenari
   const previous = Array.from(revisions.values()).find((candidate) => !!candidate && typeof candidate === 'object' && candidate.editId === input.editId)
   if (previous !== undefined) {
     if (JSON.stringify(previous) !== JSON.stringify(revision)) throw new Error('Scenario turn edit ID was reused')
-    return readScenario(collection, input.scenarioId)!
+    return scenario
+  }
+  const currentRevision = currentTurn.revisions[currentTurn.revisions.length - 1]
+  if (!currentRevision || currentRevision.editId !== input.expectedCurrentEditId) {
+    throw new Error('Scenario turn revision conflict')
   }
   if (revisions.size >= MAX_REVISIONS_PER_TURN) throw new Error('Scenario turn revision limit reached')
   transact(collection, () => revisions.set(storageKey(collection, input.editId), revision))

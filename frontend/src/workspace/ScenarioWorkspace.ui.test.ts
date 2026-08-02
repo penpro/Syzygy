@@ -55,8 +55,7 @@ const props: Parameters<typeof ScenarioWorkspaceContent>[0] = {
   createBackground: '',
   editTitle: scenario.title,
   editBackground: scenario.background,
-  turnRole: 'user' as const,
-  turnContent: '',
+  turnWorkspace: createElement('section', { 'aria-label': 'Shared scenario conversation turns' }, 'Editable turn history'),
   error: '',
   onSelect: noop,
   onOpenCreate: noop,
@@ -69,9 +68,6 @@ const props: Parameters<typeof ScenarioWorkspaceContent>[0] = {
   onSaveDetails: noop,
   onReloadDetails: noop,
   onSetStatus: noop,
-  onTurnRole: noop,
-  onTurnContent: noop,
-  onAddTurn: noop,
   onVote: noop,
 }
 
@@ -79,13 +75,13 @@ const render = (patch: Partial<typeof props> = {}) =>
   renderToStaticMarkup(createElement(ScenarioWorkspaceContent, { ...props, ...patch }))
 
 describe('scenario workspace UI contract', () => {
-  it('renders a selected collaborative scenario, ordered turn form, and attributed vote controls', () => {
+  it('renders a selected collaborative scenario, editable turn workspace, and attributed vote controls', () => {
     const html = render()
     expect(html).toContain('aria-label="Scenario workspace"')
     expect(html).toContain('aria-label="Project scenarios"')
     expect(html).toContain('aria-current="true"')
-    expect(html).toContain('What evidence supports this?')
-    expect(html).toContain('aria-label="Add scenario turn"')
+    expect(html).toContain('Shared scenario conversation turns')
+    expect(html).toContain('Editable turn history')
     expect(html).toContain('aria-pressed="true"')
     expect(html).toContain('identity is not authenticated')
   })

@@ -29,7 +29,7 @@ function seedGraph() {
   })
   updateScenarioTurn(scenarios, {
     scenarioId: 'root-scenario', turnId: 'root-turn', role: 'user', content: 'What is independently verified?',
-    authorId: 'researcher-b', timestamp: 11, editId: 'revise-root-turn',
+    authorId: 'researcher-b', timestamp: 11, editId: 'revise-root-turn', expectedCurrentEditId: 'create-root-turn',
   })
   updateScenario(scenarios, {
     id: 'root-scenario', authorId: 'researcher-b', timestamp: 12,

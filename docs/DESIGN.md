@@ -151,13 +151,16 @@ Live offline/LAN project synchronization is not implemented; the portable archiv
 creates independent local state after import.
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,
 empty, integrity-error, and mutation-error states; creates and selects stable scenarios; edits title,
-background, and workflow state; appends ordered role/content turns; and exposes support, oppose,
-abstain, and withdraw controls with aggregate counts. The selected scenario also exposes shared
+background, and workflow state; creates ordered role/content turns; and appends attributed immutable
+turn revisions. An edit session captures the exact current revision. If a peer advances that turn,
+Save is disabled while the unsaved draft remains visible until Reload shared is chosen. Conversation
+pages and visible revision lineage are each bounded to 50 items without deleting shared history.
+The panel also exposes support, oppose, abstain, and withdraw controls with aggregate counts, shared
 scenario/turn notes and flags with edit, resolve, and reopen history, plus project context-label
-creation, assignment, removal, and rename. Lists advance in deterministic 50-item pages. A stale
-detail, annotation, label, or assignment write must fail instead of overwriting newer shared history.
-When scenario, annotation, or label integrity fails, the affected mutation controls are disabled.
-Copy states that the installation researcher identity is not authenticated.
+creation, assignment, removal, and rename. A stale detail, turn, annotation, label, or assignment
+write must fail instead of overwriting newer shared history. When scenario, turn, annotation, or
+label integrity fails, the affected mutation controls are disabled. Copy states that installation
+researcher identity and local time are not authenticated.
 
 **Portable scenario packs** sit inside the scenario workspace and remain usable without AI. Researchers
 can export the selected scenario plus its required ancestors or every scenario, and can set a title,

@@ -327,9 +327,13 @@ semantic joins and checksums. Research-state MCP inspection adds only a compatib
 scenario edit history as nested Yjs types. Public scenario, turn, and edit identities are stored
 under peer-specific internal keys so disconnected collisions survive merge and make projection
 fail closed. Independent scalar edits and turn insertions converge; turn revisions retain every
-attributed alternative and select a deterministic current value. A graph inspector detects invalid
-records, missing parents, and cycles. `ScenarioWorkspace.tsx` provides an engine-free product gallery with create/select/edit/status
-controls, ordered turn addition, and attributed vote/withdraw controls against the same live Y.Doc.
+attributed alternative and select a deterministic current value. Turn updates require the exact
+current revision identity, while exact retries remain idempotent. A graph inspector detects invalid
+records, missing parents, and cycles. `ScenarioWorkspace.tsx` provides an engine-free product gallery
+with create/select/edit/status and attributed vote/withdraw controls against the same live Y.Doc.
+`ScenarioTurnWorkspace.tsx` owns manual ordered turn creation and exact-parent revision editing,
+keeps stale drafts visible until the researcher reloads shared state, and bounds both conversation
+pages and visible lineage to 50 items without discarding retained history.
 `ScenarioCollaborationPanel.tsx` adds scenario/turn note and flag create/edit/resolve/reopen plus
 project-label create/rename/assignment controls. It pages both projections at 50 items, captures
 exact event parents when editing, and rechecks graph, annotation, and label integrity immediately

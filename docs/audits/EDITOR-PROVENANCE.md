@@ -47,7 +47,7 @@
 | `frontend/src/workspace/scenarioVoteModel.ts` | Penumbra original | Namespaced immutable scenario vote events, idempotent replay, attributed re-vote/withdrawal history, deterministic participant projection, and orphan/collision inspection |
 | `frontend/src/workspace/scenarioAnnotationModel.ts` | Penumbra original | Namespaced immutable flag/note lifecycle events, exact-parent revision guards, concurrent branch retention, resolve/reopen attribution, and orphan/collision inspection |
 | `frontend/src/workspace/scenarioLabelModel.ts` | Penumbra original | Namespaced immutable label and scenario-assignment events, exact-parent guards, deterministic concurrent rename projection, filtering, and orphan/collision inspection |
-| `frontend/src/workspace/scenarioAutomation.ts` | Penumbra original | Live-project identity and monotonic research-revision guard for MCP scenario creation |
+| `frontend/src/workspace/scenarioAutomation.ts` | Penumbra original | Live-project identity, graph validation, bounded single-revision body readback, and monotonic research-revision guards for MCP scenario mutations |
 | `frontend/src/workspace/policyVersionModel.ts` | Penumbra original | Canonical SHA-256-addressed immutable policy envelopes, parent validation, detached readback, and historical attribution snapshots |
 | `frontend/src/workspace/policyVersionHistory.ts` | Penumbra original | Exact-head commits, restore-as-new-child history, concurrent branch retention, and deterministic engine-free structured diffs |
 | `frontend/src/workspace/localProvider.ts` | Penumbra original | Local IndexedDB provider implementing the Lexical/Yjs provider boundary |
@@ -95,7 +95,7 @@
 | `frontend/src/workspace/researchStateInspection.ts` | Penumbra original | Bounded content-minimized heuristic/example/scenario/version/head/lineage integrity projection for read-only MCP inspection |
 | `frontend/src/workspace/versionAutomation.ts` | Penumbra original | Exact semantic-editor snapshot adapter with document/head concurrency guards and immutable checkpoint output |
 | `frontend/src/workspace/*.test.ts` and `frontend/src/migrations.test.ts` | Penumbra original | Schema, migration, convergence, duplicate/reorder, and reopen harnesses |
-| `frontend/src/automationBridge.ts` and `frontend/src-tauri/src/{automation,mcp}.rs` | Penumbra original | Live semantic dispatcher, authenticated loopback bridge, and stdio MCP protocol implementation |
+| `frontend/src/automationBridge.ts` and `frontend/src-tauri/src/{automation,mcp}.rs` | Penumbra original | Live semantic dispatcher, authenticated loopback bridge, bounded explicit scenario-revision content read, and stdio MCP protocol implementation |
 | `frontend/src/extensions/*.ts` | Penumbra original | Provider, adversarial-run, and researcher-plugin contracts and tests authored for Syzygy |
 | `frontend/src-tauri/src/platform_contracts.rs` and `docs/schemas/*.json` | Penumbra original | Strict extension schemas and truthful MCP self-description authored for Syzygy |
 

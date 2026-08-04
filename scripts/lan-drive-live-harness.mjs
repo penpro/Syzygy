@@ -124,6 +124,14 @@ async function lanCall(session, nodeId, name, args = {}, timeoutMs = 20_000) {
   }, timeoutMs + 2_000), `${nodeId}:${name}`)
 }
 
+async function optionalLanCall(session, nodeId, name, args = {}, timeoutMs = 20_000) {
+  try {
+    return await lanCall(session, nodeId, name, args, timeoutMs)
+  } catch {
+    return null
+  }
+}
+
 function driveProjects(list) {
   return list.projects.filter((project) => !project.archivedAt && project.transport?.kind === 'drive')
 }
@@ -187,6 +195,10 @@ const evidence = {
   secondaryToPrimary: false,
   concurrentMerge: false,
   staleRevisionRejected: false,
+  scenarioPrimaryToSecondary: false,
+  scenarioSiblingMerge: false,
+  scenarioCurrentConverged: false,
+  scenarioStaleRevisionRejected: false,
 }
 
 try {
@@ -213,7 +225,7 @@ try {
   const selectedProbes = probe.structuredContent.probes.filter((item) =>
     item.nodeId === primaryNode || item.nodeId === secondaryNode)
   assert.equal(selectedProbes.length, 2)
-  assert.equal(selectedProbes.every((item) => item.ok && item.toolCount >= 29), true)
+  assert.equal(selectedProbes.every((item) => item.ok && item.toolCount >= 35), true)
 
   if (!mutate) {
     const [primary, secondary] = await Promise.all([
@@ -286,11 +298,105 @@ try {
     }
     const finalRead = await lanCall(session, secondaryNode, 'read_active_project')
     assert.equal(finalRead.document.text.includes(`stale-write-must-not-land-${runId}`), false)
+    const primaryResearch = await lanCall(session, primaryNode, 'inspect_research_state')
+    const scenarioId = `lan-scenario-${runId}`
+    const turnId = `lan-turn-${runId}`
+    const baseTurnBody = `Shared base turn ${runId}`
+    const createdScenario = await lanCall(session, primaryNode, 'create_scenario', {
+      expectedResearchRevision: primaryResearch.researchState.revision,
+      scenarioId,
+      title: `LAN collaboration proof ${runId}`,
+      background: 'Physical two-install scenario-turn convergence proof.',
+      participantId: 'lan-primary',
+    })
+    const addedTurn = await lanCall(session, primaryNode, 'add_scenario_turn', {
+      expectedResearchRevision: createdScenario.researchRevision,
+      scenarioId,
+      turnId,
+      role: 'assistant',
+      content: baseTurnBody,
+      participantId: 'lan-primary',
+    })
+    const secondaryBase = await waitFor(
+      () => optionalLanCall(session, secondaryNode, 'read_scenario_turn_revision', { scenarioId, turnId }),
+      (value) => value?.revision?.content === baseTurnBody && value?.turn?.revisionCount === 1,
+      60_000,
+      'scenario turn from primary on the secondary installation',
+    )
+    evidence.scenarioPrimaryToSecondary = secondaryBase.revision.content === baseTurnBody
+
+    const primaryBase = await lanCall(session, primaryNode, 'read_scenario_turn_revision', { scenarioId, turnId })
+    const primaryBranchBody = `Primary scenario branch ${runId}`
+    const secondaryBranchBody = `Secondary scenario branch ${runId}`
+    const [primaryBranch, secondaryBranch] = await Promise.all([
+      lanCall(session, primaryNode, 'revise_scenario_turn', {
+        expectedResearchRevision: primaryBase.researchRevision, scenarioId, turnId,
+        role: 'assistant', content: primaryBranchBody, participantId: 'lan-primary',
+      }),
+      lanCall(session, secondaryNode, 'revise_scenario_turn', {
+        expectedResearchRevision: secondaryBase.researchRevision, scenarioId, turnId,
+        role: 'assistant', content: secondaryBranchBody, participantId: 'lan-secondary',
+      }),
+    ])
+    const primaryEditId = primaryBranch.turn.currentEditId
+    const secondaryEditId = secondaryBranch.turn.currentEditId
+    assert.notEqual(primaryEditId, secondaryEditId)
+
+    const siblingReads = await waitFor(
+      async () => Promise.all([
+        optionalLanCall(session, primaryNode, 'read_scenario_turn_revision', { scenarioId, turnId, revisionEditId: primaryEditId }),
+        optionalLanCall(session, primaryNode, 'read_scenario_turn_revision', { scenarioId, turnId, revisionEditId: secondaryEditId }),
+        optionalLanCall(session, secondaryNode, 'read_scenario_turn_revision', { scenarioId, turnId, revisionEditId: primaryEditId }),
+        optionalLanCall(session, secondaryNode, 'read_scenario_turn_revision', { scenarioId, turnId, revisionEditId: secondaryEditId }),
+      ]),
+      (values) => values.every(Boolean)
+        && values[0].revision.content === primaryBranchBody
+        && values[1].revision.content === secondaryBranchBody
+        && values[2].revision.content === primaryBranchBody
+        && values[3].revision.content === secondaryBranchBody
+        && values.every((value) => value.turn.revisionCount === 3),
+      60_000,
+      'both scenario revision bodies on both installations',
+    )
+    evidence.scenarioSiblingMerge = siblingReads.every((value) => value.turn.revisionCount === 3)
+
+    const currentTurns = await waitFor(
+      async () => Promise.all([
+        optionalLanCall(session, primaryNode, 'read_scenario_turn_revision', { scenarioId, turnId }),
+        optionalLanCall(session, secondaryNode, 'read_scenario_turn_revision', { scenarioId, turnId }),
+      ]),
+      ([primary, secondary]) => Boolean(primary && secondary)
+        && primary.turn.currentEditId === secondary.turn.currentEditId
+        && primary.revision.editId === secondary.revision.editId
+        && primary.revision.content === secondary.revision.content
+        && primary.turn.revisionCount === 3 && secondary.turn.revisionCount === 3,
+      60_000,
+      'deterministic current scenario turn on both installations',
+    )
+    evidence.scenarioCurrentConverged = currentTurns[0].revision.editId === currentTurns[1].revision.editId
+
+    try {
+      await lanCall(session, primaryNode, 'revise_scenario_turn', {
+        expectedResearchRevision: primaryBase.researchRevision, scenarioId, turnId,
+        role: 'assistant', content: `stale-scenario-write-must-not-land-${runId}`, participantId: 'lan-stale',
+      })
+    } catch {
+      evidence.scenarioStaleRevisionRejected = true
+    }
+    const afterStaleScenario = await Promise.all([
+      lanCall(session, primaryNode, 'read_scenario_turn_revision', { scenarioId, turnId }),
+      lanCall(session, secondaryNode, 'read_scenario_turn_revision', { scenarioId, turnId }),
+    ])
+    assert.equal(afterStaleScenario.every((value) => value.turn.revisionCount === 3), true)
     evidence.passed = evidence.exactSharedIdentity
       && evidence.primaryToSecondary
       && evidence.secondaryToPrimary
       && evidence.concurrentMerge
       && evidence.staleRevisionRejected
+      && evidence.scenarioPrimaryToSecondary
+      && evidence.scenarioSiblingMerge
+      && evidence.scenarioCurrentConverged
+      && evidence.scenarioStaleRevisionRejected
   }
   process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`)
 } finally {

@@ -22,7 +22,7 @@ import { inspectResearchState } from './workspace/researchStateInspection'
 import {
   addAutomationScenarioTurn, castAutomationScenarioVote, createAutomationScenario,
   createAutomationScenarioAnnotation, createAutomationScenarioLabel,
-  renameAutomationScenarioLabel, resolveAutomationScenarioAnnotation,
+  readAutomationScenarioTurnRevision, renameAutomationScenarioLabel, resolveAutomationScenarioAnnotation,
   reviseAutomationScenarioTurn, setAutomationScenarioLabelAssignment,
   updateAutomationScenarioAnnotation,
 } from './workspace/scenarioAutomation'
@@ -171,6 +171,29 @@ export async function dispatchAutomationRequest(
         getAutomationProjectDocument(project.id),
         project.id,
       ) }
+    }
+    case 'project.readScenarioTurnRevision': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const read = readAutomationScenarioTurnRevision(getAutomationProjectDocument(project.id), project.id, {
+        scenarioId: requiredString(params, 'scenarioId'),
+        turnId: requiredString(params, 'turnId'),
+        revisionEditId: optionalString(params, 'revisionEditId') ?? undefined,
+      })
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        scenario: summarizeScenario(read.scenario),
+        turn: {
+          id: read.turn.id, createdBy: read.turn.createdBy, createdAt: read.turn.createdAt,
+          revisionCount: read.turn.revisions.length, currentEditId: read.currentEditId,
+        },
+        revision: read.revision,
+        revisionIsCurrent: read.revision.editId === read.currentEditId,
+        researchRevision: read.researchRevision,
+      }
     }
     case 'project.savePolicyVersion': {
       const latest = useStore.getState()

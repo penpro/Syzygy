@@ -149,12 +149,18 @@ two-node harness starts a coordinator and two isolated fake
 installations, proves independent mutation routing, rejects an invalid key, and proves disconnect
 cleanup. The third connects the compiled Rust `Syzygy.exe --lan-agent` to the Node coordinator,
 discovers all native MCP tools, and calls installation self-description through the encrypted path.
+The physical `--mutate` gate additionally creates one proof scenario and turn, makes simultaneous
+exact-revision edits on both installations, explicitly reads both immutable sibling bodies back
+from both nodes, requires the same deterministic current revision on each, and proves a stale
+follow-up adds no fourth revision. Output remains limited to booleans and counts.
 
 ## Honest current limit
 
-The deterministic and live-Drive component gates pass, but the decisive packaged two-install run
-must be rerun and recorded after both profiles install the app-owned-host build. The physical harness fails
-unless the exact two nodes connect, expose the guarded catalog/share/join tools, converge a unique
-baseline plus concurrent edits through Drive, and reject a stale write without leaking proof text.
-That proves the tested Drive path only; it does not claim presence, sub-second delivery, WebSocket
-or peer transport, authenticated human identity, or arbitrary crash recovery.
+The deterministic component gates pass, but the decisive packaged two-install run must be rerun and
+recorded after both profiles install a build exposing all 35 native tools. The physical harness fails
+unless the exact two nodes connect, expose guarded catalog/share/join plus explicit turn-revision
+readback, converge the document baseline and concurrent appends, retain both simultaneous scenario
+revision bodies on both installations, project the same current revision, and reject stale document
+and scenario writes without printing proof text. That proves the tested Drive path only; it does not
+claim presence, sub-second delivery, WebSocket or peer transport, authenticated human identity,
+explicit branch reconciliation, or arbitrary crash recovery.

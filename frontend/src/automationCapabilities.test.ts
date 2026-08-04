@@ -10,6 +10,9 @@ describe('live MCP capability self-description', () => {
       'product scenario gallery, editing, voting, and stable-ID scenario links',
     )
     expect(AUTOMATION_CAPABILITIES.available).toContain(
+      'explicit bounded MCP readback of one selected scenario-turn revision body',
+    )
+    expect(AUTOMATION_CAPABILITIES.available).toContain(
       'explicit revision-guarded adversarial review archival and immutable human accept/reject history in the shared project',
     )
     expect(AUTOMATION_CAPABILITIES.available.join(' ')).not.toContain('MCP restore remains unavailable')

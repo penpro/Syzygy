@@ -82,7 +82,7 @@ async function proveStdioContract() {
   if (messages.length !== 6) throw new Error(`expected 6 MCP responses, received ${messages.length}`)
   if (byId.get(1)?.result?.protocolVersion !== '2025-11-25') throw new Error('MCP version negotiation failed')
   const tools = byId.get(2)?.result?.tools
-  if (!Array.isArray(tools) || tools.length < 34) throw new Error('MCP tool discovery is incomplete')
+  if (!Array.isArray(tools) || tools.length < 35) throw new Error('MCP tool discovery is incomplete')
   if (!tools.some((tool) => tool.name === 'workspace_walkthrough')) throw new Error('walkthrough tool is missing')
   if (!tools.some((tool) => tool.name === 'inspect_research_state')) throw new Error('research-state inspection tool is missing')
   if (!tools.some((tool) => tool.name === 'inspect_drive_project_discovery')) throw new Error('Drive project discovery diagnostic is missing')

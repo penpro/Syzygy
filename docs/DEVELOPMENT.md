@@ -378,7 +378,7 @@ node ..\scripts\mcp-harness.mjs --executable <absolute-Syzygy.exe>
 ```
 
 The harness compiles the real application binary, starts `app --mcp` over stdio, negotiates MCP
-`2025-11-25`, discovers its twenty-five tools, checks notification framing and ping, calls a typed live
+`2025-11-25`, discovers all thirty-five tools, checks notification framing and ping, calls a typed live
 status result, then calls `syzygy_installation` without a GUI. That self-description must contain
 absolute executable/install-folder paths plus configuration and a connection prompt derived from
 the executable. Separate frontend tests prove structured Lexical reads, replace/append behavior,
@@ -390,25 +390,26 @@ The live collaboration document registry and `researchStateInspection.test.ts` a
 minimized MCP self-check. It validates every scenario/heuristic record, scenario branch/vote graph,
 version hash/schema, project identity, head, and full bounded version ancestor chain, while
 returning at most 200 metadata summaries per collection and omitting policy text, scenario
-background/turn/revision/voter bodies, heuristic guidance/edit values, and notes. Rust tests require the
-thirteenth `inspect_research_state` tool to route only to this read operation. The mutation-capable
+background/turn/revision/voter bodies, heuristic guidance/edit values, and notes. Rust tests require `inspect_research_state` to route only to this content-minimized read operation. The mutation-capable
 live harness checks it when explicitly run; CI does not claim a packaged GUI proof.
 
-`scenarioAutomation.test.ts` is the MCP scenario-mutation gate. Inspection returns a monotonic Yjs
-state-vector revision and rejects an internally inconsistent read if state changes during its
+`scenarioAutomation.test.ts` is the MCP scenario read/mutation gate. Inspection returns a monotonic
+Yjs state-vector revision and rejects an internally inconsistent read if state changes during its
 asynchronous hash checks. Creation requires that exact revision, rechecks project identity, and
-mutates the registered live Y.Doc synchronously. Add-turn and revise-turn require the revision from
-inspection or the immediately preceding mutation; revisions retain both authors and bodies. Stale
-tests prove zero scenario/turn writes. Rust routing and the packaged live harness cover the
-fifteenth through twenty-fourth tools. The voting gate chains support, re-vote, and withdrawal events,
-then proves a stale call adds no vote event; MCP output exposes aggregate counts, not voter bodies.
-The annotation gate chains create, edit, resolve, and reopen under both project-research and exact-
-current-event guards, then proves both conflict classes add no lifecycle event. MCP output and
-inspection omit every annotation body. The label gate chains create, rename, assign, and remove;
-rename/follow-up assignment require both research and exact-current-event guards, and both stale
-conflict classes add no event. This grants direct scenario content editing, attributed voting,
-annotation lifecycle, and shared-label mutation—not model generation, authenticated identity, or
-gallery UI.
+mutates the registered live Y.Doc synchronously. `read_scenario_turn_revision` instead validates
+project/graph/scenario/turn/revision identity and returns one detached current or historical body
+without changing the Y.Doc. Add-turn and revise-turn require the revision from inspection or the
+immediately preceding mutation; revisions retain both authors and bodies. Stale tests prove zero
+scenario/turn writes. Rust routing and the packaged live harness cover each named scenario read/
+mutation tool; the live harness reads a historical and current body back explicitly. The voting
+gate chains support, re-vote, and withdrawal events, then proves a stale call adds no vote event;
+MCP output exposes aggregate counts, not voter bodies. The annotation gate chains create, edit,
+resolve, and reopen under both project-research and exact-current-event guards, then proves both
+conflict classes add no lifecycle event. MCP output and inspection omit every annotation body. The
+label gate chains create, rename, assign, and remove; rename/follow-up assignment require both
+research and exact-current-event guards, and both stale conflict classes add no event. This grants
+one explicit bounded scenario-content read plus direct scenario editing, attributed voting,
+annotation lifecycle, and shared-label mutation—not model generation or authenticated identity.
 
 `versionAutomation.test.ts` adds the MCP checkpoint mutation gate. It proves semantic editor blocks
 become one immutable head, a stale document revision fails before hashing, a document revision that
@@ -461,11 +462,14 @@ rejects the wrong pairing key, authenticates the loopback MCP attachment, negoti
 the app-owned input, and proves the coordinator, attachment process, private listener, and control
 listener all exit within bounded deadlines. Rust and server-rendered UI tests separately cover saved
 agent/host configuration, private-address/key-path validation, startup order, disable/reconfigure
-replacement, graceful two-second shutdown, kill-and-reap fallback, and shutdown order. The physical harness requires two exact node labels and at least twenty-nine
-native tools on each installation. Its default mode performs only catalog/identity checks; `--mutate`
-uses a dedicated proof project, exact revisions, guarded share/join, partition-like concurrent
-appends, bidirectional readback, and stale-write rejection. It prints content-free booleans and has
-its own 15-second heartbeat and five-minute deadline in addition to the outer watchdog. A passing
+replacement, graceful two-second shutdown, kill-and-reap fallback, and shutdown order. The physical
+harness requires two exact node labels and all thirty-five native tools on each installation. Its
+default mode performs only catalog/identity checks; `--mutate` uses a dedicated proof project, exact
+revisions, guarded share/join, partition-like concurrent document appends, bidirectional readback,
+and stale-write rejection. It also creates one scenario turn, makes simultaneous revisions, reads
+both exact sibling bodies from both nodes, requires the same deterministic current revision, and
+rejects a stale fourth write. It prints content-free booleans and counts and has its own 15-second
+heartbeat and five-minute deadline in addition to the outer watchdog. A passing
 synthetic or single-profile test never substitutes for this two-installed-profile gate.
 
 ## Headless remote-provider boundary proof

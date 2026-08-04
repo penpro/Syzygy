@@ -6,6 +6,7 @@ export const AUTOMATION_CAPABILITIES = {
     'Drive-backed project sharing with append-only Yjs merge and local offline persistence',
     'revision-guarded semantic MCP reads and writes',
     'read-only MCP integrity inspection for scenarios, votes, annotations, labels, heuristics, and immutable version history',
+    'explicit bounded MCP readback of one selected scenario-turn revision body',
     'dual-revision-guarded MCP creation and restore-as-new-head of immutable policy checkpoints',
     'product version save, restore-as-new-head, and engine-free diff controls',
     'research-revision-guarded MCP scenario creation, turn editing, aggregate voting, annotation lifecycle, and shared labels',

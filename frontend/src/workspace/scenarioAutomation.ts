@@ -1,6 +1,6 @@
 import type * as Y from 'yjs'
 import { getProjectSharedTypes, projectStateFingerprint } from './projectModel'
-import { addScenarioTurn, createScenario, readScenario, type ScenarioStatus, type ScenarioTurnRole, updateScenarioTurn } from './scenarioModel'
+import { addScenarioTurn, createScenario, inspectScenarioGraph, readScenario, type ScenarioStatus, type ScenarioTurnRole, updateScenarioTurn } from './scenarioModel'
 import { castScenarioVote, type ScenarioVoteChoice } from './scenarioVoteModel'
 import {
   createScenarioAnnotation,
@@ -35,6 +35,12 @@ export interface MutateAutomationScenarioTurnInput {
   participantId: string
   timestamp: number
   editId: string
+}
+
+export interface ReadAutomationScenarioTurnRevisionInput {
+  scenarioId: string
+  turnId: string
+  revisionEditId?: string
 }
 
 export interface CastAutomationScenarioVoteInput {
@@ -113,6 +119,28 @@ function guardedScenarios(doc: Y.Doc, expectedProjectId: string, expectedResearc
   if (metadata.get('projectId') !== expectedProjectId) throw new Error('Live collaboration document project identity does not match')
   if (projectStateFingerprint(doc) !== expectedResearchRevision) throw new Error('Research state revision conflict')
   return scenarios
+}
+
+export function readAutomationScenarioTurnRevision(
+  doc: Y.Doc, expectedProjectId: string, input: ReadAutomationScenarioTurnRevisionInput,
+) {
+  const { metadata, scenarios } = getProjectSharedTypes(doc)
+  if (metadata.get('projectId') !== expectedProjectId) throw new Error('Live collaboration document project identity does not match')
+  const integrity = inspectScenarioGraph(scenarios)
+  if (!integrity.healthy) throw new Error('Scenario data failed integrity checks')
+  const scenario = readScenario(scenarios, input.scenarioId)
+  if (!scenario) throw new Error('Scenario not found or invalid')
+  const turn = scenario.turns.find((candidate) => candidate.id === input.turnId)
+  if (!turn) throw new Error('Scenario turn not found or invalid')
+  const revision = input.revisionEditId
+    ? turn.revisions.find((candidate) => candidate.editId === input.revisionEditId)
+    : turn.revisions[turn.revisions.length - 1]
+  if (!revision) throw new Error('Scenario turn revision not found')
+  return {
+    scenario, turn, revision: { ...revision },
+    currentEditId: turn.revisions[turn.revisions.length - 1]!.editId,
+    researchRevision: projectStateFingerprint(doc),
+  }
 }
 
 export function createAutomationScenario(doc: Y.Doc, expectedProjectId: string, input: CreateAutomationScenarioInput) {

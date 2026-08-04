@@ -62,6 +62,7 @@ Recommended first instruction to an MCP-capable model:
 | `rename_project` | yes | Changes project metadata only |
 | `read_active_project` | no | Returns the manifest plus structured blocks, plain text, and a revision |
 | `inspect_research_state` | no | Validates bounded live scenario/vote/flag/note/label/heuristic/adversarial-review/version/head/lineage state and returns metadata summaries without policy, adversarial question/source/result/decision-note, scenario, annotation, voter, label-event, guidance, edit-value, or version-note bodies |
+| `read_scenario_turn_revision` | explicit scenario content | Reads exactly one current or named immutable turn revision body plus bounded turn metadata and the current research revision; no mutation or model authority |
 | `start_adversarial_review` | remote model job | Freezes selected block indexes from the exact live document revision, complete built-in-provider call graph, and limits; returns a job immediately before one native batch disclosure |
 | `inspect_adversarial_review` | no | Returns bounded lifecycle/heartbeat metadata while running and the validated pending-human-review result after completion |
 | `cancel_adversarial_review` | cancels model job | Aborts the shared job signal and active native provider call without changing project content |
@@ -150,6 +151,11 @@ MCP host
 - `add_scenario_turn` and `revise_scenario_turn` use the same guard. Chain the returned research
   revision into the next mutation. Revision retains earlier turn bodies and attribution; stale
   calls fail before mutation. These tools store explicit caller content and never contact a model.
+- `read_scenario_turn_revision` is the deliberate content boundary missing from broad inspection.
+  It requires exact scenario/turn identity and optionally one immutable edit ID, validates the live
+  scenario graph, returns at most one 200,000-character body, and performs no Yjs write. Omitting
+  the edit ID reads the deterministic current revision. The returned research revision can be
+  chained into a later guarded mutation after the researcher reviews the disclosed content.
 - `cast_scenario_vote` uses the same guard and retains each attributed vote/re-vote/withdrawal as
   an immutable event. Its response and inspection expose only aggregate counts/event totals. A
   stale call fails before adding an event. Participant IDs, display names, and time are caller/
@@ -222,7 +228,7 @@ It fails unless:
 2. replace/append operations change the same editor and reject a stale revision;
 3. the loopback parser accepts an authenticated request and rejects browser origins;
 4. MCP initialization negotiates the current `2025-11-25` protocol revision;
-5. all thirty-four semantic tools are discoverable and route to their intended live operation, including bounded Drive project catalog/share/join and adversarial archive/decision actions;
+5. all thirty-five semantic tools are discoverable and route to their intended live operation, including bounded Drive project catalog/share/join and adversarial archive/decision actions;
 6. self-description returns absolute paths and copy-ready configuration without a GUI;
 7. platform contracts parse, keep provider-run/adversarial/plugin schemas strict, and do not
    overstate unimplemented runtimes; and

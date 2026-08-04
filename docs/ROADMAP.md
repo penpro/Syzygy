@@ -444,12 +444,14 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - The LAN collaboration follow-up makes the outbound agent an opt-in installed-app setting, stores
   only routing metadata/key-file path, restarts it on launch, and reaps it on disable, reconfigure,
   or shutdown. The repository host also supervises its primary packaged agent with bounded backoff.
-  Three new MCP tools expose exact bounded Drive catalog/share/join actions; share requires the
-  current document revision and join refetches exact workspace/project/document identity before
-  registration. A five-minute two-physical-install harness now checks both nodes, at least twenty-
-  nine tools, guarded share/join, bidirectional and concurrent-edit convergence, and stale-write
-  rejection with content-free output. Component, Rust, MCP, and synthetic host gates pass; S-07
-  stays `implemented_unverified` until the new build is installed on both profiles and that physical
+  Three MCP tools expose exact bounded Drive catalog/share/join actions; share requires the current
+  document revision and join refetches exact workspace/project/document identity before registration.
+  A separate explicit MCP read returns one chosen scenario-turn revision body while broad inspection
+  stays body-free. The five-minute physical harness now requires both nodes and all 35 tools; it proves
+  document bidirectional/concurrent convergence, then reads both simultaneous scenario siblings from
+  both installations, requires the same deterministic current revision, and rejects stale document
+  and scenario writes with boolean-only output. Component, Rust, MCP, and synthetic host gates pass;
+  S-07 stays `implemented_unverified` until this build is installed on both profiles and the physical
   harness produces its evidence record. Presence, bounded compaction, shared rename, and non-Drive
   transports remain open.
 

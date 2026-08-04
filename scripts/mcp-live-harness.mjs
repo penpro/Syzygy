@@ -183,12 +183,23 @@ try {
       content: 'Revised harness answer with retained history.',
       participantId: 'mcp-live-harness-reviewer',
     })
+    const historicalTurnRead = await session.tool('read_scenario_turn_revision', {
+      scenarioId,
+      turnId: 'answer-turn',
+      revisionEditId: addedTurn.structuredContent.turn.currentEditId,
+    })
+    const currentTurnRead = await session.tool('read_scenario_turn_revision', {
+      scenarioId,
+      turnId: 'answer-turn',
+    })
     if (stateAfterScenario.structuredContent.researchState.scenarios.totalRecords !== researchState.structuredContent.researchState.scenarios.totalRecords + 1) throw new Error('Scenario creation did not add exactly one record')
     if (stateAfterScenario.structuredContent.researchState.scenarios.items.some((item) => item.id === `${scenarioId}-stale`)) throw new Error('Stale scenario creation reached live state')
     const stateAfterTurns = await session.tool('inspect_research_state')
     const inspectedScenario = stateAfterTurns.structuredContent.researchState.scenarios.items.find((item) => item.id === scenarioId)
     if (addedTurn.structuredContent.turn.revisionCount !== 1) throw new Error('Scenario turn add did not create one revision')
     if (revisedTurn.structuredContent.turn.revisionCount !== 2 || revisedTurn.structuredContent.turn.content !== 'Revised harness answer with retained history.') throw new Error('Scenario turn revision did not retain and project history')
+    if (historicalTurnRead.structuredContent.revision.content !== 'Initial harness answer.' || historicalTurnRead.structuredContent.revisionIsCurrent !== false) throw new Error('Historical scenario turn body was not explicitly readable')
+    if (currentTurnRead.structuredContent.revision.content !== 'Revised harness answer with retained history.' || currentTurnRead.structuredContent.revisionIsCurrent !== true || currentTurnRead.structuredContent.turn.revisionCount !== 2) throw new Error('Current scenario turn body readback did not match live history')
     if (inspectedScenario?.turnCount !== 1 || inspectedScenario?.turnRevisionCount !== 2) throw new Error('Scenario turn state was not visible through inspection')
     const supportVote = await session.tool('cast_scenario_vote', {
       expectedResearchRevision: revisedTurn.structuredContent.researchRevision,
@@ -422,6 +433,7 @@ try {
       scenarioCreateRevisionGuarded: true,
       staleScenarioCreateRejected: true,
       scenarioTurnAddAndRevisionGuarded: true,
+      scenarioTurnRevisionReadback: true,
       scenarioVoteRevisionGuarded: true,
       staleScenarioVoteRejected: true,
       scenarioAnnotationLifecycleGuarded: true,

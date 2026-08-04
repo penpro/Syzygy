@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "runId": "MCP-SCENARIO-TURN-READBACK-2026-08-02",
+  "date": "2026-08-02",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "1068267",
+  "capabilities": [
+    "P-12",
+    "P-15",
+    "S-07"
+  ],
+  "status": "implemented_unverified",
+  "claim": "An MCP host can explicitly read one current or named immutable scenario-turn revision body, and the bounded LAN/Drive harness can use that read to verify both concurrent sibling bodies and deterministic current convergence across two installed applications.",
+  "commands": [
+    "npm --prefix frontend run test -- src/workspace/scenarioAutomation.test.ts src/automationCapabilities.test.ts --reporter=verbose",
+    "cargo test --manifest-path frontend/src-tauri/Cargo.toml mcp::tests",
+    "node --test scripts/lan-bridge.test.mjs scripts/lan-agent-supervisor.test.mjs scripts/lan-dev-mode.test.mjs",
+    "npm --prefix frontend run build",
+    "node scripts/audit.mjs",
+    "npm --prefix frontend run check:supervised"
+  ],
+  "result": {
+    "focusedFrontendTestFilesPassed": 2,
+    "focusedFrontendTestsPassed": 14,
+    "focusedRustTestsPassed": 16,
+    "lanFixtureTestsPassed": 8,
+    "frontendModulesTransformed": 1067,
+    "fullFrontendTestFilesPassed": 107,
+    "fullFrontendTestFilesSkipped": 1,
+    "fullFrontendTestsPassed": 435,
+    "fullFrontendTestsSkipped": 1,
+    "structuralAuditPassed": true,
+    "rustCheckPassed": true,
+    "appAssetEmbedRecompiled": true,
+    "supervisedRunId": "20260802-202802-57d97e",
+    "supervisedElapsedSeconds": 32,
+    "pendingNativeValidation": false,
+    "packagedLiveReadbackPassed": false,
+    "physicalTwoInstallScenarioConvergencePassed": false,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "The domain read accepts an exact scenario, turn, and optional revision identity and returns only one validated revision body plus bounded turn metadata and the current research revision.",
+    "Omitting revisionEditId reads the deterministic current revision; naming an immutable historical edit reads that exact prior body.",
+    "The explicit read performs no Yjs mutation, rejects wrong project identity, missing records, and unhealthy scenario graphs, and grants no model or Drive authority.",
+    "The embedded MCP advertises and routes read_scenario_turn_revision to the live project document; focused Rust tests pass for all 35 semantic tools.",
+    "The packaged live MCP harness now reads both a historical and current body after add/revise and checks current/history metadata.",
+    "The physical LAN/Drive harness now requires both nodes to expose all 35 tools, reads both exact concurrent sibling bodies on both nodes, checks deterministic current convergence, and rejects a stale scenario revision without increasing history.",
+    "Encrypted LAN authentication, tamper/replay rejection, bounded restart, wrong-key rejection, and developer-mode cleanup fixtures remain green.",
+    "The harness emits only booleans and counts; proof scenario bodies and identifiers are not printed."
+  ],
+  "notProved": [
+    "The newly compiled tool was exercised through a packaged installed Syzygy executable in this run.",
+    "Both office installations were updated to this checkpoint and completed the physical Drive scenario sibling-convergence gate.",
+    "Authenticated participant identity, trusted timestamps, explicit branch reconciliation, or non-Drive collaboration transports.",
+    "Near-limit 200,000-character revision bodies meet a measured end-to-end MCP/LAN latency and memory budget.",
+    "A release/updater artifact contains this development checkpoint."
+  ]
+}

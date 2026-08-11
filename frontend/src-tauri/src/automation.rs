@@ -20,7 +20,8 @@ use tauri::{AppHandle, Emitter, Manager, State};
 pub const AUTOMATION_EVENT: &str = "syzygy://automation/request";
 const MAX_HEADER_BYTES: usize = 32 * 1024;
 const MAX_BODY_BYTES: usize = 512 * 1024;
-const RESPONSE_TIMEOUT: Duration = Duration::from_secs(15);
+pub(crate) const AUTOMATION_RESPONSE_TIMEOUT_SECONDS: u64 = 15;
+const RESPONSE_TIMEOUT: Duration = Duration::from_secs(AUTOMATION_RESPONSE_TIMEOUT_SECONDS);
 
 #[derive(Default)]
 pub struct AutomationState {

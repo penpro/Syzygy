@@ -14,6 +14,9 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
+const LIVE_RESPONSE_TIMEOUT_SECONDS: u64 =
+    crate::automation::AUTOMATION_RESPONSE_TIMEOUT_SECONDS + 5;
+
 const SUPPORTED_PROTOCOL_VERSIONS: &[&str] =
     &["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 static REQUEST_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -670,7 +673,7 @@ fn call_live(method: &str, params: Value) -> Result<Value, String> {
         "The Syzygy GUI is not reachable. Call launch_syzygy or reopen the app, then retry."
             .to_string()
     })?;
-    let _ = stream.set_read_timeout(Some(Duration::from_secs(20)));
+    let _ = stream.set_read_timeout(Some(Duration::from_secs(LIVE_RESPONSE_TIMEOUT_SECONDS)));
     let _ = stream.set_write_timeout(Some(Duration::from_secs(5)));
     write!(
         stream,

@@ -59,7 +59,7 @@
 | `frontend/src/workspace/driveProjectTitleStatus.ts` | Penumbra original | Identity-safe source-owned publication/subscription for bounded shared-title state and sibling tips |
 | `frontend/src/workspace/SharedProjectTitleControl.tsx` | Penumbra original | Exact-captured-guard rename draft, stale refusal, visible sibling choices, and explicit all-tip reconciliation UI |
 | `frontend/src/workspace/DriveProjectControls.tsx` | Penumbra original | Explicit share/Join catalog with title-conflict disclosure plus honest snapshot-first, concurrent-retaining Drive-history maintenance controls |
-| `frontend/src-tauri/src/drive_projects.rs` | Penumbra original | Strict selected-workspace manifest/update transport, content-addressed bounded title-event graph, bounded app-root catalog, and recoverable snapshot-first update archival |
+| `frontend/src-tauri/src/drive_projects.rs` | Penumbra original | Strict selected-workspace manifest/update transport, content-addressed bounded title-event graph, ordered eight-request/12-second cancellation-bounded app-root catalog, and recoverable snapshot-first update archival |
 | `frontend/src/workspace/collaborationProvider.ts` | Penumbra original | Provider-neutral lifecycle shared by local and test/future transports |
 | `frontend/src/workspace/memoryProvider.ts` | Penumbra original | Deterministic two-editor live/partition convergence transport used only by the headless contract suite |
 | `frontend/src/workspace/presenceModel.ts` | Penumbra original | Bounded fail-closed projection of schema-versioned ephemeral researcher awareness metadata |

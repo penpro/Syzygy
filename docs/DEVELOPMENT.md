@@ -155,6 +155,17 @@ rejects the old guard, and restores the original title; its boolean evidence doe
 Those deterministic gates do not substitute for rerunning that physical harness on a packaged build
 or for real-Drive quota, interruption, and 200-event retention evidence.
 
+The Drive catalog supervision gate spans `drive_projects::tests` and `npm run audit`. Both the
+selected-workspace list and the cross-workspace browser are wrapped in one cancellation-safe
+12-second deadline. Project manifest/title reads are ordered and limited to eight concurrent
+requests within a root, while roots remain serial. The Rust test completes a ready future, times out
+an indefinitely pending future, verifies that cancellation drops its work, and checks the sanitized
+retry error. A compile-time assertion keeps the catalog deadline below the live automation bridge's
+15-second response budget; MCP derives its 20-second socket read budget from that bridge constant.
+The structural audit locks all of those production call sites and constants. This proves bounded
+cancellation and wiring without a credential; large-account Drive quota/latency behavior remains a
+real-Drive evidence gap.
+
 Portable archives are covered by `projectArchive.test.ts` and
 `ProjectArchiveControls.ui.test.ts`. The domain fixture exports the exact Yjs state, reopens every
 reserved shared collection through IndexedDB without a network provider, and rejects corrupted
@@ -739,7 +750,9 @@ nonzero if cleanup fails. Pair it with `driveProjectProvider.test.ts`: the live 
 Google transport path, while the deterministic frontend fixture proves actual Yjs merge, equal
 state vectors after partition/reconnect, and a non-destructive shared-project discovery transition
 from an existing active project. The sidebar control must remain available whenever any project is
-open. The two-physical-install diagnostic must additionally prove the secondary can discover and join
+open. Catalog refreshes cancel after 12 seconds, before the 15-second MCP live bridge budget, and
+run at most eight ordered project-detail reads per root. The two-physical-install diagnostic must
+additionally prove the secondary can discover and join
 an accessible project with no previously selected workspace; the catalog must select the exact parent
 folder before the provider starts. The 2026-07-17 v0.1.14 reproduction established the prior failure
 mode: the primary reported folder code `L7ybUosw` and one project while the secondary reported

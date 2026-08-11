@@ -458,6 +458,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   content-addressed parent-linked title events, retains simultaneous siblings, exposes exact product
   and MCP reconciliation, and extends the physical harness with two-way propagation, stale rejection,
   and restoration. Its deterministic gates pass; packaged two-install execution remains open.
+  Shared-project catalog refresh is now supervised end-to-end: selected and cross-workspace reads
+  cancel after 12 seconds, run at most eight project-detail requests per root, keep roots serial,
+  and fail before the 15-second live automation bridge budget. Rust proves cancellation drops stale
+  work and the structural audit locks the MCP timeout ordering; real large-account/quota behavior
+  remains unverified.
   Presence and non-Drive transports remain open.
 
 - The app-owned LAN developer-host slice removes the primary PowerShell babysitting requirement. A
@@ -547,7 +552,8 @@ collaborators are not required to download large project folders.
    and has clean-install convergence and retry fixtures. Conflict-safe shared rename has also landed
    as a bounded append-only event graph with visible siblings, stale-draft refusal, exact all-tip
    reconciliation, product/MCP controls, and a two-way physical harness extension. Next: run and
-   record the packaged two-install convergence/reconciliation/title harness and real-Drive compaction,
+   record the packaged two-install convergence/reconciliation/title harness, large-account catalog
+   latency, and real-Drive compaction,
    then add title-history retention/repair and the first self-hosted non-Drive transport.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.
    v0.1.14 added same-name folder codes and the bounded MCP/LAN diagnostic; the two-physical-install

@@ -13,6 +13,7 @@ use futures_util::{stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
+use std::future::Future;
 use std::time::Duration;
 
 const FILES_ENDPOINT: &str = "https://www.googleapis.com/drive/v3/files";
@@ -35,6 +36,11 @@ const MAX_TITLE_EVENTS: usize = 200;
 const MAX_TITLE_PARENTS: usize = 20;
 const MAX_PROJECT_ROOTS: usize = 200;
 const MAX_DISCOVERED_PROJECTS: usize = 1_000;
+const PROJECT_CATALOG_CONCURRENCY: usize = 8;
+const PROJECT_CATALOG_DEADLINE_SECONDS: u64 = 12;
+const _: () = assert!(
+    PROJECT_CATALOG_DEADLINE_SECONDS < crate::automation::AUTOMATION_RESPONSE_TIMEOUT_SECONDS
+);
 
 fn esc(value: &str) -> String {
     value.replace('\\', "\\\\").replace('\'', "\\'")
@@ -45,6 +51,38 @@ fn drive_client() -> Result<reqwest::Client, String> {
         .timeout(Duration::from_secs(DRIVE_REQUEST_TIMEOUT_SECONDS))
         .build()
         .map_err(|error| format!("Drive project HTTP client could not start: {error}"))
+}
+
+async fn with_drive_project_deadline<T, F>(
+    operation: &str,
+    deadline: Duration,
+    future: F,
+) -> Result<T, String>
+where
+    F: Future<Output = Result<T, String>>,
+{
+    tokio::time::timeout(deadline, future).await.map_err(|_| {
+        let deadline_label = if deadline.as_secs() > 0 {
+            format!("{}-second", deadline.as_secs())
+        } else {
+            format!("{}-millisecond", deadline.as_millis())
+        };
+        format!(
+            "Drive project {operation} exceeded its {deadline_label} deadline; retry after checking the connection."
+        )
+    })?
+}
+
+async fn with_project_catalog_deadline<T, F>(operation: &str, future: F) -> Result<T, String>
+where
+    F: Future<Output = Result<T, String>>,
+{
+    with_drive_project_deadline(
+        operation,
+        Duration::from_secs(PROJECT_CATALOG_DEADLINE_SECONDS),
+        future,
+    )
+    .await
 }
 
 fn valid_identity(value: &str) -> bool {
@@ -798,24 +836,35 @@ async fn projects_in_root(
     workspace: &DriveWorkspace,
 ) -> Result<Vec<DriveProjectDescriptor>, String> {
     let folders = list_children(token, root_id).await?;
+    let reads = stream::iter(
+        folders
+            .into_iter()
+            .filter(|file| file.name.starts_with("project-"))
+            .map(|folder| async move {
+                let Some(manifest_id) = find_child(token, &folder.id, MANIFEST_FILE, None).await?
+                else {
+                    return Ok(None);
+                };
+                let manifest: StoredProjectManifest =
+                    serde_json::from_str(&read_text_file(token, &manifest_id).await?)
+                        .map_err(|_| "A Drive project manifest is malformed.".to_string())?;
+                manifest.validate()?;
+                let title_state = load_project_title_state(token, &folder.id, &manifest).await?;
+                Ok::<_, String>(Some(DriveProjectDescriptor::from_title_state(
+                    manifest,
+                    workspace,
+                    &title_state,
+                )))
+            }),
+    )
+    .buffered(PROJECT_CATALOG_CONCURRENCY)
+    .collect::<Vec<_>>()
+    .await;
     let mut projects = Vec::new();
-    for folder in folders
-        .into_iter()
-        .filter(|file| file.name.starts_with("project-"))
-    {
-        let Some(manifest_id) = find_child(token, &folder.id, MANIFEST_FILE, None).await? else {
-            continue;
-        };
-        let manifest: StoredProjectManifest =
-            serde_json::from_str(&read_text_file(token, &manifest_id).await?)
-                .map_err(|_| "A Drive project manifest is malformed.".to_string())?;
-        manifest.validate()?;
-        let title_state = load_project_title_state(token, &folder.id, &manifest).await?;
-        projects.push(DriveProjectDescriptor::from_title_state(
-            manifest,
-            workspace,
-            &title_state,
-        ));
+    for read in reads {
+        if let Some(project) = read? {
+            projects.push(project);
+        }
     }
     Ok(projects)
 }
@@ -1127,30 +1176,17 @@ pub async fn google_drive_project_publish(
 pub async fn google_drive_project_list(
     app: tauri::AppHandle,
 ) -> Result<Vec<DriveProjectDescriptor>, String> {
+    with_project_catalog_deadline("selected-workspace catalog", list_selected_projects(app)).await
+}
+
+async fn list_selected_projects(
+    app: tauri::AppHandle,
+) -> Result<Vec<DriveProjectDescriptor>, String> {
     let (token, workspace) = selected_workspace_access(&app).await?;
     let Some(root) = project_root(&token, &workspace.id, false).await? else {
         return Ok(Vec::new());
     };
-    let folders = list_children(&token, &root).await?;
-    let mut projects = Vec::new();
-    for folder in folders
-        .into_iter()
-        .filter(|file| file.name.starts_with("project-"))
-    {
-        let Some(manifest_id) = find_child(&token, &folder.id, MANIFEST_FILE, None).await? else {
-            continue;
-        };
-        let manifest: StoredProjectManifest =
-            serde_json::from_str(&read_text_file(&token, &manifest_id).await?)
-                .map_err(|_| "A Drive project manifest is malformed.".to_string())?;
-        manifest.validate()?;
-        let title_state = load_project_title_state(&token, &folder.id, &manifest).await?;
-        projects.push(DriveProjectDescriptor::from_title_state(
-            manifest,
-            &workspace,
-            &title_state,
-        ));
-    }
+    let mut projects = projects_in_root(&token, &root, &workspace).await?;
     projects.sort_by(|left, right| {
         left.title
             .cmp(&right.title)
@@ -1166,6 +1202,10 @@ pub async fn google_drive_project_list(
 pub async fn google_drive_project_discover(
     app: tauri::AppHandle,
 ) -> Result<DriveProjectCatalog, String> {
+    with_project_catalog_deadline("cross-workspace catalog", discover_projects(app)).await
+}
+
+async fn discover_projects(app: tauri::AppHandle) -> Result<DriveProjectCatalog, String> {
     let token = collaboration_access(&app).await?;
     let (roots, mut skipped_root_count) =
         unique_roots_by_workspace(list_project_roots(&token).await?);
@@ -1576,6 +1616,46 @@ pub async fn run_live_canary(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
+
+    struct DropCanary(Arc<AtomicBool>);
+
+    impl Drop for DropCanary {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::SeqCst);
+        }
+    }
+
+    #[test]
+    fn whole_catalog_deadline_returns_success_and_cancels_stale_work() {
+        tauri::async_runtime::block_on(async {
+            let ready =
+                with_drive_project_deadline("test catalog", Duration::from_millis(5), async {
+                    Ok::<_, String>(42)
+                })
+                .await
+                .expect("ready catalog");
+            assert_eq!(ready, 42);
+
+            let dropped = Arc::new(AtomicBool::new(false));
+            let canary = DropCanary(dropped.clone());
+            let error =
+                with_drive_project_deadline("test catalog", Duration::from_millis(1), async move {
+                    let _canary = canary;
+                    std::future::pending::<Result<(), String>>().await
+                })
+                .await
+                .expect_err("stale catalog must time out");
+            assert_eq!(
+                error,
+                "Drive project test catalog exceeded its 1-millisecond deadline; retry after checking the connection."
+            );
+            assert!(dropped.load(Ordering::SeqCst));
+        });
+    }
 
     #[test]
     fn update_envelope_rechecks_identity_and_hash() {

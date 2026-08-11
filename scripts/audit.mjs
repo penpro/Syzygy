@@ -1009,6 +1009,14 @@ record(
     driveDiscoveryTestSource.includes("not.toContain('Secret project title')") &&
     driveProjectNativeSource.includes('MAX_PROJECT_ROOTS: usize = 200') &&
     driveProjectNativeSource.includes('MAX_DISCOVERED_PROJECTS: usize = 1_000') &&
+    driveProjectNativeSource.includes('PROJECT_CATALOG_CONCURRENCY: usize = 8') &&
+    driveProjectNativeSource.includes('PROJECT_CATALOG_DEADLINE_SECONDS: u64 = 12') &&
+    driveProjectNativeSource.includes('.buffered(PROJECT_CATALOG_CONCURRENCY)') &&
+    driveProjectNativeSource.includes('with_project_catalog_deadline("selected-workspace catalog"') &&
+    driveProjectNativeSource.includes('with_project_catalog_deadline("cross-workspace catalog"') &&
+    driveProjectNativeSource.includes('whole_catalog_deadline_returns_success_and_cancels_stale_work') &&
+    automationSource.includes('AUTOMATION_RESPONSE_TIMEOUT_SECONDS: u64 = 15') &&
+    mcpSource.includes('crate::automation::AUTOMATION_RESPONSE_TIMEOUT_SECONDS + 5') &&
     driveProjectNativeSource.includes('google_drive_project_discover') &&
     driveProjectNativeSource.includes('unique_roots_by_workspace') &&
     driveProjectControlsSource.includes('googleDriveProjectDiscover') &&
@@ -1028,7 +1036,7 @@ record(
     mcpSource.includes('"inspect_drive_project_discovery" => live("drive.inspectProjectDiscovery"') &&
     mcpSource.includes('"share_active_project" => live("project.shareDrive"') &&
     mcpSource.includes('"join_shared_project" => live("project.joinDrive"'),
-  'selected-folder MCP diagnostics, bounded cross-workspace Syzygy-root catalog, duplicate/orphan rejection, explicit exact-parent Join, no token/file-ID diagnostic disclosure, and hostile workspace fixtures are present',
+  'selected-folder MCP diagnostics, eight-request per-root project reads, a cancellation-safe 12-second whole-catalog deadline below the 15-second automation response budget, bounded cross-workspace Syzygy-root discovery, duplicate/orphan rejection, explicit exact-parent Join, no token/file-ID diagnostic disclosure, and hostile workspace fixtures are present',
 )
 const driveCompactionCommand = driveProjectNativeSource.slice(
   driveProjectNativeSource.indexOf('pub async fn google_drive_project_compact'),

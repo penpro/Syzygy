@@ -86,7 +86,7 @@ packaged MCP surface before succeeding.
 | `knowledge.rs` | Folder knowledge: chunking granted folders, relevance retrieval. |
 | `google_auth.rs` | OAuth loopback + PKCE, collaboration-scope gate, token storage/refresh, cancel. See `GOOGLE-DRIVE.md`. |
 | `google_drive.rs` | Selected-workspace boundary, recursive direct retrieval/native export, confirmed native-Sheet value writes, and optional mirror sync. See `GOOGLE-DRIVE.md`. |
-| `drive_projects.rs` | Immutable active Drive project updates, content-addressed shared-title event graphs, snapshot-first bounded archival into a recoverable sibling folder, strict identity/integrity bounds, and the live cleanup canary. |
+| `drive_projects.rs` | Immutable active Drive project updates, content-addressed shared-title event graphs, cancellation-bounded shared-project catalogs, snapshot-first bounded archival into a recoverable sibling folder, strict identity/integrity bounds, and the live cleanup canary. |
 | `downloads.rs` | Resumable model downloads. |
 | `updates.rs` | App version for the in-app updater. |
 | `state.rs` | Shared state types (`Engine`, `Granted`, `KnowledgeCache`, …). |
@@ -108,6 +108,11 @@ operation is constrained in Rust to a locally selected workspace folder ID and d
 explicit shared-project catalog is the narrow exception: it enumerates only bounded app-owned
 `.syzygy-projects` roots visible to the account and grants no mutation authority. Choosing **Join**
 validates and persists that result's exact parent before normal selected-workspace operations begin.
+Selected-workspace and cross-workspace catalog commands have one 12-second whole-operation deadline.
+Within one root, at most eight project manifest/title reads run concurrently and preserve listing
+order; roots remain serial so the 200-root bound cannot multiply request concurrency. The deadline
+cancels pending work before the live automation bridge's 15-second response budget, while MCP derives
+a 20-second socket budget from that bridge limit.
 That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/ADR-0001-*`.
 
 ## Frontend layout (`frontend/src/`)
@@ -175,8 +180,9 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
 - `workspace/driveProjectDiscovery.ts` keeps the selected-workspace refresh used by MCP/LAN
   diagnostics. It produces explicit checked-folder/count results and a bounded, content-free
   diagnostic projection. The product browser separately calls the native bounded cross-workspace
-  Syzygy-root catalog; Join persists the exact parent workspace before constructing the Drive-bound
-  project.
+  Syzygy-root catalog. Both catalog paths cancel as a whole after 12 seconds and bound per-root
+  project metadata reads to eight; Join persists the exact parent workspace before constructing the
+  Drive-bound project.
 - `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
   navigation, revision-guarded editor reads/writes, and bounded read-only research-state integrity
   inspection. `scenarioAutomation.ts` creates scenarios, adds/revises attributed turns, and casts

@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "runId": "DRIVE-PROJECT-CATALOG-BOUNDS-2026-08-10",
+  "date": "2026-08-10",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "b31186c",
+  "capabilities": ["P-12", "S-05", "S-07"],
+  "status": "implemented_unverified",
+  "claim": "Selected-workspace and cross-workspace Drive project catalogs are bounded as whole operations, limit ordered project-detail reads within each root, cancel stale work before the authenticated live bridge expires, and remain callable through the compiled MCP surface.",
+  "commands": [
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend/src-tauri/Cargo.toml drive_projects::tests::",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend/src-tauri/Cargo.toml --locked",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/audit.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/mcp-harness.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend run check:supervised",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend run build:status -- 20260811-061738-6fa393"
+  ],
+  "result": {
+    "rustDriveProjectTestsPassed": 8,
+    "fullRustTestsPassed": 107,
+    "fullFrontendTestFilesPassed": 109,
+    "fullFrontendTestFilesSkipped": 1,
+    "fullFrontendTestsPassed": 455,
+    "fullFrontendTestsSkipped": 1,
+    "frontendBuildPassed": true,
+    "structuralAuditPassed": true,
+    "rustCheckPassed": true,
+    "compiledMcpToolCount": 38,
+    "compiledMcpHarnessPassed": true,
+    "fullSupervisedValidationPassed": true,
+    "supervisedRunId": "20260811-061738-6fa393",
+    "catalogDeadlineSeconds": 12,
+    "perRootProjectReadConcurrency": 8,
+    "automationResponseDeadlineSeconds": 15,
+    "mcpSocketReadDeadlineSeconds": 20,
+    "realDriveLargeAccountPassed": false,
+    "physicalMcpTimeoutPassed": false,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "Rust completes a ready catalog future and returns its value before the deadline.",
+    "Rust times out an indefinitely pending catalog future, drops its cancellation canary, and returns an exact content-free retry error.",
+    "Both selected-workspace and cross-workspace native commands apply the same 12-second whole-operation deadline.",
+    "Project manifest and title-state reads use ordered buffered concurrency of eight inside one root while root traversal stays serial.",
+    "A compile-time assertion keeps the catalog deadline below the 15-second live automation response budget, and the MCP socket derives a 20-second read budget from that bridge constant.",
+    "The structural audit locks the command wrappers, concurrency/deadline constants, cancellation test, and caller timeout ordering.",
+    "The complete Rust suite, complete frontend suite, production frontend build, repository audit, Rust check, and compiled 38-tool MCP harness pass under bounded supervision."
+  ],
+  "notProved": [
+    "A real Drive account near the 200-root or 1,000-project bounds completes within 12 seconds.",
+    "Real Drive quota, rate-limit, slow-network, and cancellation behavior matches the deterministic future-drop proof.",
+    "A physical LAN MCP caller observes the native catalog timeout error rather than another network or process timeout.",
+    "Partial-result or pagination UX is available when a legitimate catalog exceeds the deadline.",
+    "A release/updater artifact contains this development checkpoint."
+  ]
+}

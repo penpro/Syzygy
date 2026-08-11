@@ -7,7 +7,9 @@ import {
   collaborationRelayRoomCreate,
   collaborationRelayRoomStatus,
   collaborationRelaySettings,
+  collaborationIdentityStatus,
   desktopRuntimeAvailable,
+  type RelayDeviceBinding,
   type RelayMemberCredential,
   type RelayMemberRole,
   type RelayRoomMembershipReport,
@@ -28,6 +30,7 @@ import {
   subscribeWebsocketProjectStatus,
   type WebsocketProjectStatus,
 } from './websocketProjectStatus'
+import { parseRelayDeviceEnrollment } from './relayDeviceEnrollment'
 
 function errorText(value: unknown): string {
   return value instanceof Error ? value.message : String(value)
@@ -41,13 +44,40 @@ function connectionLabel(status: WebsocketProjectStatus | null): string {
 }
 
 function memberAccess(credential: RelayMemberCredential): ManagedRelayAccess {
-  return {
-    schemaVersion: credential.schemaVersion,
+  const common = {
     memberId: credential.memberId,
     capability: credential.capability,
     role: credential.role,
+  }
+  if (credential.schemaVersion === 3) {
+    if (!credential.deviceKeyId) throw new Error('Relay returned a bound credential without its device key ID')
+    return {
+      schemaVersion: 3,
+      ...common,
+      capabilityGeneration: credential.capabilityGeneration,
+      expiresAtMs: credential.expiresAtMs,
+      deviceKeyId: credential.deviceKeyId,
+    }
+  }
+  return {
+    schemaVersion: credential.schemaVersion,
+    ...common,
     capabilityGeneration: credential.capabilityGeneration,
     expiresAtMs: credential.expiresAtMs,
+  }
+}
+
+async function localDeviceBinding(): Promise<RelayDeviceBinding | null> {
+  try {
+    const identity = await collaborationIdentityStatus()
+    return {
+      schemaVersion: 1,
+      algorithm: identity.algorithm,
+      keyId: identity.keyId,
+      publicKey: identity.publicKey,
+    }
+  } catch {
+    return null
   }
 }
 
@@ -97,6 +127,7 @@ export function SelfHostedProjectControls({
   const [issuedInvite, setIssuedInvite] = useState('')
   const [issuedInviteRole, setIssuedInviteRole] = useState<RelayMemberRole | null>(null)
   const [issuedInviteExpiresAtMs, setIssuedInviteExpiresAtMs] = useState<number | null>(null)
+  const [deviceEnrollmentInput, setDeviceEnrollmentInput] = useState('')
   const [membership, setMembership] = useState<RelayRoomMembershipReport | null>(initialMembership)
   const [managedRelayEndpoint, setManagedRelayEndpoint] = useState(suppliedManagedRelayEndpoint ?? '')
   const websocketProject = project?.transport.kind === 'websocket' ? project : null
@@ -142,10 +173,16 @@ export function SelfHostedProjectControls({
     try {
       const binding = normalizeWebsocketProjectBinding({ endpoint, roomId: createWebsocketRoomId() })
       if (desktopRuntimeAvailable() && managedRelayEndpoint && binding.endpoint === managedRelayEndpoint) {
-        const created = await collaborationRelayRoomCreate(project.id, binding.roomId)
+        const created = await collaborationRelayRoomCreate(
+          project.id,
+          binding.roomId,
+          await localDeviceBinding(),
+        )
         bindProject(project.id, { ...binding, access: memberAccess(created.credential) })
         setMembership(created.room)
-        setMessage('Member access is on. Issue a separate invitation for each collaborator.')
+        setMessage(created.credential.schemaVersion === 3
+          ? 'Member access is on and this installation key is enrolled. Issue a separate device-bound invitation for each collaborator.'
+          : 'Member access is on in bearer-only compatibility mode because this installation key was unavailable.')
       } else {
         bindProject(project.id, binding)
       }
@@ -182,10 +219,16 @@ export function SelfHostedProjectControls({
     setBusy(true)
     setError('')
     try {
-      const created = await collaborationRelayRoomCreate(websocketProject.id, websocketBinding.roomId)
+      const created = await collaborationRelayRoomCreate(
+        websocketProject.id,
+        websocketBinding.roomId,
+        await localDeviceBinding(),
+      )
       setProjectAccess(websocketProject.id, memberAccess(created.credential))
       setMembership(created.room)
-      setMessage('Member access is on. Previous room-only invitations can no longer connect.')
+      setMessage(created.credential.schemaVersion === 3
+        ? 'Member access is on and this installation key is enrolled. Previous room-only invitations can no longer connect.'
+        : 'Member access is on in bearer-only compatibility mode. Previous room-only invitations can no longer connect.')
     } catch (value) {
       setError(errorText(value))
     } finally {
@@ -201,20 +244,17 @@ export function SelfHostedProjectControls({
     setIssuedInviteRole(null)
     setIssuedInviteExpiresAtMs(null)
     try {
+      const device = await parseRelayDeviceEnrollment(deviceEnrollmentInput)
       const issued = await collaborationRelayMemberIssue(
         websocketBinding.roomId,
         membership.registryRevision,
         inviteRole,
         selectedLifetimeSeconds,
+        device,
       )
       const invite = createManagedWebsocketProjectInvite(websocketProject, {
-        schemaVersion: issued.credential.schemaVersion,
+        ...memberAccess(issued.credential),
         roomId: issued.credential.roomId,
-        memberId: issued.credential.memberId,
-        capability: issued.credential.capability,
-        role: issued.credential.role,
-        capabilityGeneration: issued.credential.capabilityGeneration,
-        expiresAtMs: issued.credential.expiresAtMs,
       })
       setMembership(issued.room)
       setIssuedInvite(invite)
@@ -236,11 +276,15 @@ export function SelfHostedProjectControls({
     setIssuedInviteRole(null)
     setIssuedInviteExpiresAtMs(null)
     try {
+      const device = deviceEnrollmentInput.trim()
+        ? await parseRelayDeviceEnrollment(deviceEnrollmentInput)
+        : null
       const rotated = await collaborationRelayMemberRotate(
         websocketBinding.roomId,
         memberId,
         membership.registryRevision,
         selectedLifetimeSeconds,
+        device,
       )
       const access = memberAccess(rotated.credential)
       const invite = createManagedWebsocketProjectInvite(websocketProject, {
@@ -307,7 +351,9 @@ export function SelfHostedProjectControls({
               bearer credential stored only in this installation’s project settings.
               {websocketBinding.access.schemaVersion === 2
                 ? ` Generation ${websocketBinding.access.capabilityGeneration}; ${expirationCopy(websocketBinding.access.expiresAtMs)}.`
-                : ' Legacy managed invitation without an expiry claim.'}
+                : websocketBinding.access.schemaVersion === 3
+                  ? ` Generation ${websocketBinding.access.capabilityGeneration}; ${expirationCopy(websocketBinding.access.expiresAtMs)}; signed device ${websocketBinding.access.deviceKeyId.slice(-8)}.`
+                  : ' Legacy managed invitation without an expiry claim.'}
               {websocketBinding.access.role === 'viewer'
                 ? ' Viewer document updates are rejected by the relay; local edits remain local.'
                 : ''}
@@ -344,6 +390,7 @@ export function SelfHostedProjectControls({
               {' · '}{member.role}{member.memberId === websocketBinding.access?.memberId ? ' · this credential' : ''}
               {' · '}generation {member.capabilityGeneration}
               {' · '}{expirationCopy(member.expiresAtMs)}
+              {member.deviceKeyId ? ` · device ${member.deviceKeyId.slice(-8)}` : ' · bearer only'}
               {member.revokedAtMs ? ' · revoked' : ''}
               {!member.revokedAtMs ? <>
                 <button
@@ -388,7 +435,22 @@ export function SelfHostedProjectControls({
                 <option value="never">No automatic expiry</option>
               </select>
             </label>
-            <button className="btn sm primary" type="button" disabled={busy} onClick={() => void issueInvite()}>
+            <label className="self-hosted-invite-field">
+              <span>Collaborator device enrollment request</span>
+              <textarea
+                rows={3}
+                value={deviceEnrollmentInput}
+                disabled={busy}
+                aria-label="Collaborator device enrollment request"
+                onChange={(event) => setDeviceEnrollmentInput(event.target.value)}
+              />
+            </label>
+            <button
+              className="btn sm primary"
+              type="button"
+              disabled={busy || !deviceEnrollmentInput.trim()}
+              onClick={() => void issueInvite()}
+            >
               {busy ? 'Applying…' : 'Issue separate invitation'}
             </button>
           </div>
@@ -397,6 +459,9 @@ export function SelfHostedProjectControls({
             expose a remote management endpoint; the relay operator retains that authority. Expiry uses
             the relay host’s clock. Rotate / recover replaces a member’s capability, preserves
             its role and member ID, and invalidates every prior copy.
+            New members require the intended collaborator’s public enrollment request. On rotation,
+            leave the field empty to retain the current device binding, or paste a new request to
+            move access to a replacement installation.
           </p>
           {issuedInvite ? <>
             <label className="self-hosted-invite-field">

@@ -2,6 +2,11 @@ import type { Provider } from '@lexical/yjs'
 import { Awareness } from 'y-protocols/awareness'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
+import {
+  collaborationIdentitySignRelayAccess,
+  type RelayAccessIdentityClaim,
+  type RelayAccessIdentityProof,
+} from '../tauri'
 import type {
   ProjectCollaborationProvider,
   ProjectProviderCapabilities,
@@ -19,6 +24,19 @@ import {
 import { registerWebsocketProjectStatus } from './websocketProjectStatus'
 
 const READY_DEADLINE_MS = 15_000
+const SIGNED_RECONNECT_DELAY_MS = 250
+
+export type RelayAccessSigner = (
+  claim: RelayAccessIdentityClaim,
+) => Promise<RelayAccessIdentityProof>
+
+function randomNonce(): string {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
 
 export {
   createWebsocketRoomId,
@@ -44,10 +62,14 @@ export class WebsocketProjectProvider implements ProjectCollaborationProvider {
   readonly awareness: Awareness
   readonly capabilities = WEBSOCKET_PROVIDER_CAPABILITIES
   private readonly local: LocalProjectProvider
-  private readonly remote: WebsocketProvider
+  private readonly binding: ReturnType<typeof normalizeWebsocketProjectBinding>
+  private remote: WebsocketProvider | null = null
   private readonly listeners = new Map<ProjectProviderEvent, Set<ProjectProviderListener>>()
   private connected = false
+  private destroyed = false
   private remoteReady = false
+  private remoteGeneration = 0
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private unregisterPresence: (() => void) | null = null
   private statusRegistration: ReturnType<typeof registerWebsocketProjectStatus> | null = null
   private readonly forwardUpdate = (update: Uint8Array) => this.emit('update', update)
@@ -62,6 +84,18 @@ export class WebsocketProjectProvider implements ProjectCollaborationProvider {
       ? { state: 'connected', syncedAt: Date.now() }
       : { state: 'connecting' })
   }
+  private readonly forwardConnectionClose = (_event: unknown, provider: WebsocketProvider) => {
+    if (this.binding.access?.schemaVersion !== 3 || provider !== this.remote || !this.connected) return
+    // Stop y-websocket's built-in reconnect before its scheduled setup reuses this one-time proof.
+    provider.shouldConnect = false
+    queueMicrotask(() => {
+      if (provider !== this.remote || !this.connected) return
+      this.retireRemote(provider)
+      this.remote = null
+      this.remoteReady = false
+      this.scheduleSignedReconnect()
+    })
+  }
   private readonly forwardConnectionError = () => {
     this.emit('status', { status: 'error', error: 'Self-hosted collaboration relay is unavailable' })
     this.statusRegistration?.publish({
@@ -75,23 +109,14 @@ export class WebsocketProjectProvider implements ProjectCollaborationProvider {
     bindingValue: WebsocketProjectBinding,
     private readonly projectId = doc.guid,
     storageKey = `syzygy-project-v1:${projectId}`,
+    private readonly relayAccessSigner: RelayAccessSigner = collaborationIdentitySignRelayAccess,
   ) {
-    const binding = normalizeWebsocketProjectBinding(bindingValue)
+    this.binding = normalizeWebsocketProjectBinding(bindingValue)
     this.awareness = new Awareness(doc)
     this.local = new LocalProjectProvider(doc, storageKey, projectId, true, false)
-    this.remote = new WebsocketProvider(binding.endpoint, binding.roomId, doc, {
-      awareness: this.awareness,
-      connect: false,
-      disableBc: true,
-      maxBackoffTime: 2_500,
-      params: binding.access ? {
-        member: binding.access.memberId,
-        capability: binding.access.capability,
-      } : {},
-    })
-    this.remote.on('status', this.forwardStatus)
-    this.remote.on('sync', this.forwardSync)
-    this.remote.on('connection-error', this.forwardConnectionError)
+    if (this.binding.access?.schemaVersion !== 3) {
+      this.installRemote(this.baseParams())
+    }
     doc.on('update', this.forwardUpdate)
   }
 
@@ -102,7 +127,8 @@ export class WebsocketProjectProvider implements ProjectCollaborationProvider {
     this.statusRegistration = registerWebsocketProjectStatus(this.projectId)
     this.local.connect()
     this.unregisterPresence = registerProjectPresence(this.projectId, this.awareness, 'live')
-    this.remote.connect()
+    if (this.remote) this.remote.connect()
+    else void this.establishSignedRemote()
   }
 
   async whenReady(): Promise<void> {
@@ -114,17 +140,17 @@ export class WebsocketProjectProvider implements ProjectCollaborationProvider {
         if (settled) return
         settled = true
         clearTimeout(deadline)
-        this.remote.off('sync', onSync)
+        this.off('sync', onSync)
         error ? reject(error) : resolve()
       }
-      const onSync = (synced: boolean) => {
-        if (synced) finish()
+      const onSync: ProjectProviderListener = (synced) => {
+        if (synced === true) finish()
       }
       const deadline = setTimeout(
         () => finish(new Error('Self-hosted collaboration relay did not synchronize within 15 seconds')),
         READY_DEADLINE_MS,
       )
-      this.remote.on('sync', onSync)
+      this.on('sync', onSync)
       if (this.remoteReady) finish()
     })
   }
@@ -137,7 +163,16 @@ export class WebsocketProjectProvider implements ProjectCollaborationProvider {
     this.connected = false
     this.unregisterPresence?.()
     this.unregisterPresence = null
-    this.remote.disconnect()
+    this.remoteGeneration += 1
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
+    this.reconnectTimer = null
+    if (this.remote && this.binding.access?.schemaVersion === 3) {
+      const remote = this.remote
+      this.remote = null
+      this.retireRemote(remote)
+    } else {
+      this.remote?.disconnect()
+    }
     this.local.disconnect()
     this.statusRegistration?.publish({ state: 'disconnected' })
   }
@@ -148,13 +183,15 @@ export class WebsocketProjectProvider implements ProjectCollaborationProvider {
 
   async destroy(): Promise<void> {
     this.disconnect()
+    this.destroyed = true
     try {
       await this.local.flush()
     } finally {
-      this.remote.off('status', this.forwardStatus)
-      this.remote.off('sync', this.forwardSync)
-      this.remote.off('connection-error', this.forwardConnectionError)
-      this.remote.destroy()
+      if (this.remote) {
+        const remote = this.remote
+        this.remote = null
+        this.retireRemote(remote)
+      }
       this.doc.off('update', this.forwardUpdate)
       this.awareness.destroy()
       try {
@@ -178,6 +215,83 @@ export class WebsocketProjectProvider implements ProjectCollaborationProvider {
 
   private emit(type: ProjectProviderEvent, payload: unknown): void {
     this.listeners.get(type)?.forEach((listener) => listener(payload))
+  }
+
+  private baseParams(): Record<string, string> {
+    return this.binding.access ? {
+      member: this.binding.access.memberId,
+      capability: this.binding.access.capability,
+    } : {}
+  }
+
+  private installRemote(params: Record<string, string>): WebsocketProvider {
+    const remote = new WebsocketProvider(this.binding.endpoint, this.binding.roomId, this.doc, {
+      awareness: this.awareness,
+      connect: false,
+      disableBc: true,
+      maxBackoffTime: 2_500,
+      params,
+    })
+    remote.on('status', this.forwardStatus)
+    remote.on('sync', this.forwardSync)
+    remote.on('connection-error', this.forwardConnectionError)
+    remote.on('connection-close', this.forwardConnectionClose)
+    this.remote = remote
+    return remote
+  }
+
+  private retireRemote(remote: WebsocketProvider): void {
+    remote.off('status', this.forwardStatus)
+    remote.off('sync', this.forwardSync)
+    remote.off('connection-error', this.forwardConnectionError)
+    remote.off('connection-close', this.forwardConnectionClose)
+    remote.destroy()
+  }
+
+  private scheduleSignedReconnect(): void {
+    if (!this.connected || this.destroyed || this.reconnectTimer) return
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null
+      void this.establishSignedRemote()
+    }, SIGNED_RECONNECT_DELAY_MS)
+  }
+
+  private async establishSignedRemote(): Promise<void> {
+    const access = this.binding.access
+    if (access?.schemaVersion !== 3 || !this.connected || this.destroyed || this.remote) return
+    const generation = ++this.remoteGeneration
+    const claim: RelayAccessIdentityClaim = {
+      schemaVersion: 1,
+      roomId: this.binding.roomId,
+      memberId: access.memberId,
+      capabilityGeneration: access.capabilityGeneration,
+      issuedAtMs: Date.now(),
+      nonce: randomNonce(),
+      capability: access.capability,
+    }
+    try {
+      const proof = await this.relayAccessSigner(claim)
+      if (!this.connected || this.destroyed || generation !== this.remoteGeneration || this.remote) return
+      if (proof.schemaVersion !== 1 || proof.algorithm !== 'Ed25519' ||
+        proof.keyId !== access.deviceKeyId || proof.signature.length !== 86 ||
+        JSON.stringify(proof.claim) !== JSON.stringify(claim)) {
+        throw new Error('This installation does not match the device key enrolled for this relay member')
+      }
+      const remote = this.installRemote({
+        ...this.baseParams(),
+        generation: String(claim.capabilityGeneration),
+        issued: String(claim.issuedAtMs),
+        nonce: claim.nonce,
+        signature: proof.signature,
+      })
+      if (this.connected) remote.connect()
+    } catch (error) {
+      if (!this.connected || this.destroyed || generation !== this.remoteGeneration) return
+      const message = error instanceof Error ? error.message : String(error)
+      this.emit('status', { status: 'error', error: message })
+      this.statusRegistration?.publish({ state: 'error', error: message })
+      this.scheduleSignedReconnect()
+    }
   }
 }
 

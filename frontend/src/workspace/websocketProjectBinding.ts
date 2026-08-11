@@ -2,6 +2,7 @@ const MAX_ENDPOINT_LENGTH = 2_048
 const ROOM_ID_PATTERN = /^[A-Za-z0-9_-]{32,128}$/
 const MEMBER_ID_PATTERN = /^[A-Za-z0-9_-]{16,128}$/
 const CAPABILITY_PATTERN = /^[A-Za-z0-9_-]{32,128}$/
+const DEVICE_KEY_ID_PATTERN = /^ed25519-sha256:[A-Za-z0-9_-]{43}$/
 const MAX_JAVASCRIPT_DATE_MS = 8_640_000_000_000_000
 
 export type RelayMemberRole = 'admin' | 'editor' | 'viewer'
@@ -22,7 +23,17 @@ export interface ManagedRelayAccessV2 {
   expiresAtMs: number | null
 }
 
-export type ManagedRelayAccess = ManagedRelayAccessV1 | ManagedRelayAccessV2
+export interface ManagedRelayAccessV3 {
+  schemaVersion: 3
+  memberId: string
+  capability: string
+  role: RelayMemberRole
+  capabilityGeneration: number
+  expiresAtMs: number | null
+  deviceKeyId: string
+}
+
+export type ManagedRelayAccess = ManagedRelayAccessV1 | ManagedRelayAccessV2 | ManagedRelayAccessV3
 
 export interface WebsocketProjectBinding {
   endpoint: string
@@ -68,6 +79,14 @@ function normalizeManagedRelayAccess(value: ManagedRelayAccess | undefined): Man
     Number.isSafeInteger(value.capabilityGeneration) && value.capabilityGeneration >= 1 &&
     (value.expiresAtMs === null || (Number.isSafeInteger(value.expiresAtMs) &&
       value.expiresAtMs > 0 && value.expiresAtMs <= MAX_JAVASCRIPT_DATE_MS))) {
+    return { ...value }
+  }
+  if (value.schemaVersion === 3 &&
+    Object.keys(value).sort().join(',') === 'capability,capabilityGeneration,deviceKeyId,expiresAtMs,memberId,role,schemaVersion' &&
+    Number.isSafeInteger(value.capabilityGeneration) && value.capabilityGeneration >= 1 &&
+    (value.expiresAtMs === null || (Number.isSafeInteger(value.expiresAtMs) &&
+      value.expiresAtMs > 0 && value.expiresAtMs <= MAX_JAVASCRIPT_DATE_MS)) &&
+    DEVICE_KEY_ID_PATTERN.test(value.deviceKeyId)) {
     return { ...value }
   }
   throw new Error('Managed relay member access is malformed')

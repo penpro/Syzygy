@@ -102,9 +102,9 @@ const migrationSourceForWebsocket = text('frontend/src/migrations.ts')
 const selfHostedCspSource = text('frontend/src-tauri/tauri.conf.json')
 const selfHostedNetworkManifestSource = text('docs/audits/NETWORK-BOUNDARIES.json')
 record(
-  'self-hosted product collaboration remains persisted, explicit, live-tested, and bearer-honest',
+  'self-hosted product collaboration remains persisted, explicit, live-tested, and authority-honest',
   projectSchemaSource.includes("{ kind: 'websocket'; endpoint: string; roomId: string; access?: ManagedRelayAccess }") &&
-    migrationSourceForWebsocket.includes('PERSISTED_STORE_VERSION = 6') &&
+    migrationSourceForWebsocket.includes('PERSISTED_STORE_VERSION = 7') &&
     projectStoreSourceForWebsocket.includes('bindProjectToWebsocket: (id, bindingValue) =>') &&
     projectStoreSourceForWebsocket.includes('setSelfHostedProjectAccess: (id, access) =>') &&
     projectStoreSourceForWebsocket.includes('addSelfHostedProject: (value) =>') &&
@@ -112,6 +112,7 @@ record(
     websocketInviteSource.includes("WEBSOCKET_PROJECT_INVITE_PREFIX = 'syzygy-websocket-invite-v1.'") &&
     websocketInviteSource.includes("MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX = 'syzygy-websocket-invite-v2.'") &&
     websocketInviteSource.includes("EXPIRING_MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX = 'syzygy-websocket-invite-v3.'") &&
+    websocketInviteSource.includes("DEVICE_BOUND_MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX = 'syzygy-websocket-invite-v4.'") &&
     websocketInviteSource.includes('MAX_WEBSOCKET_PROJECT_INVITE_LENGTH = 6_000') &&
     websocketInviteSource.includes("exactKeys(manifest.transport, ['kind', 'endpoint', 'roomId'])") &&
     websocketInviteTestSource.includes('rejects malformed, oversized, archived, non-WebSocket, and extra-field invitations') &&
@@ -131,7 +132,7 @@ record(
     websocketProductEvidence.includes('"productManifestBindingUsed": true') &&
     websocketProductEvidence.includes('"packagedTwoInstallUsed": false') &&
     websocketProductEvidence.includes('"status": "implemented_unverified"'),
-  'store-v6 legacy/v2/v3 managed binding, strict invitations, explicit bearer/role/expiry disclosure, stale-safe status, archive redaction, CSP/network inventory, real provider reopen, and physical/identity/public-hosting nonclaims are present',
+  'store-v7 legacy/v2/v3/v4 managed binding, strict invitations, explicit bearer/device/role/expiry disclosure, stale-safe status, archive redaction, CSP/network inventory, real provider reopen, and physical/human-identity/public-hosting nonclaims are present',
 )
 
 const collaborationRelayCargo = text('frontend/src-tauri/Cargo.toml')
@@ -198,7 +199,7 @@ record(
     collaborationRelayRuntime.includes('stop_for_membership_change') &&
     collaborationRelayRuntime.includes('collaboration_relay_member_revoke') &&
     collaborationRelayTauri.includes('collaborationRelayMemberIssue') &&
-    collaborationRelayProvider.includes('capability: binding.access.capability') &&
+    collaborationRelayProvider.includes('capability: this.binding.access.capability') &&
     websocketInviteSource.includes('createManagedWebsocketProjectInvite') &&
     websocketControlsSource.includes('Issue separate invitation') &&
     websocketControlsSource.includes('Viewer document updates are rejected by the relay') &&
@@ -240,6 +241,30 @@ const collaborationIdentityPresence = text('frontend/src/workspace/ResearchPrese
 const collaborationIdentitySettings = text('frontend/src/components/CollaborationIdentitySettings.tsx')
 const collaborationIdentityInterop = text('scripts/collaboration-identity-interop.mjs')
 const collaborationIdentityEvidence = text('docs/audits/runs/SIGNED-DEVICE-PRESENCE-2026-08-11.json')
+const relayDeviceEnrollmentSource = text('frontend/src/workspace/relayDeviceEnrollment.ts')
+const relayDeviceProviderTest = text('frontend/src/workspace/websocketProjectProvider.signed.test.ts')
+const relayDeviceAuthEvidence = text('docs/audits/runs/MANAGED-RELAY-DEVICE-AUTH-2026-08-11.json')
+record(
+  'managed relay device enrollment remains typed, replay-bounded, product-visible, and human-identity-honest',
+  collaborationIdentitySource.includes('syzygy-relay-member-access-v1') &&
+    collaborationIdentitySource.includes('collaboration_identity_sign_relay_access') &&
+    collaborationRelayMembership.includes('MAX_SIGNED_AUTH_AGE_MS: u64 = 60_000') &&
+    collaborationRelayMembership.includes('RelayDeviceBinding') &&
+    collaborationRelayServer.includes('MAX_AUTH_REPLAY_ENTRIES: usize = 4_096') &&
+    websocketInviteSource.includes('DEVICE_BOUND_MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX') &&
+    websocketProviderSource.includes('establishSignedRemote') &&
+    websocketProviderSource.includes('provider.shouldConnect = false') &&
+    relayDeviceEnrollmentSource.includes("RELAY_DEVICE_ENROLLMENT_PREFIX = 'syzygy-relay-device-v1.'") &&
+    collaborationIdentitySettings.includes('Relay device enrollment request') &&
+    websocketControlsSource.includes('Collaborator device enrollment request') &&
+    relayDeviceProviderTest.includes('fresh bounded claim for each physical reconnect') &&
+    collaborationIdentityInterop.includes('relayAccessVerified: true') &&
+    collaborationIdentityInterop.includes('rejectedRelayAccessMutations: relayAccessMutations.length') &&
+    collaborationRelayHarness.includes('managedV4DeviceBoundInvitationAndProviderAuthentication: true') &&
+    collaborationRelayHarness.includes('managedDeviceProofFreshnessAndReplayDenial: true') &&
+    relayDeviceAuthEvidence.includes('"status": "verified"'),
+  'public enrollment, typed native signing, one-minute freshness, atomic replay consumption, fresh reconnect proof, exact binary/product harness, and person-identity nonclaims are present',
+)
 record(
   'signed-device presence remains narrow, cross-language verified, and identity-honest',
   collaborationRelayCargo.includes('ring = "=0.17.14"') &&
@@ -254,10 +279,11 @@ record(
     collaborationIdentitySource.includes('IDENTITY_LOCK') &&
     collaborationIdentitySource.includes('collaboration_identity_sign_presence') &&
     collaborationIdentitySource.includes('collaboration_identity_sign_registration') &&
-    (collaborationIdentitySource.match(/#\[tauri::command\]/g)?.length ?? 0) === 3 &&
+    (collaborationIdentitySource.match(/#\[tauri::command\]/g)?.length ?? 0) === 4 &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_status') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_presence') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_registration') &&
+    collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_relay_access') &&
     collaborationIdentityFrontend.includes("Object.keys(value).sort().join(',')") &&
     collaborationIdentityFrontend.includes("return 'unavailable'") &&
     collaborationIdentityFrontend.includes("? 'verified-device'") &&
@@ -1233,7 +1259,7 @@ record(
       ) &&
     localProjectProviderTestSource.includes("expect(automationProjectDocumentReady('document-1')).toBe(false)") &&
     localProjectProviderTestSource.includes("expect(automationProjectDocumentReady('document-1')).toBe(true)") &&
-    migrationSource.includes('PERSISTED_STORE_VERSION = 6') &&
+    migrationSource.includes('PERSISTED_STORE_VERSION = 7') &&
     migrationSource.includes('storedVersion > PERSISTED_STORE_VERSION'),
   'post-IndexedDB publication, exact draft/head guards, rollback-aware semantic replacement, two-step UI, one-update two-peer Yjs proof, durable attribution, and truthful P-28 status are present',
 )

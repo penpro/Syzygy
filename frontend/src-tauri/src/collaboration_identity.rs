@@ -22,6 +22,8 @@ const PRESENCE_SCHEMA_VERSION: u8 = 1;
 const PRESENCE_DOMAIN: &str = "syzygy-device-presence-v1";
 const REGISTRATION_SCHEMA_VERSION: u8 = 1;
 const REGISTRATION_DOMAIN: &str = "syzygy-project-device-registration-v1";
+const RELAY_ACCESS_SCHEMA_VERSION: u8 = 1;
+const RELAY_ACCESS_DOMAIN: &str = "syzygy-relay-member-access-v1";
 const MAX_STORED_IDENTITY_BYTES: usize = 1_024;
 static IDENTITY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -56,6 +58,18 @@ pub struct ProjectDeviceRegistrationClaim {
     pub schema_version: u8,
     pub project_id: String,
     pub participant_id: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RelayAccessIdentityClaim {
+    pub schema_version: u8,
+    pub room_id: String,
+    pub member_id: String,
+    pub capability_generation: u32,
+    pub issued_at_ms: u64,
+    pub nonce: String,
+    pub capability: String,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -94,9 +108,20 @@ pub struct ProjectDeviceRegistrationProof {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+pub struct RelayAccessIdentityProof {
+    pub schema_version: u8,
+    pub algorithm: String,
+    pub key_id: String,
+    pub claim: RelayAccessIdentityClaim,
+    pub signature: String,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct CollaborationIdentityInteropProofs {
     pub presence: DevicePresenceProof,
     pub registration: ProjectDeviceRegistrationProof,
+    pub relay_access: RelayAccessIdentityProof,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -277,6 +302,28 @@ fn validate_registration_claim(
     Ok(())
 }
 
+fn validate_relay_access_claim(claim: &RelayAccessIdentityClaim) -> Result<(), IdentityError> {
+    if claim.schema_version != RELAY_ACCESS_SCHEMA_VERSION
+        || !stable_id(&claim.room_id)
+        || !(32..=128).contains(&claim.room_id.len())
+        || !stable_id(&claim.member_id)
+        || !(16..=128).contains(&claim.member_id.len())
+        || claim.capability_generation == 0
+        || claim.issued_at_ms == 0
+        || !stable_id(&claim.capability)
+        || !(32..=128).contains(&claim.capability.len())
+    {
+        return Err(IdentityError::InvalidClaim);
+    }
+    let nonce = URL_SAFE_NO_PAD
+        .decode(&claim.nonce)
+        .map_err(|_| IdentityError::InvalidClaim)?;
+    if nonce.len() != 32 || URL_SAFE_NO_PAD.encode(&nonce) != claim.nonce {
+        return Err(IdentityError::InvalidClaim);
+    }
+    Ok(())
+}
+
 pub fn canonical_presence_claim(claim: &PresenceIdentityClaim) -> Result<Vec<u8>, String> {
     validate_claim(claim).map_err(|error| error.to_string())?;
     Ok(format!(
@@ -297,6 +344,20 @@ pub fn canonical_registration_claim(
     Ok(format!(
         "{REGISTRATION_DOMAIN}\n{}\n{}",
         claim.project_id, claim.participant_id,
+    )
+    .into_bytes())
+}
+
+pub fn canonical_relay_access_claim(claim: &RelayAccessIdentityClaim) -> Result<Vec<u8>, String> {
+    validate_relay_access_claim(claim).map_err(|error| error.to_string())?;
+    Ok(format!(
+        "{RELAY_ACCESS_DOMAIN}\n{}\n{}\n{}\n{}\n{}\n{}",
+        claim.room_id,
+        claim.member_id,
+        claim.capability_generation,
+        claim.issued_at_ms,
+        claim.nonce,
+        claim.capability,
     )
     .into_bytes())
 }
@@ -337,6 +398,55 @@ fn sign_registration(
         claim,
         signature: URL_SAFE_NO_PAD.encode(signature.as_ref()),
     })
+}
+
+fn sign_relay_access(
+    identity: &StoredIdentity,
+    claim: RelayAccessIdentityClaim,
+) -> Result<RelayAccessIdentityProof, IdentityError> {
+    let message = canonical_relay_access_claim(&claim).map_err(|_| IdentityError::InvalidClaim)?;
+    let key_pair = key_pair(identity)?;
+    let public_key = key_pair.public_key().as_ref();
+    let fingerprint = fingerprint(public_key);
+    Ok(RelayAccessIdentityProof {
+        schema_version: RELAY_ACCESS_SCHEMA_VERSION,
+        algorithm: "Ed25519".into(),
+        key_id: format!("ed25519-sha256:{fingerprint}"),
+        claim,
+        signature: URL_SAFE_NO_PAD.encode(key_pair.sign(&message).as_ref()),
+    })
+}
+
+pub fn validate_relay_device_identity(key_id: &str, public_key: &str) -> Result<Vec<u8>, String> {
+    let decoded = URL_SAFE_NO_PAD
+        .decode(public_key)
+        .map_err(|_| "Relay member device public key is invalid".to_string())?;
+    if decoded.len() != 32
+        || URL_SAFE_NO_PAD.encode(&decoded) != public_key
+        || key_id != format!("ed25519-sha256:{}", fingerprint(&decoded))
+    {
+        return Err("Relay member device identity is invalid".into());
+    }
+    Ok(decoded)
+}
+
+pub fn verify_relay_access_signature(
+    public_key: &str,
+    key_id: &str,
+    claim: &RelayAccessIdentityClaim,
+    signature: &str,
+) -> Result<(), String> {
+    let public_key = validate_relay_device_identity(key_id, public_key)?;
+    let decoded_signature = URL_SAFE_NO_PAD
+        .decode(signature)
+        .map_err(|_| "Relay member device signature is invalid".to_string())?;
+    if decoded_signature.len() != 64 || URL_SAFE_NO_PAD.encode(&decoded_signature) != signature {
+        return Err("Relay member device signature is invalid".into());
+    }
+    let message = canonical_relay_access_claim(claim)?;
+    UnparsedPublicKey::new(&ED25519, public_key)
+        .verify(&message, &decoded_signature)
+        .map_err(|_| "Relay member device signature did not verify".to_string())
 }
 
 pub fn verify_presence_proof(proof: &DevicePresenceProof) -> Result<(), String> {
@@ -400,11 +510,14 @@ pub fn ephemeral_registration_proof(
 pub fn ephemeral_identity_interop_proofs(
     presence_claim: PresenceIdentityClaim,
     registration_claim: ProjectDeviceRegistrationClaim,
+    relay_access_claim: RelayAccessIdentityClaim,
 ) -> Result<CollaborationIdentityInteropProofs, String> {
     let identity = generate_identity().map_err(|error| error.to_string())?;
     Ok(CollaborationIdentityInteropProofs {
         presence: sign_presence(&identity, presence_claim).map_err(|error| error.to_string())?,
         registration: sign_registration(&identity, registration_claim)
+            .map_err(|error| error.to_string())?,
+        relay_access: sign_relay_access(&identity, relay_access_claim)
             .map_err(|error| error.to_string())?,
     })
 }
@@ -438,6 +551,17 @@ pub fn collaboration_identity_sign_registration(
         .map_err(|_| "OS collaboration identity storage is unavailable".to_string())?;
     let identity = load_or_create(&OsIdentityStore).map_err(|error| error.to_string())?;
     sign_registration(&identity, claim).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn collaboration_identity_sign_relay_access(
+    claim: RelayAccessIdentityClaim,
+) -> Result<RelayAccessIdentityProof, String> {
+    let _guard = IDENTITY_LOCK
+        .lock()
+        .map_err(|_| "OS collaboration identity storage is unavailable".to_string())?;
+    let identity = load_or_create(&OsIdentityStore).map_err(|error| error.to_string())?;
+    sign_relay_access(&identity, claim).map_err(|error| error.to_string())
 }
 
 #[cfg(test)]
@@ -480,6 +604,18 @@ mod tests {
             schema_version: 1,
             project_id: "project-1".into(),
             participant_id: "participant-1".into(),
+        }
+    }
+
+    fn relay_access_claim() -> RelayAccessIdentityClaim {
+        RelayAccessIdentityClaim {
+            schema_version: 1,
+            room_id: "room_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+            member_id: "member_bbbbbbbbbbbbbbbbbbbbbbbb".into(),
+            capability_generation: 3,
+            issued_at_ms: 1_700_000_000_000,
+            nonce: "n4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
+            capability: "ccccccccccccccccccccccccccccccccccccccccccc".into(),
         }
     }
 
@@ -553,5 +689,35 @@ mod tests {
         assert!(verify_registration_proof(&changed)
             .unwrap_err()
             .contains("did not verify"));
+    }
+
+    #[test]
+    fn typed_relay_access_proof_binds_every_credential_and_freshness_field() {
+        let identity = generate_identity().unwrap();
+        let identity_report = report(&identity).unwrap();
+        let proof = sign_relay_access(&identity, relay_access_claim()).unwrap();
+        verify_relay_access_signature(
+            &identity_report.public_key,
+            &proof.key_id,
+            &proof.claim,
+            &proof.signature,
+        )
+        .unwrap();
+
+        for mutate in [
+            |claim: &mut RelayAccessIdentityClaim| claim.capability_generation += 1,
+            |claim: &mut RelayAccessIdentityClaim| claim.issued_at_ms += 1,
+            |claim: &mut RelayAccessIdentityClaim| claim.capability.push('d'),
+        ] {
+            let mut changed = proof.claim.clone();
+            mutate(&mut changed);
+            assert!(verify_relay_access_signature(
+                &identity_report.public_key,
+                &proof.key_id,
+                &changed,
+                &proof.signature,
+            )
+            .is_err());
+        }
     }
 }

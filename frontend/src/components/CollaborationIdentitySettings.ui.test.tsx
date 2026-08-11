@@ -10,5 +10,7 @@ describe('CollaborationIdentitySettings', () => {
     expect(html).toContain('persisted only')
     expect(html).toContain('not a verified person or organization')
     expect(html).toContain('Researcher names remain self-reported')
+    expect(html).toContain('public installation key')
+    expect(html).toContain('copied invitation cannot connect from another installation')
   })
 })

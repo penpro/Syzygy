@@ -7,7 +7,7 @@
 
 use crate::collaboration_relay_membership::{
     create_room, issue_member, registry_path, report_room, revoke_member, rotate_member,
-    RelayMemberCredential, RelayMemberRole, RelayRoomMembershipReport,
+    RelayDeviceBinding, RelayMemberCredential, RelayMemberRole, RelayRoomMembershipReport,
 };
 use crate::collaboration_relay_server::is_private_listen_address;
 use serde::{Deserialize, Serialize};
@@ -499,6 +499,7 @@ pub fn collaboration_relay_room_create(
     state: State<'_, CollaborationRelayRuntime>,
     project_id: String,
     room_id: String,
+    device: Option<RelayDeviceBinding>,
 ) -> Result<RelayRoomCredentialResult, String> {
     let membership_path = registry_path(&storage_path(&app)?);
     let mut inner = state
@@ -506,7 +507,7 @@ pub fn collaboration_relay_room_create(
         .lock()
         .map_err(|_| "Collaboration relay state lock was poisoned".to_string())?;
     stop_for_membership_change(&mut inner)?;
-    let result = create_room(&membership_path, &project_id, &room_id);
+    let result = create_room(&membership_path, &project_id, &room_id, device);
     resume_after_membership_change(&app, &mut inner);
     result.map(|(credential, room)| RelayRoomCredentialResult { credential, room })
 }
@@ -519,6 +520,7 @@ pub fn collaboration_relay_member_issue(
     expected_revision: u64,
     role: RelayMemberRole,
     expires_in_seconds: Option<u64>,
+    device: Option<RelayDeviceBinding>,
 ) -> Result<RelayRoomCredentialResult, String> {
     let membership_path = registry_path(&storage_path(&app)?);
     let mut inner = state
@@ -532,6 +534,7 @@ pub fn collaboration_relay_member_issue(
         expected_revision,
         role,
         expires_in_seconds,
+        device,
     );
     resume_after_membership_change(&app, &mut inner);
     result.map(|(credential, room)| RelayRoomCredentialResult { credential, room })
@@ -545,6 +548,7 @@ pub fn collaboration_relay_member_rotate(
     member_id: String,
     expected_revision: u64,
     expires_in_seconds: Option<u64>,
+    device: Option<RelayDeviceBinding>,
 ) -> Result<RelayRoomCredentialResult, String> {
     let membership_path = registry_path(&storage_path(&app)?);
     let mut inner = state
@@ -558,6 +562,7 @@ pub fn collaboration_relay_member_rotate(
         &member_id,
         expected_revision,
         expires_in_seconds,
+        device,
     );
     resume_after_membership_change(&app, &mut inner);
     result.map(|(credential, room)| RelayRoomCredentialResult { credential, room })

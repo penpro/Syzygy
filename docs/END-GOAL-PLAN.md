@@ -162,8 +162,9 @@ are local user preferences and explicitly do not alter relay access. A second ty
 supports explicit deterministic project-device registration in bounded Yjs state. Registrations
 converge across disconnected peers, reopen offline, remain locally approvable while the peer is
 absent, expose stable-key correlation, retain conflicting participant claims, and appear in bounded
-read-only MCP inspection. They are self-registration evidence, not shared approval. Trusted
-project-shared enrollment, signed roles, propagated identity revocation, device-key rotation/recovery, exact same-session replay
+read-only MCP inspection. They are self-registration evidence, not shared approval. The managed
+relay separately has explicit operator enrollment, signed installation-key roles, and one-use fresh
+connection proofs. Shared-directory approval, propagated identity revocation, device-key rotation/recovery, presence-proof replay
 rejection, signed durable research events, physical two-install product proof, and five-client soak
 remain open, so P-11 is `implemented_unverified`.
 
@@ -429,9 +430,9 @@ project/document/participant/client fields. The first fingerprint approval/revoc
 implemented only as a local project-scoped current-state label and never changes relay access. A
 signed durable self-registration directory now makes fingerprints inspectable offline but grants no
 authority and is replayable/deletable by bearer peers. The bundled relay separately enforces
-digest-backed bearer viewer/editor/admin roles and host-local revocation; these credentials are not
-bound to the signed device directory. The next identity increment must define trusted shared
-enrollment, signed identity-to-role binding and shared administration, durable research-event
+digest-backed viewer/editor/admin roles and host-local revocation; a role may now be bound to an
+explicitly enrolled self-issued installation key without treating the signed device directory as
+authority. The next identity increment must define recovery and shared administration, durable research-event
 signatures, device-key rotation/recovery, and a replay policy before the product may say authenticated.
 
 Gate: five-client rapid-edit soak converges; stale presence disappears; restart/partition loses
@@ -443,7 +444,7 @@ remote-persistence/attachment capabilities, and the first stable-Yjs-13
 automation registration, and ephemeral presence. A real loopback relay harness proves two-client
 updates, awareness, stale-presence cleanup, relay termination/restart, and partition convergence.
 The harness rejected the current Yjs-14 relay line and pins the compatible MIT 0.1.1 test server.
-The next product slice now persists a strict WebSocket transport through store v6, exposes explicit
+The next product slice now persists a strict WebSocket transport through store v7, exposes explicit
 advanced create/join/leave/member controls, uses bounded legacy-v1, managed-v2, and expiring/rotatable
 managed-v3 bearer invitation codecs, shows connection state,
 activates disclosed WS/WSS CSP access, strips the binding from offline archives, and headlessly proves

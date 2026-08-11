@@ -99,7 +99,7 @@ packaged MCP surface before succeeding.
 | `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses, Anthropic Messages, Gemini Interactions, and xAI Responses one-shot/SSE wire contracts have fake-server evidence with bounded controls, custom-function schema mapping, non-executing proposal normalization, a depth/node/keyword-bounded schema subset, and exact post-assembly argument validation. Validation always separates structural status from unreviewed domain semantics and false execution authority. xAI's boolean ZDR response header is required before event dispatch and preserved in the run record. |
 | `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. Ordinary tasks use one native Send-once decision whose disclosure includes any tool names, descriptions, and argument schemas; normalized proposals stay transient and are never executed, while the content-free output hash commits to their bodies and validation state. The runtime matches calls only to definitions from the approved request and authors valid/invalid/missing-definition status before returning the final outcome. Adversarial execution uses one content-bound batch decision that freezes exact research bytes, graph/routes/dependencies/order/limits/budgets; atomically consumes calls; verifies upstream output hashes; derives phase prompts; uses fixed built-in endpoints and the OS vault; rejects unsafe JSON; and records content-free provenance. The product executor is reachable through typed Tauri wrappers and revision-guarded resumable MCP jobs. Loopback transport is proven; packaged dialog interaction and live-provider behavior are not. |
 | `provider_stream.rs` | Incremental provider SSE normalization. OpenAI, Anthropic, Gemini, and xAI decoders handle fragmented frames, text/usage/finish lifecycles, unknown future events, sanitized provider errors, and bounded malformed/truncated input. Custom function calls normalize to one bounded start/delta/complete proposal lifecycle; orphaned, mismatched, malformed, duplicate, or unfinished calls fail closed. Anthropic/Gemini private-thinking bodies remain omitted. |
-| `collaboration_identity.rs` | OS-vault Ed25519 installation key, public fingerprint report, and narrowly typed live-presence plus durable project-registration signing commands; it exposes no arbitrary signing or private-key read surface. |
+| `collaboration_identity.rs` | OS-vault Ed25519 installation key, public fingerprint report, and narrowly typed live-presence, durable project-registration, plus fresh relay-member connection signing commands; it exposes no arbitrary signing or private-key read surface. |
 | `collaboration_device_trust.rs` | Bounded per-installation, per-project current-state approval/revocation registry for verified collaboration device fingerprints; exact-state mutations use a serialized crash-recoverable native replace and do not grant relay access. |
 | `credential_vault.rs` | Provider-secret abstraction backed by Windows Credential Manager, macOS Keychain, or Linux Secret Service/keyutils. Unit tests use only a memory implementation; a separate live harness creates and deletes a random OS-store canary. |
 
@@ -221,14 +221,18 @@ IndexedDB/automation lifecycle with the stable Yjs 13 `y-websocket` protocol, li
 for loopback/private-LAN hosts and rejects credentials, queries, fragments, prefilled room paths, and
 weak room IDs. The product can persist that binding, create or accept a strict bounded invitation,
 reopen through IndexedDB, show owned connection status, and leave the relay while keeping the local
-copy. Store v6 is the idempotent persistence boundary. A v1 third-party/legacy invitation uses the
+copy. Store v7 is the idempotent persistence boundary. A v1 third-party/legacy invitation uses the
 room ID as one read/edit bearer. A v2 app-managed invitation adds an exact member ID, role, and random
 capability without putting credentials in the canonical endpoint or room path. A v3 managed
 invitation additionally carries the relay-issued capability generation and optional expiry so the
-holder can see the same operator-clock limit the relay enforces; v2 remains readable. Offline archives
+holder can see the same operator-clock limit the relay enforces; v2 remains readable. A v4
+invitation additionally carries one enrolled
+installation-key ID. Its capability is usable only when that installation produces a fresh typed
+Ed25519 connection proof; v1-v3 remain readable for compatibility. Offline archives
 deliberately redact the entire live binding. The webview CSP permits dynamic WS/WSS connections
 because endpoints are user-configured, while the application parser retains the private-plaintext
-boundary. These bearer credentials authorize relay operations but do not authenticate a person.
+boundary. Capabilities authorize relay operations; v4 also authenticates one self-issued enrolled
+installation key, never a person.
 
 Live WebSocket awareness can add a schema-v2 self-signed installation proof. Rust creates one
 Ed25519 key per installation and persists its PKCS#8 private bytes only in the operating-system
@@ -262,15 +266,17 @@ same native registry. `inspect_research_state` returns bounded public fingerprin
 counts, conflicts, and integrity state without gaining a registration or trust mutation route.
 
 This remains a device-key continuity foundation, not participant authentication. Keys are
-self-issued, and local approval is a user-editable label rather than trusted enrollment or an access
-control. Durable registration is replayable by design, can be deleted or flooded by a bearer peer,
+self-issued, and local approval is a user-editable label rather than an access control. Durable
+registration is replayable by design, can be deleted or flooded by a bearer peer,
 and exposes a stable cross-project-correlatable public fingerprint only after explicit action. There
-is no project-shared device approval, signed role binding, trusted clock, key
-rotation/recovery, or binding from a fingerprint to a person or organization. A holder can claim any
+is no project-shared device approval, trusted clock, key rotation/recovery, or binding from a
+fingerprint to a person or organization. A holder can claim any
 participant ID, a rotated key appears unapproved, and an exact captured proof can still be replayed
 for the same project/document/client/nonce context. Durable Yjs research events are not signed. The
-managed relay member capability is not bound to that signed key, and local fingerprint decisions do
-not issue or revoke relay access.
+local fingerprint decisions do not issue or revoke relay access. Separately, an explicit public
+enrollment request lets the relay operator bind one managed member to an installation key. That is
+relay-host authorization of a self-issued device key, not acceptance of the shared Yjs directory or
+authentication of its participant claim.
 
 The optional app-managed relay is a separate child mode of the installed Syzygy executable. Its
 saved native configuration contains only enabled/listen/port; room IDs never appear in process
@@ -290,8 +296,13 @@ but document writes close their connection before broadcast or persistence. Loca
 and revocation commands require an exact registry revision, stop the owned child, durably replace the registry, and
 restart the relay so existing connections reauthenticate. Admin credentials do not expose a remote
 management endpoint; only the relay-host installation controls membership. Rooms absent from the
-registry retain explicit legacy room-bearer compatibility. Public WSS termination, authenticated
-human identity or signed identity-to-role binding, trusted time, automatic replacement-credential
+registry retain explicit legacy room-bearer compatibility. A member may additionally store one
+validated Ed25519 public enrollment. Bound connections sign the exact room/member/capability/
+generation plus a 32-byte nonce and issue time; the relay accepts at most a one-minute-old proof,
+allows 15 seconds of forward clock skew, and atomically consumes it in a bounded 4,096-entry replay
+cache before sending retained data. y-websocket reconnect creates a new provider and proof instead
+of replaying the old query. Public WSS termination, authenticated human identity, shared or remote
+membership administration, trusted time, automatic replacement-credential
 delivery, log
 compaction/export/backup, broader abuse controls, and physical packaged multi-install proof remain
 gates. Active member capabilities may expire between five minutes and one year or remain

@@ -20,7 +20,7 @@ import {
   type StablePolicyStatus,
 } from './workspace/policyContentModel'
 
-export const PERSISTED_STORE_VERSION = 6
+export const PERSISTED_STORE_VERSION = 7
 
 export interface LegacyPolicyContentSeed {
   policyId: string
@@ -95,7 +95,8 @@ export function migrateLocalPolicyContentDocument(
 }
 
 /**
- * Zustand rewrites storage only when its numbered migration runs. Version 6 adds a strict managed
+ * Zustand rewrites storage only when its numbered migration runs. Version 7 accepts only the strict
+ * device-bound relay access-v3 shape used by v4 invitations. Version 6 adds a strict managed
  * relay access-v2 shape carrying the capability generation and operator-clock expiry shown in v3
  * invitations. Version 5 access-v1 and version 4 legacy room-bearer transports remain readable;
  * mergePersisted rejects partial, unknown, or malformed managed-member shapes.

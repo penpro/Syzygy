@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { createHash, randomBytes } from 'node:crypto'
+import { createHash, generateKeyPairSync, randomBytes, sign } from 'node:crypto'
 import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -98,6 +98,43 @@ function storedMember(memberId, capability, role, createdAtMs, options = {}) {
     ...(options.rotatedAtMs ? { rotatedAtMs: options.rotatedAtMs } : {}),
     ...(options.expiresAtMs ? { expiresAtMs: options.expiresAtMs } : {}),
     ...(options.revokedAtMs ? { revokedAtMs: options.revokedAtMs } : {}),
+    ...(options.device ? { device: options.device } : {}),
+  }
+}
+
+function deviceIdentity() {
+  const { publicKey, privateKey } = generateKeyPairSync('ed25519')
+  const publicKeyBytes = publicKey.export({ format: 'der', type: 'spki' }).subarray(-32)
+  const fingerprint = createHash('sha256').update(publicKeyBytes).digest('base64url')
+  return {
+    binding: {
+      schemaVersion: 1,
+      algorithm: 'Ed25519',
+      keyId: `ed25519-sha256:${fingerprint}`,
+      publicKey: publicKeyBytes.toString('base64url'),
+    },
+    privateKey,
+    privateKeyDer: privateKey.export({ format: 'der', type: 'pkcs8' }).toString('base64url'),
+  }
+}
+
+function signedAccessParams(roomId, access, device, issuedAtMs = Date.now(), nonce = token()) {
+  const canonical = [
+    'syzygy-relay-member-access-v1',
+    roomId,
+    access.memberId,
+    access.capabilityGeneration,
+    issuedAtMs,
+    nonce,
+    access.capability,
+  ].join('\n')
+  return {
+    member: access.memberId,
+    capability: access.capability,
+    generation: String(access.capabilityGeneration),
+    issued: String(issuedAtMs),
+    nonce,
+    signature: sign(null, Buffer.from(canonical), device.privateKey).toString('base64url'),
   }
 }
 
@@ -124,6 +161,20 @@ async function assertAuthorizationDenied(endpoint, roomId, access, label) {
   if (frames !== 0) throw new Error(`${label} received protected relay data before denial`)
 }
 
+async function assertAuthorizationAccepted(endpoint, roomId, access, label) {
+  const query = new URLSearchParams(access).toString()
+  const socket = new WebSocket(`${endpoint}/${roomId}?${query}`)
+  await Promise.race([
+    new Promise((resolvePromise, reject) => {
+      socket.addEventListener('message', resolvePromise, { once: true })
+      socket.addEventListener('close', () => reject(new Error(`${label} closed before relay data`)), { once: true })
+    }),
+    sleep(3_000).then(() => { throw new Error(`${label} was not accepted within 3000 ms`) }),
+  ])
+  socket.close()
+  await waitFor(() => socket.readyState === WebSocket.CLOSED, `${label} socket close`, 3_000)
+}
+
 async function runProductProviderFlow(endpoint, roomId, access = null) {
   const child = spawn(process.execPath, [
     vitestEntry,
@@ -143,6 +194,12 @@ async function runProductProviderFlow(endpoint, roomId, access = null) {
         ...(access.capabilityGeneration && access.expiresAtMs ? {
           VITE_SYZYGY_WEBSOCKET_TEST_CAPABILITY_GENERATION: String(access.capabilityGeneration),
           VITE_SYZYGY_WEBSOCKET_TEST_EXPIRES_AT_MS: String(access.expiresAtMs),
+        } : {}),
+        ...(access.host.device && access.guest.device ? {
+          VITE_SYZYGY_WEBSOCKET_TEST_HOST_DEVICE_KEY_ID: access.host.device.binding.keyId,
+          VITE_SYZYGY_WEBSOCKET_TEST_HOST_PRIVATE_KEY: access.host.device.privateKeyDer,
+          VITE_SYZYGY_WEBSOCKET_TEST_GUEST_DEVICE_KEY_ID: access.guest.device.binding.keyId,
+          VITE_SYZYGY_WEBSOCKET_TEST_GUEST_PRIVATE_KEY: access.guest.device.privateKeyDer,
         } : {}),
       } : {}),
     },
@@ -173,6 +230,7 @@ const endpoint = `ws://127.0.0.1:${port}`
 const persistedRoom = `room_${crypto.randomUUID().replaceAll('-', '')}`
 const protectedRoom = `protected_${crypto.randomUUID().replaceAll('-', '')}`
 const productRoom = `product_${crypto.randomUUID().replaceAll('-', '')}`
+const boundProductRoom = `bound_${crypto.randomUUID().replaceAll('-', '')}`
 const createdAtMs = Date.now()
 const adminAccess = { memberId: token(24), capability: token(), role: 'admin' }
 const editorAccess = { memberId: token(24), capability: token(), role: 'editor' }
@@ -182,6 +240,16 @@ const rotatedAccess = { ...rotatingAccess, capability: token() }
 const expiredAccess = { memberId: token(24), capability: token(), role: 'viewer' }
 const productAdminAccess = { memberId: token(24), capability: token(), role: 'admin' }
 const productGuestAccess = { memberId: token(24), capability: token(), role: 'editor' }
+const boundHostDevice = deviceIdentity()
+const boundGuestDevice = deviceIdentity()
+const boundHostAccess = {
+  memberId: token(24), capability: token(), role: 'admin', capabilityGeneration: 1,
+  device: boundHostDevice,
+}
+const boundGuestAccess = {
+  memberId: token(24), capability: token(), role: 'editor', capabilityGeneration: 1,
+  device: boundGuestDevice,
+}
 const productExpiresAtMs = createdAtMs + 60 * 60 * 1_000
 const membershipPath = join(dataDirectory, 'members-v1.json')
 const registry = {
@@ -212,6 +280,21 @@ const registry = {
         }),
         storedMember(productGuestAccess.memberId, productGuestAccess.capability, productGuestAccess.role, createdAtMs, {
           expiresAtMs: productExpiresAtMs,
+        }),
+      ],
+    },
+    {
+      roomId: boundProductRoom,
+      projectId: `product-project-${boundProductRoom}`,
+      createdAtMs,
+      members: [
+        storedMember(boundHostAccess.memberId, boundHostAccess.capability, boundHostAccess.role, createdAtMs, {
+          expiresAtMs: productExpiresAtMs,
+          device: boundHostDevice.binding,
+        }),
+        storedMember(boundGuestAccess.memberId, boundGuestAccess.capability, boundGuestAccess.role, createdAtMs, {
+          expiresAtMs: productExpiresAtMs,
+          device: boundGuestDevice.binding,
         }),
       ],
     },
@@ -278,7 +361,7 @@ try {
 
   await writeFile(membershipPath, JSON.stringify(registry, null, 2), { encoding: 'utf8', flag: 'wx' })
   const storedRegistry = await readFile(membershipPath, 'utf8')
-  for (const access of [adminAccess, editorAccess, viewerAccess, rotatingAccess, expiredAccess, productAdminAccess, productGuestAccess]) {
+  for (const access of [adminAccess, editorAccess, viewerAccess, rotatingAccess, expiredAccess, productAdminAccess, productGuestAccess, boundHostAccess, boundGuestAccess]) {
     if (storedRegistry.includes(access.capability)) throw new Error('relay registry retained a plaintext capability')
   }
 
@@ -292,6 +375,29 @@ try {
     member: expiredAccess.memberId,
     capability: expiredAccess.capability,
   }, 'expired protected-room capability')
+  await assertAuthorizationDenied(endpoint, boundProductRoom, {
+    member: boundGuestAccess.memberId,
+    capability: boundGuestAccess.capability,
+  }, 'device-bound member without a signature')
+  await assertAuthorizationDenied(
+    endpoint,
+    boundProductRoom,
+    signedAccessParams(
+      boundProductRoom,
+      boundGuestAccess,
+      boundGuestDevice,
+      Date.now() - 60_001,
+    ),
+    'stale device-bound signature',
+  )
+  const consumedProof = signedAccessParams(boundProductRoom, boundGuestAccess, boundGuestDevice)
+  await assertAuthorizationAccepted(endpoint, boundProductRoom, consumedProof, 'fresh device-bound signature')
+  await assertAuthorizationDenied(
+    endpoint,
+    boundProductRoom,
+    consumedProof,
+    'replayed device-bound signature',
+  )
 
   docA = new Y.Doc()
   docB = new Y.Doc()
@@ -397,6 +503,12 @@ try {
     capabilityGeneration: 1,
     expiresAtMs: productExpiresAtMs,
   })
+  await runProductProviderFlow(endpoint, boundProductRoom, {
+    host: boundHostAccess,
+    guest: boundGuestAccess,
+    capabilityGeneration: 1,
+    expiresAtMs: productExpiresAtMs,
+  })
 
   providerA.destroy()
   providerB.destroy()
@@ -436,6 +548,8 @@ try {
     managedRotationInvalidatesOldCapabilityAndRecoversState: true,
     managedV3ExpiringInvitationAndProviderAuthentication: true,
     managedProductInvitationAndProviderAuthentication: true,
+    managedV4DeviceBoundInvitationAndProviderAuthentication: true,
+    managedDeviceProofFreshnessAndReplayDenial: true,
     legacyRoomCompatibleBesideManagedRooms: true,
   }, null, 2))
 } finally {

@@ -32,6 +32,7 @@ const ACCEPT_POLL: Duration = Duration::from_millis(25);
 const SOCKET_POLL: Duration = Duration::from_millis(50);
 const HANDSHAKE_DEADLINE: Duration = Duration::from_secs(5);
 const REPLAY_DEADLINE: Duration = Duration::from_secs(15);
+const MAX_AUTH_REPLAY_ENTRIES: usize = 4_096;
 const EMPTY_STATE_VECTOR_SYNC_STEP_ONE: &[u8] = &[0, 0, 1, 0];
 // y-protocol sync step two containing Yjs's canonical empty update. This completes a viewer's
 // handshake after retained frames without asking the viewer to send document state to the relay.
@@ -69,6 +70,16 @@ struct RelayState {
     rooms: HashMap<String, Room>,
     total_bytes: usize,
     next_peer_id: AtomicU64,
+    auth_replays: HashMap<String, u64>,
+}
+
+fn wall_clock_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .try_into()
+        .unwrap_or(u64::MAX)
 }
 
 fn is_unique_local_ipv6(address: Ipv6Addr) -> bool {
@@ -443,10 +454,30 @@ fn handle_connection(
         .and_then(|path| room_from_path(&path))
         .ok_or_else(|| "WebSocket relay room path is invalid".to_string())?;
     let authorization = {
-        let state = shared
+        let mut state = shared
             .lock()
             .map_err(|_| "Relay state lock was poisoned".to_string())?;
-        authorize(&state.membership, &room_id, query.as_deref())?
+        let authorization = authorize(&state.membership, &room_id, query.as_deref())?;
+        if let RelayAuthorization::Member {
+            replay: Some(replay),
+            ..
+        } = &authorization
+        {
+            let current_time_ms = wall_clock_ms();
+            state
+                .auth_replays
+                .retain(|_, expires_at_ms| *expires_at_ms > current_time_ms);
+            if state.auth_replays.contains_key(&replay.key) {
+                return Err("Relay member signed device authorization was already used".into());
+            }
+            if state.auth_replays.len() >= MAX_AUTH_REPLAY_ENTRIES {
+                return Err("Relay signed authorization replay cache is full".into());
+            }
+            state
+                .auth_replays
+                .insert(replay.key.clone(), replay.expires_at_ms);
+        }
+        authorization
     };
     let can_write = match authorization {
         RelayAuthorization::LegacyBearer => true,
@@ -537,6 +568,7 @@ pub fn run_server(
         rooms: HashMap::new(),
         total_bytes,
         next_peer_id: AtomicU64::new(1),
+        auth_replays: HashMap::new(),
     }));
     let active_connections = Arc::new(AtomicUsize::new(0));
     while !stopping.load(Ordering::Relaxed) {

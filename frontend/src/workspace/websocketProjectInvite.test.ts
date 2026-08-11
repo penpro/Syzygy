@@ -3,6 +3,7 @@ import type { ResearchProjectManifest } from './schema'
 import {
   createManagedWebsocketProjectInvite,
   createWebsocketProjectInvite,
+  DEVICE_BOUND_MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX,
   EXPIRING_MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX,
   MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX,
   MAX_WEBSOCKET_PROJECT_INVITE_LENGTH,
@@ -26,6 +27,12 @@ const expiringCredential = {
   role: 'editor' as const,
   capabilityGeneration: 3,
   expiresAtMs: 2_000_000_000_000,
+}
+
+const boundCredential = {
+  ...expiringCredential,
+  schemaVersion: 3 as const,
+  deviceKeyId: `ed25519-sha256:${'f'.repeat(43)}`,
 }
 
 const project: ResearchProjectManifest = {
@@ -102,6 +109,30 @@ describe('self-hosted project invitations', () => {
     expect(() => createManagedWebsocketProjectInvite(project, {
       ...expiringCredential,
       expiresAtMs: Number.MAX_SAFE_INTEGER,
+    })).toThrow('malformed')
+  })
+
+  it('round-trips a v4 device-bound credential and rejects partial bindings', () => {
+    const invite = createManagedWebsocketProjectInvite(project, boundCredential)
+    expect(invite.startsWith(DEVICE_BOUND_MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX)).toBe(true)
+    expect(parseWebsocketProjectInvite(invite)).toEqual({
+      ...project,
+      transport: {
+        ...project.transport,
+        access: {
+          schemaVersion: 3,
+          memberId: boundCredential.memberId,
+          capability: boundCredential.capability,
+          role: boundCredential.role,
+          capabilityGeneration: boundCredential.capabilityGeneration,
+          expiresAtMs: boundCredential.expiresAtMs,
+          deviceKeyId: boundCredential.deviceKeyId,
+        },
+      },
+    })
+    expect(() => createManagedWebsocketProjectInvite(project, {
+      ...boundCredential,
+      deviceKeyId: 'ed25519-sha256:short',
     })).toThrow('malformed')
   })
 

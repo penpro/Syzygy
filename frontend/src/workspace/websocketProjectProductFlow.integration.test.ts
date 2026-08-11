@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
+import type { RelayAccessIdentityClaim, RelayAccessIdentityProof } from '../tauri'
 import { createProjectDocument } from './projectModel'
 import type { ResearchProjectManifest } from './schema'
 import {
@@ -20,8 +21,46 @@ const guestCapability = import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_GUEST_CAPABIL
 const managed = Boolean(hostMember && hostCapability && guestMember && guestCapability)
 const capabilityGeneration = Number(import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_CAPABILITY_GENERATION ?? 0)
 const expiresAtMs = Number(import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_EXPIRES_AT_MS ?? 0)
+const hostDeviceKeyId = import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_HOST_DEVICE_KEY_ID ?? ''
+const hostPrivateKey = import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_HOST_PRIVATE_KEY ?? ''
+const guestDeviceKeyId = import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_GUEST_DEVICE_KEY_ID ?? ''
+const guestPrivateKey = import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_GUEST_PRIVATE_KEY ?? ''
 const managedV3 = managed && Number.isSafeInteger(capabilityGeneration) && capabilityGeneration > 0 &&
   Number.isSafeInteger(expiresAtMs) && expiresAtMs > Date.now()
+const managedV4 = managedV3 && Boolean(
+  hostDeviceKeyId && hostPrivateKey && guestDeviceKeyId && guestPrivateKey,
+)
+
+function relaySigner(keyId: string, privateKeyDer: string) {
+  const standard = privateKeyDer.replace(/-/g, '+').replace(/_/g, '/')
+  const binary = atob(standard + '='.repeat((4 - standard.length % 4) % 4))
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+  const key = crypto.subtle.importKey('pkcs8', bytes as BufferSource, { name: 'Ed25519' }, false, ['sign'])
+  return async (claim: RelayAccessIdentityClaim): Promise<RelayAccessIdentityProof> => {
+    const signatureBytes = new Uint8Array(await crypto.subtle.sign(
+      { name: 'Ed25519' },
+      await key,
+      new TextEncoder().encode([
+      'syzygy-relay-member-access-v1',
+      claim.roomId,
+      claim.memberId,
+      claim.capabilityGeneration,
+      claim.issuedAtMs,
+      claim.nonce,
+      claim.capability,
+      ].join('\n')),
+    ))
+    let signature = ''
+    for (const byte of signatureBytes) signature += String.fromCharCode(byte)
+    return {
+      schemaVersion: 1,
+      algorithm: 'Ed25519',
+      keyId,
+      claim,
+      signature: btoa(signature).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
+    }
+  }
+}
 
 const waitFor = async (predicate: () => boolean, label: string, timeoutMilliseconds = 10_000) => {
   const deadline = Date.now() + timeoutMilliseconds
@@ -44,7 +83,15 @@ describe.skipIf(!endpoint || !roomId)('self-hosted product binding against a rea
       transport: {
         kind: 'websocket', endpoint, roomId,
         ...(managed ? {
-          access: managedV3 ? {
+          access: managedV4 ? {
+            schemaVersion: 3 as const,
+            memberId: hostMember,
+            capability: hostCapability,
+            role: 'admin' as const,
+            capabilityGeneration,
+            expiresAtMs,
+            deviceKeyId: hostDeviceKeyId,
+          } : managedV3 ? {
             schemaVersion: 2 as const,
             memberId: hostMember,
             capability: hostCapability,
@@ -61,7 +108,16 @@ describe.skipIf(!endpoint || !roomId)('self-hosted product binding against a rea
       },
     }
     const invite = managed
-      ? createManagedWebsocketProjectInvite(hostManifest, managedV3 ? {
+      ? createManagedWebsocketProjectInvite(hostManifest, managedV4 ? {
+          schemaVersion: 3,
+          roomId,
+          memberId: guestMember,
+          capability: guestCapability,
+          role: 'editor',
+          capabilityGeneration,
+          expiresAtMs,
+          deviceKeyId: guestDeviceKeyId,
+        } : managedV3 ? {
           schemaVersion: 2,
           roomId,
           memberId: guestMember,
@@ -81,7 +137,15 @@ describe.skipIf(!endpoint || !roomId)('self-hosted product binding against a rea
     expect(joinedManifest.id).toBe(hostManifest.id)
     expect(joinedManifest.transport).toEqual(managed ? {
       kind: 'websocket', endpoint, roomId,
-      access: managedV3 ? {
+      access: managedV4 ? {
+        schemaVersion: 3,
+        memberId: guestMember,
+        capability: guestCapability,
+        role: 'editor',
+        capabilityGeneration,
+        expiresAtMs,
+        deviceKeyId: guestDeviceKeyId,
+      } : managedV3 ? {
         schemaVersion: 2,
         memberId: guestMember,
         capability: guestCapability,
@@ -105,9 +169,19 @@ describe.skipIf(!endpoint || !roomId)('self-hosted product binding against a rea
     let docB: Y.Doc | null = createProjectDocument(joinedManifest)
     const storageA = `syzygy-product-flow-a:${roomId}`
     const storageB = `syzygy-product-flow-b:${roomId}`
-    const providerA = new WebsocketProjectProvider(docA, hostBinding, hostManifest.id, storageA)
+    const providerA = new WebsocketProjectProvider(
+      docA,
+      hostBinding,
+      hostManifest.id,
+      storageA,
+      managedV4 ? relaySigner(hostDeviceKeyId, hostPrivateKey) : undefined,
+    )
     let providerB: WebsocketProjectProvider | null = new WebsocketProjectProvider(
-      docB, joinedBinding, joinedManifest.id, storageB,
+      docB,
+      joinedBinding,
+      joinedManifest.id,
+      storageB,
+      managedV4 ? relaySigner(guestDeviceKeyId, guestPrivateKey) : undefined,
     )
     providerA.connect()
     providerB.connect()
@@ -127,7 +201,13 @@ describe.skipIf(!endpoint || !roomId)('self-hosted product binding against a rea
       docB = null
 
       docB = createProjectDocument(joinedManifest)
-      providerB = new WebsocketProjectProvider(docB, joinedBinding, joinedManifest.id, storageB)
+      providerB = new WebsocketProjectProvider(
+        docB,
+        joinedBinding,
+        joinedManifest.id,
+        storageB,
+        managedV4 ? relaySigner(guestDeviceKeyId, guestPrivateKey) : undefined,
+      )
       providerB.connect()
       await providerB.whenReady()
       expect(docB.getMap('product-flow').get('host-edit')).toBe('persisted-and-relayed')

@@ -4,6 +4,9 @@
 //! them. Only SHA-256 digests are stored by the relay operator. Registry mutation remains a local
 //! Tauri control-plane operation; the LAN relay exposes no membership-management endpoint.
 
+use crate::collaboration_identity::{
+    validate_relay_device_identity, verify_relay_access_signature, RelayAccessIdentityClaim,
+};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -14,14 +17,17 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const MEMBERSHIP_FILE: &str = "members-v1.json";
 const REGISTRY_SCHEMA_VERSION: u8 = 1;
-const CREDENTIAL_SCHEMA_VERSION: u8 = 2;
-const REPORT_SCHEMA_VERSION: u8 = 2;
+const UNBOUND_CREDENTIAL_SCHEMA_VERSION: u8 = 2;
+const BOUND_CREDENTIAL_SCHEMA_VERSION: u8 = 3;
+const REPORT_SCHEMA_VERSION: u8 = 3;
 const MAX_REGISTRY_BYTES: usize = 1024 * 1024;
 const MAX_ROOMS: usize = 256;
 const MAX_MEMBERS_PER_ROOM: usize = 64;
 const MEMBER_ID_BYTES: usize = 24;
 const CAPABILITY_BYTES: usize = 32;
 const MAX_AUTH_QUERY_BYTES: usize = 512;
+const MAX_SIGNED_AUTH_AGE_MS: u64 = 60_000;
+const MAX_SIGNED_AUTH_FUTURE_SKEW_MS: u64 = 15_000;
 const MIN_EXPIRY_SECONDS: u64 = 5 * 60;
 const MAX_EXPIRY_SECONDS: u64 = 365 * 24 * 60 * 60;
 
@@ -35,6 +41,15 @@ pub enum RelayMemberRole {
     Admin,
     Editor,
     Viewer,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RelayDeviceBinding {
+    pub schema_version: u8,
+    pub algorithm: String,
+    pub key_id: String,
+    pub public_key: String,
 }
 
 impl RelayMemberRole {
@@ -58,6 +73,8 @@ struct StoredMember {
     expires_at_ms: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     revoked_at_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    device: Option<RelayDeviceBinding>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -98,6 +115,8 @@ pub struct RelayMemberCredential {
     pub capability_generation: u32,
     pub expires_at_ms: Option<u64>,
     pub registry_revision: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_key_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -110,6 +129,7 @@ pub struct RelayMemberSummary {
     pub expires_at_ms: Option<u64>,
     pub capability_generation: u32,
     pub revoked_at_ms: Option<u64>,
+    pub device_key_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -129,7 +149,14 @@ pub enum RelayAuthorization {
     Member {
         member_id: String,
         role: RelayMemberRole,
+        replay: Option<RelayAuthorizationReplay>,
     },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RelayAuthorizationReplay {
+    pub key: String,
+    pub expires_at_ms: u64,
 }
 
 fn stable_id(value: &str, min: usize, max: usize) -> bool {
@@ -146,6 +173,15 @@ fn valid_digest(value: &str) -> bool {
             .as_bytes()
             .iter()
             .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+}
+
+fn validate_device_binding(device: &RelayDeviceBinding) -> Result<(), String> {
+    if device.schema_version != 1 || device.algorithm != "Ed25519" {
+        return Err("Relay member device enrollment is invalid".into());
+    }
+    validate_relay_device_identity(&device.key_id, &device.public_key)
+        .map(|_| ())
+        .map_err(|_| "Relay member device enrollment is invalid".to_string())
 }
 
 fn validate_registry(registry: &RelayMembershipRegistry) -> Result<(), String> {
@@ -186,6 +222,10 @@ fn validate_registry(registry: &RelayMembershipRegistry) -> Result<(), String> {
                 || !member_ids.insert(&member.member_id)
             {
                 return Err("Saved relay membership registry is invalid".into());
+            }
+            if let Some(device) = &member.device {
+                validate_device_binding(device)
+                    .map_err(|_| "Saved relay membership registry is invalid".to_string())?;
             }
             if member.role == RelayMemberRole::Admin && member.revoked_at_ms.is_none() {
                 active_admins += 1;
@@ -328,7 +368,11 @@ fn issue_record(
     role: RelayMemberRole,
     created_at_ms: u64,
     expires_at_ms: Option<u64>,
+    device: Option<RelayDeviceBinding>,
 ) -> Result<(StoredMember, String), String> {
+    if let Some(device) = &device {
+        validate_device_binding(device)?;
+    }
     let member_id = random_urlsafe(MEMBER_ID_BYTES)?;
     let capability = random_urlsafe(CAPABILITY_BYTES)?;
     Ok((
@@ -341,6 +385,7 @@ fn issue_record(
             rotated_at_ms: None,
             expires_at_ms,
             revoked_at_ms: None,
+            device,
         },
         capability,
     ))
@@ -364,6 +409,7 @@ fn room_report(registry: &RelayMembershipRegistry, room: &StoredRoom) -> RelayRo
                 expires_at_ms: member.expires_at_ms,
                 capability_generation: member.capability_generation,
                 revoked_at_ms: member.revoked_at_ms,
+                device_key_id: member.device.as_ref().map(|device| device.key_id.clone()),
             })
             .collect(),
     }
@@ -373,6 +419,7 @@ pub fn create_room(
     path: &Path,
     project_id: &str,
     room_id: &str,
+    device: Option<RelayDeviceBinding>,
 ) -> Result<(RelayMemberCredential, RelayRoomMembershipReport), String> {
     if !stable_id(project_id, 1, 200) || !stable_id(room_id, 32, 128) {
         return Err("Relay room membership input is invalid".into());
@@ -385,8 +432,9 @@ pub fn create_room(
         return Err("Relay membership registry reached its room limit".into());
     }
     let created_at_ms = now_ms();
-    let (admin, capability) = issue_record(RelayMemberRole::Admin, created_at_ms, None)?;
+    let (admin, capability) = issue_record(RelayMemberRole::Admin, created_at_ms, None, device)?;
     let member_id = admin.member_id.clone();
+    let device_key_id = admin.device.as_ref().map(|device| device.key_id.clone());
     registry.rooms.push(StoredRoom {
         room_id: room_id.into(),
         project_id: project_id.into(),
@@ -401,7 +449,11 @@ pub fn create_room(
     let room = registry.rooms.last().expect("room was just inserted");
     Ok((
         RelayMemberCredential {
-            schema_version: CREDENTIAL_SCHEMA_VERSION,
+            schema_version: if device_key_id.is_some() {
+                BOUND_CREDENTIAL_SCHEMA_VERSION
+            } else {
+                UNBOUND_CREDENTIAL_SCHEMA_VERSION
+            },
             room_id: room_id.into(),
             member_id,
             role: RelayMemberRole::Admin,
@@ -409,6 +461,7 @@ pub fn create_room(
             capability_generation: initial_capability_generation(),
             expires_at_ms: None,
             registry_revision: registry.revision,
+            device_key_id,
         },
         room_report(&registry, room),
     ))
@@ -420,6 +473,7 @@ pub fn issue_member(
     expected_revision: u64,
     role: RelayMemberRole,
     expires_in_seconds: Option<u64>,
+    device: Option<RelayDeviceBinding>,
 ) -> Result<(RelayMemberCredential, RelayRoomMembershipReport), String> {
     if !stable_id(room_id, 32, 128) {
         return Err("Relay room membership input is invalid".into());
@@ -438,8 +492,9 @@ pub fn issue_member(
     }
     let created_at_ms = now_ms();
     let expires_at_ms = expiration_at(created_at_ms, expires_in_seconds)?;
-    let (member, capability) = issue_record(role, created_at_ms, expires_at_ms)?;
+    let (member, capability) = issue_record(role, created_at_ms, expires_at_ms, device)?;
     let member_id = member.member_id.clone();
+    let device_key_id = member.device.as_ref().map(|device| device.key_id.clone());
     room.members.push(member);
     registry.revision = registry
         .revision
@@ -453,7 +508,11 @@ pub fn issue_member(
         .expect("room was just mutated");
     Ok((
         RelayMemberCredential {
-            schema_version: CREDENTIAL_SCHEMA_VERSION,
+            schema_version: if device_key_id.is_some() {
+                BOUND_CREDENTIAL_SCHEMA_VERSION
+            } else {
+                UNBOUND_CREDENTIAL_SCHEMA_VERSION
+            },
             room_id: room_id.into(),
             member_id,
             role,
@@ -461,6 +520,7 @@ pub fn issue_member(
             capability_generation: initial_capability_generation(),
             expires_at_ms,
             registry_revision: registry.revision,
+            device_key_id,
         },
         room_report(&registry, room),
     ))
@@ -472,6 +532,7 @@ pub fn rotate_member(
     member_id: &str,
     expected_revision: u64,
     expires_in_seconds: Option<u64>,
+    device: Option<RelayDeviceBinding>,
 ) -> Result<(RelayMemberCredential, RelayRoomMembershipReport), String> {
     if !stable_id(room_id, 32, 128) || !stable_id(member_id, 16, 128) {
         return Err("Relay room membership input is invalid".into());
@@ -498,6 +559,9 @@ pub fn rotate_member(
     }
     let rotated_at_ms = now_ms();
     let expires_at_ms = expiration_at(rotated_at_ms, expires_in_seconds)?;
+    if let Some(device) = &device {
+        validate_device_binding(device)?;
+    }
     let capability = random_urlsafe(CAPABILITY_BYTES)?;
     let member = &mut registry.rooms[room_index].members[member_index];
     member.capability_sha256 = capability_digest(&capability);
@@ -507,8 +571,12 @@ pub fn rotate_member(
         .ok_or_else(|| "Relay member capability generation overflowed".to_string())?;
     member.rotated_at_ms = Some(rotated_at_ms);
     member.expires_at_ms = expires_at_ms;
+    if device.is_some() {
+        member.device = device;
+    }
     let role = member.role;
     let capability_generation = member.capability_generation;
+    let device_key_id = member.device.as_ref().map(|device| device.key_id.clone());
     registry.revision = registry
         .revision
         .checked_add(1)
@@ -516,7 +584,11 @@ pub fn rotate_member(
     save_registry(path, &registry)?;
     Ok((
         RelayMemberCredential {
-            schema_version: CREDENTIAL_SCHEMA_VERSION,
+            schema_version: if device_key_id.is_some() {
+                BOUND_CREDENTIAL_SCHEMA_VERSION
+            } else {
+                UNBOUND_CREDENTIAL_SCHEMA_VERSION
+            },
             room_id: room_id.into(),
             member_id: member_id.into(),
             role,
@@ -524,6 +596,7 @@ pub fn rotate_member(
             capability_generation,
             expires_at_ms,
             registry_revision: registry.revision,
+            device_key_id,
         },
         room_report(&registry, &registry.rooms[room_index]),
     ))
@@ -600,7 +673,7 @@ fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
         == 0
 }
 
-fn authorize_at(
+pub fn authorize_at(
     registry: &RelayMembershipRegistry,
     room_id: &str,
     query: Option<&str>,
@@ -614,16 +687,26 @@ fn authorize_at(
     }
     let mut member_id = None;
     let mut capability = None;
+    let mut capability_generation = None;
+    let mut issued_at_ms = None;
+    let mut nonce = None;
+    let mut signature = None;
     let mut count = 0usize;
     for (key, value) in url::form_urlencoded::parse(query.unwrap_or_default().as_bytes()) {
         count += 1;
         match key.as_ref() {
             "member" if member_id.is_none() => member_id = Some(value.into_owned()),
             "capability" if capability.is_none() => capability = Some(value.into_owned()),
+            "generation" if capability_generation.is_none() => {
+                capability_generation = Some(value.into_owned())
+            }
+            "issued" if issued_at_ms.is_none() => issued_at_ms = Some(value.into_owned()),
+            "nonce" if nonce.is_none() => nonce = Some(value.into_owned()),
+            "signature" if signature.is_none() => signature = Some(value.into_owned()),
             _ => return Err("Relay member authorization is invalid".into()),
         }
     }
-    if count != 2 {
+    if count < 2 {
         return Err("Relay member authorization is required".into());
     }
     let member_id =
@@ -649,9 +732,66 @@ fn authorize_at(
     if !constant_time_eq(presented.as_bytes(), member.capability_sha256.as_bytes()) {
         return Err("Relay member authorization was denied".into());
     }
+    let replay = if let Some(device) = &member.device {
+        if count != 6 {
+            return Err("Relay member signed device authorization is required".into());
+        }
+        let capability_generation_text = capability_generation
+            .ok_or_else(|| "Relay member signed device authorization is required".to_string())?;
+        let capability_generation = capability_generation_text
+            .parse::<u32>()
+            .map_err(|_| "Relay member signed device authorization is invalid".to_string())?;
+        let issued_at_text = issued_at_ms
+            .ok_or_else(|| "Relay member signed device authorization is required".to_string())?;
+        let issued_at_ms = issued_at_text
+            .parse::<u64>()
+            .map_err(|_| "Relay member signed device authorization is invalid".to_string())?;
+        if capability_generation.to_string() != capability_generation_text
+            || issued_at_ms.to_string() != issued_at_text
+        {
+            return Err("Relay member signed device authorization is invalid".into());
+        }
+        let nonce = nonce
+            .ok_or_else(|| "Relay member signed device authorization is required".to_string())?;
+        let signature = signature
+            .ok_or_else(|| "Relay member signed device authorization is required".to_string())?;
+        let expires_at_ms = issued_at_ms
+            .checked_add(MAX_SIGNED_AUTH_AGE_MS)
+            .ok_or_else(|| "Relay member signed device authorization is invalid".to_string())?;
+        let latest_accepted_issue = current_time_ms
+            .checked_add(MAX_SIGNED_AUTH_FUTURE_SKEW_MS)
+            .unwrap_or(u64::MAX);
+        if capability_generation != member.capability_generation
+            || issued_at_ms > latest_accepted_issue
+            || current_time_ms >= expires_at_ms
+        {
+            return Err("Relay member signed device authorization was denied".into());
+        }
+        let claim = RelayAccessIdentityClaim {
+            schema_version: 1,
+            room_id: room_id.into(),
+            member_id: member_id.clone(),
+            capability_generation,
+            issued_at_ms,
+            nonce: nonce.clone(),
+            capability: capability.clone(),
+        };
+        verify_relay_access_signature(&device.public_key, &device.key_id, &claim, &signature)
+            .map_err(|_| "Relay member signed device authorization was denied".to_string())?;
+        Some(RelayAuthorizationReplay {
+            key: format!("{}:{room_id}:{member_id}:{nonce}", device.key_id),
+            expires_at_ms,
+        })
+    } else {
+        if count != 2 {
+            return Err("Relay member authorization is invalid".into());
+        }
+        None
+    };
     Ok(RelayAuthorization::Member {
         member_id,
         role: member.role,
+        replay,
     })
 }
 
@@ -666,6 +806,8 @@ pub fn authorize(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ring::rand::SystemRandom;
+    use ring::signature::{Ed25519KeyPair, KeyPair};
 
     fn directory(label: &str) -> PathBuf {
         std::env::temp_dir().join(format!(
@@ -675,12 +817,56 @@ mod tests {
         ))
     }
 
+    fn enrolled_device() -> (RelayDeviceBinding, Ed25519KeyPair) {
+        let pkcs8 = Ed25519KeyPair::generate_pkcs8(&SystemRandom::new()).unwrap();
+        let key_pair = Ed25519KeyPair::from_pkcs8(pkcs8.as_ref()).unwrap();
+        let public_key = key_pair.public_key().as_ref();
+        let digest = URL_SAFE_NO_PAD.encode(Sha256::digest(public_key));
+        (
+            RelayDeviceBinding {
+                schema_version: 1,
+                algorithm: "Ed25519".into(),
+                key_id: format!("ed25519-sha256:{digest}"),
+                public_key: URL_SAFE_NO_PAD.encode(public_key),
+            },
+            key_pair,
+        )
+    }
+
+    fn signed_query(
+        credential: &RelayMemberCredential,
+        key_pair: &Ed25519KeyPair,
+        issued_at_ms: u64,
+        nonce: &str,
+    ) -> String {
+        let claim = RelayAccessIdentityClaim {
+            schema_version: 1,
+            room_id: credential.room_id.clone(),
+            member_id: credential.member_id.clone(),
+            capability_generation: credential.capability_generation,
+            issued_at_ms,
+            nonce: nonce.into(),
+            capability: credential.capability.clone(),
+        };
+        let message = crate::collaboration_identity::canonical_relay_access_claim(&claim).unwrap();
+        let signature = URL_SAFE_NO_PAD.encode(key_pair.sign(&message).as_ref());
+        format!(
+            "member={}&capability={}&generation={}&issued={}&nonce={}&signature={}",
+            credential.member_id,
+            credential.capability,
+            credential.capability_generation,
+            issued_at_ms,
+            nonce,
+            signature,
+        )
+    }
+
     #[test]
     fn creates_digest_only_credentials_and_enforces_roles_and_revocation() {
         let directory = directory("lifecycle");
         let path = registry_path(&directory);
         let room_id = "r".repeat(32);
-        let (admin, initial) = create_room(&path, "project-a", &room_id).unwrap();
+        let (admin, initial) = create_room(&path, "project-a", &room_id, None).unwrap();
         let bytes = fs::read_to_string(&path).unwrap();
         assert!(!bytes.contains(&admin.capability));
         assert!(matches!(
@@ -703,6 +889,7 @@ mod tests {
             &room_id,
             initial.registry_revision,
             RelayMemberRole::Viewer,
+            None,
             None,
         )
         .unwrap();
@@ -732,13 +919,14 @@ mod tests {
         let directory = directory("rotation");
         let path = registry_path(&directory);
         let room_id = "x".repeat(32);
-        let (_, initial) = create_room(&path, "project-a", &room_id).unwrap();
+        let (_, initial) = create_room(&path, "project-a", &room_id, None).unwrap();
         let (editor, report) = issue_member(
             &path,
             &room_id,
             initial.registry_revision,
             RelayMemberRole::Editor,
             Some(MIN_EXPIRY_SECONDS),
+            None,
         )
         .unwrap();
         let original_query = format!(
@@ -760,12 +948,12 @@ mod tests {
             original_expiry,
         )
         .is_err());
-
         let (rotated, rotated_report) = rotate_member(
             &path,
             &room_id,
             &editor.member_id,
             report.registry_revision,
+            None,
             None,
         )
         .unwrap();
@@ -797,6 +985,93 @@ mod tests {
     }
 
     #[test]
+    fn enrolled_member_requires_fresh_signed_device_proof_and_preserves_binding_on_rotation() {
+        let directory = directory("signed-device");
+        let path = registry_path(&directory);
+        let room_id = "s".repeat(32);
+        let (_, initial) = create_room(&path, "project-a", &room_id, None).unwrap();
+        let (device, key_pair) = enrolled_device();
+        let (viewer, report) = issue_member(
+            &path,
+            &room_id,
+            initial.registry_revision,
+            RelayMemberRole::Viewer,
+            None,
+            Some(device.clone()),
+        )
+        .unwrap();
+        assert_eq!(viewer.schema_version, BOUND_CREDENTIAL_SCHEMA_VERSION);
+        assert_eq!(
+            viewer.device_key_id.as_deref(),
+            Some(device.key_id.as_str())
+        );
+        assert_eq!(
+            report.members[1].device_key_id.as_deref(),
+            Some(device.key_id.as_str())
+        );
+        assert!(authorize(
+            &load_registry(&path).unwrap(),
+            &room_id,
+            Some(&format!(
+                "member={}&capability={}",
+                viewer.member_id, viewer.capability
+            )),
+        )
+        .unwrap_err()
+        .contains("signed device"));
+
+        let current_time_ms = now_ms();
+        let nonce = "n4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0";
+        let query = signed_query(&viewer, &key_pair, current_time_ms, nonce);
+        let authorization = authorize_at(
+            &load_registry(&path).unwrap(),
+            &room_id,
+            Some(&query),
+            current_time_ms,
+        )
+        .unwrap();
+        assert!(matches!(
+            authorization,
+            RelayAuthorization::Member {
+                role: RelayMemberRole::Viewer,
+                replay: Some(_),
+                ..
+            }
+        ));
+        assert!(authorize_at(
+            &load_registry(&path).unwrap(),
+            &room_id,
+            Some(&query),
+            current_time_ms + MAX_SIGNED_AUTH_AGE_MS,
+        )
+        .is_err());
+        assert!(authorize_at(
+            &load_registry(&path).unwrap(),
+            &room_id,
+            Some(&query.replace("generation=1", "generation=01")),
+            current_time_ms,
+        )
+        .is_err());
+
+        let (rotated, _) = rotate_member(
+            &path,
+            &room_id,
+            &viewer.member_id,
+            report.registry_revision,
+            None,
+            None,
+        )
+        .unwrap();
+        assert_eq!(rotated.schema_version, BOUND_CREDENTIAL_SCHEMA_VERSION);
+        assert_eq!(
+            rotated.device_key_id.as_deref(),
+            Some(device.key_id.as_str())
+        );
+        assert!(authorize(&load_registry(&path).unwrap(), &room_id, Some(&query),).is_err());
+        let _ = fs::remove_dir_all(directory);
+    }
+
+    #[test]
     fn missing_registry_is_legacy_but_registered_rooms_fail_closed() {
         let directory = directory("compatibility");
         let path = registry_path(&directory);
@@ -805,7 +1080,7 @@ mod tests {
             authorize(&load_registry(&path).unwrap(), &room_id, None).unwrap(),
             RelayAuthorization::LegacyBearer
         );
-        create_room(&path, "project-a", &room_id).unwrap();
+        create_room(&path, "project-a", &room_id, None).unwrap();
         let registry = load_registry(&path).unwrap();
         assert!(authorize(&registry, &room_id, None).is_err());
         assert!(authorize(&registry, &room_id, Some("member=x&capability=y")).is_err());
@@ -821,13 +1096,14 @@ mod tests {
         let directory = directory("guards");
         let path = registry_path(&directory);
         let room_id = "g".repeat(32);
-        let (_, report) = create_room(&path, "project-a", &room_id).unwrap();
+        let (_, report) = create_room(&path, "project-a", &room_id, None).unwrap();
         let before = fs::read(&path).unwrap();
         assert!(issue_member(
             &path,
             &room_id,
             report.registry_revision + 1,
             RelayMemberRole::Editor,
+            None,
             None,
         )
         .unwrap_err()
@@ -839,6 +1115,7 @@ mod tests {
             report.registry_revision,
             RelayMemberRole::Editor,
             Some(MIN_EXPIRY_SECONDS - 1),
+            None,
         )
         .unwrap_err()
         .contains("five minutes"));
@@ -849,10 +1126,19 @@ mod tests {
             report.registry_revision,
             RelayMemberRole::Editor,
             None,
+            None,
         )
         .is_err());
         assert!(revoke_member(&path, &room_id, "short", report.registry_revision).is_err());
-        assert!(rotate_member(&path, &room_id, "short", report.registry_revision, None,).is_err());
+        assert!(rotate_member(
+            &path,
+            &room_id,
+            "short",
+            report.registry_revision,
+            None,
+            None,
+        )
+        .is_err());
         assert!(authorize(
             &load_registry(&path).unwrap(),
             &room_id,

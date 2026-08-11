@@ -147,7 +147,7 @@ describe('workspace collaboration entry points', () => {
         ? managedWebsocketProject.transport.endpoint
         : '',
       initialMembership: {
-        schemaVersion: 2 as const,
+        schemaVersion: 3 as const,
         registryRevision: 8,
         roomId: 'room_' + 'a'.repeat(40),
         projectId: managedWebsocketProject.id,
@@ -160,10 +160,13 @@ describe('workspace collaboration entry points', () => {
           expiresAtMs: 2_000_000_000_000,
           capabilityGeneration: 2,
           revokedAtMs: null,
+          deviceKeyId: null,
         }],
       },
     }))
     expect(host).toContain('Invitation lifetime')
+    expect(host).toContain('Collaborator device enrollment request')
+    expect(host).toContain('New members require')
     expect(host).toContain('Rotate / recover')
     expect(host).toContain('Expiry uses')
     expect(host).toContain('invalidates every prior copy')

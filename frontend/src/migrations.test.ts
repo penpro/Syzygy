@@ -25,10 +25,10 @@ const current = {
 describe('persisted-store migrations', () => {
   it('rewrites older saves for the current transport-capable store and rejects future versions', () => {
     const saved = { settings: defaultSettings }
-    expect(PERSISTED_STORE_VERSION).toBe(6)
+    expect(PERSISTED_STORE_VERSION).toBe(7)
     expect(migratePersistedVersion(saved, 2)).toBe(saved)
     expect(migratePersistedVersion(null, 2)).toEqual({})
-    expect(() => migratePersistedVersion(saved, 7)).toThrow('unsupported persisted store version')
+    expect(() => migratePersistedVersion(saved, 8)).toThrow('unsupported persisted store version')
   })
 
   it('defaults legacy saves to local AI on but preserves an explicit opt-out', () => {

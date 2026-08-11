@@ -111,8 +111,15 @@ export interface CollaborationRelayReport {
 
 export type RelayMemberRole = 'admin' | 'editor' | 'viewer'
 
+export interface RelayDeviceBinding {
+  schemaVersion: 1
+  algorithm: 'Ed25519'
+  keyId: string
+  publicKey: string
+}
+
 export interface RelayMemberCredential {
-  schemaVersion: 2
+  schemaVersion: 2 | 3
   roomId: string
   memberId: string
   role: RelayMemberRole
@@ -120,6 +127,7 @@ export interface RelayMemberCredential {
   capabilityGeneration: number
   expiresAtMs: number | null
   registryRevision: number
+  deviceKeyId?: string
 }
 
 export interface RelayMemberSummary {
@@ -130,10 +138,11 @@ export interface RelayMemberSummary {
   expiresAtMs: number | null
   capabilityGeneration: number
   revokedAtMs: number | null
+  deviceKeyId: string | null
 }
 
 export interface RelayRoomMembershipReport {
-  schemaVersion: 2
+  schemaVersion: 3
   registryRevision: number
   roomId: string
   projectId: string
@@ -186,6 +195,24 @@ export interface ProjectDeviceRegistrationProof {
   keyId: string
   publicKey: string
   claim: ProjectDeviceRegistrationClaim
+  signature: string
+}
+
+export interface RelayAccessIdentityClaim {
+  schemaVersion: 1
+  roomId: string
+  memberId: string
+  capabilityGeneration: number
+  issuedAtMs: number
+  nonce: string
+  capability: string
+}
+
+export interface RelayAccessIdentityProof {
+  schemaVersion: 1
+  algorithm: 'Ed25519'
+  keyId: string
+  claim: RelayAccessIdentityClaim
   signature: string
 }
 
@@ -819,7 +846,12 @@ export const collaborationRelayRoomStatus = (roomId: string): Promise<RelayRoomM
 export const collaborationRelayRoomCreate = (
   projectId: string,
   roomId: string,
-): Promise<RelayRoomCredentialResult> => invoke('collaboration_relay_room_create', { projectId, roomId })
+  device: RelayDeviceBinding | null = null,
+): Promise<RelayRoomCredentialResult> => invoke('collaboration_relay_room_create', {
+  projectId,
+  roomId,
+  ...(device ? { device } : {}),
+})
 
 /** Issue a separate bearer member credential; only its SHA-256 digest remains in relay storage. */
 export const collaborationRelayMemberIssue = (
@@ -827,11 +859,13 @@ export const collaborationRelayMemberIssue = (
   expectedRevision: number,
   role: RelayMemberRole,
   expiresInSeconds: number | null,
+  device: RelayDeviceBinding | null = null,
 ): Promise<RelayRoomCredentialResult> => invoke('collaboration_relay_member_issue', {
   roomId,
   expectedRevision,
   role,
   expiresInSeconds,
+  ...(device ? { device } : {}),
 })
 
 /** Replace one active member capability under an exact revision and return the replacement once. */
@@ -840,11 +874,13 @@ export const collaborationRelayMemberRotate = (
   memberId: string,
   expectedRevision: number,
   expiresInSeconds: number | null,
+  device: RelayDeviceBinding | null = null,
 ): Promise<RelayRoomCredentialResult> => invoke('collaboration_relay_member_rotate', {
   roomId,
   memberId,
   expectedRevision,
   expiresInSeconds,
+  ...(device ? { device } : {}),
 })
 
 /** Revoke one member under an exact registry revision; the native runtime restarts the relay. */
@@ -871,6 +907,11 @@ export const collaborationIdentitySignPresence = (
 export const collaborationIdentitySignRegistration = (
   claim: ProjectDeviceRegistrationClaim,
 ): Promise<ProjectDeviceRegistrationProof> => invoke('collaboration_identity_sign_registration', { claim })
+
+/** Sign one fresh relay connection claim; the capability and private key are never returned by native storage. */
+export const collaborationIdentitySignRelayAccess = (
+  claim: RelayAccessIdentityClaim,
+): Promise<RelayAccessIdentityProof> => invoke('collaboration_identity_sign_relay_access', { claim })
 
 /** Local project-scoped device-key decisions. This does not return or grant relay authorization. */
 export const collaborationDeviceTrustStatus = (projectId: string): Promise<DeviceTrustReport> =>

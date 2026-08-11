@@ -315,8 +315,9 @@ the short fingerprint, local-only approval/revocation labels and controls, and e
 relay authorization. Only one UI trust mutation may be in flight. `presenceResearchInspection.test.ts`
 requires MCP to expose only transport mode and session/integrity counts. This is provider-neutral
 and product-visible evidence, but the local app-data registry is a user preference, not a signed
-project record or access-control boundary. It does not prove trusted/shared key enrollment, human
-identity, roles, relay authorization, propagated revocation, same-session replay prevention, key
+project record or access-control boundary. The managed relay separately supports explicit
+operator enrollment and signed installation-key-to-role authorization. This does not prove human
+identity, shared-directory approval, propagated identity revocation, presence-proof replay prevention, key
 rotation/recovery, durable event signatures, a physical two-install cursor run, or the Phase 5
 five-client soak.
 
@@ -982,11 +983,14 @@ registry, proves missing/wrong credentials receive no protected frame, admin/edi
 viewer read and awareness, viewer write rejection before broadcast/persistence, revocation after
 restart, operator-clock expiry denial, exact-revision capability rotation with old-token denial and
 retained-state recovery, managed v3 expiring invitation/provider/IndexedDB reopen, managed-v2
-backward compatibility, and legacy-room compatibility beside protected rooms. Awareness is not
+backward compatibility, and legacy-room compatibility beside protected rooms. It also generates
+real Ed25519 installation keys, stores only their public enrollment, proves missing/stale/replayed
+signed connection claims receive no protected frame, and runs the actual v4 invitation/provider/
+IndexedDB-reopen flow with a fresh signature for every physical connection. Awareness is not
 persisted and the listener is reusable after shutdown. Rust unit tests cover strict registry
 recovery/bounds/revisions, five-minute-to-one-year expiry limits, rotation generation/digest-only
-storage, private binding, secret-free child arguments,
+storage, validated device enrollment, typed signature field binding, private binding, secret-free child arguments,
 protocol message classes, damaged-header denial, and partial-tail repair. This does not prove
-authenticated humans or signed identity-to-role binding, trusted time, replacement-invitation
+authenticated humans, shared/remote membership administration, trusted time, replacement-invitation
 delivery, public TLS/WSS, backup restoration,
 hostile-frame fuzzing, physical packaged clients, or five-client soak.

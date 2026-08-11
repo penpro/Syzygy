@@ -179,7 +179,10 @@ a complete bounded invitation. A third-party or unprotected legacy room exposes 
 bearer invitation. A room hosted by this app creates an admin credential and issues a distinct v2
 viewer/editor/admin invitation per collaborator. Newly issued v3 invitations also show a bounded
 relay-host-clock expiry and capability generation; v2 invitations remain readable as legacy managed
-credentials without an expiry claim. Active relay projects show the configured endpoint,
+credentials without an expiry claim. A collaborator copies the public enrollment request from
+Settings; the relay operator pastes it when issuing a new member. The resulting v4 invitation is
+bound to that installation key and every connection/reconnect uses a fresh signed proof. Active
+relay projects show the configured endpoint,
 live/connecting/offline/error state, actual assigned role, and **Leave relay · keep local copy**.
 Legacy copy must say anyone with that invitation can read and edit. Managed host controls list only
 public member ID/role/status, use exact revisions, show each newly issued capability once, and explain
@@ -200,8 +203,8 @@ neither Node.js nor PowerShell. It distinguishes managed role-specific bearer ca
 legacy room-bearer access, keeps participant names self-reported, requires a separately managed
 TLS/WSS proxy for public hosting, never stores awareness, and calls the bounded update log recovery
 storage rather than a backup. A local project may fill its endpoint from a running app-managed relay,
-but acknowledgement remains mandatory. Do not imply that bearer roles authenticate people, bind to
-the signed-device directory, expose remote membership administration, or administer public
+but acknowledgement remains mandatory. Do not imply that a bound installation key authenticates a
+person, accepts the signed-device directory, exposes remote membership administration, or administers public
 hosting/backups. Expiry is only as trustworthy as the relay host's clock, and rotation does not
 deliver the replacement invitation or prevent a recipient from copying it again.
 If any owned LAN or research-relay child does not release its process/listener during shutdown,
@@ -220,8 +223,9 @@ fingerprint plus **Approve key**, **Revoke key**, or **Re-approve key**. The res
 **approved locally** or **revoked locally**, and adjacent copy must state that the decision applies
 only to this installation and project and does not grant or remove relay access. All trust controls
 are disabled while one mutation is pending; native stale-state rejection surfaces as an accessible
-error. Settings exposes only the local public fingerprint and repeats the device-only boundary; it
-offers no rotate control before shared enrollment and key recovery exist. Signature or local-registry
+error. Settings exposes the local public fingerprint plus a copyable relay enrollment request and
+repeats the device-only boundary; it offers no installation-key rotate control before recovery
+exists. Signature or local-registry
 failure must degrade to an explicit unsigned/unavailable state without blocking editing.
 Drive-shared and live projects add a separate **Project devices** section. Registration is never
 automatic: **Register this device in project** must disclose that the stable public fingerprint and
@@ -234,9 +238,10 @@ trust actions but not editing. Existing registrations remain readable if the loc
 is unavailable. Copy must say that registration does not verify a person or assign a role and that
 local approval/revocation does not grant or remove relay access. Local-only projects do not show the
 shared directory action.
-Self-hosted WS/WSS synchronization, an app-managed private-LAN relay, and relay-enforced bearer
-viewer/editor/admin roles with host-local revocation are implemented. Trusted project-shared device
-enrollment, signed identity-to-role binding, remote administration, durable-event signatures, public
+Self-hosted WS/WSS synchronization, an app-managed private-LAN relay, relay-enforced
+viewer/editor/admin roles with host-local revocation, and optional signed installation-key-to-role
+binding are implemented. Human/organizational identity, project-shared approval, remote
+administration, durable-event signatures, public
 WSS hosting, and backup administration remain open. The portable archive is still a separate
 handoff that creates independent local state after import and contains no relay invitation.
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,

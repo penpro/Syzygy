@@ -165,7 +165,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   project/participant/key registration into bounded shared Yjs state. Disconnected registrations
   converge and reopen offline; same-key participant conflicts stay visible; Drive/live UI and the
   read-only MCP inspection expose the exact device-only boundary; offline entries can receive local
-  approval labels. Trusted/shared enrollment, human identity, roles, propagated revocation, key
+  approval labels. The app-managed relay now separately binds an operator-issued role to an
+  explicitly enrolled installation key and rejects stale/replayed connection proofs. Human identity,
+  shared-directory approval, propagated identity revocation, key
   rotation/recovery, signed durable research events, physical two-install product proof, and
   five-client soak do not exist, so P-11 remains
   `implemented_unverified`. Evidence:
@@ -603,8 +605,9 @@ collaborators are not required to download large project folders.
    convergence, awareness propagation, stale-presence cleanup, and process reaping without claiming
    relay persistence. Next: run and record the packaged two-install Drive convergence/reconciliation/
    title harness, large-account catalog latency, and real-Drive update/title compaction plus
-   interruption repair. WebSocket bindings now persist through store v6; explicit advanced product
-   controls create/join/leave bounded v1 legacy, v2 managed-member, and v3 expiring/rotatable bearer invitations, connection state is visible, offline
+   interruption repair. WebSocket bindings now persist through store v7; explicit advanced product
+   controls create/join/leave bounded v1 legacy, v2 managed-member, v3 expiring/rotatable bearer,
+   and v4 device-bound invitations; connection state is visible, offline
    archives redact the live binding, CSP/network copy is activated, and a real relay harness proves
    two provider instances plus one IndexedDB destroy/reopen. The app-managed private-LAN relay is now
    a bundled Syzygy child with saved enable/listen/port settings, supervised restart, graceful
@@ -623,12 +626,14 @@ collaborators are not required to download large project folders.
    identity foundation now gives each installation an OS-vault Ed25519 key and signs only bounded
    ephemeral presence. Cross-language mutation tests pass, and a local project-scoped registry now
    labels verified fingerprints approved or revoked without changing relay access. Managed member
-   credentials remain independent bearer authorization and are not bound to these signed keys. Keys remain
-   self-issued; an explicit signed project directory now keeps device registrations available
+   credentials can now be bound by the relay operator to an explicit public installation-key
+   enrollment. The native relay checks a typed Ed25519 claim over the room/member/capability/
+   generation/timestamp/nonce, consumes it once under a one-minute window, and the product creates a
+   fresh proof on reconnect. Keys remain self-issued; an explicit signed project directory keeps device registrations available
    offline and exposes participant-claim conflicts, but local decisions are neither shared nor
-   authoritative, exact same-session replay and participant-ID impersonation remain possible, and
-   durable research events are unsigned. Next: add
-   trusted project-shared enrollment, signed identity-to-role binding and shared administration, signed durable-event
+   authoritative, awareness-proof replay and participant-ID impersonation remain possible, and
+   durable research events are unsigned. Next: add shared administration and identity recovery,
+   signed durable-event
    envelopes, device-key rotation/recovery, trusted time and replacement-invitation delivery, public WSS operations, compaction/export/backups
    and broader abuse controls, then run packaged physical two-install and five-client soak gates.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.

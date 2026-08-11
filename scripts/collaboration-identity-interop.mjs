@@ -112,6 +112,29 @@ function parseRegistrationProof(value) {
   return value
 }
 
+function parseRelayAccessProof(value) {
+  if (!exactKeys(value, ['schemaVersion', 'algorithm', 'keyId', 'claim', 'signature']) ||
+    value.schemaVersion !== 1 || value.algorithm !== 'Ed25519') {
+    throw new Error('Rust relay access proof header was not exact')
+  }
+  if (!exactKeys(value.claim, [
+    'schemaVersion', 'roomId', 'memberId', 'capabilityGeneration', 'issuedAtMs', 'nonce', 'capability',
+  ]) || value.claim.schemaVersion !== 1 ||
+    !/^[A-Za-z0-9_-]{32,128}$/.test(value.claim.roomId) ||
+    !/^[A-Za-z0-9_-]{16,128}$/.test(value.claim.memberId) ||
+    !/^[A-Za-z0-9_-]{32,128}$/.test(value.claim.capability) ||
+    !Number.isSafeInteger(value.claim.capabilityGeneration) || value.claim.capabilityGeneration < 1 ||
+    !Number.isSafeInteger(value.claim.issuedAtMs) || value.claim.issuedAtMs < 1) {
+    throw new Error('Rust relay access proof claim was not exact')
+  }
+  decodeBase64Url(value.claim.nonce, 32)
+  decodeBase64Url(value.signature, 64)
+  if (!/^ed25519-sha256:[A-Za-z0-9_-]{43}$/.test(value.keyId)) {
+    throw new Error('Rust relay access proof key ID was malformed')
+  }
+  return value
+}
+
 function canonicalPresenceClaim(claim) {
   return Buffer.from([
     'syzygy-device-presence-v1',
@@ -131,10 +154,26 @@ function canonicalRegistrationClaim(claim) {
   ].join('\n'), 'utf8')
 }
 
+function canonicalRelayAccessClaim(claim) {
+  return Buffer.from([
+    'syzygy-relay-member-access-v1',
+    claim.roomId,
+    claim.memberId,
+    String(claim.capabilityGeneration),
+    String(claim.issuedAtMs),
+    claim.nonce,
+    claim.capability,
+  ].join('\n'), 'utf8')
+}
+
 async function verifies(proof, canonicalClaim) {
+  return verifiesWithPublicKey(proof, canonicalClaim, proof.publicKey)
+}
+
+async function verifiesWithPublicKey(proof, canonicalClaim, publicKey) {
   const key = await webcrypto.subtle.importKey(
     'raw',
-    decodeBase64Url(proof.publicKey, 32),
+    decodeBase64Url(publicKey, 32),
     { name: 'Ed25519' },
     false,
     ['verify'],
@@ -160,12 +199,14 @@ const run = await runBounded(executable, [], {
 const lines = run.stdout.trim().split(/\r?\n/)
 if (lines.length !== 1) throw new Error('Rust identity harness did not emit exactly one JSON record')
 const output = JSON.parse(lines[0])
-if (!exactKeys(output, ['presence', 'registration'])) {
+if (!exactKeys(output, ['presence', 'registration', 'relayAccess'])) {
   throw new Error('Rust identity harness output was not exact')
 }
 const proof = parsePresenceProof(output.presence)
 const registration = parseRegistrationProof(output.registration)
-if (proof.keyId !== registration.keyId || proof.publicKey !== registration.publicKey) {
+const relayAccess = parseRelayAccessProof(output.relayAccess)
+if (proof.keyId !== registration.keyId || proof.keyId !== relayAccess.keyId ||
+  proof.publicKey !== registration.publicKey) {
   throw new Error('Rust identity harness did not reuse one installation key')
 }
 if (!await verifies(proof, canonicalPresenceClaim)) {
@@ -173,6 +214,9 @@ if (!await verifies(proof, canonicalPresenceClaim)) {
 }
 if (!await verifies(registration, canonicalRegistrationClaim)) {
   throw new Error('WebCrypto rejected the canonical Rust registration signature')
+}
+if (!await verifiesWithPublicKey(relayAccess, canonicalRelayAccessClaim, proof.publicKey)) {
+  throw new Error('WebCrypto rejected the canonical Rust relay access signature')
 }
 
 const mutations = [
@@ -193,6 +237,19 @@ for (const mutation of registrationMutations) {
     throw new Error('WebCrypto accepted a mutated Rust project registration')
   }
 }
+const relayAccessMutations = [
+  { ...relayAccess, claim: { ...relayAccess.claim, roomId: `room_${'z'.repeat(40)}` } },
+  { ...relayAccess, claim: { ...relayAccess.claim, memberId: `member_${'z'.repeat(24)}` } },
+  { ...relayAccess, claim: { ...relayAccess.claim, capabilityGeneration: 8 } },
+  { ...relayAccess, claim: { ...relayAccess.claim, issuedAtMs: relayAccess.claim.issuedAtMs + 1 } },
+  { ...relayAccess, claim: { ...relayAccess.claim, nonce: 'z'.repeat(43) } },
+  { ...relayAccess, claim: { ...relayAccess.claim, capability: 'z'.repeat(43) } },
+]
+for (const mutation of relayAccessMutations) {
+  if (await verifiesWithPublicKey(mutation, canonicalRelayAccessClaim, proof.publicKey)) {
+    throw new Error('WebCrypto accepted a mutated Rust relay access claim')
+  }
+}
 const serialized = JSON.stringify(output).toLowerCase()
 if (['privatekey', 'private_key', 'pkcs8', 'secret'].some((term) => serialized.includes(term))) {
   throw new Error('Rust identity harness exposed private-material naming')
@@ -205,7 +262,9 @@ console.log(JSON.stringify({
   durableRegistrationVerified: true,
   rejectedRegistrationMutations: registrationMutations.length,
   oneInstallationKeyReused: true,
+  relayAccessVerified: true,
+  rejectedRelayAccessMutations: relayAccessMutations.length,
   privateMaterialExposed: false,
   exactSameSessionReplayRejected: false,
-  replayBoundary: 'proof binds project, document, participant, awareness client, and random session nonce; no trusted clock or revocation authority exists yet',
+  replayBoundary: 'presence proof binds project, document, participant, awareness client, and random session nonce but remains replayable in that exact awareness context; relay access uses a separate fresh-proof boundary',
 }))

@@ -13,6 +13,7 @@ export const AUTOMATION_CAPABILITIES = {
     'product scenario gallery, editing, voting, and stable-ID scenario links',
     'resumable MCP adversarial review jobs with exact document-source selection, native batch disclosure, cancellation, and no automatic shared mutation',
     'explicit revision-guarded adversarial review archival and immutable human accept/reject history in the shared project',
+    'content-minimized authoritative inspection and exact-revision configuration of this installation’s hosted relay approval policy',
   ],
   unavailable: [
     'scenario generation, response evaluation, and spotlight/embed workflows',

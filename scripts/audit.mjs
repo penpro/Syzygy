@@ -1428,6 +1428,8 @@ const advertisedMcpTools = [
   'rename_project',
   'read_active_project',
   'inspect_research_state',
+  'inspect_relay_approval_policy',
+  'configure_relay_approval_policy',
   'read_scenario',
   'read_scenario_turn_revision',
   'start_adversarial_review',
@@ -1671,7 +1673,7 @@ record(
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioIndexReadback') &&
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioSiblingMerge') &&
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioStaleRevisionRejected') &&
-    text('scripts/lan-drive-live-harness.mjs').includes('item.toolCount >= 42') &&
+    text('scripts/lan-drive-live-harness.mjs').includes('item.toolCount >= 44') &&
     existsSync(join(root, 'docs/audits/runs/MCP-SCENARIO-INDEX-2026-08-05.json')),
   'one bounded scenario background/turn-head index, one exact current/named/indexed body, graph and identity validation, zero-write proof, named live routes, packaged traversal assertion, and two-node discovery/sibling/stale gates are present',
 )
@@ -1771,7 +1773,7 @@ record(
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioAnnotationRejected: true') &&
     text('scripts/mcp-live-harness.mjs').includes('scenarioLabelLifecycleGuarded: true') &&
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioLabelRejected: true'),
-  'stable inspection revision, exact-head/tip sibling reconciliation, zero-write stale rejection, live Y.Doc scenario/turn/vote/annotation/label routes, 42-tool MCP surface, and packaged-live assertions are present',
+  'stable inspection revision, exact-head/tip sibling reconciliation, zero-write stale rejection, live Y.Doc scenario/turn/vote/annotation/label routes, 44-tool MCP surface, and packaged-live assertions are present',
 )
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))
@@ -1882,6 +1884,35 @@ const workspaceViewSource = text('frontend/src/workspace/WorkspaceView.tsx')
 const automationBridgeSource = text('frontend/src/automationBridge.ts')
 const researchStateInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
 const mcpHarnessSource = text('scripts/mcp-harness.mjs')
+const relayPolicyAutomationSource = text('frontend/src/workspace/relayPolicyAutomation.ts')
+const relayPolicyAutomationTestSource = text('frontend/src/workspace/relayPolicyAutomation.test.ts')
+const relayPolicyAutomationEvidence = text('docs/audits/runs/MCP-RELAY-APPROVAL-POLICY-2026-08-11.json')
+record(
+  'MCP relay approval policy administration remains host-only, exact-revision, and content-minimized',
+  relayPolicyAutomationSource.includes('not hosted by this running Syzygy relay installation') &&
+    relayPolicyAutomationSource.includes('Every relay approval signer must be one exact unconflicted registered project installation') &&
+    relayPolicyAutomationSource.includes('Relay policy response did not prove the requested policy transition') &&
+    relayPolicyAutomationSource.includes('secretsReturned: false') &&
+    relayPolicyAutomationTestSource.includes("not.toContain('member-secret-id')") &&
+    relayPolicyAutomationTestSource.includes("not.toContain('secret-local-path')") &&
+    relayPolicyAutomationTestSource.includes("not.toContain('publicKey')") &&
+    relayPolicyAutomationTestSource.includes("not.toContain('capability')") &&
+    relayPolicyAutomationTestSource.includes('advances revision without proving the requested policy') &&
+    automationBridgeSource.includes("case 'project.inspectRelayPolicy'") &&
+    automationBridgeSource.includes("case 'project.configureRelayPolicy'") &&
+    mcpSource.includes('"inspect_relay_approval_policy"') &&
+    mcpSource.includes('"configure_relay_approval_policy"') &&
+    mcpSource.includes('assert_eq!(names.len(), 44)') &&
+    mcpHarnessSource.includes("tool.name === 'inspect_relay_approval_policy'") &&
+    mcpHarnessSource.includes("tool.name === 'configure_relay_approval_policy'") &&
+    relayPolicyAutomationEvidence.includes('"supervisedRunId": "20260811-165714-c11043"') &&
+    relayPolicyAutomationEvidence.includes('"frontendTestsPassed": 538') &&
+    relayPolicyAutomationEvidence.includes('"rustMcpTestsPassed": 20') &&
+    relayPolicyAutomationEvidence.includes('"repositoryAuditPassed": true') &&
+    relayPolicyAutomationEvidence.includes('"fullValidationPending": false') &&
+    relayPolicyAutomationEvidence.includes('"status": "implemented_unverified"'),
+  'fresh exact local relay identity, aggregate-only inspection, eligible key-ID mapping, stale and malformed zero-write guards, exact returned transition, 44-tool routing, and human-identity nonclaims are present',
+)
 record(
   'adversarial records remain evidence-gated',
   adversarialRecordSource.includes('leaks participant identity') &&
@@ -1951,7 +1982,7 @@ record(
     researchStateInspectionSource.includes('adversarial-review question/source/result/decision-note bodies') &&
     mcpSource.includes('"save_adversarial_review"') &&
     mcpSource.includes('"decide_adversarial_review"') &&
-    mcpHarnessSource.includes('tools.length < 42') &&
+    mcpHarnessSource.includes('tools.length < 44') &&
     frontendPackage.scripts?.['test:adversarial']?.includes('adversarialHistory.test.ts'),
   'full archives persist only by explicit revision-guarded save; canonical hashes, provider provenance, peer convergence, exact-parent decision history, fail-closed conflicts, content-minimized inspection, and zero draft authority are enforced',
 )
@@ -2333,7 +2364,7 @@ record(
     lanMcpHarnessSource.includes('if (child.kill()) return') &&
     lanPackagedHarnessSource.includes("'--control-port', String(controlPort)") &&
     lanPackagedHarnessSource.includes('if (child.kill()) return') &&
-    lanPackagedHarnessSource.includes('tools.structuredContent.tools.length >= 42') &&
+    lanPackagedHarnessSource.includes('tools.structuredContent.tools.length >= 44') &&
     lanLocalMcpSource.includes('if (child.kill()) return') &&
     lanSettingsSource.includes('Private LAN test connection') &&
     lanSettingsSource.includes('pickLanPairingKeyFile') &&
@@ -2343,7 +2374,7 @@ record(
     lanDriveHarnessSource.includes('absoluteDeadline = Date.now() + 2 * 60_000') &&
     lanDriveHarnessSource.includes('Math.min(timeoutMs, 60_000)') &&
     lanDriveHarnessSource.includes('staleRevisionRejected') &&
-    lanDriveHarnessSource.includes('item.toolCount >= 42') &&
+    lanDriveHarnessSource.includes('item.toolCount >= 44') &&
     lanDriveHarnessSource.includes('scenarioIndexReadback') &&
     lanDriveHarnessSource.includes('scenarioSiblingMerge') &&
     lanDriveHarnessSource.includes('scenarioCurrentConverged') &&
@@ -2360,7 +2391,7 @@ record(
     existsSync(join(root, 'docs/audits/runs/LAN-COLLABORATION-SUPERVISION-2026-07-17.json')) &&
     existsSync(join(root, 'docs/audits/runs/LAN-DEV-MODE-LIFECYCLE-2026-07-18.json')) &&
     existsSync(join(root, 'docs/audits/runs/MCP-SCENARIO-TURN-READBACK-2026-08-02.json')),
-  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, 42-tool discovery, explicit scenario-index and sibling-body readback, deterministic current convergence, exact sibling reconciliation, title-history retention/repair, and stale-write gates are present',
+  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, 44-tool discovery, explicit scenario-index and sibling-body readback, deterministic current convergence, exact sibling reconciliation, title-history retention/repair, and stale-write gates are present',
 )
 const ledger = JSON.parse(text('docs/audits/CAPABILITIES.json'))
 const expectedIds = [

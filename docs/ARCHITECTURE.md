@@ -195,7 +195,11 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   or direct mutation path.
 - `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
   navigation, revision-guarded editor reads/writes, and bounded read-only research-state integrity
-  inspection. `scenarioAutomation.ts` creates scenarios, adds/revises attributed turns, and casts
+  inspection. `relayPolicyAutomation.ts` separately reaches the authoritative local relay only when
+  its exact running endpoint/room matches the active project; it exposes content-minimized policy
+  inspection and exact-revision install/remove, maps selected healthy directory key IDs to public
+  keys internally, and verifies the returned +1 revision and exact policy before reporting success.
+  `scenarioAutomation.ts` creates scenarios, adds/revises attributed turns, and casts
   immutable participant vote events, and manages parent-linked flag/note lifecycle only against
   the monotonic research revision returned by inspection or the prior mutation. Annotation edits,
   resolves, and reopens also require the exact current lifecycle event.
@@ -666,6 +670,9 @@ availability claim.
   agents connect outbound, shutdown reaps both process classes, and native MCP guards remain authoritative.
 - **MCP automation is semantic and live.** Document mutations require a read revision and fail
   closed on concurrent change; the MCP receives no ambient Drive, filesystem, or model authority.
+  Hosted relay-policy mutation likewise requires a fresh authoritative registry revision and exact
+  local relay identity; it exposes neither member capabilities nor signer public keys and does not
+  turn installation keys into authenticated human identity.
   Setup data is generated from `current_exe` in Rust and reused by the app and the
   `syzygy_installation` tool. See `MCP.md`.
 - **Extensions request narrow authority.** Remote provider secrets and HTTPS stay in Rust.

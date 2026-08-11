@@ -101,8 +101,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   project/room/revision/action-bound quorum, preserves no-policy compatibility, and rejects eight
   adversarial bundle classes plus stale replay. Product controls select registered installation
   keys, publish partial approvals into shared Yjs state, and automatically submit a completed
-  quorum. Shared-state/MCP inspection reports that host policy state is not part of the project
-  rather than falsely attesting it. Packaged physical two-install interaction remains open.
+  quorum. Shared research-state inspection reports that host policy state is not part of the
+  project rather than falsely attesting it; separate host-only MCP tools now inspect the fresh local
+  room report and install/remove policy under the exact registry revision without returning member
+  IDs, capabilities, public keys, storage paths, or research bodies. Packaged physical two-install
+  interaction remains open.
 - The first original product node is now implemented but not yet interaction-verified: a Lexical
   `PolicyBlockNode` with stable
   identity, editable text, draft/review/approved state, strict JSON import, theme-token UI, and a
@@ -504,7 +507,7 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   Two explicit MCP reads now provide a bounded scenario traversal chain while broad inspection stays
   body-free: `read_scenario` returns one background plus ordered turn identity/head/tip metadata,
   then `read_scenario_turn_revision` returns one chosen selected-head, named, or indexed body. The
-  two-minute physical harness now requires both nodes and all 42 current tools. It discovers the turn on
+  two-minute physical harness now requires both nodes and all 44 current tools. It discovers the turn on
   both installations, reads both simultaneous scenario siblings, requires the same head/tip set,
   appends one exact all-parent reconciliation, requires the four-revision merge on both nodes, and
   rejects stale document and scenario writes with boolean-only output. Component, Rust, MCP, and synthetic host gates pass;
@@ -664,7 +667,9 @@ collaborators are not required to download large project folders.
    exact configured proofs, while absent policy remains compatible and the host retains emergency
    local authority. Product controls configure the policy and publish/collect/submit exact
    approvals; the deterministic exact-binary gate covers quorum success, eight adversarial bundle
-   rejections, and stale replay. Next: run packaged physical two-install policy interaction, then
+   rejections, and stale replay. Host-only MCP automation now reads authoritative content-minimized
+   policy state and applies an exact-revision install/remove transition using eligible registered
+   key IDs. Next: run packaged physical two-install policy interaction, then
    recovery when no admin survives (which still requires the relay host), signed durable-event
    envelopes, device-key rotation/recovery, trusted time and replacement-invitation delivery, public WSS operations, compaction/export/backups
    and broader abuse controls, then run packaged physical two-install gates.

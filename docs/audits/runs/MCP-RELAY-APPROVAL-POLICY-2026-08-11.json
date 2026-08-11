@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "runId": "MCP-RELAY-APPROVAL-POLICY-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "20574b4",
+  "capabilities": ["P-11", "S-05", "S-07"],
+  "status": "implemented_unverified",
+  "claim": "An MCP host attached to the live Syzygy app can inspect authoritative, content-minimized shared-approval policy state and install, update, or remove that policy only for the exact active project hosted by this running local relay, under the exact registry revision and an eligible registered-installation key set.",
+  "commands": [
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm test -- --run src/workspace/relayPolicyAutomation.test.ts",
+    "node ../../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --locked mcp::tests -- --nocapture",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run test:mcp",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/audit.mjs",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run check:supervised"
+  ],
+  "result": {
+    "authoritativeLocalRelayInspection": true,
+    "remoteRelayRejected": true,
+    "exactRegistryRevisionRequired": true,
+    "unknownOrConflictingSignerRejected": true,
+    "unhealthyDirectoryRejected": true,
+    "disabledPolicyRejectsHiddenSignerInput": true,
+    "returnedRevisionAndPolicyVerified": true,
+    "memberIdsReturned": false,
+    "memberCapabilitiesReturned": false,
+    "signerPublicKeysReturned": false,
+    "relayStoragePathReturned": false,
+    "researchBodiesReturned": false,
+    "humanOrOrganizationIdentityClaimed": false,
+    "hostEmergencyAuthorityRetained": true,
+    "mcpToolCount": 44,
+    "mcpStdioContractPassed": true,
+    "focusedFrontendTestsPassed": 5,
+    "physicalPackagedTwoInstallUsed": false,
+    "supervisedRunId": "20260811-165714-c11043",
+    "frontendTestFilesPassed": 127,
+    "frontendTestFilesSkipped": 3,
+    "frontendTestsPassed": 538,
+    "frontendTestsSkipped": 3,
+    "frontendModulesTransformed": 1265,
+    "rustMcpTestsPassed": 20,
+    "rustAppRecompiled": true,
+    "repositoryAuditPassed": true,
+    "supervisedElapsedSeconds": 16,
+    "fullValidationPending": false
+  },
+  "proved": [
+    "The semantic bridge rejects non-WebSocket projects and active projects whose exact endpoint is not the relay running in this Syzygy process.",
+    "Inspection returns project/room/revision, aggregate member counts, policy key IDs/quorum, and eligible registered installation key IDs while omitting member IDs, capabilities, signer public keys, relay storage paths, signatures, and research bodies.",
+    "Configuration requires a healthy project device directory, one to sixteen unique exact unconflicted registered installation key IDs, a bounded quorum, and the exact inspected registry revision.",
+    "Public keys are resolved internally and a reported success must prove the expected +1 revision plus the exact requested quorum and signer key set; stale, remote, unknown, unhealthy, malformed, or mismatched requests fail closed.",
+    "The MCP surface routes separate inspect and configure tools and explicitly preserves relay-host emergency authority and installation-key versus human-identity boundaries."
+  ],
+  "notProved": [
+    "That an installation key belongs to an authenticated person or organization or represents legal or organizational consent.",
+    "That project shared state attests the host-local policy, that the relay signs a policy receipt, or that a remote third-party relay exposes this host-only operator surface.",
+    "Trusted time, approval withdrawal, availability against a withholding Yjs peer, public WSS operation, or physical packaged two-install interaction."
+  ],
+  "implementationAnchors": [
+    "frontend/src/workspace/relayPolicyAutomation.ts",
+    "frontend/src/workspace/relayPolicyAutomation.test.ts",
+    "frontend/src/automationBridge.ts",
+    "frontend/src-tauri/src/mcp.rs",
+    "scripts/mcp-harness.mjs"
+  ]
+}

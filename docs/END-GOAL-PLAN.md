@@ -411,7 +411,7 @@ capabilities stay `implemented_unverified`.
 Shared-title retention independently requires the complete exact tip set, canonicalizes all valid
 events into one content-addressed snapshot before moving active events or superseded snapshots, and
 keeps a rename arriving after the snapshot as an active child whose parent remains resolvable. The
-product and 42-tool MCP expose count-only retryable maintenance. Rust/frontend gates cover canonical
+product and 44-tool MCP expose count-only retryable maintenance. Rust/frontend gates cover canonical
 ordering, missing parents, stale pre-move refusal, concurrent-child projection, and replacement
 provider ownership. Explicit recovery now hashes active plus archived plus quarantined inventory, reconstructs only a
 complete parent-closed graph, snapshots it before moving anything, quarantines invalid active records
@@ -480,8 +480,10 @@ The shared directory now has a bounded, convergent, installation-signed pre-muta
 record with exact action/revision binding, expiry, and signer-equivocation exclusion. The relay host
 can install/remove a sorted 1-16 signer policy under an exact registry revision. The exact binary
 rejects eight adversarial bundle classes and stale replay, and accepts a complete quorum once.
-Shared-state/MCP inspection deliberately cannot attest that host-local policy; a fresh room status
-is authoritative. Packaged physical two-install policy interaction remains open.
+Shared research-state inspection deliberately cannot attest that host-local policy. Separate MCP
+tools now obtain the authoritative fresh room status only from the exact local relay, expose a
+content-minimized inspection, and install/remove policy under the exact revision using eligible
+registered key IDs. Packaged physical two-install policy interaction remains open.
 
 ### Phase 6 — scenario workflow (`XL`)
 

@@ -20,6 +20,10 @@ import {
 } from './workspace/editorAutomationRegistry'
 import { inspectResearchState } from './workspace/researchStateInspection'
 import {
+  configureHostedRelayPolicy,
+  inspectHostedRelayPolicy,
+} from './workspace/relayPolicyAutomation'
+import {
   addAutomationScenarioTurn, castAutomationScenarioVote, createAutomationScenario,
   createAutomationScenarioAnnotation, createAutomationScenarioLabel,
   readAutomationScenario, readAutomationScenarioTurnRevision, reconcileAutomationScenarioTurn,
@@ -320,6 +324,45 @@ export async function dispatchAutomationRequest(
         getAutomationProjectDocument(project.id),
         project.id,
       ) }
+    }
+    case 'project.inspectRelayPolicy': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        relay: await inspectHostedRelayPolicy(
+          project,
+          getAutomationProjectDocument(project.id),
+        ),
+      }
+    }
+    case 'project.configureRelayPolicy': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const enabled = requiredBoolean(params, 'enabled')
+      const requiredApprovals = optionalNonNegativeInteger(params, 'requiredApprovals')
+      const signerKeyIds = params.signerKeyIds === undefined
+        ? undefined
+        : requiredStringArray(params, 'signerKeyIds', 1, 16)
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        relay: await configureHostedRelayPolicy(
+          project,
+          getAutomationProjectDocument(project.id),
+          {
+            enabled,
+            expectedRegistryRevision: requiredPositiveInteger(params, 'expectedRegistryRevision'),
+            ...(requiredApprovals === null ? {} : { requiredApprovals }),
+            ...(signerKeyIds === undefined ? {} : { signerKeyIds }),
+          },
+        ),
+      }
     }
     case 'project.readScenario': {
       const latest = useStore.getState()
@@ -1033,6 +1076,14 @@ function optionalNonNegativeInteger(params: Record<string, unknown>, name: strin
   if (value === undefined || value === null) return null
   if (!Number.isInteger(value) || (value as number) < 0) throw new Error(`${name} must be a non-negative integer when provided`)
   return value as number
+}
+
+function requiredPositiveInteger(params: Record<string, unknown>, name: string): number {
+  const value = params[name]
+  if (!Number.isSafeInteger(value) || Number(value) < 1) {
+    throw new Error(`${name} must be a positive safe integer`)
+  }
+  return Number(value)
 }
 
 function requiredScenarioTurnRole(params: Record<string, unknown>): ScenarioTurnRole {

@@ -1588,9 +1588,20 @@ record(
     providerStreamSource.includes('ProviderWarning') &&
     providerStreamSource.includes('provider-error-body-canary') &&
     providerStreamSource.includes('anthropic_lifecycle_normalizes_usage_and_omits_private_thinking') &&
-    providerStreamSource.includes('gemini_step_lifecycle_normalizes_text_usage_and_omits_private_bodies') &&
+    providerStreamSource.includes('gemini_step_lifecycle_normalizes_text_tool_usage_and_omits_private_reasoning') &&
     providerStreamSource.includes('xai_responses_decoder_preserves_provider_identity_and_omits_error_body') &&
-    platformContractsSource.includes('request-and-stream-control-conformance') &&
+    providerRuntimeSource.includes('pub struct ProviderToolDefinition') &&
+    providerRuntimeSource.includes('MAX_TOOL_ARGUMENT_TOTAL_BYTES') &&
+    providerRuntimeSource.includes('"parallel_tool_calls"') &&
+    providerRuntimeSource.includes('"input_schema"') &&
+    providerStreamSource.includes('ToolCallStart') &&
+    providerStreamSource.includes('ToolCallDelta') &&
+    providerStreamSource.includes('ToolCallComplete') &&
+    providerStreamSource.includes('provider_tool_call_shapes_normalize_to_one_non_executing_lifecycle') &&
+    providerTaskRuntimeSource.includes('"tool names, descriptions, and argument schemas"') &&
+    providerTaskRuntimeSource.includes('normalized_output_sha256') &&
+    providerTaskRuntimeSource.includes('stream_accumulator_retains_validated_tool_proposals_without_executing_them') &&
+    platformContractsSource.includes('request-stream-and-tool-proposal-conformance') &&
     platformContractsSource.includes('ANTHROPIC_ADAPTER_STATUS') &&
     platformContractsSource.includes('GEMINI_ADAPTER_STATUS') &&
     platformContractsSource.includes('XAI_ADAPTER_STATUS') &&
@@ -1622,7 +1633,7 @@ record(
     providerTaskRuntimeSource.includes('.blocking_show()') &&
     providerTaskRuntimeSource.includes('spawn_blocking') &&
     !providerTaskRuntimeSource.includes('pub disclosure_accepted') &&
-    platformContractsSource.includes('"remoteProviderAdapters": "native-disclosure-openai-anthropic-gemini-xai-stream-review-ui-no-live-proof"') &&
+    platformContractsSource.includes('"remoteProviderAdapters": "native-disclosure-openai-anthropic-gemini-xai-stream-tool-proposal-review-ui-no-live-proof"') &&
     platformContractsSource.includes('"providerTaskRuntime": "native-disclosure-research-envelope"') &&
     providerTaskRuntimeSource.includes('"executionMode": execution_mode') &&
     text('frontend/src/tauri.ts').includes("invoke('provider_generate'") &&
@@ -1637,19 +1648,24 @@ record(
     text('frontend/src/workspace/RemoteResearchReview.tsx').includes('providerGenerate(request)') &&
     text('frontend/src/workspace/RemoteResearchReview.tsx').includes('never applied to the shared draft automatically') &&
     text('frontend/src/providerStream.ts').includes('MAX_PROVIDER_STREAM_TEXT_CHARS') &&
+    text('frontend/src/providerStream.ts').includes("type: 'tool-call-complete'") &&
     text('frontend/src/providerStream.test.ts').includes('fails closed on missing, duplicate, or out-of-order protocol events') &&
+    text('frontend/src/providerStream.test.ts').includes('assembles inspectable tool proposals without adding execution authority') &&
     text('frontend/src/workspace/RemoteResearchReview.tsx').includes('providerCancel(activeCallId)') &&
     text('frontend/src/workspace/RemoteResearchReview.tsx').includes('getAutomationEditorController(project.id).read()') &&
     text('frontend/src/workspace/remoteResearchTask.ts').includes("taskType: 'research.remote-review'") &&
     text('frontend/src/workspace/remoteResearchTask.ts').includes("crypto.subtle.digest('SHA-256'") &&
     text('frontend/src/workspace/remoteResearchTask.test.ts').includes('without forging disclosure or provenance fields') &&
+    text('frontend/src/workspace/remoteResearchTask.ts').includes('parseProviderToolDefinitions') &&
+    text('frontend/src/workspace/RemoteResearchReview.tsx').includes('Tool proposals · inspect only · not executed') &&
+    !text('frontend/src/workspace/RemoteResearchReview.tsx').includes('Run tool') &&
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_authorize'") &&
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_execute'") &&
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_revoke'") &&
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_authorization_status'") &&
     !text('frontend/src/tauri.ts').includes('disclosureAccepted') &&
     text('frontend/src-tauri/src/bin/provider-runtime-harness.rs').includes('interop-secret-canary'),
-  'OpenAI, Anthropic, Gemini, and xAI request/stream wire contracts, scoped product event channel, content-free task runtime, native non-forgeable disclosure, cancellation, transient exact-draft UI, xAI ZDR attestation, and truthful no-live-proof status present',
+  'OpenAI, Anthropic, Gemini, and xAI request/stream/tool-proposal wire contracts, scoped product event channel, content-free task runtime, native non-forgeable disclosure, cancellation, transient inspect-only exact-draft UI, xAI ZDR attestation, and truthful no-live-proof status present',
 )
 record(
   'adversarial batch authorization is native, content-bound, exact, and expiring',

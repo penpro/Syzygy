@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildRemoteReviewRequest, REMOTE_REVIEW_PROVIDERS } from './remoteResearchTask'
+import { buildRemoteReviewRequest, parseProviderToolDefinitions, REMOTE_REVIEW_PROVIDERS } from './remoteResearchTask'
 
 const draft = {
   projectId: 'project-1',
@@ -43,5 +43,27 @@ describe('remote research review request', () => {
     expect(changed.sources[0].snapshotId).not.toBe(first.sources[0].snapshotId)
     await expect(buildRemoteReviewRequest({ ...common, question: ' ', draft })).rejects.toThrow('Enter a review question')
     await expect(buildRemoteReviewRequest({ ...common, draft: { ...draft, text: ' ' } })).rejects.toThrow('current draft is empty')
+  })
+
+  it('accepts bounded custom tool schemas as proposal-only request content', async () => {
+    const tools = parseProviderToolDefinitions(JSON.stringify([{
+      name: 'lookup_source',
+      description: 'Propose a source lookup for human inspection.',
+      parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+    }]))
+    const request = await buildRemoteReviewRequest({
+      provider: 'gemini', model: 'gemini-3.5-flash', question: 'Find evidence gaps',
+      runId: 'run-tools', callId: 'call-tools', draft, toolDefinitions: tools,
+    })
+    expect(request.toolDefinitions).toEqual(tools)
+    expect(request).not.toHaveProperty('toolResults')
+    expect(request).not.toHaveProperty('executeTools')
+
+    expect(() => parseProviderToolDefinitions('[{"name":"bad space","description":"x","parameters":{"type":"object"}}]')).toThrow('Tool names')
+    expect(() => parseProviderToolDefinitions('[{"name":"x","description":"x","parameters":{"type":"string"}}]')).toThrow('JSON Schema object')
+    expect(() => parseProviderToolDefinitions(JSON.stringify([
+      { name: 'same', description: 'one', parameters: { type: 'object' } },
+      { name: 'same', description: 'two', parameters: { type: 'object' } },
+    ]))).toThrow('unique')
   })
 })

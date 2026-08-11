@@ -10,10 +10,12 @@ use crate::model_provider::{
     execute_anthropic_response_controlled, execute_anthropic_stream_controlled,
     execute_gemini_response_controlled, execute_gemini_stream_controlled,
     execute_openai_response_controlled, execute_openai_stream_controlled,
-    execute_xai_response_controlled, execute_xai_stream_controlled, provider_execution,
-    GenerationRequest, InputRole, NormalizedResponse, NormalizedUsage, ProviderCancellation,
-    ProviderError, ProviderInput, RemoteProviderId, TransmissionApproval, ANTHROPIC_ADAPTER_STATUS,
-    GEMINI_ADAPTER_STATUS, OPENAI_ADAPTER_STATUS, XAI_ADAPTER_STATUS,
+    execute_xai_response_controlled, execute_xai_stream_controlled, normalize_tool_proposal,
+    provider_execution, GenerationRequest, InputRole, NormalizedResponse, NormalizedToolProposal,
+    NormalizedUsage, ProviderCancellation, ProviderError, ProviderInput, ProviderToolDefinition,
+    RemoteProviderId, TransmissionApproval, ANTHROPIC_ADAPTER_STATUS, GEMINI_ADAPTER_STATUS,
+    MAX_TOOL_ARGUMENT_BYTES, MAX_TOOL_ARGUMENT_TOTAL_BYTES, MAX_TOOL_CALLS, OPENAI_ADAPTER_STATUS,
+    XAI_ADAPTER_STATUS,
 };
 use crate::provider_stream::NormalizedStreamEvent;
 use chrono::{SecondsFormat, Utc};
@@ -201,6 +203,8 @@ pub struct ProviderResearchTaskRequest {
     pub question: String,
     pub sources: Vec<ProviderResearchSource>,
     pub max_output_tokens: u32,
+    #[serde(default)]
+    pub tool_definitions: Vec<ProviderToolDefinition>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -614,6 +618,7 @@ fn validate_task(request: &ProviderTaskRequest) -> Result<(), String> {
         || unique_sources.len() != request.source_snapshot_ids.len()
         || request.source_snapshot_ids.iter().any(|id| !valid_id(id))
         || request.generation.model.trim().is_empty()
+        || request.generation.validate().is_err()
         || request.generation.model.chars().count() > 200
         || request.generation.model.chars().any(char::is_control)
         || request.generation.input.is_empty()
@@ -684,7 +689,7 @@ fn build_research_task(
         return Err("Remote research task exceeds the bounded input size".to_owned());
     }
     let mut input = Vec::with_capacity(2);
-    let mut content_categories = Vec::with_capacity(3);
+    let mut content_categories = Vec::with_capacity(4);
     if let Some(instructions) = request.developer_instructions {
         input.push(ProviderInput {
             role: InputRole::Developer,
@@ -700,6 +705,9 @@ fn build_research_task(
     if !source_snapshot_ids.is_empty() {
         content_categories.push("selected source excerpts and labels".to_owned());
     }
+    if !request.tool_definitions.is_empty() {
+        content_categories.push("tool names, descriptions, and argument schemas".to_owned());
+    }
     let task = ProviderTaskRequest {
         run_id: request.run_id,
         call_id: request.call_id,
@@ -712,6 +720,7 @@ fn build_research_task(
             model: request.model,
             input,
             max_output_tokens: request.max_output_tokens,
+            tools: request.tool_definitions,
         },
     };
     validate_task(&task)?;
@@ -870,6 +879,7 @@ fn build_adversarial_task(
                 },
             ],
             max_output_tokens: reservation.planned_call.max_output_tokens,
+            tools: Vec::new(),
         },
     };
     validate_task(&task)?;
@@ -1251,6 +1261,16 @@ fn terminal_status(error: Option<&ProviderError>) -> &'static str {
     }
 }
 
+fn normalized_output_sha256(response: &NormalizedResponse) -> String {
+    let output = json!({
+        "text": response.text,
+        "toolProposals": response.tool_proposals,
+    });
+    serde_json::to_vec(&output)
+        .map(|bytes| sha256(&bytes))
+        .unwrap_or_else(|_| sha256(b"serialization-failed"))
+}
+
 fn run_record(
     request: &ProviderTaskRequest,
     endpoint: &Url,
@@ -1320,7 +1340,7 @@ fn run_record(
         },
         "result": {
             "status": terminal_status(error),
-            "outputSha256": response.map(|value| sha256(value.text.as_bytes())),
+            "outputSha256": response.map(normalized_output_sha256),
             "errorCode": error_code
         },
         "usage": {
@@ -1342,6 +1362,9 @@ struct ProviderStreamAccumulator {
     usage: Option<NormalizedUsage>,
     status: Option<String>,
     warnings: Vec<String>,
+    active_tools: HashMap<String, (String, String)>,
+    tool_proposals: Vec<NormalizedToolProposal>,
+    tool_argument_bytes: usize,
 }
 
 impl ProviderStreamAccumulator {
@@ -1362,6 +1385,58 @@ impl ProviderStreamAccumulator {
                     return Err(ProviderError::ResponseTooLarge);
                 }
                 self.text.push_str(text);
+            }
+            NormalizedStreamEvent::ToolCallStart { call_id, name } => {
+                if self.active_tools.len() + self.tool_proposals.len() >= MAX_TOOL_CALLS
+                    || self
+                        .active_tools
+                        .insert(call_id.clone(), (name.clone(), String::new()))
+                        .is_some()
+                    || self
+                        .tool_proposals
+                        .iter()
+                        .any(|proposal| proposal.call_id == *call_id)
+                {
+                    return Err(ProviderError::MalformedResponse);
+                }
+            }
+            NormalizedStreamEvent::ToolCallDelta {
+                call_id,
+                arguments_delta,
+            } => {
+                let (_, arguments) = self
+                    .active_tools
+                    .get_mut(call_id)
+                    .ok_or(ProviderError::MalformedResponse)?;
+                if arguments.len() + arguments_delta.len() > MAX_TOOL_ARGUMENT_BYTES {
+                    return Err(ProviderError::ResponseTooLarge);
+                }
+                self.tool_argument_bytes = self
+                    .tool_argument_bytes
+                    .checked_add(arguments_delta.len())
+                    .filter(|bytes| *bytes <= MAX_TOOL_ARGUMENT_TOTAL_BYTES)
+                    .ok_or(ProviderError::ResponseTooLarge)?;
+                arguments.push_str(arguments_delta);
+            }
+            NormalizedStreamEvent::ToolCallComplete {
+                call_id,
+                name,
+                arguments,
+            } => {
+                let (started_name, accumulated) = self
+                    .active_tools
+                    .remove(call_id)
+                    .ok_or(ProviderError::MalformedResponse)?;
+                let parsed: Value = serde_json::from_str(&accumulated)
+                    .map_err(|_| ProviderError::MalformedResponse)?;
+                if started_name != *name || parsed != *arguments {
+                    return Err(ProviderError::MalformedResponse);
+                }
+                self.tool_proposals.push(normalize_tool_proposal(
+                    call_id,
+                    name,
+                    arguments.clone(),
+                )?);
             }
             NormalizedStreamEvent::Usage { usage } => {
                 if self.usage.replace(usage.clone()).is_some() {
@@ -1389,6 +1464,9 @@ impl ProviderStreamAccumulator {
         request: &ProviderTaskRequest,
     ) -> Result<NormalizedResponse, ProviderError> {
         let status = self.status.ok_or(ProviderError::MalformedResponse)?;
+        if !self.active_tools.is_empty() {
+            return Err(ProviderError::MalformedResponse);
+        }
         Ok(NormalizedResponse {
             provider: request.provider,
             id: self.response_id.ok_or(ProviderError::MalformedResponse)?,
@@ -1400,6 +1478,7 @@ impl ProviderStreamAccumulator {
                 .into_iter()
                 .collect(),
             unknown_output_types: self.warnings,
+            tool_proposals: self.tool_proposals,
             usage: self.usage,
         })
     }
@@ -1996,6 +2075,7 @@ mod tests {
                     content: "fixture question".to_owned(),
                 }],
                 max_output_tokens: 128,
+                tools: Vec::new(),
             },
         }
     }
@@ -2016,6 +2096,7 @@ mod tests {
                 excerpt: "The bounded fixture evidence.".to_owned(),
             }],
             max_output_tokens: 128,
+            tool_definitions: Vec::new(),
         }
     }
 
@@ -2284,6 +2365,75 @@ mod tests {
     }
 
     #[test]
+    fn stream_accumulator_retains_validated_tool_proposals_without_executing_them() {
+        let mut accumulator = ProviderStreamAccumulator::default();
+        accumulator
+            .apply(&NormalizedStreamEvent::MessageStart {
+                provider: RemoteProviderId::OpenAi,
+                response_id: "tool-response".to_owned(),
+            })
+            .unwrap();
+        accumulator
+            .apply(&NormalizedStreamEvent::ToolCallStart {
+                call_id: "call-tool".to_owned(),
+                name: "lookup_source".to_owned(),
+            })
+            .unwrap();
+        accumulator
+            .apply(&NormalizedStreamEvent::ToolCallDelta {
+                call_id: "call-tool".to_owned(),
+                arguments_delta: "{\"query\":\"budget\"}".to_owned(),
+            })
+            .unwrap();
+        accumulator
+            .apply(&NormalizedStreamEvent::ToolCallComplete {
+                call_id: "call-tool".to_owned(),
+                name: "lookup_source".to_owned(),
+                arguments: json!({ "query": "budget" }),
+            })
+            .unwrap();
+        accumulator
+            .apply(&NormalizedStreamEvent::Finish {
+                status: "completed".to_owned(),
+            })
+            .unwrap();
+        let response = accumulator
+            .into_response(&task())
+            .expect("tool proposal response");
+        assert_eq!(response.tool_proposals.len(), 1);
+        assert_eq!(
+            response.tool_proposals[0].arguments,
+            json!({ "query": "budget" })
+        );
+        let proposal_hash = normalized_output_sha256(&response);
+        let mut without_proposal = response.clone();
+        without_proposal.tool_proposals.clear();
+        assert_ne!(proposal_hash, normalized_output_sha256(&without_proposal));
+
+        let mut mismatched = ProviderStreamAccumulator::default();
+        mismatched
+            .apply(&NormalizedStreamEvent::ToolCallStart {
+                call_id: "call-tool".to_owned(),
+                name: "lookup_source".to_owned(),
+            })
+            .unwrap();
+        mismatched
+            .apply(&NormalizedStreamEvent::ToolCallDelta {
+                call_id: "call-tool".to_owned(),
+                arguments_delta: "{}".to_owned(),
+            })
+            .unwrap();
+        assert_eq!(
+            mismatched.apply(&NormalizedStreamEvent::ToolCallComplete {
+                call_id: "call-tool".to_owned(),
+                name: "lookup_source".to_owned(),
+                arguments: json!({ "forged": true }),
+            }),
+            Err(ProviderError::MalformedResponse)
+        );
+    }
+
+    #[test]
     fn runtime_streams_normalized_events_and_authors_content_free_record() {
         let listener = TcpListener::bind("127.0.0.1:0").expect("listener");
         let endpoint = Url::parse(&format!(
@@ -2544,7 +2694,7 @@ mod tests {
     }
 
     #[test]
-    fn runtime_streams_xai_preserves_zdr_and_omits_tool_secrets_and_research() {
+    fn runtime_streams_xai_preserves_zdr_and_keeps_tool_proposals_out_of_run_records() {
         let listener = TcpListener::bind("127.0.0.1:0").expect("listener");
         let endpoint = Url::parse(&format!(
             "http://{}/v1/responses",
@@ -2565,7 +2715,7 @@ mod tests {
             assert!(!request.contains("prompt_cache_key"));
             let body = concat!(
                 "data: {\"type\":\"response.created\",\"response\":{\"id\":\"runtime-xai-response\"}}\n\n",
-                "data: {\"type\":\"response.function_call_arguments.delta\",\"delta\":\"runtime-private-xai-tool-canary\"}\n\n",
+                "data: {\"type\":\"response.output_item.done\",\"item\":{\"type\":\"function_call\",\"id\":\"fc-runtime-xai\",\"call_id\":\"call-runtime-xai\",\"name\":\"lookup_source\",\"arguments\":\"{\\\"query\\\":\\\"runtime-xai-tool-canary\\\"}\"}}\n\n",
                 "data: {\"type\":\"response.output_text.delta\",\"delta\":\"bounded xAI answer\"}\n\n",
                 "data: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\",\"usage\":{\"input_tokens\":7,\"output_tokens\":4,\"total_tokens\":11}}}\n\n",
                 "data: [DONE]\n\n"
@@ -2610,9 +2760,11 @@ mod tests {
         assert_eq!(response.text, "bounded xAI answer");
         assert_eq!(response.status, "completed");
         assert_eq!(response.usage.as_ref().unwrap().total_tokens, 11);
+        assert!(response.unknown_output_types.is_empty());
+        assert_eq!(response.tool_proposals.len(), 1);
         assert_eq!(
-            response.unknown_output_types,
-            ["response.function_call_arguments.delta".to_owned()]
+            response.tool_proposals[0].arguments,
+            json!({ "query": "runtime-xai-tool-canary" })
         );
         assert_eq!(outcome.zero_data_retention, Some(true));
         assert_eq!(outcome.run_record["request"]["stream"], true);
@@ -2625,12 +2777,14 @@ mod tests {
             outcome.run_record["dataHandling"]["attestation"]["value"],
             true
         );
-        assert_eq!(events.len(), 6);
+        assert_eq!(events.len(), 8);
         let serialized = serde_json::to_string(&outcome).unwrap();
         assert!(!serialized.contains("runtime-xai-stream-secret-canary"));
-        assert!(!serialized.contains("runtime-private-xai-tool-canary"));
+        assert!(serialized.contains("runtime-xai-tool-canary"));
         assert!(!serialized.contains("fixture question"));
         assert!(!serialized.contains("selected research excerpts"));
+        let record = serde_json::to_string(&outcome.run_record).unwrap();
+        assert!(!record.contains("runtime-xai-tool-canary"));
         assert!(state.calls.lock().unwrap().is_empty());
     }
 
@@ -2727,6 +2881,37 @@ mod tests {
         assert!(user.contains("Which conclusion is supported?"));
         assert!(user.contains("source-snapshot-001"));
         assert!(user.contains("The bounded fixture evidence."));
+    }
+
+    #[test]
+    fn research_task_discloses_bounded_tool_schemas_as_non_ambient_content() {
+        let mut request = research_task();
+        request.tool_definitions = vec![ProviderToolDefinition {
+            name: "lookup_source".to_owned(),
+            description: "Propose a source lookup for human inspection.".to_owned(),
+            parameters: json!({
+                "type": "object",
+                "properties": { "query": { "type": "string" } },
+                "required": ["query"]
+            }),
+        }];
+        let task = build_research_task(request).expect("tool-scoped research task");
+        assert_eq!(task.generation.tools.len(), 1);
+        assert!(task
+            .content_categories
+            .contains(&"tool names, descriptions, and argument schemas".to_owned()));
+        let endpoint = Url::parse("https://api.openai.com/v1/responses").unwrap();
+        let disclosure = disclosure_message(&task, &endpoint);
+        assert!(disclosure.contains("tool names, descriptions, and argument schemas"));
+        assert!(!disclosure.contains("lookup_source"));
+
+        let mut invalid = research_task();
+        invalid.tool_definitions = vec![ProviderToolDefinition {
+            name: "lookup_source".to_owned(),
+            description: "Invalid scalar schema".to_owned(),
+            parameters: json!({ "type": "string" }),
+        }];
+        assert!(build_research_task(invalid).is_err());
     }
 
     #[test]

@@ -225,8 +225,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   fixtures. Bounded request and stalled-body deadlines plus idempotent in-flight/inter-event
   cancellation now have fake-server evidence. Real HTTP SSE chunks are incrementally normalized,
   terminal order and aggregate size are enforced, and sanitized provider errors remain distinct.
-  The adapter is labeled `request-and-stream-control-conformance`; its scoped frontend streaming
-  bridge has landed. Tools, slow-consumer stress, and opt-in live-provider proof remain gates before
+  The adapter is labeled `request-stream-and-tool-proposal-conformance`; its scoped frontend streaming
+  bridge and bounded non-executing custom-function proposal lifecycle have landed. Tool execution,
+  slow-consumer stress, and opt-in live-provider proof remain gates before
   broader availability.
 - The provider credential vault now has a collapsed product Settings caller. Its provider-neutral
   trait passes an in-memory set/read/delete/error-redaction suite; secret strings zeroize on drop;
@@ -288,23 +289,27 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   the later collaborative-history and product-workflow slices below close it. Packaged native-dialog
   proof, live provider evidence, public fixtures/statistics, and any superiority claim remain open.
   Evidence: `docs/audits/runs/ADVERSARIAL-NATIVE-EXECUTION-2026-07-29.json`.
-- Anthropic Messages now has `request-and-stream-control-conformance`. Fake servers prove the
+- Anthropic Messages now has `request-stream-and-tool-proposal-conformance`. Fake servers prove the
   current `/v1/messages` path, `x-api-key`, pinned API version, system/user mapping, bounds,
   normalized text/cumulative usage, thinking-body non-retention, sanitized failure, timeout,
-  cancellation, SSE lifecycle/terminal ordering, and product review routing. Streamed tool
-  assembly/execution, packaged-dialog interaction, and live proof remain open; the shared
+  cancellation, SSE lifecycle/terminal ordering, partial-JSON tool assembly, and product review
+  routing. Tool execution/result continuation, packaged-dialog interaction, and live proof remain open; the shared
   adversarial product workflow continues to route bounded Anthropic calls.
-- Gemini Interactions now has stable-v1 `request-and-stream-control-conformance`. Fake servers
+- Gemini Interactions now has stable-v1 `request-stream-and-tool-proposal-conformance`. Fake servers
   prove header auth, storage/background off, thought-summary suppression, system/user mapping,
   output bounds, text-only retention, consistent aggregate usage, sanitized failure, timeout,
-  cancellation, indexed SSE step lifecycle, and product review routing. Tool assembly/execution,
+  cancellation, indexed SSE step lifecycle, complete function-call proposal normalization, and
+  product review routing. Tool execution/result continuation,
   thought-signature continuation, packaged-dialog interaction, and live proof remain open.
-- xAI Responses now has `request-and-stream-control-conformance`. Fake servers prove storage-off/
+- xAI Responses now has `request-stream-and-tool-proposal-conformance`. Fake servers prove storage-off/
   no-threading request shape, bearer auth, event-stream negotiation, bounded fragmented delivery,
-  terminal ordering, controls, product review routing, unsupported tool-body omission, and mandatory
+  terminal ordering, controls, product review routing, documented whole function-call proposals, and mandatory
   boolean ZDR attestation before dispatch without confusing standard retention with enterprise ZDR.
-  Tool execution, encrypted reasoning/WebSocket continuation, packaged-dialog interaction, and live
+  Tool execution/result continuation, encrypted reasoning/WebSocket continuation, packaged-dialog interaction, and live
   policy/rate/cost proof remain open.
+- Provider-neutral tool-proposal bounds, cross-provider lifecycle mapping, hostile malformed/
+  incomplete fixtures, inspect-only UI, authority exclusions, and explicit non-claims are recorded
+  in `docs/audits/runs/PROVIDER-TOOL-PROPOSALS-2026-08-11.json`.
 - A strict public provider-run record now captures content-free call provenance, disclosure,
   destination, dated policy, storage/ZDR state, terminal outcome, usage, and cost. Its semantic
   validator and MCP embedding are implemented; the Rust task command now emits authoritative
@@ -547,8 +552,9 @@ collaborators are not required to download large project folders.
      evaluation panel, mono metadata stamps).
 3. **Certify the open research platform boundary** — the first OpenAI fake-server/key-canary
    request/stream/control gates, Windows credential-vault canary, native disclosure, provider
-   settings/task workflow, and scoped OpenAI/Anthropic/Gemini/xAI streaming event bridge have landed;
-   next add provider tool normalization and opt-in live/provider-policy evidence.
+   settings/task workflow, scoped OpenAI/Anthropic/Gemini/xAI streaming event bridge, and bounded
+   proposal-only tool normalization have landed; next add opt-in live/provider-policy evidence,
+   schema-validation proof, and explicit authority design before any tool-result loop.
    Build the adversarial benchmark before
    claiming panel quality; implement a no-authority WASI host before loading third-party code.
 4. **Harden collaboration beyond the first Drive transport** — append-only Yjs Drive sharing,

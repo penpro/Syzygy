@@ -1,8 +1,8 @@
 # Model provider API
 
 **Contract version:** 1. **Runtime status:** local inference remains available; OpenAI Responses,
-Anthropic Messages, Gemini Interactions, and xAI Responses request and stream controls are at
-`request-and-stream-control-conformance`. Ordinary remote review and content-bound adversarial execution
+Anthropic Messages, Gemini Interactions, and xAI Responses request, stream, and non-executing tool
+proposal controls are at `request-stream-and-tool-proposal-conformance`. Ordinary remote review and content-bound adversarial execution
 use registered Rust commands, OS-vault credentials, fixed built-in endpoints, native disclosure,
 bounded timeout/cancellation, normalized results, and content-free run records. Tests use
 loopback providers only; no live-provider compatibility or quality claim is made. Custom remote
@@ -35,9 +35,12 @@ are superseded.
 
 The callable command takes `ProviderResearchTaskRequest`, not a raw provider request. Its fields are
 run/call/task identity, provider/model/bounds, an optional developer instruction, a research
-question, and zero or more `{ snapshotId, label, excerpt }` sources. Rust JSON-serializes that
-payload into the normalized provider input and derives `task instructions`, `research question`,
-and `selected source excerpts and labels` categories only when the corresponding content exists.
+question, zero or more `{ snapshotId, label, excerpt }` sources, and an optional bounded list of
+custom function definitions. Rust JSON-serializes the research payload into the normalized provider
+input and derives `task instructions`, `research question`, and `selected source excerpts and labels`
+categories only when the corresponding content exists. When function definitions exist it also
+derives `tool names, descriptions, and argument schemas`; the webview cannot hide that outbound
+content from the native disclosure.
 Source IDs in the run record come only from those source objects and must be unique. The frontend
 cannot attach unrelated provenance or downgrade the native disclosure description.
 
@@ -74,6 +77,36 @@ Normalized stream events must cover message start, text delta, tool-call start/d
 usage, finish, provider warning, and error. Parsers must tolerate fragmented frames and unknown
 future event types. Tool arguments and structured output are untrusted until schema validation and
 domain semantic validation both pass.
+
+## Non-executing tool proposals
+
+Remote research requests may include at most 32 custom function definitions. Names are unique,
+1–64 ASCII letters/numbers/underscore/hyphen; descriptions are printable and at most 4,096
+characters; each parameter schema is a JSON object rooted at `type: "object"`, at most 64 KiB,
+with a 256 KiB aggregate schema ceiling. OpenAI/xAI receive Responses function objects, Anthropic
+receives `input_schema`, and Gemini Interactions receives `type: "function"` objects. Tool choice
+is automatic; no built-in/server-side tools are enabled by this surface.
+
+Provider output becomes the same `tool-call-start`, `tool-call-delta`, and `tool-call-complete`
+lifecycle. OpenAI arguments are assembled from documented deltas; Anthropic `partial_json` is
+assembled and parsed only at block stop; Gemini's complete function-call step and xAI's documented
+whole-call chunk are represented as one bounded delta. Calls are capped at 32, arguments at 256
+KiB each and 1 MiB total, IDs/names must match across events, final JSON must be an object and must
+equal the accumulated fragments, and unfinished/orphan/duplicate/malformed calls fail closed.
+
+This is deliberately proposal-only. Syzygy displays the function name, call ID, and arguments in a
+transient **inspect only · not executed** panel. It has no tool-result loop and grants no MCP,
+Drive, filesystem, plugin, editor, network, or shared-project mutation authority. Tool bodies are
+present in the transient result but remain absent from content-free run records; the record's
+`outputSha256` nevertheless commits to both normalized text and proposal bodies. Argument JSON has
+not yet been validated against its supplied JSON Schema, so future execution must add schema and
+domain validation rather than treating successful assembly as authorization.
+Primary contracts: [OpenAI function calling](https://developers.openai.com/api/docs/guides/function-calling),
+[Anthropic streaming](https://platform.claude.com/docs/en/build-with-claude/streaming),
+[Gemini Interactions v1](https://ai.google.dev/api/interactions-api-v1), and
+[xAI function calling](https://docs.x.ai/developers/tools/function-calling).
+Adversarial fixtures, exact limits, implementation anchors, and non-claims are recorded in
+`docs/audits/runs/PROVIDER-TOOL-PROPOSALS-2026-08-11.json`.
 
 ## Security boundary
 
@@ -118,18 +151,19 @@ events, distinguishes sanitized provider failure, and cancels between events. Th
 runtime now routes that stream through one ordered per-call Tauri channel, accumulates the same
 bounded normalized response in Rust, removes the cancellation registration on every terminal path,
 and marks the authoritative content-free run record as streamed. The workspace renders OpenAI,
-Anthropic, Gemini, or xAI text, usage, and warnings incrementally as a transient review; it never
-applies the response to the shared draft automatically. No live service has been contacted, and
-streamed tools are not handled. `syzygy_platform_contracts` reports aggregate status as
-`native-disclosure-openai-anthropic-gemini-xai-stream-review-ui-no-live-proof`.
+Anthropic, Gemini, or xAI text, usage, warnings, and proposal-only tool calls incrementally as a
+transient review; it never executes a call or applies the response to the shared draft automatically.
+No live service has been contacted. `syzygy_platform_contracts` reports aggregate status as
+`native-disclosure-openai-anthropic-gemini-xai-stream-tool-proposal-review-ui-no-live-proof`.
 
 The incremental OpenAI SSE decoder accepts arbitrary byte fragmentation, including split Unicode;
 joins multiline `data:` fields; ignores keepalives; validates optional SSE event labels against
 the JSON event type; emits normalized start, text, usage, finish, error, and end events; preserves
 unknown future types as warnings; strips provider error messages; and bounds pending frames to one
 MiB. Malformed JSON, label mismatch, partial usage, oversized frames, and truncated streams fail
-closed. Function-call events, retry/duplicate semantics, slow-consumer stress, and reconnect remain
-open. Cancellation covers the complete one-shot request/body future and the fake-network stream
+closed. Function-call item start, fragmented argument delta, completion, duplicate confirmation,
+JSON/body bounds, and incomplete lifecycle are normalized fail-closed; execution, retry semantics,
+slow-consumer stress, and reconnect remain open. Cancellation covers the complete one-shot request/body future and the fake-network stream
 through normalized event dispatch. Product wiring preserves that boundary through a scoped ordered
 channel; slow-consumer/backpressure stress, reconnect, retries, and duplicate-event policy remain open.
 
@@ -150,12 +184,13 @@ text blocks, user messages, `max_tokens`, and `stream:false`. The native SSE pat
 `stream:true`, requires `text/event-stream`, bounds aggregate bytes, and normalizes
 `message_start`, text deltas, cumulative usage, stop reason, warnings, sanitized errors, and
 `message_stop` through the same ordered runtime channel used by the product review. Ping and
-content-stop events are harmless; unknown event types remain visible warnings. Thinking, signature,
-and partial-tool bodies are never copied into normalized events or run records. The decoder rejects
+content-stop events are harmless; unknown event types remain visible warnings. Thinking and signature
+bodies are never copied into normalized events or run records. Tool input fragments are copied only
+into the bounded transient proposal lifecycle and remain absent from run records. The decoder rejects
 label/type mismatch, decreasing cumulative usage, malformed/truncated lifecycle, and missing
 terminal events. The normalizer computes overflow-safe total usage, maps refusal to a sanitized
 marker, and shares the disclosure, timeout, cancellation, TLS/loopback, and error-redaction gates.
-Tool assembly/execution, beta headers, upstream request IDs beyond the message ID, live policy
+Tool execution/result continuation, beta headers, upstream request IDs beyond the message ID, live policy
 validation, packaged native-dialog interaction, and opt-in live proof remain open.
 
 The Gemini slice targets the stable `/v1/interactions` API rather than silently following an SDK's
@@ -168,10 +203,10 @@ terminal status, sanitized errors/warnings, and `[DONE]` through the ordered pro
 Initial text in `step.start` and later text deltas are both retained. Step indexes are unique and
 bounded to 1,024; orphan/duplicate steps, mismatched interaction identity, malformed totals,
 label/type mismatch, unfinished steps, missing terminal events, and oversized streams fail closed.
-Thought summaries/signatures and function/tool names or argument deltas become content-free warning
-types only. The one-shot normalizer likewise retains only text in `model_output` steps and accepts
+Thought summaries/signatures remain content-free warning types only. Complete `function_call` steps
+become bounded proposal lifecycles; the one-shot normalizer retains text and function proposals and accepts
 usage only when total tokens cover input plus output. The endpoint, disclosure, byte bound,
-redaction, timeout, and cancellation gates match the other remote slices. Tool assembly/execution,
+redaction, timeout, and cancellation gates match the other remote slices. Tool execution/result continuation,
 thought-signature continuation, structured output, stored state, live terms validation, packaged
 dialog interaction, and opt-in live proof remain open.
 
@@ -183,14 +218,16 @@ timeout/cancellation future, and reports xAI as the normalized provider. Every s
 must include xAI's boolean `x-zero-data-retention` header; streaming validates it before dispatching
 the first event, and the typed outcome/content-free run record expose whether enterprise ZDR was
 actually active instead of treating `store:false` as ZDR. Text, usage, terminal status, sanitized
-errors, and `[DONE]` use the provider-neutral Responses normalizer. Unsupported tool/reasoning events
-surface only their event type as a warning; argument/reasoning bodies are omitted. xAI's primary
-streaming and security documentation was rechecked on 2026-08-11. Tool assembly/execution,
+errors, and `[DONE]` use the provider-neutral Responses normalizer. Documented whole custom-function
+calls become one bounded start/delta/complete proposal; unsupported built-in/reasoning events surface
+only their type as a warning and reasoning bodies are omitted. xAI's primary streaming, function,
+and security documentation was rechecked on 2026-08-11. Tool execution/result continuation,
 encrypted reasoning continuation, WebSocket mode, slow-consumer/retry semantics, cost ticks,
 packaged dialog interaction, and opt-in live proof remain open.
 
 Primary xAI sources: <https://docs.x.ai/developers/model-capabilities/text/streaming>,
-<https://docs.x.ai/developers/tools/overview>, and
+<https://docs.x.ai/developers/tools/overview>,
+<https://docs.x.ai/developers/tools/function-calling>, and
 <https://docs.x.ai/developers/faq/security>.
 
 The review UI defaults are editable convenience values, not capability guarantees: `gpt-5.2`,

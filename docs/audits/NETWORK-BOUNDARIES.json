@@ -35,7 +35,7 @@
         { "kind": "internet", "origin": "https://generativelanguage.googleapis.com", "routePrefixes": ["/v1/interactions"] },
         { "kind": "internet", "origin": "https://api.x.ai", "routePrefixes": ["/v1/responses"] }
       ],
-      "payloads": ["disclosed research envelope", "model settings", "provider response"],
+      "payloads": ["disclosed research envelope", "model settings", "optional disclosed custom-function names, descriptions, and argument schemas", "provider text or custom-function proposal response"],
       "credentials": "provider secrets are stored and read by the native credential vault",
       "sourceAnchors": [
         { "path": "frontend/src-tauri/src/provider_runtime.rs", "contains": "https://api.openai.com/v1/responses" },
@@ -45,7 +45,7 @@
         { "path": "frontend/src/workspace/RemoteResearchReview.tsx", "contains": "Send once" },
         { "path": "frontend/src/components/NetworkBoundarySummary.tsx", "contains": "remote AI is never automatic" }
       ],
-      "evidence": ["frontend/src-tauri/src/provider_runtime.rs", "frontend/src/providerStream.test.ts", "frontend/src/workspace/RemoteResearchReview.ui.test.tsx", "docs/audits/runs/REMOTE-PROVIDER-STREAMING-2026-07-20.json"]
+      "evidence": ["frontend/src-tauri/src/provider_runtime.rs", "frontend/src/providerStream.test.ts", "frontend/src/workspace/RemoteResearchReview.ui.test.tsx", "docs/audits/runs/REMOTE-PROVIDER-STREAMING-2026-07-20.json", "docs/audits/runs/PROVIDER-TOOL-PROPOSALS-2026-08-11.json"]
     },
     {
       "id": "google-drive",

@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "runId": "PROVIDER-TOOL-PROPOSALS-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "498a885",
+  "capabilities": ["P-25", "S-06"],
+  "status": "implemented_unverified",
+  "claim": "All four built-in remote-provider adapters accept bounded custom-function definitions and normalize provider function calls into one transient inspect-only proposal lifecycle without adding tool execution, result continuation, or ambient application authority.",
+  "primarySources": [
+    "https://developers.openai.com/api/docs/guides/function-calling",
+    "https://platform.claude.com/docs/en/build-with-claude/streaming",
+    "https://ai.google.dev/api/interactions-api-v1",
+    "https://docs.x.ai/developers/tools/function-calling"
+  ],
+  "commands": [
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend/src-tauri/Cargo.toml --lib provider_ -- --nocapture",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend/src-tauri/Cargo.toml --lib -- --nocapture",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend test -- --run",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend run build",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/audit.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/network-boundary-harness.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/mcp-harness.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend run check:supervised"
+  ],
+  "result": {
+    "focusedProviderTestsPassed": 38,
+    "focusedFrontendTestFilesPassed": 3,
+    "focusedFrontendTestsPassed": 13,
+    "fullRustTestsPassed": 125,
+    "fullFrontendTestFilesPassed": 109,
+    "fullFrontendTestFilesSkipped": 1,
+    "fullFrontendTestsPassed": 460,
+    "fullFrontendTestsSkipped": 1,
+    "frontendProductionBuildPassed": true,
+    "structuralAuditPassed": true,
+    "networkBoundaryHarnessPassed": true,
+    "compiledMcpToolCount": 38,
+    "compiledMcpHarnessPassed": true,
+    "fullSupervisedValidationPassed": true,
+    "supervisedRunId": "20260811-075314-2d6e01",
+    "loopbackFakeNetworkUsed": true,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "paidProviderCalls": 0,
+    "toolCallsExecuted": 0
+  },
+  "bounds": {
+    "definitionsPerRequest": 32,
+    "definitionNameCharacters": 64,
+    "definitionDescriptionCharacters": 4096,
+    "schemaBytesPerDefinition": 65536,
+    "schemaBytesPerRequest": 262144,
+    "proposalsPerResponse": 32,
+    "argumentBytesPerProposal": 262144,
+    "argumentBytesPerResponse": 1048576
+  },
+  "proved": [
+    "OpenAI/xAI Responses, Anthropic Messages, and Gemini Interactions receive their provider-specific custom-function definition shapes from one validated provider-neutral request.",
+    "Definitions require unique bounded names, printable bounded descriptions, and a bounded JSON-object parameter schema rooted at type object.",
+    "OpenAI argument deltas, Anthropic partial_json blocks, Gemini complete function-call steps, and xAI whole-call chunks normalize into the same start/delta/complete proposal lifecycle.",
+    "Call count, call IDs, names, per-call arguments, aggregate arguments, event order, and final JSON equality are bounded and checked independently in the provider decoder, runtime accumulator, and frontend reducer.",
+    "Orphaned, duplicate, mismatched, malformed, non-object, oversized, truncated, or unfinished calls fail closed in hostile synthetic fixtures.",
+    "The native disclosure derives a category for tool names, descriptions, and argument schemas from the actual request rather than trusting caller-authored disclosure metadata.",
+    "The workspace labels calls inspect only and not executed, offers no Run tool control, retains proposals only in transient state, and never applies them to the shared draft.",
+    "The content-free provider-run record stores no response text or tool-argument body; its outputSha256 commits to both normalized text and proposals.",
+    "No test or runtime path gave a proposal MCP, Drive, filesystem, plugin, editor, network, or shared-project mutation authority."
+  ],
+  "notProved": [
+    "Any live OpenAI, Anthropic, Gemini, or xAI model, credential, provider response shape, rate limit, billing behavior, retention policy, or server-side tool behavior.",
+    "Validation of returned arguments against the supplied JSON Schema or any domain-specific semantic validator.",
+    "Tool execution, tool-result transmission, multi-turn continuation, retry, idempotency, permission brokering, or user approval for a concrete tool authority.",
+    "Built-in provider tools, remote MCP tools, Drive access, filesystem access, plugin execution, editor mutation, network access, or shared-project mutation.",
+    "Slow-consumer or backpressure behavior, packaged native Send once dialog interaction, or a shipped updater artifact containing this checkpoint.",
+    "Any model-quality, truth, safety, consensus, feature-parity, or superiority property."
+  ],
+  "implementationAnchors": [
+    "frontend/src-tauri/src/model_provider.rs",
+    "frontend/src-tauri/src/provider_stream.rs",
+    "frontend/src-tauri/src/provider_runtime.rs",
+    "frontend/src/providerStream.ts",
+    "frontend/src/workspace/remoteResearchTask.ts",
+    "frontend/src/workspace/RemoteResearchReview.tsx",
+    "scripts/audit.mjs"
+  ]
+}

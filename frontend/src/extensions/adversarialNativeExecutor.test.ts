@@ -37,6 +37,7 @@ function outcome(provider: RemoteProviderId, text: string, usage = true): Provid
       text,
       refusals: [],
       unknownOutputTypes: [],
+      toolProposals: [],
       usage: usage ? { inputTokens: 10, outputTokens: 5, totalTokens: 15 } : null,
     },
     zeroDataRetention: null,

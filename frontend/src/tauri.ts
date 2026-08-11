@@ -93,6 +93,12 @@ export interface ProviderResearchSource {
   excerpt: string
 }
 
+export interface ProviderToolDefinition {
+  name: string
+  description: string
+  parameters: Record<string, unknown>
+}
+
 export interface ProviderResearchTaskRequest {
   runId: string
   callId: string
@@ -104,6 +110,7 @@ export interface ProviderResearchTaskRequest {
   question: string
   sources: ProviderResearchSource[]
   maxOutputTokens: number
+  toolDefinitions?: ProviderToolDefinition[]
 }
 
 export interface ProviderNormalizedUsage {
@@ -120,7 +127,14 @@ export interface ProviderNormalizedResponse {
   text: string
   refusals: string[]
   unknownOutputTypes: string[]
+  toolProposals: ProviderToolProposal[]
   usage: ProviderNormalizedUsage | null
+}
+
+export interface ProviderToolProposal {
+  callId: string
+  name: string
+  arguments: Record<string, unknown>
 }
 
 export interface ProviderTaskOutcome {

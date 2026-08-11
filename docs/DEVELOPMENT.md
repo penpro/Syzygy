@@ -546,22 +546,25 @@ availability; streamed product delivery and an opt-in live canary are separate g
 
 The same command certifies the Anthropic Messages one-shot and streaming boundary. Its fake server checks
 `POST /v1/messages`, `x-api-key`, `anthropic-version: 2023-06-01`, developer-to-system and user-to-
-message mapping, `max_tokens`, and one-shot `stream:false`. Its SSE fixture separately checks
+message mapping, `max_tokens`, bounded `input_schema` tool definitions, and one-shot `stream:false`. Its SSE fixture separately checks
 `stream:true`, the event-stream media type, message/content lifecycle, cumulative usage, terminal
 order, fragmented delivery, sanitized errors/warnings, and omission of private thinking bodies.
 `npm run test:provider-runtime` also routes that stream through the product task accumulator and
 proves secrets, prompts, categories, and private-thinking canaries stay out of serialized outcomes.
-This does not prove tools, a live credential/provider, or packaged native-dialog interaction.
+Fragmented `input_json_delta` tool arguments normalize into bounded non-executing proposals and
+malformed or unfinished calls fail closed. This does not prove tool execution/result continuation,
+a live credential/provider, or packaged native-dialog interaction.
 
 It also certifies the stable-v1 Gemini Interactions one-shot and streaming boundary. Fake servers check
 `POST /v1/interactions`, `x-goog-api-key`, `store:false`, `background:false`, `stream:false`,
-`thinking_summaries:none`, system/user mapping, output bounds, text-only normalization, aggregate
+`thinking_summaries:none`, system/user mapping, bounded function definitions, output bounds, aggregate
 usage consistency, sanitized failures, timeout, and cancellation. The SSE fixture separately checks
 `stream:true`, `Accept:text/event-stream`, indexed step lifecycle, initial and delta text, final
-usage/status/`[DONE]`, fragmented delivery, and omission of thought/signature/tool bodies. The test
+usage/status/`[DONE]`, fragmented delivery, omission of thought/signature bodies, and normalization
+of complete function-call steps into the common non-executing proposal lifecycle. The test
 rejects `/v1beta` instead of silently drifting API versions. The runtime suite routes the same stream
 through the product accumulator and excludes secret, prompt, category, and thought canaries from
-serialized outcomes. Tool assembly/execution, thought-signature continuation, a live credential,
+serialized outcomes. Tool execution/result continuation, thought-signature continuation, a live credential,
 and packaged native-dialog interaction remain open.
 
 The xAI Responses one-shot and SSE boundaries use the Responses shape without assuming OpenAI's
@@ -569,8 +572,8 @@ privacy semantics. Fake servers check bearer auth, `store:false`, no previous-re
 identifier, bounded normalization, timeout/cancellation, `stream:true` plus event-stream media
 negotiation, and a mandatory boolean `x-zero-data-retention` response header. The stream rejects a
 missing or non-boolean header before dispatching any event and preserves the attestation in the
-authoritative content-free run record. Unsupported tool-argument events become body-free warning
-types. Tool assembly/execution, encrypted reasoning continuation, WebSocket mode, live policy/rate/
+authoritative content-free run record. Whole custom function-call chunks normalize into bounded
+non-executing proposals. Tool execution/result continuation, encrypted reasoning continuation, WebSocket mode, live policy/rate/
 cost behavior, packaged native-dialog interaction, and live proof remain open.
 
 `npm run test:provider-runtime` proves the next internal boundary: a typed task retrieves a key
@@ -587,13 +590,18 @@ current semantic draft to a SHA-256 source identity, retain editable provider/mo
 and cannot supply approval, categories, provenance, or credentials. Result text remains transient
 and does not mutate the shared draft. Live-key execution and UI interaction remain separate gates.
 The command also does not accept free-form disclosure categories or a detached source-ID list.
-`ProviderResearchTaskRequest` carries a question, optional task instructions, and labeled source
-snapshots; Rust serializes the actual payload, derives the categories and unique provenance IDs,
-then validates bounds before opening the native dialog.
+`ProviderResearchTaskRequest` carries a question, optional task instructions, labeled source
+snapshots, and optional bounded custom-function definitions; Rust serializes the actual payload,
+derives the categories and unique provenance IDs, includes tool names/descriptions/schemas in the
+native disclosure, then validates bounds before opening the native dialog. The workspace displays
+normalized calls as inspect-only proposals and has no execution or result-return path. A content-free
+output hash binds both response text and proposal bodies while the run record retains neither body.
 Evidence and remaining domain/live-provider gaps are recorded in
 `docs/audits/runs/PROVIDER-RESEARCH-ENVELOPE-2026-07-15.json`.
 The evidence and explicit limitations are recorded in
 `docs/audits/runs/NATIVE-PROVIDER-DISCLOSURE-2026-07-15.json`.
+The provider-neutral proposal lifecycle, hostile fixtures, limits, authority exclusions, and live
+non-claims are recorded in `docs/audits/runs/PROVIDER-TOOL-PROPOSALS-2026-08-11.json`.
 
 Settings now has a collapsed remote-provider key section for OpenAI, Anthropic, Gemini, and xAI.
 The component calls only typed status/set/delete wrappers, keeps the key out of React state and all

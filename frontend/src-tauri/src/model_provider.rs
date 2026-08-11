@@ -21,17 +21,23 @@ use reqwest::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::{BTreeMap, HashSet};
 use std::{fmt, time::Duration};
 use zeroize::Zeroize;
 
-pub const OPENAI_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
-pub const ANTHROPIC_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
-pub const GEMINI_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
-pub const XAI_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
+pub const OPENAI_ADAPTER_STATUS: &str = "request-stream-and-tool-proposal-conformance";
+pub const ANTHROPIC_ADAPTER_STATUS: &str = "request-stream-and-tool-proposal-conformance";
+pub const GEMINI_ADAPTER_STATUS: &str = "request-stream-and-tool-proposal-conformance";
+pub const XAI_ADAPTER_STATUS: &str = "request-stream-and-tool-proposal-conformance";
 pub const DEFAULT_PROVIDER_TIMEOUT: Duration = Duration::from_secs(60);
 const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_STREAM_BYTES: usize = 32 * 1024 * 1024;
 const MAX_PROVIDER_TIMEOUT: Duration = Duration::from_secs(10 * 60);
+pub(crate) const MAX_TOOL_CALLS: usize = 32;
+pub(crate) const MAX_TOOL_ARGUMENT_BYTES: usize = 256 * 1024;
+pub(crate) const MAX_TOOL_ARGUMENT_TOTAL_BYTES: usize = 1024 * 1024;
+const MAX_TOOL_SCHEMA_BYTES: usize = 64 * 1024;
+const MAX_TOOL_SCHEMA_TOTAL_BYTES: usize = 256 * 1024;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum RemoteProviderId {
@@ -150,14 +156,32 @@ pub struct ProviderInput {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ProviderToolDefinition {
+    pub name: String,
+    pub description: String,
+    pub parameters: Value,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NormalizedToolProposal {
+    pub call_id: String,
+    pub name: String,
+    pub arguments: Value,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GenerationRequest {
     pub model: String,
     pub input: Vec<ProviderInput>,
     pub max_output_tokens: u32,
+    #[serde(default)]
+    pub tools: Vec<ProviderToolDefinition>,
 }
 
 impl GenerationRequest {
-    fn validate(&self) -> Result<(), ProviderError> {
+    pub(crate) fn validate(&self) -> Result<(), ProviderError> {
         if self.model.trim().is_empty()
             || self.model.chars().count() > 200
             || self.input.is_empty()
@@ -167,6 +191,7 @@ impl GenerationRequest {
                 .iter()
                 .any(|item| item.content.is_empty() || item.content.len() > 4 * 1024 * 1024)
             || !(1..=1_000_000).contains(&self.max_output_tokens)
+            || !valid_tool_definitions(&self.tools)
         {
             return Err(ProviderError::InvalidRequest);
         }
@@ -192,7 +217,68 @@ pub struct NormalizedResponse {
     pub text: String,
     pub refusals: Vec<String>,
     pub unknown_output_types: Vec<String>,
+    pub tool_proposals: Vec<NormalizedToolProposal>,
     pub usage: Option<NormalizedUsage>,
+}
+
+pub(crate) fn valid_tool_call_id(value: &str) -> bool {
+    !value.trim().is_empty() && value.chars().count() <= 512 && !value.chars().any(char::is_control)
+}
+
+pub(crate) fn valid_tool_name(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+}
+
+fn valid_tool_definitions(tools: &[ProviderToolDefinition]) -> bool {
+    if tools.len() > MAX_TOOL_CALLS {
+        return false;
+    }
+    let mut names = HashSet::new();
+    let mut total_schema_bytes = 0_usize;
+    tools.iter().all(|tool| {
+        let Ok(schema) = serde_json::to_vec(&tool.parameters) else {
+            return false;
+        };
+        let Some(next_total) = total_schema_bytes.checked_add(schema.len()) else {
+            return false;
+        };
+        total_schema_bytes = next_total;
+        valid_tool_name(&tool.name)
+            && names.insert(tool.name.as_str())
+            && !tool.description.trim().is_empty()
+            && tool.description.chars().count() <= 4_096
+            && !tool.description.chars().any(char::is_control)
+            && tool.parameters.is_object()
+            && tool.parameters.get("type").and_then(Value::as_str) == Some("object")
+            && schema.len() <= MAX_TOOL_SCHEMA_BYTES
+            && total_schema_bytes <= MAX_TOOL_SCHEMA_TOTAL_BYTES
+    })
+}
+
+pub(crate) fn normalize_tool_proposal(
+    call_id: &str,
+    name: &str,
+    arguments: Value,
+) -> Result<NormalizedToolProposal, ProviderError> {
+    let argument_bytes = serde_json::to_vec(&arguments)
+        .map_err(|_| ProviderError::MalformedResponse)?
+        .len();
+    if !valid_tool_call_id(call_id)
+        || !valid_tool_name(name)
+        || !arguments.is_object()
+        || argument_bytes > MAX_TOOL_ARGUMENT_BYTES
+    {
+        return Err(ProviderError::MalformedResponse);
+    }
+    Ok(NormalizedToolProposal {
+        call_id: call_id.to_owned(),
+        name: name.to_owned(),
+        arguments,
+    })
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -291,6 +377,14 @@ struct StreamSequence {
     saw_finish: bool,
     saw_end: bool,
     saw_provider_error: bool,
+    active_tools: BTreeMap<String, StreamToolCall>,
+    completed_tool_calls: HashSet<String>,
+    tool_argument_bytes: usize,
+}
+
+struct StreamToolCall {
+    name: String,
+    arguments: String,
 }
 
 impl StreamSequence {
@@ -307,8 +401,78 @@ impl StreamSequence {
                     return Err(ProviderError::MalformedResponse);
                 }
             }
-            NormalizedStreamEvent::Finish { .. } => {
+            NormalizedStreamEvent::ToolCallStart { call_id, name } => {
+                if !self.saw_start
+                    || self.saw_finish
+                    || self.saw_end
+                    || self.active_tools.len() + self.completed_tool_calls.len() >= MAX_TOOL_CALLS
+                    || !valid_tool_call_id(call_id)
+                    || !valid_tool_name(name)
+                    || self.completed_tool_calls.contains(call_id)
+                    || self
+                        .active_tools
+                        .insert(
+                            call_id.clone(),
+                            StreamToolCall {
+                                name: name.clone(),
+                                arguments: String::new(),
+                            },
+                        )
+                        .is_some()
+                {
+                    return Err(ProviderError::MalformedResponse);
+                }
+            }
+            NormalizedStreamEvent::ToolCallDelta {
+                call_id,
+                arguments_delta,
+            } => {
+                if !self.saw_start || self.saw_finish || self.saw_end || arguments_delta.is_empty()
+                {
+                    return Err(ProviderError::MalformedResponse);
+                }
+                let tool = self
+                    .active_tools
+                    .get_mut(call_id)
+                    .ok_or(ProviderError::MalformedResponse)?;
+                if tool.arguments.len() + arguments_delta.len() > MAX_TOOL_ARGUMENT_BYTES {
+                    return Err(ProviderError::ResponseTooLarge);
+                }
+                self.tool_argument_bytes = self
+                    .tool_argument_bytes
+                    .checked_add(arguments_delta.len())
+                    .filter(|bytes| *bytes <= MAX_TOOL_ARGUMENT_TOTAL_BYTES)
+                    .ok_or(ProviderError::ResponseTooLarge)?;
+                tool.arguments.push_str(arguments_delta);
+            }
+            NormalizedStreamEvent::ToolCallComplete {
+                call_id,
+                name,
+                arguments,
+            } => {
                 if !self.saw_start || self.saw_finish || self.saw_end {
+                    return Err(ProviderError::MalformedResponse);
+                }
+                let tool = self
+                    .active_tools
+                    .remove(call_id)
+                    .ok_or(ProviderError::MalformedResponse)?;
+                let accumulated: Value = serde_json::from_str(&tool.arguments)
+                    .map_err(|_| ProviderError::MalformedResponse)?;
+                if tool.name != *name
+                    || accumulated != *arguments
+                    || !self.completed_tool_calls.insert(call_id.clone())
+                {
+                    return Err(ProviderError::MalformedResponse);
+                }
+                normalize_tool_proposal(call_id, name, arguments.clone())?;
+            }
+            NormalizedStreamEvent::Finish { .. } => {
+                if !self.saw_start
+                    || self.saw_finish
+                    || self.saw_end
+                    || !self.active_tools.is_empty()
+                {
                     return Err(ProviderError::MalformedResponse);
                 }
                 self.saw_finish = true;
@@ -362,7 +526,7 @@ fn validate_endpoint(endpoint: &Url, expected_path: &str) -> Result<(), Provider
 }
 
 fn openai_body(request: &GenerationRequest, stream: bool) -> Value {
-    json!({
+    let mut body = json!({
         "model": request.model,
         "input": request.input.iter().map(|item| json!({
             "role": item.role,
@@ -371,7 +535,26 @@ fn openai_body(request: &GenerationRequest, stream: bool) -> Value {
         "max_output_tokens": request.max_output_tokens,
         "store": false,
         "stream": stream,
-    })
+    });
+    if !request.tools.is_empty() {
+        body["tools"] = Value::Array(
+            request
+                .tools
+                .iter()
+                .map(|tool| {
+                    json!({
+                        "type": "function",
+                        "name": tool.name,
+                        "description": tool.description,
+                        "parameters": tool.parameters,
+                    })
+                })
+                .collect(),
+        );
+        body["tool_choice"] = Value::String("auto".to_owned());
+        body["parallel_tool_calls"] = Value::Bool(true);
+    }
+    body
 }
 
 fn anthropic_body(request: &GenerationRequest, stream: bool) -> Result<Value, ProviderError> {
@@ -398,6 +581,22 @@ fn anthropic_body(request: &GenerationRequest, stream: bool) -> Result<Value, Pr
     });
     if !system.is_empty() {
         body["system"] = Value::Array(system);
+    }
+    if !request.tools.is_empty() {
+        body["tools"] = Value::Array(
+            request
+                .tools
+                .iter()
+                .map(|tool| {
+                    json!({
+                        "name": tool.name,
+                        "description": tool.description,
+                        "input_schema": tool.parameters,
+                    })
+                })
+                .collect(),
+        );
+        body["tool_choice"] = json!({ "type": "auto" });
     }
     Ok(body)
 }
@@ -434,6 +633,23 @@ fn gemini_body(request: &GenerationRequest, stream: bool) -> Result<Value, Provi
     if !system_instruction.is_empty() {
         body["system_instruction"] = Value::String(system_instruction);
     }
+    if !request.tools.is_empty() {
+        body["tools"] = Value::Array(
+            request
+                .tools
+                .iter()
+                .map(|tool| {
+                    json!({
+                        "type": "function",
+                        "name": tool.name,
+                        "description": tool.description,
+                        "parameters": tool.parameters,
+                    })
+                })
+                .collect(),
+        );
+        body["tool_choice"] = Value::String("auto".to_owned());
+    }
     Ok(body)
 }
 
@@ -454,6 +670,29 @@ async fn bounded_body(response: reqwest::Response) -> Result<Vec<u8>, ProviderEr
         body.extend_from_slice(&chunk);
     }
     Ok(body)
+}
+
+fn push_tool_proposal(
+    proposals: &mut Vec<NormalizedToolProposal>,
+    seen_call_ids: &mut HashSet<String>,
+    total_argument_bytes: &mut usize,
+    call_id: &str,
+    name: &str,
+    arguments: Value,
+) -> Result<(), ProviderError> {
+    if proposals.len() >= MAX_TOOL_CALLS || !seen_call_ids.insert(call_id.to_owned()) {
+        return Err(ProviderError::MalformedResponse);
+    }
+    let proposal = normalize_tool_proposal(call_id, name, arguments)?;
+    let bytes = serde_json::to_vec(&proposal.arguments)
+        .map_err(|_| ProviderError::MalformedResponse)?
+        .len();
+    *total_argument_bytes = total_argument_bytes
+        .checked_add(bytes)
+        .filter(|total| *total <= MAX_TOOL_ARGUMENT_TOTAL_BYTES)
+        .ok_or(ProviderError::ResponseTooLarge)?;
+    proposals.push(proposal);
+    Ok(())
 }
 
 fn normalize_responses_api(
@@ -479,11 +718,35 @@ fn normalize_responses_api(
     let mut text = String::new();
     let mut refusals = Vec::new();
     let mut unknown_output_types = Vec::new();
+    let mut tool_proposals = Vec::new();
+    let mut seen_tool_call_ids = HashSet::new();
+    let mut tool_argument_bytes = 0_usize;
     for item in output {
         let item_type = item
             .get("type")
             .and_then(Value::as_str)
             .unwrap_or("missing");
+        if item_type == "function_call" {
+            let arguments = item
+                .get("arguments")
+                .and_then(Value::as_str)
+                .ok_or(ProviderError::MalformedResponse)?;
+            let arguments =
+                serde_json::from_str(arguments).map_err(|_| ProviderError::MalformedResponse)?;
+            push_tool_proposal(
+                &mut tool_proposals,
+                &mut seen_tool_call_ids,
+                &mut tool_argument_bytes,
+                item.get("call_id")
+                    .and_then(Value::as_str)
+                    .ok_or(ProviderError::MalformedResponse)?,
+                item.get("name")
+                    .and_then(Value::as_str)
+                    .ok_or(ProviderError::MalformedResponse)?,
+                arguments,
+            )?;
+            continue;
+        }
         if item_type != "message" {
             unknown_output_types.push(item_type.to_owned());
             continue;
@@ -525,6 +788,7 @@ fn normalize_responses_api(
         text,
         refusals,
         unknown_output_types,
+        tool_proposals,
         usage,
     })
 }
@@ -564,6 +828,9 @@ fn normalize_anthropic(value: Value) -> Result<NormalizedResponse, ProviderError
         .ok_or(ProviderError::MalformedResponse)?;
     let mut text = String::new();
     let mut unknown_output_types = Vec::new();
+    let mut tool_proposals = Vec::new();
+    let mut seen_tool_call_ids = HashSet::new();
+    let mut tool_argument_bytes = 0_usize;
     for block in content {
         match block.get("type").and_then(Value::as_str) {
             Some("text") => text.push_str(
@@ -572,6 +839,23 @@ fn normalize_anthropic(value: Value) -> Result<NormalizedResponse, ProviderError
                     .and_then(Value::as_str)
                     .ok_or(ProviderError::MalformedResponse)?,
             ),
+            Some("tool_use") => push_tool_proposal(
+                &mut tool_proposals,
+                &mut seen_tool_call_ids,
+                &mut tool_argument_bytes,
+                block
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .ok_or(ProviderError::MalformedResponse)?,
+                block
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .ok_or(ProviderError::MalformedResponse)?,
+                block
+                    .get("input")
+                    .cloned()
+                    .ok_or(ProviderError::MalformedResponse)?,
+            )?,
             Some(other) => unknown_output_types.push(other.to_owned()),
             None => unknown_output_types.push("missing".to_owned()),
         }
@@ -602,6 +886,7 @@ fn normalize_anthropic(value: Value) -> Result<NormalizedResponse, ProviderError
             .into_iter()
             .collect(),
         unknown_output_types,
+        tool_proposals,
         usage: Some(NormalizedUsage {
             input_tokens,
             output_tokens,
@@ -632,6 +917,9 @@ fn normalize_gemini(value: Value) -> Result<NormalizedResponse, ProviderError> {
         .ok_or(ProviderError::MalformedResponse)?;
     let mut text = String::new();
     let mut unknown_output_types = Vec::new();
+    let mut tool_proposals = Vec::new();
+    let mut seen_tool_call_ids = HashSet::new();
+    let mut tool_argument_bytes = 0_usize;
     for step in steps {
         match step.get("type").and_then(Value::as_str) {
             Some("model_output") => {
@@ -652,6 +940,20 @@ fn normalize_gemini(value: Value) -> Result<NormalizedResponse, ProviderError> {
                     }
                 }
             }
+            Some("function_call") => push_tool_proposal(
+                &mut tool_proposals,
+                &mut seen_tool_call_ids,
+                &mut tool_argument_bytes,
+                step.get("id")
+                    .and_then(Value::as_str)
+                    .ok_or(ProviderError::MalformedResponse)?,
+                step.get("name")
+                    .and_then(Value::as_str)
+                    .ok_or(ProviderError::MalformedResponse)?,
+                step.get("arguments")
+                    .cloned()
+                    .ok_or(ProviderError::MalformedResponse)?,
+            )?,
             Some(other) => unknown_output_types.push(other.to_owned()),
             None => unknown_output_types.push("missing".to_owned()),
         }
@@ -696,6 +998,7 @@ fn normalize_gemini(value: Value) -> Result<NormalizedResponse, ProviderError> {
         text,
         refusals: Vec::new(),
         unknown_output_types,
+        tool_proposals,
         usage,
     })
 }
@@ -1144,6 +1447,7 @@ mod tests {
                 content: "Compare the cited claims.".to_owned(),
             }],
             max_output_tokens: 700,
+            tools: Vec::new(),
         }
     }
 
@@ -1177,6 +1481,103 @@ mod tests {
             content_categories: vec!["selected research excerpts".to_owned()],
             accepted: true,
         }
+    }
+
+    fn tool_definition() -> ProviderToolDefinition {
+        ProviderToolDefinition {
+            name: "lookup_source".to_owned(),
+            description: "Propose a bounded source lookup.".to_owned(),
+            parameters: json!({
+                "type": "object",
+                "properties": { "query": { "type": "string" } },
+                "required": ["query"]
+            }),
+        }
+    }
+
+    #[test]
+    fn tool_definitions_are_bounded_and_mapped_to_each_provider_contract() {
+        let mut request = request();
+        request.tools = vec![tool_definition()];
+        request.validate().expect("valid tool definition");
+
+        let responses = openai_body(&request, true);
+        assert_eq!(responses["tools"][0]["type"], "function");
+        assert_eq!(responses["tools"][0]["name"], "lookup_source");
+        assert_eq!(responses["tools"][0]["parameters"]["type"], "object");
+        assert_eq!(responses["tool_choice"], "auto");
+        assert_eq!(responses["parallel_tool_calls"], true);
+
+        let anthropic = anthropic_body(&request, true).expect("Anthropic body");
+        assert_eq!(anthropic["tools"][0]["name"], "lookup_source");
+        assert_eq!(anthropic["tools"][0]["input_schema"]["type"], "object");
+        assert_eq!(anthropic["tool_choice"]["type"], "auto");
+
+        let gemini = gemini_body(&request, true).expect("Gemini body");
+        assert_eq!(gemini["tools"][0]["type"], "function");
+        assert_eq!(gemini["tools"][0]["name"], "lookup_source");
+        assert_eq!(gemini["tool_choice"], "auto");
+
+        let mut duplicate = request.clone();
+        duplicate.tools.push(tool_definition());
+        assert_eq!(duplicate.validate(), Err(ProviderError::InvalidRequest));
+
+        let mut scalar_schema = request;
+        scalar_schema.tools[0].parameters = json!({ "type": "string" });
+        assert_eq!(scalar_schema.validate(), Err(ProviderError::InvalidRequest));
+    }
+
+    #[test]
+    fn one_shot_provider_shapes_normalize_tool_proposals_without_execution() {
+        let openai = normalize_openai(json!({
+            "id": "resp-tool",
+            "status": "completed",
+            "model": "fixture",
+            "output": [{
+                "type": "function_call",
+                "call_id": "call-openai",
+                "name": "lookup_source",
+                "arguments": "{\"query\":\"budget\"}"
+            }],
+            "usage": { "input_tokens": 3, "output_tokens": 2, "total_tokens": 5 }
+        }))
+        .expect("OpenAI proposal");
+        assert_eq!(
+            openai.tool_proposals[0].arguments,
+            json!({ "query": "budget" })
+        );
+
+        let anthropic = normalize_anthropic(json!({
+            "id": "msg-tool",
+            "type": "message",
+            "role": "assistant",
+            "model": "fixture",
+            "stop_reason": "tool_use",
+            "content": [{
+                "type": "tool_use",
+                "id": "call-anthropic",
+                "name": "lookup_source",
+                "input": { "query": "budget" }
+            }],
+            "usage": { "input_tokens": 3, "output_tokens": 2 }
+        }))
+        .expect("Anthropic proposal");
+        assert_eq!(anthropic.tool_proposals.len(), 1);
+
+        let gemini = normalize_gemini(json!({
+            "id": "interaction-tool",
+            "object": "interaction",
+            "status": "requires_action",
+            "model": "fixture",
+            "steps": [{
+                "type": "function_call",
+                "id": "call-gemini",
+                "name": "lookup_source",
+                "arguments": { "query": "budget" }
+            }]
+        }))
+        .expect("Gemini proposal");
+        assert_eq!(gemini.tool_proposals[0].name, "lookup_source");
     }
 
     fn read_http_request(stream: &mut TcpStream) -> String {
@@ -1890,6 +2291,7 @@ mod tests {
                 },
             ],
             max_output_tokens: 700,
+            tools: Vec::new(),
         };
         let secret_canary = "sk-ant-wire-canary";
         let response = tauri::async_runtime::block_on(execute_anthropic_response(
@@ -2042,6 +2444,7 @@ mod tests {
                 content: "No user turn.".to_owned(),
             }],
             max_output_tokens: 10,
+            tools: Vec::new(),
         };
         let missing_user = tauri::async_runtime::block_on(execute_anthropic_response(
             &Client::new(),
@@ -2154,6 +2557,7 @@ mod tests {
                 },
             ],
             max_output_tokens: 700,
+            tools: Vec::new(),
         };
         let secret_canary = "gemini-wire-canary";
         let response = tauri::async_runtime::block_on(execute_gemini_response(
@@ -2329,6 +2733,7 @@ mod tests {
                 content: "No user turn.".to_owned(),
             }],
             max_output_tokens: 10,
+            tools: Vec::new(),
         };
         let missing_user = tauri::async_runtime::block_on(execute_gemini_response(
             &client,
@@ -2454,12 +2859,12 @@ mod tests {
     }
 
     #[test]
-    fn xai_fake_stream_proves_zdr_attestation_wire_lifecycle_and_private_body_omission() {
-        let tool_canary = "xai-private-tool-arguments-canary";
+    fn xai_fake_stream_proves_zdr_attestation_wire_and_whole_tool_lifecycle() {
+        let tool_canary = "xai-tool-arguments-canary";
         let fixture = format!(
             concat!(
                 "data: {{\"type\":\"response.created\",\"response\":{{\"id\":\"resp_xai_stream\"}}}}\n\n",
-                "data: {{\"type\":\"response.function_call_arguments.delta\",\"delta\":\"{tool_canary}\"}}\n\n",
+                "data: {{\"type\":\"response.output_item.done\",\"item\":{{\"type\":\"function_call\",\"id\":\"fc-xai\",\"call_id\":\"call-xai\",\"name\":\"lookup_source\",\"arguments\":\"{{\\\"query\\\":\\\"{tool_canary}\\\"}}\"}}}}\n\n",
                 "data: {{\"type\":\"response.output_text.delta\",\"delta\":\"Supported finding.\"}}\n\n",
                 "data: {{\"type\":\"response.completed\",\"response\":{{\"status\":\"completed\",",
                 "\"usage\":{{\"input_tokens\":10,\"output_tokens\":3,\"total_tokens\":13}}}}}}\n\n",
@@ -2502,8 +2907,18 @@ mod tests {
                     provider: RemoteProviderId::Xai,
                     response_id: "resp_xai_stream".to_owned(),
                 },
-                NormalizedStreamEvent::ProviderWarning {
-                    event_type: "response.function_call_arguments.delta".to_owned(),
+                NormalizedStreamEvent::ToolCallStart {
+                    call_id: "call-xai".to_owned(),
+                    name: "lookup_source".to_owned(),
+                },
+                NormalizedStreamEvent::ToolCallDelta {
+                    call_id: "call-xai".to_owned(),
+                    arguments_delta: format!("{{\"query\":\"{tool_canary}\"}}"),
+                },
+                NormalizedStreamEvent::ToolCallComplete {
+                    call_id: "call-xai".to_owned(),
+                    name: "lookup_source".to_owned(),
+                    arguments: json!({ "query": tool_canary }),
                 },
                 NormalizedStreamEvent::TextDelta {
                     text: "Supported finding.".to_owned(),
@@ -2522,7 +2937,7 @@ mod tests {
             ]
         );
         let rendered = format!("{events:?}");
-        assert!(!rendered.contains(tool_canary));
+        assert!(rendered.contains(tool_canary));
         assert!(!rendered.contains(secret_canary));
 
         let raw = captured.recv().expect("captured xAI stream request");

@@ -1,5 +1,8 @@
 export const MAX_PROVIDER_STREAM_TEXT_CHARS = 8 * 1024 * 1024
 export const MAX_PROVIDER_STREAM_WARNINGS = 64
+export const MAX_PROVIDER_STREAM_TOOL_CALLS = 32
+export const MAX_PROVIDER_STREAM_TOOL_ARGUMENT_CHARS = 256 * 1024
+export const MAX_PROVIDER_STREAM_TOOL_ARGUMENT_TOTAL_CHARS = 1024 * 1024
 
 export type ProviderStreamUsage = {
   inputTokens: number
@@ -10,6 +13,9 @@ export type ProviderStreamUsage = {
 export type ProviderStreamEvent =
   | { type: 'message-start'; provider: string; responseId: string }
   | { type: 'text-delta'; text: string }
+  | { type: 'tool-call-start'; callId: string; name: string }
+  | { type: 'tool-call-delta'; callId: string; argumentsDelta: string }
+  | { type: 'tool-call-complete'; callId: string; name: string; arguments: Record<string, unknown> }
   | { type: 'usage'; usage: ProviderStreamUsage }
   | { type: 'finish'; status: string }
   | { type: 'provider-warning'; eventType: string }
@@ -32,6 +38,14 @@ export type ProviderStreamState = {
   finishStatus: string | null
   warnings: string[]
   errorCode: string | null
+  toolCalls: ProviderStreamToolCall[]
+}
+
+export type ProviderStreamToolCall = {
+  callId: string
+  name: string
+  argumentsText: string
+  arguments: Record<string, unknown> | null
 }
 
 export class ProviderStreamProtocolError extends Error {
@@ -51,6 +65,7 @@ export function initialProviderStreamState(): ProviderStreamState {
     finishStatus: null,
     warnings: [],
     errorCode: null,
+    toolCalls: [],
   }
 }
 
@@ -75,6 +90,22 @@ function assertActive(state: ProviderStreamState, eventType: string): void {
   if (state.phase !== 'streaming') {
     throw new ProviderStreamProtocolError(`${eventType} arrived outside an active stream`)
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  if (isRecord(value)) {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`
+  }
+  const encoded = JSON.stringify(value)
+  if (encoded === undefined) {
+    throw new ProviderStreamProtocolError('Tool arguments contain a non-JSON value')
+  }
+  return encoded
 }
 
 export function applyProviderStreamEvent(
@@ -105,6 +136,58 @@ export function applyProviderStreamEvent(
       }
       return { ...state, text: state.text + event.text }
     }
+    case 'tool-call-start': {
+      assertActive(state, 'Tool call start')
+      assertBoundedText(event.callId, 'tool call ID', 512)
+      assertBoundedText(event.name, 'tool name', 64)
+      if (!/^[A-Za-z0-9_-]+$/.test(event.name)) {
+        throw new ProviderStreamProtocolError('Invalid tool name')
+      }
+      if (state.toolCalls.length >= MAX_PROVIDER_STREAM_TOOL_CALLS || state.toolCalls.some(({ callId }) => callId === event.callId)) {
+        throw new ProviderStreamProtocolError('Duplicate or excessive tool call')
+      }
+      return {
+        ...state,
+        toolCalls: [...state.toolCalls, { callId: event.callId, name: event.name, argumentsText: '', arguments: null }],
+      }
+    }
+    case 'tool-call-delta': {
+      assertActive(state, 'Tool call delta')
+      if (!event.argumentsDelta || event.argumentsDelta.includes('\0')) {
+        throw new ProviderStreamProtocolError('Invalid tool argument delta')
+      }
+      const index = state.toolCalls.findIndex(({ callId }) => callId === event.callId)
+      if (index < 0 || state.toolCalls[index].arguments !== null) {
+        throw new ProviderStreamProtocolError('Tool argument delta has no active call')
+      }
+      const nextText = state.toolCalls[index].argumentsText + event.argumentsDelta
+      const total = state.toolCalls.reduce((sum, tool, toolIndex) => sum + (toolIndex === index ? nextText.length : tool.argumentsText.length), 0)
+      if (nextText.length > MAX_PROVIDER_STREAM_TOOL_ARGUMENT_CHARS || total > MAX_PROVIDER_STREAM_TOOL_ARGUMENT_TOTAL_CHARS) {
+        throw new ProviderStreamProtocolError('Tool arguments exceed the product bound')
+      }
+      const toolCalls = [...state.toolCalls]
+      toolCalls[index] = { ...toolCalls[index], argumentsText: nextText }
+      return { ...state, toolCalls }
+    }
+    case 'tool-call-complete': {
+      assertActive(state, 'Tool call complete')
+      const index = state.toolCalls.findIndex(({ callId }) => callId === event.callId)
+      if (index < 0 || state.toolCalls[index].arguments !== null || state.toolCalls[index].name !== event.name || !isRecord(event.arguments)) {
+        throw new ProviderStreamProtocolError('Tool completion does not match an active call')
+      }
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(state.toolCalls[index].argumentsText)
+      } catch {
+        throw new ProviderStreamProtocolError('Tool arguments are not complete JSON')
+      }
+      if (!isRecord(parsed) || canonicalJson(parsed) !== canonicalJson(event.arguments)) {
+        throw new ProviderStreamProtocolError('Tool completion arguments do not match streamed arguments')
+      }
+      const toolCalls = [...state.toolCalls]
+      toolCalls[index] = { ...toolCalls[index], arguments: event.arguments }
+      return { ...state, toolCalls }
+    }
     case 'usage': {
       assertActive(state, 'Usage')
       if (state.usage !== null) {
@@ -126,6 +209,9 @@ export function applyProviderStreamEvent(
     case 'finish': {
       assertActive(state, 'Finish')
       assertBoundedText(event.status, 'finish status', 64)
+      if (state.toolCalls.some(({ arguments: value }) => value === null)) {
+        throw new ProviderStreamProtocolError('Provider finished with an incomplete tool call')
+      }
       return { ...state, phase: 'finished', finishStatus: event.status }
     }
     case 'provider-error': {

@@ -41,4 +41,28 @@ describe('remote research streaming result', () => {
     expect(html).toContain('Transient review · never applied to the shared draft automatically')
     expect(html).toContain('aria-live="polite"')
   })
+
+  it('renders tool calls as proposal-only artifacts even when no prose is returned', () => {
+    let streamState = initialProviderStreamState()
+    streamState = applyProviderStreamEvent(streamState, {
+      type: 'message-start', provider: 'xai', responseId: 'response-tool',
+    })
+    streamState = applyProviderStreamEvent(streamState, {
+      type: 'tool-call-start', callId: 'call-tool', name: 'lookup_source',
+    })
+    streamState = applyProviderStreamEvent(streamState, {
+      type: 'tool-call-delta', callId: 'call-tool', argumentsDelta: '{"query":"budget"}',
+    })
+    streamState = applyProviderStreamEvent(streamState, {
+      type: 'tool-call-complete', callId: 'call-tool', name: 'lookup_source', arguments: { query: 'budget' },
+    })
+
+    const html = renderToStaticMarkup(
+      <RemoteResearchReviewResult provider="xai" model="fixture-model" outcome={null} streamState={streamState} />,
+    )
+    expect(html).toContain('Tool proposals · inspect only · not executed')
+    expect(html).toContain('lookup_source')
+    expect(html).toContain('&quot;query&quot;: &quot;budget&quot;')
+    expect(html).not.toContain('Run tool')
+  })
 })

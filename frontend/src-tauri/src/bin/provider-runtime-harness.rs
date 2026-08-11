@@ -70,6 +70,7 @@ fn main() {
                 content: "interop prompt canary".to_owned(),
             }],
             max_output_tokens: 128,
+            tools: Vec::new(),
         },
     };
     let outcome = tauri::async_runtime::block_on(execute_with(

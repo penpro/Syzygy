@@ -15,7 +15,7 @@ import {
 } from '../providerStream'
 import { getAutomationEditorController } from './editorAutomationRegistry'
 import type { ResearchProjectManifest } from './schema'
-import { buildRemoteReviewRequest, REMOTE_REVIEW_PROVIDERS } from './remoteResearchTask'
+import { buildRemoteReviewRequest, parseProviderToolDefinitions, REMOTE_REVIEW_PROVIDERS } from './remoteResearchTask'
 
 const DEFAULT_QUESTION = 'Identify the three most consequential unsupported assumptions or failure modes in this draft. Cite the relevant supplied passage and distinguish evidence from inference.'
 
@@ -35,14 +35,26 @@ export function providerUsesNativeStreaming(provider: RemoteProviderId): boolean
 export function RemoteResearchReviewResult({ provider, model, outcome, streamState }: RemoteResearchReviewResultProps) {
   const response = outcome?.response
   const text = response?.text ?? streamState?.text ?? ''
-  if (!text) return null
+  const toolProposals = response?.toolProposals ?? streamState?.toolCalls ?? []
+  if (!text && !toolProposals.length) return null
   const tokens = response?.usage?.totalTokens ?? streamState?.usage?.totalTokens
   return (
     <div className="remote-review-result" aria-live="polite">
       <div className="remote-review-result-meta mono">
         {response?.provider ?? provider} · {response?.model ?? model} · {tokens ?? (response ? 'usage unknown' : 'streaming')}{typeof tokens === 'number' ? ' tokens' : ''}
       </div>
-      <div className="remote-review-result-text">{text}</div>
+      {text ? <div className="remote-review-result-text">{text}</div> : null}
+      {toolProposals.length ? (
+        <div className="remote-review-tool-proposals">
+          <div className="remote-review-tool-heading">Tool proposals · inspect only · not executed</div>
+          {toolProposals.map((proposal) => (
+            <div className="remote-review-tool-proposal" key={proposal.callId}>
+              <div className="mono">{proposal.name} · {proposal.callId}</div>
+              <pre>{proposal.arguments ? JSON.stringify(proposal.arguments, null, 2) : ('argumentsText' in proposal ? proposal.argumentsText : '')}</pre>
+            </div>
+          ))}
+        </div>
+      ) : null}
       {streamState?.warnings.length ? <div className="remote-review-retention mono">Provider notices: {streamState.warnings.join(', ')}</div> : null}
       {outcome?.zeroDataRetention !== null && outcome?.zeroDataRetention !== undefined && <div className="remote-review-retention mono">Provider reported zero data retention: {outcome.zeroDataRetention ? 'yes' : 'no'}</div>}
       <div className="remote-review-retention mono">Transient review · never applied to the shared draft automatically</div>
@@ -54,6 +66,7 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
   const [provider, setProvider] = useState<RemoteProviderId>('openai')
   const [model, setModel] = useState(REMOTE_REVIEW_PROVIDERS[0].defaultModel)
   const [question, setQuestion] = useState(DEFAULT_QUESTION)
+  const [toolDefinitionsJson, setToolDefinitionsJson] = useState('')
   const [phase, setPhase] = useState<ReviewPhase>('idle')
   const [message, setMessage] = useState('Nothing is sent until the native Send once confirmation.')
   const [outcome, setOutcome] = useState<ProviderTaskOutcome | null>(null)
@@ -84,8 +97,10 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
     try {
       if (!await providerCredentialStatus(provider)) throw new Error(`Add a ${REMOTE_REVIEW_PROVIDERS.find(({ id }) => id === provider)?.name} key in Settings first.`)
       const snapshot = getAutomationEditorController(project.id).read()
+      const toolDefinitions = parseProviderToolDefinitions(toolDefinitionsJson)
       const request = await buildRemoteReviewRequest({
         provider, model, question, runId: `remote-review-${crypto.randomUUID()}`, callId,
+        toolDefinitions,
         draft: {
           projectId: project.id, documentId: project.documentId, projectTitle: project.title,
           revision: snapshot.revision, text: snapshot.text,
@@ -158,6 +173,21 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
         Review question
         <textarea value={question} disabled={busy} rows={5} onChange={(event) => setQuestion(event.target.value)} />
       </label>
+      <details className="remote-review-tools">
+        <summary>Tool proposals (advanced)</summary>
+        <p>Optionally provide a JSON array of custom function schemas. The model may propose calls; Syzygy displays them but never executes them or sends results back.</p>
+        <label>
+          Function schemas (JSON)
+          <textarea
+            value={toolDefinitionsJson}
+            disabled={busy}
+            rows={8}
+            spellCheck={false}
+            placeholder={'[{"name":"lookup_source","description":"Propose a source lookup","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}]'}
+            onChange={(event) => setToolDefinitionsJson(event.target.value)}
+          />
+        </label>
+      </details>
       <div className="remote-review-actions">
         <button className="btn" type="button" disabled={busy || !question.trim() || !model.trim()} onClick={() => void runReview()}>
           Send one review

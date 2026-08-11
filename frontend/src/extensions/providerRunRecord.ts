@@ -7,6 +7,7 @@ export type ProviderAdapterStatus =
   | 'contract-only'
   | 'request-control-conformance'
   | 'request-and-stream-control-conformance'
+  | 'request-stream-and-tool-proposal-conformance'
   | 'live-verified'
 
 export interface ProviderRunRecord {

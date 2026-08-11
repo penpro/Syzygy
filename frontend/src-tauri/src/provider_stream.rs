@@ -4,7 +4,11 @@
 //! types are surfaced as warnings instead of crashing or disappearing; malformed JSON, mismatched
 //! SSE event labels, unbounded frames, and incomplete terminal sequences fail closed.
 
-use crate::model_provider::{normalized_usage, NormalizedUsage, ProviderError, RemoteProviderId};
+use crate::model_provider::{
+    normalize_tool_proposal, normalized_usage, valid_tool_call_id, valid_tool_name,
+    NormalizedUsage, ProviderError, RemoteProviderId, MAX_TOOL_ARGUMENT_BYTES,
+    MAX_TOOL_ARGUMENT_TOTAL_BYTES, MAX_TOOL_CALLS,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -26,6 +30,19 @@ pub enum NormalizedStreamEvent {
     TextDelta {
         text: String,
     },
+    ToolCallStart {
+        call_id: String,
+        name: String,
+    },
+    ToolCallDelta {
+        call_id: String,
+        arguments_delta: String,
+    },
+    ToolCallComplete {
+        call_id: String,
+        name: String,
+        arguments: Value,
+    },
     Usage {
         usage: NormalizedUsage,
     },
@@ -44,11 +61,13 @@ pub enum NormalizedStreamEvent {
 #[derive(Default)]
 pub struct OpenAiSseDecoder {
     frames: SseFrameDecoder,
+    tools: ResponsesToolState,
 }
 
 #[derive(Default)]
 pub struct XaiSseDecoder {
     frames: SseFrameDecoder,
+    tools: ResponsesToolState,
 }
 
 #[derive(Default)]
@@ -56,6 +75,9 @@ pub struct AnthropicSseDecoder {
     frames: SseFrameDecoder,
     input_tokens: Option<u64>,
     output_tokens: Option<u64>,
+    active_tools: BTreeMap<u64, ToolCallAssembly>,
+    tool_call_ids: BTreeSet<String>,
+    tool_argument_bytes: usize,
 }
 
 #[derive(Default)]
@@ -64,6 +86,23 @@ pub struct GeminiSseDecoder {
     response_id: Option<String>,
     active_steps: BTreeMap<u64, String>,
     seen_steps: BTreeSet<u64>,
+    tool_call_ids: BTreeSet<String>,
+    tool_argument_bytes: usize,
+}
+
+#[derive(Default)]
+struct ResponsesToolState {
+    active: BTreeMap<String, ToolCallAssembly>,
+    completed: BTreeMap<String, ToolCallAssembly>,
+    call_ids: BTreeSet<String>,
+    argument_bytes: usize,
+}
+
+#[derive(Clone)]
+struct ToolCallAssembly {
+    call_id: String,
+    name: String,
+    arguments: String,
 }
 
 #[derive(Default)]
@@ -79,13 +118,18 @@ impl OpenAiSseDecoder {
     pub fn push(&mut self, bytes: &[u8]) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
         let mut events = Vec::new();
         for event in self.frames.push(bytes)? {
-            events.extend(normalize_responses_event(RemoteProviderId::OpenAi, event)?);
+            events.extend(normalize_responses_event(
+                RemoteProviderId::OpenAi,
+                &mut self.tools,
+                event,
+            )?);
         }
         Ok(events)
     }
 
     pub fn finish(self) -> Result<(), ProviderError> {
-        self.frames.finish()
+        self.frames.finish()?;
+        self.tools.finish()
     }
 }
 
@@ -97,13 +141,18 @@ impl XaiSseDecoder {
     pub fn push(&mut self, bytes: &[u8]) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
         let mut events = Vec::new();
         for event in self.frames.push(bytes)? {
-            events.extend(normalize_responses_event(RemoteProviderId::Xai, event)?);
+            events.extend(normalize_responses_event(
+                RemoteProviderId::Xai,
+                &mut self.tools,
+                event,
+            )?);
         }
         Ok(events)
     }
 
     pub fn finish(self) -> Result<(), ProviderError> {
-        self.frames.finish()
+        self.frames.finish()?;
+        self.tools.finish()
     }
 }
 
@@ -118,6 +167,9 @@ impl AnthropicSseDecoder {
             events.extend(normalize_anthropic_event(
                 &mut self.input_tokens,
                 &mut self.output_tokens,
+                &mut self.active_tools,
+                &mut self.tool_call_ids,
+                &mut self.tool_argument_bytes,
                 event,
             )?);
         }
@@ -125,7 +177,12 @@ impl AnthropicSseDecoder {
     }
 
     pub fn finish(self) -> Result<(), ProviderError> {
-        self.frames.finish()
+        self.frames.finish()?;
+        if self.active_tools.is_empty() {
+            Ok(())
+        } else {
+            Err(ProviderError::MalformedResponse)
+        }
     }
 }
 
@@ -141,6 +198,8 @@ impl GeminiSseDecoder {
                 &mut self.response_id,
                 &mut self.active_steps,
                 &mut self.seen_steps,
+                &mut self.tool_call_ids,
+                &mut self.tool_argument_bytes,
                 event,
             )?);
         }
@@ -226,8 +285,166 @@ fn parse_sse_frame(frame: &[u8]) -> Result<Option<SseEvent>, ProviderError> {
     }))
 }
 
+fn checked_tool_arguments(raw: &str) -> Result<Value, ProviderError> {
+    if raw.len() > MAX_TOOL_ARGUMENT_BYTES {
+        return Err(ProviderError::ResponseTooLarge);
+    }
+    let arguments: Value =
+        serde_json::from_str(raw).map_err(|_| ProviderError::MalformedResponse)?;
+    if !arguments.is_object() {
+        return Err(ProviderError::MalformedResponse);
+    }
+    Ok(arguments)
+}
+
+fn append_tool_delta(
+    assembly: &mut ToolCallAssembly,
+    total_argument_bytes: &mut usize,
+    delta: &str,
+) -> Result<NormalizedStreamEvent, ProviderError> {
+    if delta.is_empty() || delta.contains('\0') {
+        return Err(ProviderError::MalformedResponse);
+    }
+    let next_call_bytes = assembly
+        .arguments
+        .len()
+        .checked_add(delta.len())
+        .filter(|bytes| *bytes <= MAX_TOOL_ARGUMENT_BYTES)
+        .ok_or(ProviderError::ResponseTooLarge)?;
+    *total_argument_bytes = total_argument_bytes
+        .checked_add(delta.len())
+        .filter(|bytes| *bytes <= MAX_TOOL_ARGUMENT_TOTAL_BYTES)
+        .ok_or(ProviderError::ResponseTooLarge)?;
+    assembly.arguments.push_str(delta);
+    debug_assert_eq!(assembly.arguments.len(), next_call_bytes);
+    Ok(NormalizedStreamEvent::ToolCallDelta {
+        call_id: assembly.call_id.clone(),
+        arguments_delta: delta.to_owned(),
+    })
+}
+
+impl ResponsesToolState {
+    fn start(
+        &mut self,
+        item_id: &str,
+        call_id: &str,
+        name: &str,
+        initial_arguments: &str,
+    ) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
+        if self.active.len() + self.completed.len() >= MAX_TOOL_CALLS
+            || !valid_tool_call_id(item_id)
+            || !valid_tool_call_id(call_id)
+            || !valid_tool_name(name)
+            || self.active.contains_key(item_id)
+            || self.completed.contains_key(item_id)
+            || !self.call_ids.insert(call_id.to_owned())
+        {
+            return Err(ProviderError::MalformedResponse);
+        }
+        let mut assembly = ToolCallAssembly {
+            call_id: call_id.to_owned(),
+            name: name.to_owned(),
+            arguments: String::new(),
+        };
+        let mut events = vec![NormalizedStreamEvent::ToolCallStart {
+            call_id: call_id.to_owned(),
+            name: name.to_owned(),
+        }];
+        if !initial_arguments.is_empty() {
+            events.push(append_tool_delta(
+                &mut assembly,
+                &mut self.argument_bytes,
+                initial_arguments,
+            )?);
+        }
+        self.active.insert(item_id.to_owned(), assembly);
+        Ok(events)
+    }
+
+    fn delta(
+        &mut self,
+        item_id: &str,
+        delta: &str,
+    ) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
+        let assembly = self
+            .active
+            .get_mut(item_id)
+            .ok_or(ProviderError::MalformedResponse)?;
+        Ok(vec![append_tool_delta(
+            assembly,
+            &mut self.argument_bytes,
+            delta,
+        )?])
+    }
+
+    fn complete(
+        &mut self,
+        item_id: &str,
+        call_id: Option<&str>,
+        name: Option<&str>,
+        final_arguments: &str,
+    ) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
+        if let Some(completed) = self.completed.get(item_id) {
+            if call_id.is_some_and(|value| value != completed.call_id)
+                || name.is_some_and(|value| value != completed.name)
+                || final_arguments != completed.arguments
+            {
+                return Err(ProviderError::MalformedResponse);
+            }
+            return Ok(Vec::new());
+        }
+        if !self.active.contains_key(item_id) {
+            let call_id = call_id.ok_or(ProviderError::MalformedResponse)?;
+            let name = name.ok_or(ProviderError::MalformedResponse)?;
+            let mut events = self.start(item_id, call_id, name, "")?;
+            if !final_arguments.is_empty() {
+                events.extend(self.delta(item_id, final_arguments)?);
+            }
+            events.extend(self.complete(item_id, Some(call_id), Some(name), final_arguments)?);
+            return Ok(events);
+        }
+        let mut assembly = self
+            .active
+            .remove(item_id)
+            .ok_or(ProviderError::MalformedResponse)?;
+        if call_id.is_some_and(|value| value != assembly.call_id)
+            || name.is_some_and(|value| value != assembly.name)
+        {
+            return Err(ProviderError::MalformedResponse);
+        }
+        let mut events = Vec::new();
+        if assembly.arguments.is_empty() && !final_arguments.is_empty() {
+            events.push(append_tool_delta(
+                &mut assembly,
+                &mut self.argument_bytes,
+                final_arguments,
+            )?);
+        } else if assembly.arguments != final_arguments {
+            return Err(ProviderError::MalformedResponse);
+        }
+        let arguments = checked_tool_arguments(&assembly.arguments)?;
+        normalize_tool_proposal(&assembly.call_id, &assembly.name, arguments.clone())?;
+        events.push(NormalizedStreamEvent::ToolCallComplete {
+            call_id: assembly.call_id.clone(),
+            name: assembly.name.clone(),
+            arguments,
+        });
+        self.completed.insert(item_id.to_owned(), assembly);
+        Ok(events)
+    }
+
+    fn finish(self) -> Result<(), ProviderError> {
+        if self.active.is_empty() {
+            Ok(())
+        } else {
+            Err(ProviderError::MalformedResponse)
+        }
+    }
+}
+
 fn normalize_responses_event(
     provider: RemoteProviderId,
+    tools: &mut ResponsesToolState,
     event: SseEvent,
 ) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
     if event.data == "[DONE]" {
@@ -269,7 +486,80 @@ fn normalize_responses_event(
                 text: text.to_owned(),
             }])
         }
+        "response.output_item.added" => {
+            let item = value.get("item").ok_or(ProviderError::MalformedResponse)?;
+            let item_type = item
+                .get("type")
+                .and_then(Value::as_str)
+                .ok_or(ProviderError::MalformedResponse)?;
+            if item_type != "function_call" {
+                return Ok(vec![NormalizedStreamEvent::ProviderWarning {
+                    event_type: format!("response-output-item-{item_type}"),
+                }]);
+            }
+            tools.start(
+                item.get("id")
+                    .and_then(Value::as_str)
+                    .ok_or(ProviderError::MalformedResponse)?,
+                item.get("call_id")
+                    .and_then(Value::as_str)
+                    .ok_or(ProviderError::MalformedResponse)?,
+                item.get("name")
+                    .and_then(Value::as_str)
+                    .ok_or(ProviderError::MalformedResponse)?,
+                item.get("arguments")
+                    .and_then(Value::as_str)
+                    .ok_or(ProviderError::MalformedResponse)?,
+            )
+        }
+        "response.function_call_arguments.delta" => tools.delta(
+            value
+                .get("item_id")
+                .and_then(Value::as_str)
+                .ok_or(ProviderError::MalformedResponse)?,
+            value
+                .get("delta")
+                .and_then(Value::as_str)
+                .ok_or(ProviderError::MalformedResponse)?,
+        ),
+        "response.function_call_arguments.done" => tools.complete(
+            value
+                .get("item_id")
+                .and_then(Value::as_str)
+                .ok_or(ProviderError::MalformedResponse)?,
+            value.get("call_id").and_then(Value::as_str),
+            value.get("name").and_then(Value::as_str),
+            value
+                .get("arguments")
+                .and_then(Value::as_str)
+                .ok_or(ProviderError::MalformedResponse)?,
+        ),
+        "response.output_item.done" => {
+            let item = value.get("item").ok_or(ProviderError::MalformedResponse)?;
+            let item_type = item
+                .get("type")
+                .and_then(Value::as_str)
+                .ok_or(ProviderError::MalformedResponse)?;
+            if item_type != "function_call" {
+                return Ok(vec![NormalizedStreamEvent::ProviderWarning {
+                    event_type: format!("response-output-item-done-{item_type}"),
+                }]);
+            }
+            tools.complete(
+                item.get("id")
+                    .and_then(Value::as_str)
+                    .ok_or(ProviderError::MalformedResponse)?,
+                item.get("call_id").and_then(Value::as_str),
+                item.get("name").and_then(Value::as_str),
+                item.get("arguments")
+                    .and_then(Value::as_str)
+                    .ok_or(ProviderError::MalformedResponse)?,
+            )
+        }
         "response.completed" | "response.failed" | "response.incomplete" => {
+            if !tools.active.is_empty() {
+                return Err(ProviderError::MalformedResponse);
+            }
             let response = value
                 .get("response")
                 .ok_or(ProviderError::MalformedResponse)?;
@@ -299,6 +589,9 @@ fn normalize_responses_event(
 fn normalize_anthropic_event(
     input_tokens: &mut Option<u64>,
     output_tokens: &mut Option<u64>,
+    active_tools: &mut BTreeMap<u64, ToolCallAssembly>,
+    tool_call_ids: &mut BTreeSet<String>,
+    tool_argument_bytes: &mut usize,
     event: SseEvent,
 ) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
     let value: Value =
@@ -353,14 +646,54 @@ fn normalize_anthropic_event(
             }])
         }
         "content_block_start" => {
-            let block_type = value
+            let index = value
+                .get("index")
+                .and_then(Value::as_u64)
+                .ok_or(ProviderError::MalformedResponse)?;
+            let block = value
                 .get("content_block")
-                .and_then(|block| block.get("type"))
+                .ok_or(ProviderError::MalformedResponse)?;
+            let block_type = block
+                .get("type")
                 .and_then(Value::as_str)
                 .filter(|kind| !kind.is_empty())
                 .ok_or(ProviderError::MalformedResponse)?;
             if block_type == "text" {
                 Ok(Vec::new())
+            } else if block_type == "tool_use" {
+                let call_id = block
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .ok_or(ProviderError::MalformedResponse)?;
+                let name = block
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .ok_or(ProviderError::MalformedResponse)?;
+                let input = block
+                    .get("input")
+                    .and_then(Value::as_object)
+                    .ok_or(ProviderError::MalformedResponse)?;
+                if !input.is_empty()
+                    || active_tools.contains_key(&index)
+                    || tool_call_ids.len() >= MAX_TOOL_CALLS
+                    || !valid_tool_call_id(call_id)
+                    || !valid_tool_name(name)
+                    || !tool_call_ids.insert(call_id.to_owned())
+                {
+                    return Err(ProviderError::MalformedResponse);
+                }
+                active_tools.insert(
+                    index,
+                    ToolCallAssembly {
+                        call_id: call_id.to_owned(),
+                        name: name.to_owned(),
+                        arguments: String::new(),
+                    },
+                );
+                Ok(vec![NormalizedStreamEvent::ToolCallStart {
+                    call_id: call_id.to_owned(),
+                    name: name.to_owned(),
+                }])
             } else {
                 Ok(vec![NormalizedStreamEvent::ProviderWarning {
                     event_type: format!("anthropic-content-block-{block_type}"),
@@ -382,14 +715,49 @@ fn normalize_anthropic_event(
                         .ok_or(ProviderError::MalformedResponse)?
                         .to_owned(),
                 }])
+            } else if delta_type == "input_json_delta" {
+                let index = value
+                    .get("index")
+                    .and_then(Value::as_u64)
+                    .ok_or(ProviderError::MalformedResponse)?;
+                let assembly = active_tools
+                    .get_mut(&index)
+                    .ok_or(ProviderError::MalformedResponse)?;
+                Ok(vec![append_tool_delta(
+                    assembly,
+                    tool_argument_bytes,
+                    delta
+                        .get("partial_json")
+                        .and_then(Value::as_str)
+                        .ok_or(ProviderError::MalformedResponse)?,
+                )?])
             } else {
                 Ok(vec![NormalizedStreamEvent::ProviderWarning {
                     event_type: format!("anthropic-{delta_type}"),
                 }])
             }
         }
-        "content_block_stop" | "ping" => Ok(Vec::new()),
+        "content_block_stop" => {
+            let index = value
+                .get("index")
+                .and_then(Value::as_u64)
+                .ok_or(ProviderError::MalformedResponse)?;
+            let Some(assembly) = active_tools.remove(&index) else {
+                return Ok(Vec::new());
+            };
+            let arguments = checked_tool_arguments(&assembly.arguments)?;
+            normalize_tool_proposal(&assembly.call_id, &assembly.name, arguments.clone())?;
+            Ok(vec![NormalizedStreamEvent::ToolCallComplete {
+                call_id: assembly.call_id,
+                name: assembly.name,
+                arguments,
+            }])
+        }
+        "ping" => Ok(Vec::new()),
         "message_delta" => {
+            if !active_tools.is_empty() {
+                return Err(ProviderError::MalformedResponse);
+            }
             let usage = value.get("usage").ok_or(ProviderError::MalformedResponse)?;
             if let Some(current_output_tokens) = usage.get("output_tokens").and_then(Value::as_u64)
             {
@@ -424,7 +792,12 @@ fn normalize_anthropic_event(
                 },
             ])
         }
-        "message_stop" => Ok(vec![NormalizedStreamEvent::StreamEnd]),
+        "message_stop" => {
+            if !active_tools.is_empty() {
+                return Err(ProviderError::MalformedResponse);
+            }
+            Ok(vec![NormalizedStreamEvent::StreamEnd])
+        }
         "error" => Ok(vec![NormalizedStreamEvent::ProviderError {
             code: value
                 .get("error")
@@ -496,10 +869,56 @@ fn gemini_model_output_start(step: &Value) -> Result<Vec<NormalizedStreamEvent>,
     Ok(events)
 }
 
+fn gemini_function_call_start(
+    step: &Value,
+    tool_call_ids: &mut BTreeSet<String>,
+    tool_argument_bytes: &mut usize,
+) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
+    let call_id = step
+        .get("id")
+        .and_then(Value::as_str)
+        .ok_or(ProviderError::MalformedResponse)?;
+    let name = step
+        .get("name")
+        .and_then(Value::as_str)
+        .ok_or(ProviderError::MalformedResponse)?;
+    let arguments = step
+        .get("arguments")
+        .cloned()
+        .ok_or(ProviderError::MalformedResponse)?;
+    let proposal = normalize_tool_proposal(call_id, name, arguments.clone())?;
+    if tool_call_ids.len() >= MAX_TOOL_CALLS || !tool_call_ids.insert(call_id.to_owned()) {
+        return Err(ProviderError::MalformedResponse);
+    }
+    let arguments_delta =
+        serde_json::to_string(&arguments).map_err(|_| ProviderError::MalformedResponse)?;
+    *tool_argument_bytes = tool_argument_bytes
+        .checked_add(arguments_delta.len())
+        .filter(|bytes| *bytes <= MAX_TOOL_ARGUMENT_TOTAL_BYTES)
+        .ok_or(ProviderError::ResponseTooLarge)?;
+    Ok(vec![
+        NormalizedStreamEvent::ToolCallStart {
+            call_id: proposal.call_id.clone(),
+            name: proposal.name.clone(),
+        },
+        NormalizedStreamEvent::ToolCallDelta {
+            call_id: proposal.call_id.clone(),
+            arguments_delta,
+        },
+        NormalizedStreamEvent::ToolCallComplete {
+            call_id: proposal.call_id,
+            name: proposal.name,
+            arguments,
+        },
+    ])
+}
+
 fn normalize_gemini_event(
     response_id: &mut Option<String>,
     active_steps: &mut BTreeMap<u64, String>,
     seen_steps: &mut BTreeSet<u64>,
+    tool_call_ids: &mut BTreeSet<String>,
+    tool_argument_bytes: &mut usize,
     event: SseEvent,
 ) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
     if event.data == "[DONE]" {
@@ -574,6 +993,8 @@ fn normalize_gemini_event(
             active_steps.insert(index, step_type.clone());
             if step_type == "model_output" {
                 gemini_model_output_start(step)
+            } else if step_type == "function_call" {
+                gemini_function_call_start(step, tool_call_ids, tool_argument_bytes)
             } else {
                 Ok(vec![NormalizedStreamEvent::ProviderWarning {
                     event_type: format!("gemini-step-{step_type}"),
@@ -876,7 +1297,7 @@ mod tests {
     }
 
     #[test]
-    fn gemini_step_lifecycle_normalizes_text_usage_and_omits_private_bodies() {
+    fn gemini_step_lifecycle_normalizes_text_tool_usage_and_omits_private_reasoning() {
         let fixture = concat!(
             "event: interaction.created\n",
             "data: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"interaction-stream\",\"object\":\"interaction\",\"model\":\"gemini-fixture\",\"status\":\"in_progress\"}}\n\n",
@@ -887,9 +1308,7 @@ mod tests {
             "event: step.stop\n",
             "data: {\"event_type\":\"step.stop\",\"index\":0}\n\n",
             "event: step.start\n",
-            "data: {\"event_type\":\"step.start\",\"index\":1,\"step\":{\"type\":\"function_call\",\"name\":\"private-tool-name-canary\"}}\n\n",
-            "event: step.delta\n",
-            "data: {\"event_type\":\"step.delta\",\"index\":1,\"delta\":{\"type\":\"arguments_delta\",\"arguments_delta\":\"private-tool-arguments-canary\"}}\n\n",
+            "data: {\"event_type\":\"step.start\",\"index\":1,\"step\":{\"type\":\"function_call\",\"id\":\"call-gemini-1\",\"name\":\"lookup_source\",\"arguments\":{\"query\":\"tool-argument-canary\"}}}\n\n",
             "event: step.stop\n",
             "data: {\"event_type\":\"step.stop\",\"index\":1}\n\n",
             "event: step.start\n",
@@ -922,11 +1341,18 @@ mod tests {
                 NormalizedStreamEvent::ProviderWarning {
                     event_type: "gemini-thought-thought_signature".to_owned(),
                 },
-                NormalizedStreamEvent::ProviderWarning {
-                    event_type: "gemini-step-function_call".to_owned(),
+                NormalizedStreamEvent::ToolCallStart {
+                    call_id: "call-gemini-1".to_owned(),
+                    name: "lookup_source".to_owned(),
                 },
-                NormalizedStreamEvent::ProviderWarning {
-                    event_type: "gemini-function_call-arguments_delta".to_owned(),
+                NormalizedStreamEvent::ToolCallDelta {
+                    call_id: "call-gemini-1".to_owned(),
+                    arguments_delta: "{\"query\":\"tool-argument-canary\"}".to_owned(),
+                },
+                NormalizedStreamEvent::ToolCallComplete {
+                    call_id: "call-gemini-1".to_owned(),
+                    name: "lookup_source".to_owned(),
+                    arguments: serde_json::json!({ "query": "tool-argument-canary" }),
                 },
                 NormalizedStreamEvent::TextDelta {
                     text: "Bounded ".to_owned(),
@@ -950,8 +1376,8 @@ mod tests {
         let serialized = format!("{events:?}");
         assert!(!serialized.contains("private-thought-summary-canary"));
         assert!(!serialized.contains("private-signature-canary"));
-        assert!(!serialized.contains("private-tool-name-canary"));
-        assert!(!serialized.contains("private-tool-arguments-canary"));
+        assert!(serialized.contains("lookup_source"));
+        assert!(serialized.contains("tool-argument-canary"));
     }
 
     #[test]
@@ -1003,6 +1429,118 @@ mod tests {
             ).as_bytes()),
             Err(ProviderError::MalformedResponse)
         );
+    }
+
+    #[test]
+    fn provider_tool_call_shapes_normalize_to_one_non_executing_lifecycle() {
+        let mut openai = OpenAiSseDecoder::new();
+        let openai_events = openai
+            .push(concat!(
+                "event: response.output_item.added\n",
+                "data: {\"type\":\"response.output_item.added\",\"item\":{\"type\":\"function_call\",\"id\":\"fc-1\",\"call_id\":\"call-1\",\"name\":\"lookup_source\",\"arguments\":\"\"}}\n\n",
+                "event: response.function_call_arguments.delta\n",
+                "data: {\"type\":\"response.function_call_arguments.delta\",\"item_id\":\"fc-1\",\"delta\":\"{\\\"query\\\":\"}\n\n",
+                "event: response.function_call_arguments.delta\n",
+                "data: {\"type\":\"response.function_call_arguments.delta\",\"item_id\":\"fc-1\",\"delta\":\"\\\"budget\\\"}\"}\n\n",
+                "event: response.function_call_arguments.done\n",
+                "data: {\"type\":\"response.function_call_arguments.done\",\"item_id\":\"fc-1\",\"arguments\":\"{\\\"query\\\":\\\"budget\\\"}\"}\n\n",
+                "event: response.output_item.done\n",
+                "data: {\"type\":\"response.output_item.done\",\"item\":{\"type\":\"function_call\",\"id\":\"fc-1\",\"call_id\":\"call-1\",\"name\":\"lookup_source\",\"arguments\":\"{\\\"query\\\":\\\"budget\\\"}\"}}\n\n"
+            ).as_bytes())
+            .expect("OpenAI tool lifecycle");
+        openai.finish().expect("complete OpenAI tool");
+        assert_eq!(
+            openai_events,
+            vec![
+                NormalizedStreamEvent::ToolCallStart {
+                    call_id: "call-1".to_owned(),
+                    name: "lookup_source".to_owned(),
+                },
+                NormalizedStreamEvent::ToolCallDelta {
+                    call_id: "call-1".to_owned(),
+                    arguments_delta: "{\"query\":".to_owned(),
+                },
+                NormalizedStreamEvent::ToolCallDelta {
+                    call_id: "call-1".to_owned(),
+                    arguments_delta: "\"budget\"}".to_owned(),
+                },
+                NormalizedStreamEvent::ToolCallComplete {
+                    call_id: "call-1".to_owned(),
+                    name: "lookup_source".to_owned(),
+                    arguments: serde_json::json!({ "query": "budget" }),
+                },
+            ]
+        );
+
+        let mut anthropic = AnthropicSseDecoder::new();
+        let anthropic_events = anthropic
+            .push(concat!(
+                "event: content_block_start\n",
+                "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu-1\",\"name\":\"lookup_source\",\"input\":{}}}\n\n",
+                "event: content_block_delta\n",
+                "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"budget\\\"}\"}}\n\n",
+                "event: content_block_stop\n",
+                "data: {\"type\":\"content_block_stop\",\"index\":0}\n\n"
+            ).as_bytes())
+            .expect("Anthropic tool lifecycle");
+        anthropic.finish().expect("complete Anthropic tool");
+        assert_eq!(anthropic_events.len(), 3);
+        assert!(matches!(
+            anthropic_events.last(),
+            Some(NormalizedStreamEvent::ToolCallComplete { arguments, .. })
+                if arguments == &serde_json::json!({ "query": "budget" })
+        ));
+
+        let mut xai = XaiSseDecoder::new();
+        let xai_events = xai
+            .push(concat!(
+                "event: response.output_item.done\n",
+                "data: {\"type\":\"response.output_item.done\",\"item\":{\"type\":\"function_call\",\"id\":\"fc-x\",\"call_id\":\"call-x\",\"name\":\"lookup_source\",\"arguments\":\"{\\\"query\\\":\\\"budget\\\"}\"}}\n\n"
+            ).as_bytes())
+            .expect("xAI whole tool call");
+        xai.finish().expect("complete xAI tool");
+        assert_eq!(xai_events.len(), 3);
+        assert!(matches!(
+            xai_events.first(),
+            Some(NormalizedStreamEvent::ToolCallStart { call_id, .. }) if call_id == "call-x"
+        ));
+    }
+
+    #[test]
+    fn malformed_or_incomplete_tool_calls_fail_closed() {
+        let mut orphan = OpenAiSseDecoder::new();
+        assert_eq!(
+            orphan.push(concat!(
+                "event: response.function_call_arguments.delta\n",
+                "data: {\"type\":\"response.function_call_arguments.delta\",\"item_id\":\"missing\",\"delta\":\"{}\"}\n\n"
+            ).as_bytes()),
+            Err(ProviderError::MalformedResponse)
+        );
+
+        let mut invalid_json = AnthropicSseDecoder::new();
+        invalid_json.push(concat!(
+            "event: content_block_start\n",
+            "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu-bad\",\"name\":\"lookup_source\",\"input\":{}}}\n\n",
+            "event: content_block_delta\n",
+            "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{bad\"}}\n\n"
+        ).as_bytes()).expect("partial invalid JSON remains pending");
+        assert_eq!(
+            invalid_json.push(
+                concat!(
+                    "event: content_block_stop\n",
+                    "data: {\"type\":\"content_block_stop\",\"index\":0}\n\n"
+                )
+                .as_bytes()
+            ),
+            Err(ProviderError::MalformedResponse)
+        );
+
+        let mut incomplete = OpenAiSseDecoder::new();
+        incomplete.push(concat!(
+            "event: response.output_item.added\n",
+            "data: {\"type\":\"response.output_item.added\",\"item\":{\"type\":\"function_call\",\"id\":\"fc-pending\",\"call_id\":\"call-pending\",\"name\":\"lookup_source\",\"arguments\":\"\"}}\n\n"
+        ).as_bytes()).expect("pending tool");
+        assert_eq!(incomplete.finish(), Err(ProviderError::MalformedResponse));
     }
 
     #[test]

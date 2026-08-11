@@ -96,9 +96,9 @@ packaged MCP surface before succeeding.
 | `lan_agent.rs` | Packaged outbound encrypted agent that proxies the installed stdio MCP to an authenticated private-LAN coordinator without rebinding the GUI bridge. |
 | `mcp_setup.rs` | Running-executable discovery plus copy-ready JSON/TOML configuration and connection prompts shared by the UI and MCP. |
 | `platform_contracts.rs` | Machine-readable provider-run, adversarial-review, and researcher-plugin schemas/status exposed to headless MCP clients. |
-| `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses, Anthropic Messages, Gemini Interactions, and xAI Responses one-shot/SSE wire contracts have fake-server evidence with bounded controls and sanitized normalization. xAI's boolean ZDR response header is required before event dispatch and preserved in the run record. |
-| `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. Ordinary tasks use one native Send-once decision. Adversarial execution uses one content-bound batch decision that freezes exact research bytes, graph/routes/dependencies/order/limits/budgets; atomically consumes calls; verifies upstream output hashes; derives phase prompts; uses fixed built-in endpoints and the OS vault; rejects unsafe JSON; and records content-free provenance. The product executor is reachable through typed Tauri wrappers and revision-guarded resumable MCP jobs. Loopback transport is proven; packaged dialog interaction and live-provider behavior are not. |
-| `provider_stream.rs` | Incremental provider SSE normalization. OpenAI, Anthropic, Gemini, and xAI decoders handle fragmented frames, text/usage/finish lifecycles, unknown future events, sanitized provider errors, and bounded malformed/truncated input. Anthropic/Gemini private-thinking bodies and unsupported provider tool-argument bodies are not retained by normalized streams. |
+| `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses, Anthropic Messages, Gemini Interactions, and xAI Responses one-shot/SSE wire contracts have fake-server evidence with bounded controls, custom-function schema mapping, non-executing proposal normalization, and sanitized output. xAI's boolean ZDR response header is required before event dispatch and preserved in the run record. |
+| `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. Ordinary tasks use one native Send-once decision whose disclosure includes any tool names, descriptions, and argument schemas; normalized proposals stay transient and are never executed, while the content-free output hash commits to their bodies. Adversarial execution uses one content-bound batch decision that freezes exact research bytes, graph/routes/dependencies/order/limits/budgets; atomically consumes calls; verifies upstream output hashes; derives phase prompts; uses fixed built-in endpoints and the OS vault; rejects unsafe JSON; and records content-free provenance. The product executor is reachable through typed Tauri wrappers and revision-guarded resumable MCP jobs. Loopback transport is proven; packaged dialog interaction and live-provider behavior are not. |
+| `provider_stream.rs` | Incremental provider SSE normalization. OpenAI, Anthropic, Gemini, and xAI decoders handle fragmented frames, text/usage/finish lifecycles, unknown future events, sanitized provider errors, and bounded malformed/truncated input. Custom function calls normalize to one bounded start/delta/complete proposal lifecycle; orphaned, mismatched, malformed, duplicate, or unfinished calls fail closed. Anthropic/Gemini private-thinking bodies remain omitted. |
 | `credential_vault.rs` | Provider-secret abstraction backed by Windows Credential Manager, macOS Keychain, or Linux Secret Service/keyutils. Unit tests use only a memory implementation; a separate live harness creates and deletes a random OS-store canary. |
 
 **Security posture:** the model only ever sees selected text; the webview never sees OAuth
@@ -518,8 +518,10 @@ availability claim.
   derives phase prompts, and dispatches only through built-in provider transports. MCP may start,
   inspect, or cancel this one revision-guarded workflow, but cannot choose arbitrary source bytes,
   prompts, endpoints, credentials, Drive content, or shared mutations. Results remain pending
-  human review. Conformance uses loopback providers; live-provider certification, streamed tools,
-  durable run UI/history, and quality evidence remain open.
+  human review. Conformance uses loopback providers; live-provider certification, tool execution and
+  result continuation, durable run UI/history, and quality evidence remain open. Current custom-function
+  output is an inspectable transient proposal with no MCP, Drive, filesystem, plugin, editor, network,
+  or shared-project mutation authority.
   Plugins declare capabilities and submit revision-guarded proposals. No plugin
   code executes in the webview and no contract-only feature may report itself as available. See
   `PROVIDER-API.md`, `PLUGIN-API.md`, and ADR-0002/0003.

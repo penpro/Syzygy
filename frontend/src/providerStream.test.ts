@@ -36,6 +36,7 @@ describe('provider stream state machine', () => {
       finishStatus: 'completed',
       warnings: ['response.incomplete_details'],
       errorCode: null,
+      toolCalls: [],
     })
     expect(providerStreamIsComplete(state)).toBe(true)
     expect(Object.keys(state)).not.toContain('project')
@@ -89,5 +90,54 @@ describe('provider stream state machine', () => {
     expect(state.warnings).toEqual(['future.preamble'])
     expect(state.text).toBe('')
     expect(providerStreamIsComplete(state)).toBe(false)
+  })
+
+  it('assembles inspectable tool proposals without adding execution authority', () => {
+    const state = apply([
+      { type: 'message-start', provider: 'anthropic', responseId: 'response-tools' },
+      { type: 'tool-call-start', callId: 'call-1', name: 'lookup_source' },
+      { type: 'tool-call-delta', callId: 'call-1', argumentsDelta: '{"query":' },
+      { type: 'tool-call-delta', callId: 'call-1', argumentsDelta: '"budget"}' },
+      { type: 'tool-call-complete', callId: 'call-1', name: 'lookup_source', arguments: { query: 'budget' } },
+      { type: 'finish', status: 'tool_use' },
+      { type: 'stream-end' },
+    ])
+
+    expect(state.toolCalls).toEqual([{
+      callId: 'call-1',
+      name: 'lookup_source',
+      argumentsText: '{"query":"budget"}',
+      arguments: { query: 'budget' },
+    }])
+    expect(Object.keys(state)).not.toContain('execute')
+    expect(Object.keys(state)).not.toContain('toolResults')
+  })
+
+  it('fails closed on orphaned, mismatched, or incomplete tool proposals', () => {
+    const started = applyProviderStreamEvent(initialProviderStreamState(), {
+      type: 'message-start', provider: 'openai', responseId: 'response-tools',
+    })
+    expect(() => applyProviderStreamEvent(started, {
+      type: 'tool-call-delta', callId: 'missing', argumentsDelta: '{}',
+    })).toThrow('no active call')
+
+    const withTool = applyProviderStreamEvent(started, {
+      type: 'tool-call-start', callId: 'call-1', name: 'lookup_source',
+    })
+    const withArguments = applyProviderStreamEvent(withTool, {
+      type: 'tool-call-delta', callId: 'call-1', argumentsDelta: '{}',
+    })
+    expect(() => applyProviderStreamEvent(withArguments, {
+      type: 'tool-call-complete', callId: 'call-1', name: 'lookup_source', arguments: { forged: true },
+    })).toThrow('do not match')
+    expect(() => applyProviderStreamEvent(withArguments, {
+      type: 'tool-call-complete',
+      callId: 'call-1',
+      name: 'lookup_source',
+      arguments: { query: undefined } as unknown as Record<string, unknown>,
+    })).toThrow('non-JSON value')
+    expect(() => applyProviderStreamEvent(withTool, {
+      type: 'finish', status: 'completed',
+    })).toThrow('incomplete tool call')
   })
 })

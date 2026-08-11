@@ -1,4 +1,7 @@
-import type { ProviderResearchTaskRequest, RemoteProviderId } from '../tauri'
+import type { ProviderResearchTaskRequest, ProviderToolDefinition, RemoteProviderId } from '../tauri'
+
+const MAX_TOOL_DEFINITIONS = 32
+const MAX_TOOL_DEFINITION_JSON_CHARS = 256 * 1024
 
 export const REMOTE_REVIEW_PROVIDERS: ReadonlyArray<{
   id: RemoteProviderId
@@ -19,6 +22,43 @@ export interface RemoteReviewDraft {
   text: string
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+export function parseProviderToolDefinitions(value: string): ProviderToolDefinition[] {
+  if (!value.trim()) return []
+  if (value.length > MAX_TOOL_DEFINITION_JSON_CHARS) throw new Error('Tool definitions exceed 256 KiB')
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    throw new Error('Tool definitions must be a JSON array')
+  }
+  if (!Array.isArray(parsed) || parsed.length > MAX_TOOL_DEFINITIONS) {
+    throw new Error('Tool definitions must be an array of at most 32 functions')
+  }
+  const names = new Set<string>()
+  return parsed.map((candidate) => {
+    if (!isRecord(candidate)) throw new Error('Each tool definition must be an object')
+    const name = candidate.name
+    const description = candidate.description
+    const parameters = candidate.parameters
+    if (typeof name !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(name) || names.has(name)) {
+      throw new Error('Tool names must be unique and use 1–64 letters, numbers, underscores, or hyphens')
+    }
+    if (typeof description !== 'string' || !description.trim() || description.length > 4_096 || [...description].some((character) => character < ' ')) {
+      throw new Error(`Tool ${name} needs a printable description of at most 4,096 characters`)
+    }
+    if (!isRecord(parameters) || parameters.type !== 'object') {
+      throw new Error(`Tool ${name} parameters must be a JSON Schema object with type "object"`)
+    }
+    if (JSON.stringify(parameters).length > 64 * 1024) throw new Error(`Tool ${name} schema exceeds 64 KiB`)
+    names.add(name)
+    return { name, description, parameters }
+  })
+}
+
 export async function buildRemoteReviewRequest(input: {
   provider: RemoteProviderId
   model: string
@@ -26,6 +66,7 @@ export async function buildRemoteReviewRequest(input: {
   runId: string
   callId: string
   draft: RemoteReviewDraft
+  toolDefinitions?: ProviderToolDefinition[]
 }): Promise<ProviderResearchTaskRequest> {
   const model = input.model.trim()
   const question = input.question.trim()
@@ -50,6 +91,7 @@ export async function buildRemoteReviewRequest(input: {
       excerpt: draftText,
     }],
     maxOutputTokens: 1_200,
+    toolDefinitions: input.toolDefinitions ?? [],
   }
 }
 

@@ -959,6 +959,7 @@ const advertisedMcpTools = [
   'share_active_project',
   'join_shared_project',
   'compact_drive_project',
+  'retain_drive_title_history',
   'create_project',
   'open_project',
   'rename_project',
@@ -1096,33 +1097,41 @@ record(
   'Drive shared-project titles remain append-only, conflict-visible, stale-safe, bounded, and MCP-drivable',
   driveProjectNativeSource.includes('TITLE_EVENT_PREFIX: &str = "title-event-"') &&
     driveProjectNativeSource.includes('MAX_TITLE_EVENTS: usize = 200') &&
+    driveProjectNativeSource.includes('MAX_TITLE_EVENT_READS: usize = 400') &&
     driveProjectNativeSource.includes('MAX_TITLE_PARENTS: usize = 20') &&
     driveProjectNativeSource.includes('Some(TITLE_EVENT_PREFIX)') &&
     driveProjectNativeSource.includes('"nextPageToken,files(id,name,size,description)"') &&
     driveProjectNativeSource.includes('Drive project title event content hash does not match its filename') &&
     driveProjectNativeSource.includes('Drive project title history references a missing parent') &&
     driveProjectNativeSource.includes('before.revision_guards != expected_revision_guards') &&
-    driveProjectNativeSource.includes('before.event_count >= MAX_TITLE_EVENTS') &&
+    driveProjectNativeSource.includes('before.active_event_count >= MAX_TITLE_EVENTS') &&
     driveProjectNativeSource.includes('create_metadata_record(token, project_folder_id, &name, &description)') &&
     driveProjectNativeSource.includes('shared_title_graph_retains_siblings_and_reconciles_every_tip') &&
+    driveProjectNativeSource.includes('TITLE_SNAPSHOT_PREFIX: &str = "title-snapshot-"') &&
+    driveProjectNativeSource.includes('MAX_TITLE_HISTORY_EVENTS: usize = 5_000') &&
+    driveProjectNativeSource.includes('StoredProjectTitleSnapshot::new(&manifest, &before.events)') &&
+    driveProjectNativeSource.includes('Drive project title changed while its retained snapshot was being appended; no history records were archived.') &&
+    driveProjectNativeSource.includes('shared_title_snapshot_retains_the_complete_graph_and_accepts_a_concurrent_child') &&
     driveProviderTitleUpdate.indexOf('await this.syncNow()') < driveProviderTitleUpdate.indexOf('this.remote.updateTitle(') &&
     driveProjectProviderTestSource.includes('publishes shared-title state, exposes siblings, and reconciles the exact tip set') &&
     driveProjectProviderTestSource.includes('refreshes title siblings before rejecting a stale rename') &&
     driveTitleStatusSource.includes('if (states.get(projectId)?.source !== source) return') &&
     sharedTitleControlSource.includes('draft.dirty ? draft.revisionGuards') &&
     sharedTitleControlSource.includes('Reconcile shared title') &&
+    sharedTitleControlSource.includes('Retain title history') &&
     text('frontend/src/workspace/WorkspaceView.tsx').includes('<SharedProjectTitleControl key={project.id}') &&
     sharedTitleUiTestSource.includes('retains the exact revision guards captured') &&
     driveProjectStoreTestSource.includes('applies a synchronized title only to the matching Drive-bound manifest') &&
     text('frontend/src/automationBridge.ts').includes("case 'project.rename'") &&
     text('frontend/src/automationBridge.ts').includes('expectedTitleRevisionGuards') &&
     mcpSource.includes('"rename_project" => live("project.rename"') &&
+    mcpSource.includes('"retain_drive_title_history" => live("project.compactDriveTitleHistory"') &&
     text('scripts/mcp-harness.mjs').includes('shared-project rename guards are not exact and bounded') &&
     sharedTitleLanHarnessSource.includes('sharedTitlePrimaryToSecondary') &&
     sharedTitleLanHarnessSource.includes('sharedTitleStaleRevisionRejected') &&
     sharedTitleLanHarnessSource.includes('sharedTitleRestored') &&
     existsSync(join(root, 'docs/audits/runs/DRIVE-PROJECT-SHARED-TITLE-2026-08-10.json')),
-  'content-addressed parent graphs retain sibling titles; exact dirty-draft/MCP guards refuse stale writes; explicit all-tip reconciliation and two-way packaged-harness checks are present',
+  'content-addressed parent graphs retain sibling titles; complete immutable snapshots precede recoverable archival; exact dirty-draft/retention/MCP guards refuse stale writes; concurrent children remain active; explicit all-tip reconciliation and two-way packaged-harness checks are present',
 )
 const researchInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
 const automationRegistrySource = text('frontend/src/workspace/workspaceAutomationRegistry.ts')
@@ -1180,7 +1189,7 @@ record(
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioIndexReadback') &&
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioSiblingMerge') &&
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioStaleRevisionRejected') &&
-    text('scripts/lan-drive-live-harness.mjs').includes('item.toolCount >= 38') &&
+    text('scripts/lan-drive-live-harness.mjs').includes('item.toolCount >= 39') &&
     existsSync(join(root, 'docs/audits/runs/MCP-SCENARIO-INDEX-2026-08-05.json')),
   'one bounded scenario background/turn-head index, one exact current/named/indexed body, graph and identity validation, zero-write proof, named live routes, packaged traversal assertion, and two-node discovery/sibling/stale gates are present',
 )
@@ -1280,7 +1289,7 @@ record(
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioAnnotationRejected: true') &&
     text('scripts/mcp-live-harness.mjs').includes('scenarioLabelLifecycleGuarded: true') &&
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioLabelRejected: true'),
-  'stable inspection revision, exact-head/tip sibling reconciliation, zero-write stale rejection, live Y.Doc scenario/turn/vote/annotation/label routes, 38-tool MCP surface, and packaged-live assertions are present',
+  'stable inspection revision, exact-head/tip sibling reconciliation, zero-write stale rejection, live Y.Doc scenario/turn/vote/annotation/label routes, 39-tool MCP surface, and packaged-live assertions are present',
 )
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))
@@ -1460,7 +1469,7 @@ record(
     researchStateInspectionSource.includes('adversarial-review question/source/result/decision-note bodies') &&
     mcpSource.includes('"save_adversarial_review"') &&
     mcpSource.includes('"decide_adversarial_review"') &&
-    mcpHarnessSource.includes('tools.length < 38') &&
+    mcpHarnessSource.includes('tools.length < 39') &&
     frontendPackage.scripts?.['test:adversarial']?.includes('adversarialHistory.test.ts'),
   'full archives persist only by explicit revision-guarded save; canonical hashes, provider provenance, peer convergence, exact-parent decision history, fail-closed conflicts, content-minimized inspection, and zero draft authority are enforced',
 )
@@ -1842,7 +1851,7 @@ record(
     lanMcpHarnessSource.includes('if (child.kill()) return') &&
     lanPackagedHarnessSource.includes("'--control-port', String(controlPort)") &&
     lanPackagedHarnessSource.includes('if (child.kill()) return') &&
-    lanPackagedHarnessSource.includes('tools.structuredContent.tools.length >= 38') &&
+    lanPackagedHarnessSource.includes('tools.structuredContent.tools.length >= 39') &&
     lanLocalMcpSource.includes('if (child.kill()) return') &&
     lanSettingsSource.includes('Private LAN test connection') &&
     lanSettingsSource.includes('pickLanPairingKeyFile') &&
@@ -1852,7 +1861,7 @@ record(
     lanDriveHarnessSource.includes('absoluteDeadline = Date.now() + 2 * 60_000') &&
     lanDriveHarnessSource.includes('Math.min(timeoutMs, 60_000)') &&
     lanDriveHarnessSource.includes('staleRevisionRejected') &&
-    lanDriveHarnessSource.includes('item.toolCount >= 38') &&
+    lanDriveHarnessSource.includes('item.toolCount >= 39') &&
     lanDriveHarnessSource.includes('scenarioIndexReadback') &&
     lanDriveHarnessSource.includes('scenarioSiblingMerge') &&
     lanDriveHarnessSource.includes('scenarioCurrentConverged') &&
@@ -1869,7 +1878,7 @@ record(
     existsSync(join(root, 'docs/audits/runs/LAN-COLLABORATION-SUPERVISION-2026-07-17.json')) &&
     existsSync(join(root, 'docs/audits/runs/LAN-DEV-MODE-LIFECYCLE-2026-07-18.json')) &&
     existsSync(join(root, 'docs/audits/runs/MCP-SCENARIO-TURN-READBACK-2026-08-02.json')),
-  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, 38-tool discovery, explicit scenario-index and sibling-body readback, deterministic current convergence, exact sibling reconciliation, and stale-write gates are present',
+  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, 39-tool discovery, explicit scenario-index and sibling-body readback, deterministic current convergence, exact sibling reconciliation, title-history retention, and stale-write gates are present',
 )
 const ledger = JSON.parse(text('docs/audits/CAPABILITIES.json'))
 const expectedIds = [

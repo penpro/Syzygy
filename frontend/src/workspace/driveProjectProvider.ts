@@ -5,10 +5,12 @@ import {
   googleDriveProjectCompact,
   googleDriveProjectPull,
   googleDriveProjectPush,
+  googleDriveProjectTitleCompact,
   googleDriveProjectTitleState,
   googleDriveProjectTitleUpdate,
   type DriveProjectCompactionResult,
   type DriveProjectPullResult,
+  type DriveProjectTitleCompactionResult,
   type DriveProjectTitleState,
 } from '../tauri'
 import { useStore } from '../store'
@@ -41,6 +43,11 @@ export interface DriveProjectRemote {
     includedUpdateIds: string[],
   ): Promise<DriveProjectCompactionResult>
   readTitle(projectId: string, documentId: string): Promise<DriveProjectTitleState>
+  compactTitle(
+    projectId: string,
+    documentId: string,
+    expectedRevisionGuards: string[],
+  ): Promise<DriveProjectTitleCompactionResult>
   updateTitle(
     projectId: string,
     documentId: string,
@@ -57,6 +64,7 @@ const tauriRemote: DriveProjectRemote = {
   push: googleDriveProjectPush,
   compact: googleDriveProjectCompact,
   readTitle: googleDriveProjectTitleState,
+  compactTitle: googleDriveProjectTitleCompact,
   updateTitle: googleDriveProjectTitleUpdate,
 }
 
@@ -231,6 +239,18 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
     )
     this.applyTitleState(state)
     return state
+  }
+
+  async compactTitleNow(expectedRevisionGuards: string[]): Promise<DriveProjectTitleCompactionResult> {
+    if (!this.connected) throw new Error('Drive project is disconnected')
+    await this.syncNow()
+    const result = await this.remote.compactTitle(
+      this.manifest.id,
+      this.manifest.documentId,
+      [...expectedRevisionGuards].sort(),
+    )
+    this.applyTitleState(result.state)
+    return result
   }
 
   private async initialize(generation: number): Promise<void> {

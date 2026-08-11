@@ -84,6 +84,8 @@ describe('workspace collaboration entry points', () => {
       revisionGuards: ['a'.repeat(64)],
       conflict: false,
       eventCount: 0,
+      activeEventCount: 0,
+      snapshotCount: 0,
       tips: [],
     }
     const changed = editSharedProjectTitleDraft(

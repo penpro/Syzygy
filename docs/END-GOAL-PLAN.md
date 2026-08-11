@@ -394,6 +394,14 @@ retry, and replacement-provider lifecycle; Rust proves the bounded plan. Real-Dr
 quota/latency, archive-retention, and packaged two-install evidence remain open, so the affected
 capabilities stay `implemented_unverified`.
 
+Shared-title retention independently requires the complete exact tip set, canonicalizes all valid
+events into one content-addressed snapshot before moving active events or superseded snapshots, and
+keeps a rename arriving after the snapshot as an active child whose parent remains resolvable. The
+product and 39-tool MCP expose count-only retryable maintenance. Rust/frontend gates cover canonical
+ordering, missing parents, stale pre-move refusal, concurrent-child projection, and replacement
+provider ownership. A real-Drive interruption run plus explicit archive restore/quarantine repair
+remain open.
+
 ### Phase 5 — optional real-time and presence (`L`)
 
 Deliver provider-neutral awareness UI and a documented self-hostable WebSocket deployment with

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { DriveProjectTitleState } from '../tauri'
 import { useStore } from '../store'
 import type { ResearchProjectManifest } from './schema'
-import { updateDriveProjectTitle } from './driveProjectMaintenanceRegistry'
+import { compactDriveProjectTitle, updateDriveProjectTitle } from './driveProjectMaintenanceRegistry'
 import { subscribeDriveProjectTitleState } from './driveProjectTitleStatus'
 
 export interface SharedProjectTitleDraft {
@@ -81,6 +81,25 @@ export function SharedProjectTitleControl({ project }: { project: ResearchProjec
     }
   }
 
+  const retainHistory = async () => {
+    if (!state) throw new Error('Shared title state is still loading')
+    setBusy(true)
+    setMessage(null)
+    setError(null)
+    try {
+      const result = await compactDriveProjectTitle(project.id, state.revisionGuards)
+      setState(result.state)
+      setDraft((current) => syncSharedProjectTitleDraft(current, result.state))
+      setMessage(result.complete
+        ? `Retained ${result.retainedEventCount} shared-title events and archived ${result.archivedRecordCount} active history records.`
+        : `Title history is safely snapshotted. Archived ${result.archivedRecordCount} records; ${result.remainingRecordCount} remain active and can be retried.`)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="shared-title-control">
       <div className="workspace-title-row">
@@ -131,6 +150,22 @@ export function SharedProjectTitleControl({ project }: { project: ResearchProjec
               </button>
             ))}
           </div>
+        </div>
+      )}
+      {state && state.eventCount > 0 && (
+        <div className="workspace-inline-actions">
+          <button
+            className="btn xs ghost"
+            type="button"
+            disabled={busy || state.revisionGuards.length === 0}
+            title="Append a complete content-addressed title snapshot before moving active history records into a recoverable Drive archive."
+            onClick={() => void retainHistory().catch((cause) => setError(String(cause)))}
+          >
+            {busy ? 'Working...' : 'Retain title history'}
+          </button>
+          <span className="workspace-status mono">
+            {state.eventCount} retained / {state.activeEventCount} active / {state.snapshotCount} snapshots
+          </span>
         </div>
       )}
       {message && <div className="workspace-status mono" role="status">{message}</div>}

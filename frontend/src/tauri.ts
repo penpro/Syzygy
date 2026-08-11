@@ -472,7 +472,21 @@ export interface DriveProjectTitleState {
   revisionGuards: string[]
   conflict: boolean
   eventCount: number
+  activeEventCount: number
+  snapshotCount: number
   tips: DriveProjectTitleTip[]
+}
+
+export interface DriveProjectTitleCompactionResult {
+  snapshotRevision: string
+  retainedEventCount: number
+  activeEventCountBefore: number
+  activeEventCountAfter: number
+  archivedRecordCount: number
+  failedArchiveCount: number
+  remainingRecordCount: number
+  complete: boolean
+  state: DriveProjectTitleState
 }
 
 export interface DriveProjectCatalog {
@@ -540,6 +554,16 @@ export const googleDriveProjectTitleUpdate = (
   participantId,
   displayName,
   timestamp,
+})
+
+export const googleDriveProjectTitleCompact = (
+  projectId: string,
+  documentId: string,
+  expectedRevisionGuards: string[],
+): Promise<DriveProjectTitleCompactionResult> => invoke('google_drive_project_title_compact', {
+  projectId,
+  documentId,
+  expectedRevisionGuards,
 })
 
 export const googleDriveProjectPull = (

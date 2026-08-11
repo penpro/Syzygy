@@ -37,7 +37,11 @@ import {
   listSharedDriveProjects,
   shareProjectToSelectedDrive,
 } from './workspace/driveProjectActions'
-import { compactDriveProject, updateDriveProjectTitle } from './workspace/driveProjectMaintenanceRegistry'
+import {
+  compactDriveProject,
+  compactDriveProjectTitle,
+  updateDriveProjectTitle,
+} from './workspace/driveProjectMaintenanceRegistry'
 import { currentDriveProjectTitleState } from './workspace/driveProjectTitleStatus'
 import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
 import { projectStateFingerprint } from './workspace/projectModel'
@@ -162,6 +166,39 @@ export async function dispatchAutomationRequest(
           retainedConcurrentUpdateCount: result.retainedConcurrentUpdateCount,
           complete: result.complete,
         },
+      }
+    }
+    case 'project.compactDriveTitleHistory': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; open a Drive-shared project first')
+      if (project.transport.kind !== 'drive') throw new Error('The active project is not Drive-shared')
+      const expectedRevisionGuards = requiredStringArray(
+        params,
+        'expectedTitleRevisionGuards',
+        1,
+        20,
+      ).sort()
+      const current = currentDriveProjectTitleState(project.id)
+      if (!current) throw new Error('Shared title state is not ready; read the active project again')
+      if (JSON.stringify(current.revisionGuards) !== JSON.stringify(expectedRevisionGuards)) {
+        throw new Error('Shared title revision conflict; read the active project again before retaining history')
+      }
+      const result = await compactDriveProjectTitle(project.id, expectedRevisionGuards)
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        titleRetention: {
+          retainedEventCount: result.retainedEventCount,
+          activeEventCountBefore: result.activeEventCountBefore,
+          activeEventCountAfter: result.activeEventCountAfter,
+          archivedRecordCount: result.archivedRecordCount,
+          failedArchiveCount: result.failedArchiveCount,
+          remainingRecordCount: result.remainingRecordCount,
+          complete: result.complete,
+        },
+        sharedTitle: summarizeDriveTitle(result.state),
       }
     }
     case 'project.create': {
@@ -780,6 +817,8 @@ function summarizeDriveTitle(state: DriveProjectTitleState) {
     revisionGuards: [...state.revisionGuards],
     conflict: state.conflict,
     eventCount: state.eventCount,
+    activeEventCount: state.activeEventCount,
+    snapshotCount: state.snapshotCount,
     tips: state.tips.map((tip) => ({
       revision: tip.revision,
       parentRevisions: [...tip.parentRevisions],

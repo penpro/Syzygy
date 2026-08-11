@@ -23,6 +23,8 @@ const MANIFEST_FILE: &str = "manifest.json";
 const UPDATES_FOLDER: &str = "updates";
 const COMPACTED_UPDATES_FOLDER: &str = "compacted-updates";
 const TITLE_EVENT_PREFIX: &str = "title-event-";
+const TITLE_SNAPSHOT_PREFIX: &str = "title-snapshot-";
+const COMPACTED_TITLE_HISTORY_FOLDER: &str = "compacted-title-history";
 const MAX_UPDATE_BYTES: usize = 4 * 1024 * 1024;
 const MAX_PULL_BYTES: usize = 32 * 1024 * 1024;
 const MAX_UPDATE_FILES: usize = 5_000;
@@ -33,7 +35,10 @@ const COMPACTION_CONCURRENCY: usize = 8;
 const DRIVE_REQUEST_TIMEOUT_SECONDS: u64 = 30;
 const COMPACTION_ARCHIVE_DEADLINE_SECONDS: u64 = 60;
 const MAX_TITLE_EVENTS: usize = 200;
+const MAX_TITLE_EVENT_READS: usize = 400;
 const MAX_TITLE_PARENTS: usize = 20;
+const MAX_TITLE_HISTORY_EVENTS: usize = 5_000;
+const MAX_TITLE_SNAPSHOTS: usize = 8;
 const MAX_PROJECT_ROOTS: usize = 200;
 const MAX_DISCOVERED_PROJECTS: usize = 1_000;
 const PROJECT_CATALOG_CONCURRENCY: usize = 8;
@@ -321,7 +326,7 @@ async fn move_file_to_folder(
     Ok(())
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct ListedFile {
     id: String,
     name: String,
@@ -396,8 +401,23 @@ async fn list_title_event_files(token: &str, parent_id: &str) -> Result<Vec<List
         parent_id,
         Some(TITLE_EVENT_PREFIX),
         true,
-        MAX_TITLE_EVENTS,
+        MAX_TITLE_EVENT_READS,
         "Drive project contains too many shared title events to inspect safely.",
+    )
+    .await
+}
+
+async fn list_title_snapshot_files(
+    token: &str,
+    parent_id: &str,
+) -> Result<Vec<ListedFile>, String> {
+    list_children_filtered(
+        token,
+        parent_id,
+        Some(TITLE_SNAPSHOT_PREFIX),
+        false,
+        MAX_TITLE_SNAPSHOTS,
+        "Drive project contains too many active title snapshots to inspect safely.",
     )
     .await
 }
@@ -543,6 +563,77 @@ impl StoredProjectTitleEvent {
     }
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct StoredProjectTitleSnapshot {
+    schema_version: u8,
+    project_id: String,
+    document_id: String,
+    events: Vec<StoredProjectTitleEvent>,
+}
+
+impl StoredProjectTitleSnapshot {
+    fn new(
+        manifest: &StoredProjectManifest,
+        events: &HashMap<String, StoredProjectTitleEvent>,
+    ) -> Result<Self, String> {
+        if events.is_empty() {
+            return Err("Drive project title history has no events to retain.".into());
+        }
+        let mut ordered = events
+            .iter()
+            .map(|(revision, event)| (revision.clone(), event.clone()))
+            .collect::<Vec<_>>();
+        ordered.sort_by(|left, right| left.0.cmp(&right.0));
+        let snapshot = Self {
+            schema_version: 1,
+            project_id: manifest.project_id.clone(),
+            document_id: manifest.document_id.clone(),
+            events: ordered.into_iter().map(|(_, event)| event).collect(),
+        };
+        snapshot.validate_for(manifest)?;
+        Ok(snapshot)
+    }
+
+    fn validate_for(&self, manifest: &StoredProjectManifest) -> Result<(), String> {
+        if self.schema_version != 1 {
+            return Err("Drive project title snapshot uses an unsupported schema version.".into());
+        }
+        if self.project_id != manifest.project_id || self.document_id != manifest.document_id {
+            return Err(
+                "Drive project title snapshot identity does not match its manifest.".into(),
+            );
+        }
+        if self.events.is_empty() || self.events.len() > MAX_TITLE_HISTORY_EVENTS {
+            return Err("Drive project title snapshot event count is invalid or too large.".into());
+        }
+        let mut revisions = Vec::with_capacity(self.events.len());
+        let mut by_revision = HashSet::with_capacity(self.events.len());
+        for event in &self.events {
+            event.validate_for(manifest)?;
+            let revision = title_event_revision(event)?;
+            if !by_revision.insert(revision.clone()) {
+                return Err("Drive project title snapshot repeats an event revision.".into());
+            }
+            revisions.push(revision);
+        }
+        let mut canonical = revisions.clone();
+        canonical.sort();
+        if canonical != revisions {
+            return Err("Drive project title snapshot events are not canonically ordered.".into());
+        }
+        if self.events.iter().any(|event| {
+            event
+                .parent_revisions
+                .iter()
+                .any(|parent| !by_revision.contains(parent))
+        }) {
+            return Err("Drive project title snapshot references a missing parent.".into());
+        }
+        Ok(())
+    }
+}
+
 fn valid_sha256(value: &str) -> bool {
     value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
@@ -550,6 +641,12 @@ fn valid_sha256(value: &str) -> bool {
 fn title_event_revision(event: &StoredProjectTitleEvent) -> Result<String, String> {
     let bytes = serde_json::to_vec(event)
         .map_err(|error| format!("Drive project title event could not be encoded: {error}"))?;
+    Ok(format!("{:x}", Sha256::digest(bytes)))
+}
+
+fn title_snapshot_revision(snapshot: &StoredProjectTitleSnapshot) -> Result<String, String> {
+    let bytes = serde_json::to_vec(snapshot)
+        .map_err(|error| format!("Drive project title snapshot could not be encoded: {error}"))?;
     Ok(format!("{:x}", Sha256::digest(bytes)))
 }
 
@@ -580,21 +677,52 @@ pub struct DriveProjectTitleState {
     revision_guards: Vec<String>,
     conflict: bool,
     event_count: usize,
+    active_event_count: usize,
+    snapshot_count: usize,
     tips: Vec<DriveProjectTitleTip>,
 }
 
-fn project_title_state(
+struct ProjectTitleHistory {
+    state: DriveProjectTitleState,
+    events: HashMap<String, StoredProjectTitleEvent>,
+    active_event_files: Vec<ListedFile>,
+    snapshot_files: Vec<ListedFile>,
+}
+
+fn project_title_history(
     manifest: &StoredProjectManifest,
     listed: &[ListedFile],
-) -> Result<DriveProjectTitleState, String> {
+    snapshots: &[(ListedFile, StoredProjectTitleSnapshot)],
+) -> Result<ProjectTitleHistory, String> {
+    if snapshots.len() > MAX_TITLE_SNAPSHOTS {
+        return Err(
+            "Drive project contains too many active title snapshots to inspect safely.".into(),
+        );
+    }
     let mut events = HashMap::<String, StoredProjectTitleEvent>::new();
+    let mut snapshot_files = Vec::with_capacity(snapshots.len());
+    for (file, snapshot) in snapshots {
+        snapshot.validate_for(manifest)?;
+        for event in &snapshot.events {
+            let revision = title_event_revision(event)?;
+            if let Some(existing) = events.insert(revision, event.clone()) {
+                if existing != *event {
+                    return Err(
+                        "Drive project title revision is duplicated with different content.".into(),
+                    );
+                }
+            }
+        }
+        snapshot_files.push(file.clone());
+    }
     let mut matching_files = 0usize;
+    let mut active_event_files = Vec::new();
     for file in listed
         .iter()
         .filter(|file| file.name.starts_with(TITLE_EVENT_PREFIX))
     {
         matching_files += 1;
-        if matching_files > MAX_TITLE_EVENTS {
+        if matching_files > MAX_TITLE_EVENT_READS {
             return Err(
                 "Drive project contains too many shared title events to inspect safely.".into(),
             );
@@ -626,6 +754,10 @@ fn project_title_state(
                 );
             }
         }
+        active_event_files.push(file.clone());
+    }
+    if events.len() > MAX_TITLE_HISTORY_EVENTS {
+        return Err("Drive project shared-title history exceeds its retained event limit.".into());
     }
 
     for event in events.values() {
@@ -647,6 +779,12 @@ fn project_title_state(
         .cloned()
         .collect::<Vec<_>>();
     tip_revisions.sort();
+    if tip_revisions.len() > MAX_TITLE_PARENTS {
+        return Err(
+            "Drive project title history has too many simultaneous tips to reconcile safely."
+                .into(),
+        );
+    }
     let tips = tip_revisions
         .iter()
         .filter_map(|revision| {
@@ -669,16 +807,31 @@ fn project_title_state(
     } else {
         tip_revisions
     };
-    Ok(DriveProjectTitleState {
-        project_id: manifest.project_id.clone(),
-        document_id: manifest.document_id.clone(),
-        base_title: manifest.title.clone(),
-        title,
-        conflict: tips.len() > 1,
-        event_count: events.len(),
-        revision_guards,
-        tips,
+    Ok(ProjectTitleHistory {
+        state: DriveProjectTitleState {
+            project_id: manifest.project_id.clone(),
+            document_id: manifest.document_id.clone(),
+            base_title: manifest.title.clone(),
+            title,
+            conflict: tips.len() > 1,
+            event_count: events.len(),
+            active_event_count: active_event_files.len(),
+            snapshot_count: snapshot_files.len(),
+            revision_guards,
+            tips,
+        },
+        events,
+        active_event_files,
+        snapshot_files,
     })
+}
+
+#[cfg(test)]
+fn project_title_state(
+    manifest: &StoredProjectManifest,
+    listed: &[ListedFile],
+) -> Result<DriveProjectTitleState, String> {
+    project_title_history(manifest, listed, &[]).map(|history| history.state)
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -950,6 +1103,20 @@ pub struct DriveProjectCompactionResult {
     complete: bool,
 }
 
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DriveProjectTitleCompactionResult {
+    snapshot_revision: String,
+    retained_event_count: usize,
+    active_event_count_before: usize,
+    active_event_count_after: usize,
+    archived_record_count: usize,
+    failed_archive_count: usize,
+    remaining_record_count: usize,
+    complete: bool,
+    state: DriveProjectTitleState,
+}
+
 async fn project_root(
     token: &str,
     workspace_id: &str,
@@ -1014,13 +1181,51 @@ async fn require_project_manifest(
     Ok((folder, manifest))
 }
 
+async fn load_project_title_history(
+    token: &str,
+    project_folder_id: &str,
+    manifest: &StoredProjectManifest,
+) -> Result<ProjectTitleHistory, String> {
+    let listed = list_title_event_files(token, project_folder_id).await?;
+    let snapshot_files = list_title_snapshot_files(token, project_folder_id).await?;
+    let snapshots = stream::iter(snapshot_files.into_iter())
+        .map(|file| async move {
+            let revision = file
+                .name
+                .strip_prefix(TITLE_SNAPSHOT_PREFIX)
+                .and_then(|value| value.strip_suffix(".json"))
+                .ok_or("Drive project title snapshot filename is malformed.")?;
+            if !valid_sha256(revision) {
+                return Err("Drive project title snapshot revision is malformed.".to_string());
+            }
+            let snapshot: StoredProjectTitleSnapshot =
+                serde_json::from_str(&read_text_file(token, &file.id).await?)
+                    .map_err(|_| "Drive project title snapshot is malformed.".to_string())?;
+            snapshot.validate_for(manifest)?;
+            if title_snapshot_revision(&snapshot)? != revision {
+                return Err(
+                    "Drive project title snapshot content hash does not match its filename."
+                        .to_string(),
+                );
+            }
+            Ok((file, snapshot))
+        })
+        .buffered(COMPACTION_CONCURRENCY)
+        .collect::<Vec<Result<(ListedFile, StoredProjectTitleSnapshot), String>>>()
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?;
+    project_title_history(manifest, &listed, &snapshots)
+}
+
 async fn load_project_title_state(
     token: &str,
     project_folder_id: &str,
     manifest: &StoredProjectManifest,
 ) -> Result<DriveProjectTitleState, String> {
-    let listed = list_title_event_files(token, project_folder_id).await?;
-    project_title_state(manifest, &listed)
+    load_project_title_history(token, project_folder_id, manifest)
+        .await
+        .map(|history| history.state)
 }
 
 async fn append_project_title_event(
@@ -1060,9 +1265,9 @@ async fn append_project_title_event(
     if !before.conflict && before.title == title.trim() {
         return Ok(before);
     }
-    if before.event_count >= MAX_TITLE_EVENTS {
+    if before.active_event_count >= MAX_TITLE_EVENTS {
         return Err(
-            "Drive project shared-title history reached its safe limit; no rename was written."
+            "Drive project active shared-title history reached its safe limit; retain the title history before renaming."
                 .into(),
         );
     }
@@ -1285,6 +1490,149 @@ pub async fn google_drive_project_title_update(
         timestamp,
     )
     .await
+}
+
+/// Retain the complete validated title graph in an immutable content-addressed snapshot before
+/// moving only the already-observed active title records into a recoverable archive folder. A
+/// concurrent rename changes the exact guards and aborts before movement; one arriving after the
+/// snapshot remains active and can resolve its parents from the snapshot.
+#[tauri::command]
+pub async fn google_drive_project_title_compact(
+    app: tauri::AppHandle,
+    project_id: String,
+    document_id: String,
+    expected_revision_guards: Vec<String>,
+) -> Result<DriveProjectTitleCompactionResult, String> {
+    if expected_revision_guards.is_empty()
+        || expected_revision_guards.len() > MAX_TITLE_PARENTS
+        || {
+            let mut canonical = expected_revision_guards.clone();
+            canonical.sort();
+            canonical.dedup();
+            canonical != expected_revision_guards
+        }
+    {
+        return Err(
+            "Drive project title retention guards must be non-empty, unique, sorted, and bounded."
+                .into(),
+        );
+    }
+    let (token, workspace) = selected_workspace_access(&app).await?;
+    let (folder, manifest) =
+        require_project_manifest(&token, &workspace, project_id.trim(), document_id.trim()).await?;
+    let before = load_project_title_history(&token, &folder, &manifest).await?;
+    if before.state.revision_guards != expected_revision_guards {
+        return Err(
+            "Drive project title changed or gained a concurrent sibling; refresh before retaining its history."
+                .into(),
+        );
+    }
+    let snapshot = StoredProjectTitleSnapshot::new(&manifest, &before.events)?;
+    let snapshot_content = serde_json::to_string(&snapshot)
+        .map_err(|error| format!("Drive project title snapshot could not be encoded: {error}"))?;
+    if snapshot_content.len() > MAX_UPDATE_BYTES {
+        return Err(
+            "Drive project title snapshot exceeds its 4 MiB retained-history limit.".into(),
+        );
+    }
+    let snapshot_revision = title_snapshot_revision(&snapshot)?;
+    let snapshot_name = format!("{TITLE_SNAPSHOT_PREFIX}{snapshot_revision}.json");
+    let snapshot_id = if let Some(existing_id) =
+        find_child(&token, &folder, &snapshot_name, None).await?
+    {
+        let existing: StoredProjectTitleSnapshot =
+            serde_json::from_str(&read_text_file(&token, &existing_id).await?)
+                .map_err(|_| "Existing Drive project title snapshot is malformed.".to_string())?;
+        if existing != snapshot {
+            return Err(
+                "Existing Drive title snapshot name collides with different content.".into(),
+            );
+        }
+        existing_id
+    } else {
+        if before.snapshot_files.len() >= MAX_TITLE_SNAPSHOTS {
+            return Err(
+                "Drive project has too many active title snapshots to create another safely."
+                    .into(),
+            );
+        }
+        create_text_file(&token, &folder, &snapshot_name, &snapshot_content).await?
+    };
+
+    let after_snapshot = load_project_title_history(&token, &folder, &manifest).await?;
+    if after_snapshot.state.revision_guards != expected_revision_guards {
+        return Err(
+            "Drive project title changed while its retained snapshot was being appended; no history records were archived."
+                .into(),
+        );
+    }
+
+    let mut candidates = before.active_event_files;
+    candidates.extend(
+        before
+            .snapshot_files
+            .into_iter()
+            .filter(|file| file.id != snapshot_id),
+    );
+    candidates.sort_by(|left, right| left.name.cmp(&right.name).then(left.id.cmp(&right.id)));
+    let active_event_count_before = after_snapshot.state.active_event_count;
+    let retained_event_count = after_snapshot.state.event_count;
+    let candidate_count = candidates.len();
+    let move_candidates = candidates
+        .into_iter()
+        .take(MAX_COMPACTION_BATCH)
+        .collect::<Vec<_>>();
+
+    let move_results = tokio::time::timeout(
+        Duration::from_secs(COMPACTION_ARCHIVE_DEADLINE_SECONDS),
+        async {
+            let archive_folder = if move_candidates.is_empty() {
+                None
+            } else {
+                Some(
+                    find_or_create_folder(&token, &folder, COMPACTED_TITLE_HISTORY_FOLDER).await?,
+                )
+            };
+            if let Some(archive_folder) = archive_folder.as_ref() {
+                Ok::<Vec<Result<(), String>>, String>(
+                    stream::iter(move_candidates.into_iter())
+                        .map(|file| {
+                            let token = &token;
+                            let folder = &folder;
+                            let archive_folder = archive_folder;
+                            async move {
+                                move_file_to_folder(token, &file.id, folder, archive_folder).await
+                            }
+                        })
+                        .buffer_unordered(COMPACTION_CONCURRENCY)
+                        .collect::<Vec<_>>()
+                        .await,
+                )
+            } else {
+                Ok(Vec::new())
+            }
+        },
+    )
+    .await
+    .map_err(|_| {
+        "Drive title retention reached its 60-second archive deadline after the complete snapshot was appended. Some records may already be archived; retry safely."
+            .to_string()
+    })??;
+    let archived_record_count = move_results.iter().filter(|result| result.is_ok()).count();
+    let failed_archive_count = move_results.len().saturating_sub(archived_record_count);
+    let remaining_record_count = candidate_count.saturating_sub(archived_record_count);
+    let after = load_project_title_history(&token, &folder, &manifest).await?;
+    Ok(DriveProjectTitleCompactionResult {
+        snapshot_revision,
+        retained_event_count,
+        active_event_count_before,
+        active_event_count_after: after.state.active_event_count,
+        archived_record_count,
+        failed_archive_count,
+        remaining_record_count,
+        complete: failed_archive_count == 0 && remaining_record_count == 0,
+        state: after.state,
+    })
 }
 
 #[tauri::command]
@@ -1737,6 +2085,8 @@ mod tests {
         let siblings = project_title_state(&manifest, &sibling_files).expect("sibling titles");
         assert!(siblings.conflict);
         assert_eq!(siblings.event_count, 2);
+        assert_eq!(siblings.active_event_count, 2);
+        assert_eq!(siblings.snapshot_count, 0);
         assert_eq!(siblings.tips.len(), 2);
         assert_eq!(siblings.revision_guards.len(), 2);
         assert!(siblings.tips.iter().any(|tip| tip.title == "Left rename"));
@@ -1758,6 +2108,81 @@ mod tests {
     }
 
     #[test]
+    fn shared_title_snapshot_retains_the_complete_graph_and_accepts_a_concurrent_child() {
+        let manifest = title_manifest();
+        let left = title_event("Left rename", "alice", 10, vec![]);
+        let right = title_event("Right rename", "bob", 11, vec![]);
+        let left_revision = title_event_revision(&left).expect("left revision");
+        let right_revision = title_event_revision(&right).expect("right revision");
+        let merged = title_event(
+            "Reconciled title",
+            "carol",
+            12,
+            vec![left_revision, right_revision],
+        );
+        let merged_revision = title_event_revision(&merged).expect("merged revision");
+        let events = [left, right, merged]
+            .into_iter()
+            .map(|event| (title_event_revision(&event).expect("event revision"), event))
+            .collect::<HashMap<_, _>>();
+        let snapshot = StoredProjectTitleSnapshot::new(&manifest, &events).expect("snapshot");
+        let snapshot_revision = title_snapshot_revision(&snapshot).expect("snapshot revision");
+        let snapshot_file = ListedFile {
+            id: "snapshot-file".into(),
+            name: format!("{TITLE_SNAPSHOT_PREFIX}{snapshot_revision}.json"),
+            size: serde_json::to_vec(&snapshot).expect("snapshot JSON").len(),
+            description: None,
+        };
+
+        let retained =
+            project_title_history(&manifest, &[], &[(snapshot_file.clone(), snapshot.clone())])
+                .expect("retained history");
+        assert_eq!(retained.state.title, "Reconciled title");
+        assert_eq!(retained.state.event_count, 3);
+        assert_eq!(retained.state.active_event_count, 0);
+        assert_eq!(retained.state.snapshot_count, 1);
+
+        let concurrent = title_event("Concurrent child", "dana", 13, vec![merged_revision]);
+        let with_concurrent = project_title_history(
+            &manifest,
+            &[title_event_file(&concurrent)],
+            &[(snapshot_file, snapshot)],
+        )
+        .expect("snapshot plus concurrent child");
+        assert_eq!(with_concurrent.state.title, "Concurrent child");
+        assert_eq!(with_concurrent.state.event_count, 4);
+        assert_eq!(with_concurrent.state.active_event_count, 1);
+        assert_eq!(with_concurrent.state.snapshot_count, 1);
+    }
+
+    #[test]
+    fn shared_title_snapshot_rejects_noncanonical_or_incomplete_history() {
+        let manifest = title_manifest();
+        let root = title_event("Root", "alice", 10, vec![]);
+        let child = title_event(
+            "Child",
+            "bob",
+            11,
+            vec![title_event_revision(&root).expect("root revision")],
+        );
+        let events = [root.clone(), child.clone()]
+            .into_iter()
+            .map(|event| (title_event_revision(&event).expect("event revision"), event))
+            .collect::<HashMap<_, _>>();
+        let mut snapshot = StoredProjectTitleSnapshot::new(&manifest, &events).expect("snapshot");
+        snapshot.events.reverse();
+        assert!(snapshot.validate_for(&manifest).is_err());
+
+        let incomplete = StoredProjectTitleSnapshot {
+            schema_version: 1,
+            project_id: manifest.project_id.clone(),
+            document_id: manifest.document_id.clone(),
+            events: vec![child],
+        };
+        assert!(incomplete.validate_for(&manifest).is_err());
+    }
+
+    #[test]
     fn shared_title_graph_rejects_tampering_missing_parents_and_excess_history() {
         let manifest = title_manifest();
         let orphan = title_event("Orphan", "alice", 10, vec!["a".repeat(64)]);
@@ -1775,7 +2200,36 @@ mod tests {
         oversized_author.display_name = "a".repeat(201);
         assert!(project_title_state(&manifest, &[title_event_file(&oversized_author)]).is_err());
 
-        let too_many = (0..=MAX_TITLE_EVENTS)
+        let mut chain = Vec::new();
+        let mut parents = Vec::new();
+        for index in 0..=MAX_TITLE_EVENTS {
+            let event = title_event(
+                &format!("Chain title {index}"),
+                "alice",
+                index as u64 + 20,
+                parents,
+            );
+            parents = vec![title_event_revision(&event).expect("chain revision")];
+            chain.push(title_event_file(&event));
+        }
+        let bounded_overflow = project_title_state(&manifest, &chain)
+            .expect("bounded concurrent overflow remains readable for retention");
+        assert_eq!(bounded_overflow.active_event_count, MAX_TITLE_EVENTS + 1);
+        assert_eq!(bounded_overflow.revision_guards.len(), 1);
+
+        let too_many_tips = (0..=MAX_TITLE_PARENTS)
+            .map(|index| {
+                title_event_file(&title_event(
+                    &format!("Sibling {index}"),
+                    "alice",
+                    index as u64 + 1,
+                    vec![],
+                ))
+            })
+            .collect::<Vec<_>>();
+        assert!(project_title_state(&manifest, &too_many_tips).is_err());
+
+        let too_many = (0..=MAX_TITLE_EVENT_READS)
             .map(|index| {
                 title_event_file(&title_event(
                     &format!("Title {index}"),

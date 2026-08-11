@@ -58,6 +58,7 @@ Recommended first instruction to an MCP-capable model:
 | `share_active_project` | Drive project state | Publishes the exact active local Yjs state only when `expectedDocumentRevision` still matches, then binds only the returned exact identities |
 | `join_shared_project` | local workspace/project registration | Refetches and joins one exact workspace/project/document identity, rejects local collisions, and waits for the Drive-backed editor |
 | `compact_drive_project` | Drive maintenance | After a final sync and exact `expectedDocumentRevision` plus `expectedResearchRevision` checks, appends a complete snapshot and recoverably archives only applied update records; reports partial/concurrent counts and returns no Drive file IDs |
+| `retain_drive_title_history` | Drive title maintenance | Requires the complete exact `sharedTitle.revisionGuards`, snapshots the complete validated title graph before recoverably archiving observed active records, preserves concurrent children, and returns counts without Drive file IDs |
 | `create_project` | yes | Creates and opens a local project with a non-empty title |
 | `open_project` | navigation | Opens a non-archived project by stable ID |
 | `rename_project` | local metadata or Drive title event | Local projects change local metadata. Drive projects require the complete exact `sharedTitle.revisionGuards`; stale calls fail, simultaneous siblings remain visible, and an all-tip rename reconciles without deleting history |
@@ -105,6 +106,10 @@ For Drive-shared titles, callers must pass the complete `sharedTitle.revisionGua
 `read_active_project`. The guard array is unique and bounded to 20. A stale set writes nothing; a
 simultaneous append can still create visible siblings; one later call naming all current tips appends
 an attributed merge event. The MCP response includes bounded title/tip metadata but no Drive file IDs.
+`retain_drive_title_history` uses the same exact guard set but does not rename or reconcile. It first
+appends a canonical content-addressed snapshot of the complete validated graph, rechecks the tips,
+then moves at most 200 observed records into a recoverable folder. A stale pre-move set writes no
+archive moves; concurrent children remain active; partial moves are reported and safe to retry.
 
 ## Local bridge and security boundary
 
@@ -247,7 +252,7 @@ It fails unless:
 2. replace/append operations change the same editor and reject a stale revision;
 3. the loopback parser accepts an authenticated request and rejects browser origins;
 4. MCP initialization negotiates the current `2025-11-25` protocol revision;
-5. all thirty-eight semantic tools are discoverable and route to their intended live operation, including bounded Drive project catalog/share/join, exact shared-title guards, exact scenario sibling reconciliation, and adversarial archive/decision actions;
+5. all thirty-nine semantic tools are discoverable and route to their intended live operation, including bounded Drive project catalog/share/join, exact shared-title rename/retention guards, exact scenario sibling reconciliation, and adversarial archive/decision actions;
 6. self-description returns absolute paths and copy-ready configuration without a GUI;
 7. platform contracts parse, keep provider-run/adversarial/plugin schemas strict, and do not
    overstate unimplemented runtimes; and

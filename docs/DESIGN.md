@@ -156,8 +156,13 @@ an incoming rename leaves the draft visible but makes the save fail stale instea
 overwriting the peer. Simultaneous renames display every current title and author in an accessible
 alert. **Reconcile shared title** requires choosing or editing a title against the complete current
 tip set, while copy states that every competing title remains in history. The deterministic title
-shown while conflicted is a stable projection, not an adjudication. Researcher names and timestamps
-remain self-reported, and the 200-event retention ceiling fails closed rather than hiding history.
+shown while conflicted is a stable projection, not an adjudication. **Retain title history** is a
+separate maintenance action: it reports retained/active/snapshot counts, creates a complete immutable
+snapshot before recoverable archival, and reports partial work as safely retryable. It must never
+suggest that retention resolved a title conflict or authenticated its authors. Researcher names and
+timestamps remain self-reported; 200 active event files stop new renames and require retention
+(reads tolerate a bounded 400-file concurrency overflow), and the retained graph
+still fails closed at its explicit 5,000-event/4-MiB bounds rather than hiding history.
 The UI must not describe polling as real-time presence.
 A compact **Presence** strip below the editor toolbar always names the actual capability. Local
 projects say that no remote editing session is connected. Drive-shared projects say edits sync

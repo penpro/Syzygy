@@ -98,7 +98,17 @@ the complete sorted tip set. The first rename consumes the immutable manifest's 
 guard. A normal rename names the current event tip; simultaneous writers can append sibling tips;
 an explicit reconciliation names every current tip as a parent and preserves every earlier title.
 The product and MCP both require the exact 1-20 current guards, and stale drafts add nothing. History
-is bounded to 200 events and fails before mutation when full; retention/archival remains open.
+retention is an explicit, independently guarded action. It serializes the complete validated graph
+in canonical revision order as `title-snapshot-<sha256>.json`, rehashes that immutable content on
+every read, then moves only the already-observed active title events and superseded snapshots into
+the recoverable `compacted-title-history/` folder. The snapshot is visible and the exact current tip
+set is rechecked before the first move. A rename arriving before that check aborts archival; one
+arriving after it stays active and resolves its archived parent from the snapshot. Partial moves and
+duplicate snapshot/event overlap remain valid and retryable. Product and MCP results return counts,
+never Drive file IDs. New renames stop at 200 active files, while reads/retention tolerate a bounded
+400-file concurrency overflow so maintenance cannot deadlock at 201; snapshots are bounded at eight, retained unique events at
+5,000, snapshot JSON at 4 MiB, and each run moves at most 200 records with eight requests in flight
+inside a 60-second post-snapshot deadline. Real-Drive interruption/quota evidence remains open.
 
 Explicit **Compact Drive history** maintenance first performs a normal pull/flush, checks any MCP
 document and research revision guards, and appends one complete content-addressed Yjs snapshot. Only
@@ -220,8 +230,10 @@ typed Sheet action is exposed by v0.1.7.
 - Drive project delivery is polling-based (currently three seconds), not presence or sub-second
   real-time collaboration.
 - One selected workspace at a time. Each project binding records that workspace ID and fails closed
-  if code attempts to rebind it silently. Shared-title history currently stops safely at 200 retained
-  events; title-event and compacted-update retention/deletion are intentionally not automated.
+  if code attempts to rebind it silently. Shared-title retention is explicit rather than automatic;
+  200 active events stop new renames and require a retention run; reads remain bounded at 400 so a
+  concurrent overflow can still be retained. A total of 5,000 retained events or a 4-MiB canonical
+  snapshot fail closed. Retained title/update archives are not deleted automatically.
 - Native Google Docs and Slides remain read-only research sources in Ask. Native Sheet support is
   currently literal rectangular value replacement from one starting cell; formatting, formulas,
   named-tab selection, structural edits, and conflict-aware revision controls are not yet exposed.

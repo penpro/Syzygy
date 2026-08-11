@@ -130,6 +130,7 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "share_active_project" => live("project.shareDrive", arguments),
         "join_shared_project" => live("project.joinDrive", arguments),
         "compact_drive_project" => live("project.compactDriveHistory", arguments),
+        "retain_drive_title_history" => live("project.compactDriveTitleHistory", arguments),
         "workspace_walkthrough" => live("workspace.walkthrough", json!({})),
         "create_project" => live("project.create", arguments),
         "open_project" => live("project.open", arguments),
@@ -255,6 +256,14 @@ fn tool_definitions() -> Vec<Value> {
                     ("expectedResearchRevision", string_schema("Exact revision from inspect_research_state.")),
                 ],
                 &["expectedDocumentRevision", "expectedResearchRevision"],
+            ),
+        ),
+        tool(
+            "retain_drive_title_history",
+            "Retain the complete validated shared-title event graph in a content-addressed Drive snapshot, then move already-observed active title records into a recoverable archive. Requires the complete exact title revision guards from read_active_project; concurrent changes fail before archival and partial moves are safe to retry.",
+            object_schema(
+                &[("expectedTitleRevisionGuards", json!({ "type": "array", "minItems": 1, "maxItems": 20, "uniqueItems": true, "items": { "type": "string" }, "description": "Complete exact sharedTitle.revisionGuards from read_active_project." }))],
+                &["expectedTitleRevisionGuards"],
             ),
         ),
         tool(
@@ -792,6 +801,7 @@ mod tests {
         assert!(names.contains(&"share_active_project"));
         assert!(names.contains(&"join_shared_project"));
         assert!(names.contains(&"compact_drive_project"));
+        assert!(names.contains(&"retain_drive_title_history"));
         assert!(names.contains(&"create_scenario"));
         assert!(names.contains(&"add_scenario_turn"));
         assert!(names.contains(&"revise_scenario_turn"));
@@ -810,7 +820,7 @@ mod tests {
         assert!(names.contains(&"cancel_adversarial_review"));
         assert!(names.contains(&"save_adversarial_review"));
         assert!(names.contains(&"decide_adversarial_review"));
-        assert_eq!(names.len(), 38);
+        assert_eq!(names.len(), 39);
         assert!(names.contains(&"replace_active_document"));
         let compact = tools["result"]["tools"]
             .as_array()
@@ -822,6 +832,16 @@ mod tests {
         assert_eq!(
             compact["inputSchema"]["required"],
             json!(["expectedDocumentRevision", "expectedResearchRevision"])
+        );
+        let title_retention = tools["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|tool| tool["name"] == "retain_drive_title_history")
+            .unwrap();
+        assert_eq!(
+            title_retention["inputSchema"]["required"],
+            json!(["expectedTitleRevisionGuards"])
         );
         let rename = tools["result"]["tools"]
             .as_array()
@@ -921,6 +941,10 @@ mod tests {
             ("share_active_project", "project.shareDrive"),
             ("join_shared_project", "project.joinDrive"),
             ("compact_drive_project", "project.compactDriveHistory"),
+            (
+                "retain_drive_title_history",
+                "project.compactDriveTitleHistory",
+            ),
         ] {
             let arguments = json!({
                 "expectedDocumentRevision": "revision-1",

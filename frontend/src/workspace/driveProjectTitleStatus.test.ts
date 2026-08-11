@@ -15,6 +15,8 @@ const state = (title: string): DriveProjectTitleState => ({
   revisionGuards: [`revision-${title}`],
   conflict: false,
   eventCount: 1,
+  activeEventCount: 1,
+  snapshotCount: 0,
   tips: [],
 })
 

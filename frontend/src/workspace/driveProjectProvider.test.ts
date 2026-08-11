@@ -47,6 +47,8 @@ class FakeDriveHub implements DriveProjectRemote {
     revisionGuards: ['base-fixture'],
     conflict: false,
     eventCount: 0,
+    activeEventCount: 0,
+    snapshotCount: 0,
     tips: [],
   }
 
@@ -108,6 +110,33 @@ class FakeDriveHub implements DriveProjectRemote {
     return structuredClone(this.titleState)
   }
 
+  async compactTitle(
+    _projectId: string,
+    _documentId: string,
+    expectedRevisionGuards: string[],
+  ) {
+    if (JSON.stringify(expectedRevisionGuards) !== JSON.stringify(this.titleState.revisionGuards)) {
+      throw new Error('Drive project title changed while retaining history')
+    }
+    const activeEventCountBefore = this.titleState.activeEventCount
+    this.titleState = {
+      ...this.titleState,
+      activeEventCount: 0,
+      snapshotCount: this.titleState.eventCount > 0 ? 1 : 0,
+    }
+    return {
+      snapshotRevision: 'retained-title-revision',
+      retainedEventCount: this.titleState.eventCount,
+      activeEventCountBefore,
+      activeEventCountAfter: 0,
+      archivedRecordCount: activeEventCountBefore,
+      failedArchiveCount: 0,
+      remainingRecordCount: 0,
+      complete: true,
+      state: structuredClone(this.titleState),
+    }
+  }
+
   async updateTitle(
     _projectId: string,
     _documentId: string,
@@ -129,6 +158,7 @@ class FakeDriveHub implements DriveProjectRemote {
       revisionGuards: [revision],
       conflict: false,
       eventCount: this.titleState.eventCount + 1,
+      activeEventCount: this.titleState.activeEventCount + 1,
       tips: [{
         revision,
         parentRevisions: expectedRevisionGuards.filter((guard) => !guard.startsWith('base-')),
@@ -148,6 +178,7 @@ class FakeDriveHub implements DriveProjectRemote {
       revisionGuards: ['tip-left', 'tip-right'],
       conflict: true,
       eventCount: this.titleState.eventCount + 2,
+      activeEventCount: this.titleState.activeEventCount + 2,
       tips: [
         { revision: 'tip-left', parentRevisions: [], title: leftTitle, participantId: 'alice', displayName: 'Alice', timestamp: 10 },
         { revision: 'tip-right', parentRevisions: [], title: rightTitle, participantId: 'bob', displayName: 'Bob', timestamp: 11 },
@@ -353,6 +384,19 @@ describe('DriveProjectProvider', () => {
     )
     expect(reconciled).toMatchObject({ title: 'Reconciled title', conflict: false })
     expect(reconciled.tips[0].parentRevisions).toEqual(['tip-left', 'tip-right'])
+
+    const retained = await value.compactTitleNow(reconciled.revisionGuards)
+    expect(retained).toMatchObject({
+      retainedEventCount: 4,
+      activeEventCountBefore: 4,
+      activeEventCountAfter: 0,
+      archivedRecordCount: 4,
+      complete: true,
+      state: { title: 'Reconciled title', snapshotCount: 1 },
+    })
+    expect(currentDriveProjectTitleState(manifest.id)).toMatchObject({
+      title: 'Reconciled title', eventCount: 4, activeEventCount: 0, snapshotCount: 1,
+    })
   })
 
   it('refreshes title siblings before rejecting a stale rename without hiding either tip', async () => {
@@ -384,6 +428,9 @@ describe('DriveProjectProvider', () => {
       },
       async readTitle() {
         throw new Error('title read should not run')
+      },
+      async compactTitle() {
+        throw new Error('title compact should not run')
       },
       async updateTitle() {
         throw new Error('title update should not run')

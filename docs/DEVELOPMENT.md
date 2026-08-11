@@ -158,8 +158,16 @@ the guards captured when it became dirty rather than adopting a peer update. MCP
 the stdio harness require a unique 1-20 guard array for Drive projects. The physical LAN mutating
 harness additionally renames from each installation, waits for the other local manifest projection,
 rejects the old guard, and restores the original title; its boolean evidence does not print titles.
-Those deterministic gates do not substitute for rerunning that physical harness on a packaged build
-or for real-Drive quota, interruption, and 200-event retention evidence.
+Title retention now builds one canonical, content-addressed snapshot from the complete validated
+graph before moving any observed title event or superseded snapshot. Rust fixtures prove snapshot
+round-trip, canonical ordering, missing-parent rejection, and a concurrent child whose archived
+parent remains resolvable. Provider/registry tests prove the exact guard, count-only result, local
+projection update, and replacement-provider ownership; the product and strict
+`retain_drive_title_history` MCP tool expose an explicit retryable action. New renames stop at 200
+active title files while reads/retention accept a bounded 400-file concurrency overflow; retained
+history stops at 5,000 events and 4 MiB, archive moves at 200/eight-way, and the
+post-snapshot phase at 60 seconds. Those deterministic gates do not substitute for rerunning the
+physical harness on a packaged build or for real-Drive quota/interruption/partial-move evidence.
 
 The Drive catalog supervision gate spans `drive_projects::tests` and `npm run audit`. Both the
 selected-workspace list and the cross-workspace browser are wrapped in one cancellation-safe
@@ -428,7 +436,7 @@ node ..\scripts\mcp-harness.mjs --executable <absolute-Syzygy.exe>
 ```
 
 The harness compiles the real application binary, starts `app --mcp` over stdio, negotiates MCP
-`2025-11-25`, discovers all thirty-seven tools, checks notification framing and ping, calls a typed live
+`2025-11-25`, discovers all thirty-nine tools, checks notification framing and ping, calls a typed live
 status result, then calls `syzygy_installation` without a GUI. That self-description must contain
 absolute executable/install-folder paths plus configuration and a connection prompt derived from
 the executable. Separate frontend tests prove structured Lexical reads, replace/append behavior,

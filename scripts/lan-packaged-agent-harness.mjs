@@ -144,7 +144,7 @@ try {
   assert.equal(nodes.structuredContent.nodes[0].metadata.packagedAgent, true)
   const tools = await session.tool('lan_node_tools', { nodeId: 'packaged-office', timeoutMs: 10_000 })
   assert.equal(tools.isError, false)
-  assert.equal(tools.structuredContent.tools.length >= 38, true)
+  assert.equal(tools.structuredContent.tools.length >= 39, true)
   const installation = await session.tool('lan_call', {
     nodeId: 'packaged-office',
     name: 'syzygy_installation',

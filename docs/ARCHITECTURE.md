@@ -86,7 +86,7 @@ packaged MCP surface before succeeding.
 | `knowledge.rs` | Folder knowledge: chunking granted folders, relevance retrieval. |
 | `google_auth.rs` | OAuth loopback + PKCE, collaboration-scope gate, token storage/refresh, cancel. See `GOOGLE-DRIVE.md`. |
 | `google_drive.rs` | Selected-workspace boundary, recursive direct retrieval/native export, confirmed native-Sheet value writes, and optional mirror sync. See `GOOGLE-DRIVE.md`. |
-| `drive_projects.rs` | Immutable active Drive project updates, content-addressed shared-title event graphs, cancellation-bounded shared-project catalogs, snapshot-first bounded archival into a recoverable sibling folder, strict identity/integrity bounds, and the live cleanup canary. |
+| `drive_projects.rs` | Immutable active Drive project updates, content-addressed shared-title event graphs and retained snapshots, cancellation-bounded shared-project catalogs, snapshot-first bounded update/title archival into recoverable sibling folders, strict identity/integrity bounds, and the live cleanup canary. |
 | `downloads.rs` | Resumable model downloads. |
 | `updates.rs` | App version for the in-app updater. |
 | `state.rs` | Shared state types (`Engine`, `Granted`, `KnowledgeCache`, …). |

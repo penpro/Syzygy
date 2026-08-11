@@ -1,8 +1,8 @@
 //! Restart-safe membership registry for the bundled collaboration relay.
 //!
 //! Member capabilities are bearer credentials because a browser WebSocket client must present
-//! them. Only SHA-256 digests are stored by the relay operator. Registry mutation remains a local
-//! Tauri control-plane operation; the LAN relay exposes no membership-management endpoint.
+//! them. Only SHA-256 digests are stored by the relay operator. Host-local Tauri commands and the
+//! relay's device-bound administrator channel share these exact-revision mutation primitives.
 
 use crate::collaboration_identity::{
     validate_relay_device_identity, verify_relay_access_signature, RelayAccessIdentityClaim,
@@ -150,6 +150,7 @@ pub enum RelayAuthorization {
         member_id: String,
         role: RelayMemberRole,
         replay: Option<RelayAuthorizationReplay>,
+        device: Option<RelayAuthorizedDevice>,
     },
 }
 
@@ -157,6 +158,14 @@ pub enum RelayAuthorization {
 pub struct RelayAuthorizationReplay {
     pub key: String,
     pub expires_at_ms: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RelayAuthorizedDevice {
+    pub key_id: String,
+    pub public_key: String,
+    pub issued_at_ms: u64,
+    pub nonce: String,
 }
 
 fn stable_id(value: &str, min: usize, max: usize) -> bool {
@@ -175,7 +184,7 @@ fn valid_digest(value: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
 }
 
-fn validate_device_binding(device: &RelayDeviceBinding) -> Result<(), String> {
+pub fn validate_relay_device_binding(device: &RelayDeviceBinding) -> Result<(), String> {
     if device.schema_version != 1 || device.algorithm != "Ed25519" {
         return Err("Relay member device enrollment is invalid".into());
     }
@@ -224,7 +233,7 @@ fn validate_registry(registry: &RelayMembershipRegistry) -> Result<(), String> {
                 return Err("Saved relay membership registry is invalid".into());
             }
             if let Some(device) = &member.device {
-                validate_device_binding(device)
+                validate_relay_device_binding(device)
                     .map_err(|_| "Saved relay membership registry is invalid".to_string())?;
             }
             if member.role == RelayMemberRole::Admin && member.revoked_at_ms.is_none() {
@@ -371,7 +380,7 @@ fn issue_record(
     device: Option<RelayDeviceBinding>,
 ) -> Result<(StoredMember, String), String> {
     if let Some(device) = &device {
-        validate_device_binding(device)?;
+        validate_relay_device_binding(device)?;
     }
     let member_id = random_urlsafe(MEMBER_ID_BYTES)?;
     let capability = random_urlsafe(CAPABILITY_BYTES)?;
@@ -560,7 +569,7 @@ pub fn rotate_member(
     let rotated_at_ms = now_ms();
     let expires_at_ms = expiration_at(rotated_at_ms, expires_in_seconds)?;
     if let Some(device) = &device {
-        validate_device_binding(device)?;
+        validate_relay_device_binding(device)?;
     }
     let capability = random_urlsafe(CAPABILITY_BYTES)?;
     let member = &mut registry.rooms[room_index].members[member_index];
@@ -732,7 +741,7 @@ pub fn authorize_at(
     if !constant_time_eq(presented.as_bytes(), member.capability_sha256.as_bytes()) {
         return Err("Relay member authorization was denied".into());
     }
-    let replay = if let Some(device) = &member.device {
+    let (replay, authorized_device) = if let Some(device) = &member.device {
         if count != 6 {
             return Err("Relay member signed device authorization is required".into());
         }
@@ -778,20 +787,29 @@ pub fn authorize_at(
         };
         verify_relay_access_signature(&device.public_key, &device.key_id, &claim, &signature)
             .map_err(|_| "Relay member signed device authorization was denied".to_string())?;
-        Some(RelayAuthorizationReplay {
-            key: format!("{}:{room_id}:{member_id}:{nonce}", device.key_id),
-            expires_at_ms,
-        })
+        (
+            Some(RelayAuthorizationReplay {
+                key: format!("{}:{room_id}:{member_id}:{nonce}", device.key_id),
+                expires_at_ms,
+            }),
+            Some(RelayAuthorizedDevice {
+                key_id: device.key_id.clone(),
+                public_key: device.public_key.clone(),
+                issued_at_ms,
+                nonce,
+            }),
+        )
     } else {
         if count != 2 {
             return Err("Relay member authorization is invalid".into());
         }
-        None
+        (None, None)
     };
     Ok(RelayAuthorization::Member {
         member_id,
         role: member.role,
         replay,
+        device: authorized_device,
     })
 }
 

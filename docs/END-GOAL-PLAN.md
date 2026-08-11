@@ -163,10 +163,12 @@ supports explicit deterministic project-device registration in bounded Yjs state
 converge across disconnected peers, reopen offline, remain locally approvable while the peer is
 absent, expose stable-key correlation, retain conflicting participant claims, and appear in bounded
 read-only MCP inspection. They are self-registration evidence, not shared approval. The managed
-relay separately has explicit operator enrollment, signed installation-key roles, and one-use fresh
-connection proofs. Shared-directory approval, propagated identity revocation, device-key rotation/recovery, presence-proof replay
-rejection, signed durable research events, physical two-install product proof, and five-client soak
-remain open, so P-11 is `implemented_unverified`.
+relay separately has explicit operator enrollment, signed installation-key roles, one-use fresh
+connection proofs, and a second action-bound signature for device-administered exact-revision room
+membership. A repeatable exact-binary five-client partition/reconnect soak passes. Shared-directory
+approval, propagated identity revocation, device-key rotation/recovery, presence-proof replay
+rejection, signed durable research events, and physical two-install product proof remain open, so
+P-11 is `implemented_unverified`.
 
 
 P-04 now has a Penumbra-original typed Yjs domain service and deterministic headless evidence for
@@ -430,13 +432,16 @@ project/document/participant/client fields. The first fingerprint approval/revoc
 implemented only as a local project-scoped current-state label and never changes relay access. A
 signed durable self-registration directory now makes fingerprints inspectable offline but grants no
 authority and is replayable/deletable by bearer peers. The bundled relay separately enforces
-digest-backed viewer/editor/admin roles and host-local revocation; a role may now be bound to an
-explicitly enrolled self-issued installation key without treating the signed device directory as
-authority. The next identity increment must define recovery and shared administration, durable research-event
+digest-backed viewer/editor/admin roles; a role may now be bound to an explicitly enrolled self-issued
+installation key without treating the signed device directory as authority. A bound admin can execute
+one fresh action-signed status/issue/rotate/revoke request against the exact room revision. The next
+identity increment must define key recovery and shared-directory administration policy, durable research-event
 signatures, device-key rotation/recovery, and a replay policy before the product may say authenticated.
 
 Gate: five-client rapid-edit soak converges; stale presence disappears; restart/partition loses
-no edit; schema is unchanged when switching providers; P-11/P-12/S-05 pass.
+no edit; schema is unchanged when switching providers; P-11/P-12/S-05 pass. The deterministic
+same-process binary soak now satisfies the first three transport assertions; packaged physical-client
+and provider-switch evidence still determines the full gate.
 
 Progress: the provider lifecycle now declares exact realtime/awareness/local-durability/
 remote-persistence/attachment capabilities, and the first stable-Yjs-13
@@ -453,13 +458,16 @@ private-LAN relay child: Settings starts/supervises it without Node/PowerShell, 
 verifies port release, and a bounded crash-tail-repairing sync-update log recovers a document into a
 new empty client after every source client and relay process exit. Frames/rooms/clients are capped;
 awareness is never persisted. Managed rooms now store capability digests, enforce viewer versus
-writer protocol frames, reject operator-clock-expired members, and restart under exact-revision
+writer protocol frames, reject operator-clock-expired members, and mutate under exact-revision
 issue/rotate/revoke operations. Rotation preserves member ID/role, increments the public generation,
 optionally replaces expiry, and invalidates every prior capability copy; legacy rooms remain
-explicitly compatible. This advances the phase but does not complete it: authenticated human
-identity, signed device-to-role binding/shared administration, trusted time, automatic replacement
-delivery, public WSS operation, compaction/export/backups, broader abuse
-controls, packaged physical two-install use, and five-client soak remain open.
+explicitly compatible. Device-bound admins now have one bounded remote control request per fresh
+connection, with an independent action/revision signature and forced room reauthentication after
+mutation. A five-client exact-binary soak covers rapid edits, partition merge, awareness recovery,
+viewer reconnect, replay/stale-revision denial, and remote issue/rotate/revoke. This advances the
+phase but does not complete it: authenticated human identity, shared-directory approval and admin-key
+recovery, trusted time, automatic replacement delivery, public WSS operation, compaction/export/
+backups, broader abuse controls, and packaged physical two-install use remain open.
 
 ### Phase 6 — scenario workflow (`XL`)
 

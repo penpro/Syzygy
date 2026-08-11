@@ -86,8 +86,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   state. Drive adds append-only selected-workspace updates; WebSocket now adds live awareness, a
   persisted legacy or role-specific bearer-invite product binding, and an app-managed private-LAN
   relay with bounded native lifecycle, recovery storage, digest-only member capabilities, enforced
-  viewer/editor/admin writes, and host-local revocation. Authenticated human identity, signed
-  identity-to-role binding, and packaged multi-install proof remain open.
+  viewer/editor/admin writes, device-bound role enrollment, and signed remote room administration.
+  A five-client partition/reconnect soak now passes. Authenticated human identity, shared-directory
+  approval, administrator recovery, and packaged multi-install proof remain open.
 - The first original product node is now implemented but not yet interaction-verified: a Lexical
   `PolicyBlockNode` with stable
   identity, editable text, draft/review/approved state, strict JSON import, theme-token UI, and a
@@ -166,10 +167,13 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   converge and reopen offline; same-key participant conflicts stay visible; Drive/live UI and the
   read-only MCP inspection expose the exact device-only boundary; offline entries can receive local
   approval labels. The app-managed relay now separately binds an operator-issued role to an
-  explicitly enrolled installation key and rejects stale/replayed connection proofs. Human identity,
+  explicitly enrolled installation key, rejects stale/replayed connection proofs, and permits only
+  that device-bound admin role to execute one fresh action-bound exact-revision room-management
+  request. A repeatable five-client binary soak covers 60 rapid writes, two-client partition/rejoin,
+  awareness cleanup/recovery, forced reauthentication, and remote issue/rotate/revoke. Human identity,
   shared-directory approval, propagated identity revocation, key
-  rotation/recovery, signed durable research events, physical two-install product proof, and
-  five-client soak do not exist, so P-11 remains
+  rotation/recovery, signed durable research events, and physical two-install product proof remain
+  open, so P-11 remains
   `implemented_unverified`. Evidence:
   `docs/audits/runs/PRESENCE-LIFECYCLE-2026-07-18.json` and
   `docs/audits/runs/SIGNED-DEVICE-PRESENCE-2026-08-11.json` and
@@ -632,10 +636,16 @@ collaborators are not required to download large project folders.
    fresh proof on reconnect. Keys remain self-issued; an explicit signed project directory keeps device registrations available
    offline and exposes participant-claim conflicts, but local decisions are neither shared nor
    authoritative, awareness-proof replay and participant-ID impersonation remain possible, and
-   durable research events are unsigned. Next: add shared administration and identity recovery,
+   durable research events are unsigned. Device-bound admin credentials now expose a strict reserved
+   control channel: the relay consumes the ordinary fresh proof, verifies a second action/revision
+   signature, durably mutates/reloads membership, and evicts room peers. The product exposes those
+   controls on a remotely hosted project only for the enrolled admin installation. A repeatable exact
+   binary soak proves five clients, 60 rapid writes, two-client partition merge, viewer reconnect,
+   awareness recovery, replay/stale-revision denial, forced reauthentication, and remote issue/
+   rotate/revoke. Next: add shared-directory administration policy and identity recovery,
    signed durable-event
    envelopes, device-key rotation/recovery, trusted time and replacement-invitation delivery, public WSS operations, compaction/export/backups
-   and broader abuse controls, then run packaged physical two-install and five-client soak gates.
+   and broader abuse controls, then run packaged physical two-install gates.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.
    v0.1.14 added same-name folder codes and the bounded MCP/LAN diagnostic; the two-physical-install
    run then proved the client had no selected workspace rather than a failed project upload.

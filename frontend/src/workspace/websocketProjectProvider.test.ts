@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  isRelayDocumentWritePayload,
   normalizeWebsocketProjectBinding,
   WEBSOCKET_PROVIDER_CAPABILITIES,
 } from './websocketProjectProvider'
@@ -78,5 +79,13 @@ describe('self-hosted WebSocket project binding', () => {
     ]) {
       expect(() => normalizeWebsocketProjectBinding({ endpoint, roomId })).toThrow('private LAN')
     }
+  })
+
+  it('classifies only outbound document sync updates for viewer transport filtering', () => {
+    expect(isRelayDocumentWritePayload(new Uint8Array([0, 1, 2, 0, 0]))).toBe(true)
+    expect(isRelayDocumentWritePayload(new Uint8Array([0, 2, 1, 0]))).toBe(true)
+    expect(isRelayDocumentWritePayload(new Uint8Array([0, 0, 1, 0]))).toBe(false)
+    expect(isRelayDocumentWritePayload(new Uint8Array([1, 2, 3]))).toBe(false)
+    expect(isRelayDocumentWritePayload('not a binary protocol frame')).toBe(false)
   })
 })

@@ -149,6 +149,10 @@ const collaborationRelayHarness = text('scripts/bundled-collaboration-relay-harn
 const collaborationRelayEvidence = text('docs/audits/runs/APP-MANAGED-COLLABORATION-RELAY-2026-08-11.json')
 const collaborationRelayMembershipEvidence = text('docs/audits/runs/MANAGED-RELAY-MEMBERSHIP-2026-08-11.json')
 const collaborationRelayRotationEvidence = text('docs/audits/runs/MANAGED-RELAY-ROTATION-2026-08-11.json')
+const relayRemoteAdminSource = text('frontend/src/workspace/relayRemoteAdmin.ts')
+const relayRemoteAdminTest = text('frontend/src/workspace/relayRemoteAdmin.test.ts')
+const relayRemoteAdminSoak = text('scripts/relay-remote-admin-soak.mjs')
+const relayRemoteAdminEvidence = text('docs/audits/runs/MANAGED-RELAY-REMOTE-ADMIN-SOAK-2026-08-11.json')
 record(
   'app-managed collaboration relay remains private, bounded, durable, reaped, and identity-honest',
   collaborationRelayCargo.includes('tungstenite = "=0.21.0"') &&
@@ -236,6 +240,31 @@ record(
 )
 
 const collaborationIdentitySource = text('frontend/src-tauri/src/collaboration_identity.rs')
+record(
+  'device-bound relay administration and five-client recovery remain exact, bounded, and identity-honest',
+  collaborationIdentitySource.includes('syzygy-relay-admin-action-v1') &&
+    collaborationIdentitySource.includes('collaboration_identity_sign_relay_admin') &&
+    collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_relay_admin') &&
+    collaborationRelayTauri.includes('collaborationIdentitySignRelayAdmin') &&
+    collaborationRelayServer.includes('REMOTE_ADMIN_PATH_PREFIX') &&
+    collaborationRelayServer.includes('parse_remote_admin_action') &&
+    collaborationRelayServer.includes('RelayMemberRole::Admin') &&
+    collaborationRelayServer.includes('evict_room_peers') &&
+    collaborationRelayServer.includes('QUERY_AWARENESS') &&
+    collaborationRelayProvider.includes('isRelayDocumentWritePayload') &&
+    relayRemoteAdminSource.includes('canonicalRelayRemoteAdminAction') &&
+    relayRemoteAdminSource.includes('REQUEST_DEADLINE_MS = 10_000') &&
+    relayRemoteAdminTest.includes('same fresh device proof') &&
+    websocketControlsSource.includes('Every action is signed for one fresh connection and exact registry revision') &&
+    frontendPackage.scripts?.['test:collaboration:relay-admin-soak']?.includes('relay-remote-admin-soak.mjs') &&
+    relayRemoteAdminSoak.includes('rapidWrites: 60') &&
+    relayRemoteAdminSoak.includes('twoClientPartitionMerged: true') &&
+    relayRemoteAdminSoak.includes('adminReplayRejected: true') &&
+    relayRemoteAdminSoak.includes('remoteIssueRotateRevoke: true') &&
+    relayRemoteAdminEvidence.includes('"status": "verified"'),
+  'separate action-domain signature, exact revision, strict one-message control path, forced reauthentication, viewer transport filtering, awareness recovery, repeatable five-client binary soak, and human-identity nonclaims are present',
+)
+
 const collaborationIdentityFrontend = text('frontend/src/workspace/deviceIdentity.ts')
 const collaborationIdentityPresence = text('frontend/src/workspace/ResearchPresence.tsx')
 const collaborationIdentitySettings = text('frontend/src/components/CollaborationIdentitySettings.tsx')
@@ -279,11 +308,12 @@ record(
     collaborationIdentitySource.includes('IDENTITY_LOCK') &&
     collaborationIdentitySource.includes('collaboration_identity_sign_presence') &&
     collaborationIdentitySource.includes('collaboration_identity_sign_registration') &&
-    (collaborationIdentitySource.match(/#\[tauri::command\]/g)?.length ?? 0) === 4 &&
+    (collaborationIdentitySource.match(/#\[tauri::command\]/g)?.length ?? 0) === 5 &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_status') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_presence') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_registration') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_relay_access') &&
+    collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_relay_admin') &&
     collaborationIdentityFrontend.includes("Object.keys(value).sort().join(',')") &&
     collaborationIdentityFrontend.includes("return 'unavailable'") &&
     collaborationIdentityFrontend.includes("? 'verified-device'") &&

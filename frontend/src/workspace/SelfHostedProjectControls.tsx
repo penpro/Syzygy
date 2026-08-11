@@ -31,6 +31,7 @@ import {
   type WebsocketProjectStatus,
 } from './websocketProjectStatus'
 import { parseRelayDeviceEnrollment } from './relayDeviceEnrollment'
+import { runRelayRemoteAdminAction } from './relayRemoteAdmin'
 
 function errorText(value: unknown): string {
   return value instanceof Error ? value.message : String(value)
@@ -137,9 +138,16 @@ export function SelfHostedProjectControls({
     () => websocketProject && !websocketBinding?.access ? createWebsocketProjectInvite(websocketProject) : '',
     [websocketProject, websocketBinding?.access],
   )
-  const locallyManaged = Boolean(
+  const hostLocalBinding = Boolean(
     websocketProject && websocketBinding && managedRelayEndpoint &&
-    websocketBinding.endpoint === managedRelayEndpoint && membership?.projectId === websocketProject.id,
+    websocketBinding.endpoint === managedRelayEndpoint,
+  )
+  const remotelyAdministrable = Boolean(
+    websocketBinding?.access?.schemaVersion === 3 && websocketBinding.access.role === 'admin',
+  )
+  const canAdminister = Boolean(
+    websocketProject && membership?.projectId === websocketProject.id &&
+    (hostLocalBinding || remotelyAdministrable),
   )
   const selectedLifetimeSeconds = inviteLifetime === 'never' ? null : Number(inviteLifetime)
 
@@ -157,13 +165,16 @@ export function SelfHostedProjectControls({
   useEffect(() => {
     setMembership(null)
     if (!websocketProject || !websocketBinding || !desktopRuntimeAvailable() ||
-      !managedRelayEndpoint || websocketBinding.endpoint !== managedRelayEndpoint) return
+      (!hostLocalBinding && !remotelyAdministrable)) return
     let disposed = false
-    void collaborationRelayRoomStatus(websocketBinding.roomId)
+    const request = hostLocalBinding
+      ? collaborationRelayRoomStatus(websocketBinding.roomId)
+      : runRelayRemoteAdminAction(websocketBinding, { kind: 'status' }, 0).then((result) => result.room)
+    void request
       .then((report) => { if (!disposed && report.projectId === websocketProject.id) setMembership(report) })
-      .catch(() => {})
+      .catch((value) => { if (!disposed) setError(errorText(value)) })
     return () => { disposed = true }
-  }, [managedRelayEndpoint, websocketBinding?.roomId, websocketProject?.id])
+  }, [hostLocalBinding, remotelyAdministrable, websocketBinding?.roomId, websocketProject?.id])
 
   const connect = async () => {
     if (!project || project.transport.kind !== 'local' || busy) return
@@ -245,13 +256,23 @@ export function SelfHostedProjectControls({
     setIssuedInviteExpiresAtMs(null)
     try {
       const device = await parseRelayDeviceEnrollment(deviceEnrollmentInput)
-      const issued = await collaborationRelayMemberIssue(
-        websocketBinding.roomId,
-        membership.registryRevision,
-        inviteRole,
-        selectedLifetimeSeconds,
-        device,
-      )
+      const issued = hostLocalBinding
+        ? await collaborationRelayMemberIssue(
+          websocketBinding.roomId,
+          membership.registryRevision,
+          inviteRole,
+          selectedLifetimeSeconds,
+          device,
+        )
+        : await runRelayRemoteAdminAction(websocketBinding, {
+          kind: 'issue',
+          role: inviteRole,
+          expiresInSeconds: selectedLifetimeSeconds,
+          device,
+        }, membership.registryRevision).then((result) => {
+          if (!result.credential) throw new Error('Relay did not return the newly issued credential')
+          return { credential: result.credential, room: result.room }
+        })
       const invite = createManagedWebsocketProjectInvite(websocketProject, {
         ...memberAccess(issued.credential),
         roomId: issued.credential.roomId,
@@ -279,13 +300,23 @@ export function SelfHostedProjectControls({
       const device = deviceEnrollmentInput.trim()
         ? await parseRelayDeviceEnrollment(deviceEnrollmentInput)
         : null
-      const rotated = await collaborationRelayMemberRotate(
-        websocketBinding.roomId,
-        memberId,
-        membership.registryRevision,
-        selectedLifetimeSeconds,
-        device,
-      )
+      const rotated = hostLocalBinding
+        ? await collaborationRelayMemberRotate(
+          websocketBinding.roomId,
+          memberId,
+          membership.registryRevision,
+          selectedLifetimeSeconds,
+          device,
+        )
+        : await runRelayRemoteAdminAction(websocketBinding, {
+          kind: 'rotate',
+          memberId,
+          expiresInSeconds: selectedLifetimeSeconds,
+          device,
+        }, membership.registryRevision).then((result) => {
+          if (!result.credential) throw new Error('Relay did not return the rotated credential')
+          return { credential: result.credential, room: result.room }
+        })
       const access = memberAccess(rotated.credential)
       const invite = createManagedWebsocketProjectInvite(websocketProject, {
         ...access,
@@ -308,16 +339,24 @@ export function SelfHostedProjectControls({
 
   const revoke = async (memberId: string) => {
     if (!websocketBinding || !membership || busy) return
+    if (!hostLocalBinding && websocketBinding.access?.memberId === memberId) {
+      setError('The active remote administrator cannot revoke itself. Use the relay-host installation or another administrator.')
+      return
+    }
     setBusy(true)
     setError('')
     try {
-      const next = await collaborationRelayMemberRevoke(
-        websocketBinding.roomId,
-        memberId,
-        membership.registryRevision,
-      )
+      const next = hostLocalBinding
+        ? await collaborationRelayMemberRevoke(
+          websocketBinding.roomId,
+          memberId,
+          membership.registryRevision,
+        )
+        : await runRelayRemoteAdminAction(websocketBinding, {
+          kind: 'revoke', memberId,
+        }, membership.registryRevision).then((result) => result.room)
       setMembership(next)
-      setMessage('Member revoked. The relay restarted and every connection must authenticate again.')
+      setMessage('Member revoked. The relay disconnected room clients so every connection must authenticate again.')
     } catch (value) {
       setError(errorText(value))
     } finally {
@@ -382,7 +421,7 @@ export function SelfHostedProjectControls({
           </div> : null}
         </> : null}
 
-        {locallyManaged && membership ? <div aria-label="Relay room members">
+        {canAdminister && membership ? <div aria-label="Relay room members">
           <div className="workspace-panel-label mono">Relay members · revision {membership.registryRevision}</div>
           <ul>
             {membership.members.map((member) => <li key={member.memberId}>
@@ -402,7 +441,10 @@ export function SelfHostedProjectControls({
                 <button
                   className="btn sm ghost"
                   type="button"
-                  disabled={busy}
+                  disabled={busy || (!hostLocalBinding && websocketBinding.access?.memberId === member.memberId)}
+                  title={!hostLocalBinding && websocketBinding.access?.memberId === member.memberId
+                    ? 'Use the relay-host installation or another administrator to revoke this active credential'
+                    : undefined}
                   onClick={() => void revoke(member.memberId)}
                 >Revoke</button>
               </> : null}
@@ -418,7 +460,7 @@ export function SelfHostedProjectControls({
               >
                 <option value="viewer">Viewer · shared document read-only</option>
                 <option value="editor">Editor · shared document read/write</option>
-                <option value="admin">Admin · read/write; relay operator still manages membership</option>
+                <option value="admin">Admin · read/write and device-bound membership management</option>
               </select>
             </label>
             <label>
@@ -455,9 +497,10 @@ export function SelfHostedProjectControls({
             </button>
           </div>
           <p>
-            Membership is managed only on this relay-host installation. Admin credentials do not
-            expose a remote management endpoint; the relay operator retains that authority. Expiry uses
-            the relay host’s clock. Rotate / recover replaces a member’s capability, preserves
+            A device-bound admin credential can inspect and change this room’s membership from its
+            enrolled installation. It proves possession of an installation key, not a person or
+            organization. Every action is signed for one fresh connection and exact registry revision.
+            Expiry uses the relay host’s clock. Rotate / recover replaces a member’s capability, preserves
             its role and member ID, and invalidates every prior copy.
             New members require the intended collaborator’s public enrollment request. On rotation,
             leave the field empty to retain the current device binding, or paste a new request to

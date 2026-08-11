@@ -97,10 +97,10 @@
       "defaultState": "off until a user creates/accepts a legacy, managed-v2, or expiring/rotatable managed-v3 bearer invitation or enables bundled hosting",
       "activation": "a user explicitly connects or joins a project, or enables the app-managed private-LAN relay",
       "destinations": [
-        { "kind": "configured-websocket", "origin": "configured-ws-or-wss-relay", "routePrefixes": ["/<room-id>", "/<managed-room-id>?member=<member-id>&capability=<member-capability>"] }
+        { "kind": "configured-websocket", "origin": "configured-ws-or-wss-relay", "routePrefixes": ["/<room-id>", "/<managed-room-id>?member=<member-id>&capability=<member-capability>", "/__syzygy_relay_admin_v1/<managed-room-id>?member=<admin-member-id>&capability=<admin-capability>"] }
       ],
-      "payloads": ["binary Yjs project updates", "ephemeral awareness and self-reported presence", "optional public Ed25519 device enrollment plus fresh connection timestamp, nonce, and signature", "bundled hosting persists bounded document-sync frames but never awareness"],
-      "credentials": "managed bundled rooms use a separate random member ID and 256-bit capability in the WebSocket query while storing only its SHA-256 digest; v3 also discloses capability generation and optional relay-host-clock expiry; v4 binds the capability to one enrolled installation public key and requires a one-use fresh signature; exact host-local rotation invalidates the previous digest; legacy/unregistered rooms still use the high-entropy room path as read/edit bearer access; no mode authenticates a person",
+      "payloads": ["binary Yjs project updates", "ephemeral awareness and self-reported presence", "optional public Ed25519 device enrollment plus fresh connection timestamp, nonce, and signature", "one strict device-admin action containing public membership metadata and, for issue/rotation, a recipient public enrollment; a returned capability is visible to the requesting installation once", "bundled hosting persists bounded document-sync frames but never awareness"],
+      "credentials": "managed bundled rooms use a separate random member ID and 256-bit capability in the WebSocket query while storing only its SHA-256 digest; v3 also discloses capability generation and optional relay-host-clock expiry; v4 binds the capability to one enrolled installation public key and requires a one-use fresh signature; only a v4 admin may sign a separate exact-revision status/issue/rotate/revoke action, and successful mutations force room reauthentication; legacy/unregistered rooms still use the high-entropy room path as read/edit bearer access; no mode authenticates a person",
       "sourceAnchors": [
         { "path": "frontend/src/workspace/websocketProjectBinding.ts", "contains": "Plaintext WebSocket collaboration is limited to loopback or private LAN hosts" },
         { "path": "frontend/src/workspace/ResearchEditor.tsx", "contains": "createWebsocketProviderFactory" },
@@ -111,10 +111,11 @@
       ],
       "copyAnchors": [
         { "path": "frontend/src/workspace/SelfHostedProjectControls.tsx", "contains": "Anyone with this legacy invitation can read and edit" },
+        { "path": "frontend/src/workspace/SelfHostedProjectControls.tsx", "contains": "Every action is signed for one fresh connection and exact registry revision" },
         { "path": "frontend/src/components/CollaborationRelaySettings.tsx", "contains": "Awareness is never written" },
-        { "path": "frontend/src/networkBoundaries.ts", "contains": "host can expire, rotate, or revoke" }
+        { "path": "frontend/src/networkBoundaries.ts", "contains": "device-bound admin can send separately signed status, issue, rotate, or revoke actions" }
       ],
-      "evidence": ["frontend/src/workspace/websocketProjectInvite.test.ts", "frontend/src/workspace/relayDeviceEnrollment.test.ts", "frontend/src/workspace/websocketProjectProvider.signed.test.ts", "frontend/src/workspace/WorkspaceView.ui.test.ts", "docs/audits/runs/SELF-HOSTED-WEBSOCKET-TRANSPORT-2026-08-11.json", "docs/audits/runs/SELF-HOSTED-PRODUCT-COLLABORATION-2026-08-11.json", "docs/audits/runs/APP-MANAGED-COLLABORATION-RELAY-2026-08-11.json", "docs/audits/runs/MANAGED-RELAY-MEMBERSHIP-2026-08-11.json", "docs/audits/runs/MANAGED-RELAY-ROTATION-2026-08-11.json", "docs/audits/runs/MANAGED-RELAY-DEVICE-AUTH-2026-08-11.json"]
+      "evidence": ["frontend/src/workspace/websocketProjectInvite.test.ts", "frontend/src/workspace/relayDeviceEnrollment.test.ts", "frontend/src/workspace/websocketProjectProvider.signed.test.ts", "frontend/src/workspace/relayRemoteAdmin.test.ts", "frontend/src/workspace/WorkspaceView.ui.test.ts", "scripts/relay-remote-admin-soak.mjs", "docs/audits/runs/SELF-HOSTED-WEBSOCKET-TRANSPORT-2026-08-11.json", "docs/audits/runs/SELF-HOSTED-PRODUCT-COLLABORATION-2026-08-11.json", "docs/audits/runs/APP-MANAGED-COLLABORATION-RELAY-2026-08-11.json", "docs/audits/runs/MANAGED-RELAY-MEMBERSHIP-2026-08-11.json", "docs/audits/runs/MANAGED-RELAY-ROTATION-2026-08-11.json", "docs/audits/runs/MANAGED-RELAY-DEVICE-AUTH-2026-08-11.json", "docs/audits/runs/MANAGED-RELAY-REMOTE-ADMIN-SOAK-2026-08-11.json"]
     },
     {
       "id": "updates",
@@ -225,6 +226,6 @@
     "Dynamic DNS and CDN addresses are not pinned; the contract records service origins and route prefixes.",
     "Third-party updater and crash SDK internals are checked through configuration, origin inventory, and product disclosure rather than payload packet capture.",
     "Paid remote-provider live calls remain unverified; native request and streaming behavior use deterministic fake-network conformance tests.",
-    "Configured self-hosted relay destinations are dynamic; managed bearer roles authorize only the bundled relay and are not authenticated identity. Source validation and product disclosure do not substitute for packaged packet capture or third-party relay policy review."
+    "Configured self-hosted relay destinations are dynamic; managed bearer/device roles and remote room administration authorize only the bundled relay and are not authenticated human identity. Source validation and product disclosure do not substitute for packaged packet capture or third-party relay policy review."
   ]
 }

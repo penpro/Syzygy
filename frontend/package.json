@@ -44,6 +44,7 @@
     "test:mcp:lan:drive-live": "node ../scripts/lan-drive-live-harness.mjs",
     "test:collaboration:websocket": "node ../scripts/websocket-collaboration-harness.mjs",
     "test:collaboration:bundled-relay": "node ../scripts/bundled-collaboration-relay-harness.mjs --relay-executable src-tauri/target/debug/collaboration-relay.exe",
+    "test:collaboration:relay-admin-soak": "node ../scripts/relay-remote-admin-soak.mjs --relay-executable src-tauri/target/debug/collaboration-relay.exe",
     "test:collaboration:identity": "node ../scripts/collaboration-identity-interop.mjs",
     "test:mcp:live": "node ../scripts/mcp-live-harness.mjs --write-proof",
     "audit": "node ../scripts/audit.mjs",

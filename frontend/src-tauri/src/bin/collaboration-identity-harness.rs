@@ -1,6 +1,6 @@
 use app_lib::collaboration_identity::{
     ephemeral_identity_interop_proofs, PresenceIdentityClaim, ProjectDeviceRegistrationClaim,
-    RelayAccessIdentityClaim,
+    RelayAccessIdentityClaim, RelayAdminIdentityClaim,
 };
 
 fn main() {
@@ -26,9 +26,24 @@ fn main() {
         nonce: "6LwS4YgM5oHd7RjP0eQt9VxN2cBk8UaF3iZm1KpJvXs".into(),
         capability: "ccccccccccccccccccccccccccccccccccccccccccc".into(),
     };
-    match ephemeral_identity_interop_proofs(claim, registration_claim, relay_access_claim).and_then(
-        |proof| serde_json::to_string(&proof).map_err(|_| "Could not encode identity proof".into()),
-    ) {
+    let relay_admin_claim = RelayAdminIdentityClaim {
+        schema_version: 1,
+        room_id: "room_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+        administrator_member_id: "member_bbbbbbbbbbbbbbbbbbbbbbbb".into(),
+        expected_revision: 11,
+        issued_at_ms: 1_700_000_000_000,
+        nonce: "6LwS4YgM5oHd7RjP0eQt9VxN2cBk8UaF3iZm1KpJvXs".into(),
+        action_sha256: "h4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
+    };
+    match ephemeral_identity_interop_proofs(
+        claim,
+        registration_claim,
+        relay_access_claim,
+        relay_admin_claim,
+    )
+    .and_then(|proof| {
+        serde_json::to_string(&proof).map_err(|_| "Could not encode identity proof".into())
+    }) {
         Ok(proof) => println!("{proof}"),
         Err(error) => {
             eprintln!("Syzygy collaboration identity harness failed: {error}");

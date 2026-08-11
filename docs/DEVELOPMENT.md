@@ -974,6 +974,12 @@ node scripts\run-with-heartbeat.mjs `
   --heartbeat-seconds 30 `
   -- node scripts\bundled-collaboration-relay-harness.mjs `
     --relay-executable frontend\src-tauri\target\debug\collaboration-relay.exe
+
+node scripts\run-with-heartbeat.mjs `
+  --timeout-seconds 120 `
+  --heartbeat-seconds 30 `
+  -- node scripts\relay-remote-admin-soak.mjs `
+    --relay-executable frontend\src-tauri\target\debug\collaboration-relay.exe
 ```
 
 The second harness starts the same relay server used by the installed executable, proves legacy
@@ -990,7 +996,18 @@ IndexedDB-reopen flow with a fresh signature for every physical connection. Awar
 persisted and the listener is reusable after shutdown. Rust unit tests cover strict registry
 recovery/bounds/revisions, five-minute-to-one-year expiry limits, rotation generation/digest-only
 storage, validated device enrollment, typed signature field binding, private binding, secret-free child arguments,
-protocol message classes, damaged-header denial, and partial-tail repair. This does not prove
-authenticated humans, shared/remote membership administration, trusted time, replacement-invitation
-delivery, public TLS/WSS, backup restoration,
-hostile-frame fuzzing, physical packaged clients, or five-client soak.
+protocol message classes, damaged-header denial, and partial-tail repair.
+
+The third command is the exact device-bound administration and five-client soak. It uses five real
+Yjs clients (admin, two editors, two viewers), performs 60 rapid writes, removes two clients, merges
+connected and offline partition edits, verifies awareness removal/recovery, and checks viewer
+reconnect without allowing a document write. It then uses the reserved relay control path to prove a
+separately domain-signed status/issue/rotate/revoke sequence, exact-revision conflict, one-use admin
+replay denial, all-room peer eviction and fresh reauthentication, old/rotated/revoked credential
+denial, and digest-only storage. Every harness wait is internally bounded and the outer watchdog owns
+the 120-second process-tree deadline. Repeat runs must pass; a close-before-message check drains the
+final Node WebSocket event for 25 ms rather than racing `readyState`.
+
+Together these do not prove authenticated humans or organizations, project-shared device approval,
+administrator-key recovery, trusted time, replacement-invitation delivery, public TLS/WSS, backup
+restoration, hostile-frame fuzzing, or physical packaged clients.

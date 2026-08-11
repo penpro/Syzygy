@@ -53,6 +53,7 @@
 | `frontend/src/workspace/localProvider.ts` | Penumbra original | Local IndexedDB provider implementing the Lexical/Yjs boundary with migration-before-automation reopen |
 | `frontend/src/workspace/driveProjectProvider.ts` | Penumbra original | Immutable-update Drive-backed Yjs provider with IndexedDB durability, partition/reconnect merge, post-pull migration, shared-title pull/projection/exact-guard append, and final-sync snapshot-first compaction |
 | `frontend/src/workspace/websocketProjectProvider.ts` | Penumbra original | Stable-Yjs-13 y-websocket provider composed with local IndexedDB, live awareness, bounded initial readiness, strict endpoint/room validation, and fresh native-signed device-bound reconnect authorization |
+| `frontend/src/workspace/relayRemoteAdmin.ts` | Penumbra original | Strict bounded remote relay-administration client with separately signed action claims, exact registry revisions, one-message WebSocket control exchange, and fail-closed response normalization |
 | `frontend/src/workspace/websocketProjectProvider.test.ts` | Penumbra original | Hostile endpoint/room validation and exact provider-capability non-claim fixtures |
 | `frontend/src/workspace/websocketProjectBinding.ts` | Penumbra original | Canonical WS/WSS endpoint boundary, private-plaintext enforcement, 256-bit room generation, and strict legacy/managed/device-bound access shapes |
 | `frontend/src/workspace/relayDeviceEnrollment.ts` | Penumbra original | Strict public Ed25519 installation enrollment codec with canonical key-ID validation and no private material |
@@ -61,14 +62,15 @@
 | `frontend/src/workspace/websocketProjectStatus.ts` | Penumbra original | Detached live connection status with stale-provider teardown protection |
 | `frontend/src/workspace/websocketProjectStatus.test.ts` | Penumbra original | Status replacement ownership and detached-read fixtures |
 | `frontend/src/workspace/websocketProjectStore.test.ts` | Penumbra original | Persisted bind/join/leave state, collision, normalization, and transport-authority fixtures |
-| `frontend/src/workspace/SelfHostedProjectControls.tsx` | Penumbra original | Explicit advanced create/join/leave product controls with bearer-access and non-backup disclosure |
+| `frontend/src/workspace/SelfHostedProjectControls.tsx` | Penumbra original | Explicit advanced create/join/leave controls plus host-local or device-bound remote membership administration, exact-revision refresh, forced-reauthentication disclosure, and bearer/non-backup warnings |
 | `frontend/src/workspace/websocketProjectProductFlow.integration.test.ts` | Penumbra original | Real-relay invite, two-provider, separate-IndexedDB, destroy/reopen, and return-sync product fixture |
 | `frontend/src/components/CollaborationRelaySettings.tsx` | Penumbra original | App-managed private relay lifecycle, endpoint, process/storage status, and exact bearer/persistence/public-hosting disclosures |
 | `frontend/src/components/CollaborationRelaySettings.ui.test.tsx` | Penumbra original | Headless separation of lifecycle, bounded persistence, awareness, identity, and backup claims |
 | `frontend/src-tauri/src/collaboration_relay_runtime.rs` | Penumbra original | Saved private-listener configuration, same-executable child supervision, bounded restart/shutdown, reaping, and port-release verification |
-| `frontend/src-tauri/src/collaboration_relay_server.rs` | Penumbra original | Bounded y-websocket binary relay with document-only deduplicated append log, awareness exclusion, partial-tail repair, and private binding |
+| `frontend/src-tauri/src/collaboration_relay_server.rs` | Penumbra original | Bounded y-websocket relay with document-only deduplicated append log, role enforcement, awareness recovery, partial-tail repair, and separately signed exact-revision remote membership administration |
 | `frontend/src-tauri/src/bin/collaboration-relay.rs` | Penumbra original | Headless entrypoint for exercising the exact bundled relay server without a webview |
 | `scripts/bundled-collaboration-relay-harness.mjs` | Penumbra original | Native process lifecycle, all-source-client exit, server-only recovery, awareness exclusion, listener release, and exact product-provider proof |
+| `scripts/relay-remote-admin-soak.mjs` | Penumbra original | Five-client rapid-write/partition/awareness soak plus fresh-proof retry, exact-revision remote issue/rotate/revoke, replay denial, peer eviction, and digest-only capability-storage proof |
 | `frontend/src/workspace/driveTitleRepairJobs.ts` | Penumbra original | Content-minimized bounded background jobs for exact-inventory Drive shared-title inspection and recoverable repair, with 30-second heartbeats and one-hour terminal retention |
 | `frontend/src/workspace/driveProjectMaintenanceRegistry.ts` | Penumbra original | Identity-safe lifecycle registry exposing explicit compaction/title maintenance only for the currently ready Drive provider without stale-disconnect teardown |
 | `frontend/src/workspace/driveProjectActions.ts` | Penumbra original | Exact-revision Drive publish and refetched exact-identity Join actions shared by product UI and MCP automation |

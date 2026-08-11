@@ -291,24 +291,32 @@ recovery storage, not an independently administered backup. Node.js and PowerShe
 dependencies for this research relay. Its separate, strict `members-v1.json` registry caps 256 rooms
 and 64 members per room, stores only SHA-256 capability digests, and requires one active admin.
 Managed WebSocket queries carry a random member ID and 256-bit capability. Admin/editor roles may
-send Yjs step-two/update frames; viewers may receive retained state, send sync-step-one and awareness,
-but document writes close their connection before broadcast or persistence. Local issue, rotation,
-and revocation commands require an exact registry revision, stop the owned child, durably replace the registry, and
-restart the relay so existing connections reauthenticate. Admin credentials do not expose a remote
-management endpoint; only the relay-host installation controls membership. Rooms absent from the
-registry retain explicit legacy room-bearer compatibility. A member may additionally store one
+send Yjs step-two/update frames. A viewer transport drops outbound document-update frames while
+retaining sync requests and awareness; the relay independently rejects every non-empty viewer write
+before broadcast or persistence. New peers trigger a protocol query so existing awareness is
+republished without server retention. Host-local issue/rotation/revocation commands still require an
+exact registry revision and restart the owned child. A reserved, bounded relay control path also lets
+an enrolled device-bound admin inspect the room or issue, rotate, and revoke members. Each connection
+first consumes the ordinary fresh member proof, then accepts exactly one strict JSON action whose
+SHA-256 digest, room, admin member, exact revision, issue time, and nonce are signed under the separate
+`syzygy-relay-admin-action-v1` domain. Status uses revision zero; mutations hold the relay state lock,
+durably replace and reload the registry, and evict every room peer so product providers obtain a fresh
+signature before reconnecting. Issue requires the recipient's public device enrollment; responses
+return a new capability only once. Rooms absent from the registry retain explicit legacy room-bearer compatibility. A member may additionally store one
 validated Ed25519 public enrollment. Bound connections sign the exact room/member/capability/
 generation plus a 32-byte nonce and issue time; the relay accepts at most a one-minute-old proof,
 allows 15 seconds of forward clock skew, and atomically consumes it in a bounded 4,096-entry replay
 cache before sending retained data. y-websocket reconnect creates a new provider and proof instead
-of replaying the old query. Public WSS termination, authenticated human identity, shared or remote
-membership administration, trusted time, automatic replacement-credential
+of replaying the old query. Public WSS termination, authenticated human or organizational identity,
+shared-directory approval, administrator recovery, trusted time, automatic replacement-credential
 delivery, log
 compaction/export/backup, broader abuse controls, and physical packaged multi-install proof remain
-gates. Active member capabilities may expire between five minutes and one year or remain
+gates. A deterministic binary harness covers five device-bound clients, 60 rapid writes, a two-client
+partition/rejoin, awareness cleanup/recovery, forced reauthentication, exact-revision conflict,
+replay denial, and remote issue/rotate/revoke; it is not packaged physical-client evidence. Active member capabilities may expire between five minutes and one year or remain
 unbounded. Exact-revision rotation preserves member ID and role, increments a public generation,
-optionally replaces the expiry, stores only the new digest, and restarts the relay so every old copy
-is rejected. This is host-local bearer recovery, not key escrow or participant authentication. The
+optionally replaces the expiry, and stores only the new digest so every old copy is rejected. This is
+device-authorized capability administration, not key escrow or participant authentication. The
 Drive provider publishes to the UI/MCP automation registry only after local reopen plus its initial
 remote pull, and a live canary proves the underlying Google create/list/readback/cleanup path.
 Drive project titles are a second, metadata-only append path rather than a mutable manifest field.

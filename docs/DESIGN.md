@@ -186,15 +186,27 @@ relay projects show the configured endpoint,
 live/connecting/offline/error state, actual assigned role, and **Leave relay · keep local copy**.
 Legacy copy must say anyone with that invitation can read and edit. Managed host controls list only
 public member ID/role/status, use exact revisions, show each newly issued capability once, and explain
-that revocation restarts the relay. Hosts select one hour, 24 hours, seven days, 30 days, or no
+that revocation forces room clients to reauthenticate. Hosts select one hour, 24 hours, seven days, 30 days, or no
 automatic expiry. **Rotate / recover** preserves the member ID and role, applies the selected new
-lifetime, increments the generation, replaces the capability, restarts the relay, and presents the
+lifetime, increments the generation, replaces the capability, forces room clients to authenticate again, and presents the
 only new invitation copy. It must say every prior copy is invalid and must update this installation's
 own saved access when rotating its current member. Viewer copy must say relay writes are rejected while local edits
 remain local. Participant names remain self-reported, IndexedDB is the durable local copy, and the
 relay log is not a backup. Public plaintext, endpoint credentials/query/fragment/path, weak rooms,
 partial access objects, and extra invitation fields fail before persistence. Offline archive export
 strips the entire endpoint/room/member binding.
+
+A v4 device-bound admin can inspect and change that room's membership from its enrolled installation,
+including when the relay is hosted elsewhere. The controls must state that this proves possession of a
+self-issued installation key rather than a person or organization. Every action is signed for one
+fresh connection and exact registry revision; a successful mutation disconnects room clients so they
+reauthenticate. Issuing a member still requires that recipient's public enrollment request, and a new
+or rotated capability is shown only in that response. Legacy v1-v3 bearer admins remain document
+writers without remote administration. Never imply that the shared project-device directory grants
+the admin role, that an administrator can recover a lost installation key, or that the action is
+confidential from the relay host. The active remote administrator cannot revoke its own credential
+from these controls; the relay-host installation or a different administrator must perform that
+irreversible handoff so the current installation is not silently stranded.
 
 Settings includes **App-managed research relay**, visibly separate from the developer MCP network.
 The control owns enablement, one explicit private/loopback IP, port, real process status, storage
@@ -204,7 +216,7 @@ legacy room-bearer access, keeps participant names self-reported, requires a sep
 TLS/WSS proxy for public hosting, never stores awareness, and calls the bounded update log recovery
 storage rather than a backup. A local project may fill its endpoint from a running app-managed relay,
 but acknowledgement remains mandatory. Do not imply that a bound installation key authenticates a
-person, accepts the signed-device directory, exposes remote membership administration, or administers public
+person, accepts the signed-device directory, or administers public
 hosting/backups. Expiry is only as trustworthy as the relay host's clock, and rotation does not
 deliver the replacement invitation or prevent a recipient from copying it again.
 If any owned LAN or research-relay child does not release its process/listener during shutdown,
@@ -239,9 +251,9 @@ is unavailable. Copy must say that registration does not verify a person or assi
 local approval/revocation does not grant or remove relay access. Local-only projects do not show the
 shared directory action.
 Self-hosted WS/WSS synchronization, an app-managed private-LAN relay, relay-enforced
-viewer/editor/admin roles with host-local revocation, and optional signed installation-key-to-role
-binding are implemented. Human/organizational identity, project-shared approval, remote
-administration, durable-event signatures, public
+viewer/editor/admin roles, optional signed installation-key-to-role binding, and device-bound remote
+room administration are implemented. Human/organizational identity, project-shared approval,
+administrator recovery, durable-event signatures, public
 WSS hosting, and backup administration remain open. The portable archive is still a separate
 handoff that creates independent local state after import and contains no relay invitation.
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,

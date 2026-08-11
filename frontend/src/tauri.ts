@@ -216,6 +216,24 @@ export interface RelayAccessIdentityProof {
   signature: string
 }
 
+export interface RelayAdminIdentityClaim {
+  schemaVersion: 1
+  roomId: string
+  administratorMemberId: string
+  expectedRevision: number
+  issuedAtMs: number
+  nonce: string
+  actionSha256: string
+}
+
+export interface RelayAdminIdentityProof {
+  schemaVersion: 1
+  algorithm: 'Ed25519'
+  keyId: string
+  claim: RelayAdminIdentityClaim
+  signature: string
+}
+
 export type DeviceTrustStatus = 'unapproved' | 'approved' | 'revoked'
 export type DeviceTrustAction = 'approve' | 'revoke'
 
@@ -912,6 +930,11 @@ export const collaborationIdentitySignRegistration = (
 export const collaborationIdentitySignRelayAccess = (
   claim: RelayAccessIdentityClaim,
 ): Promise<RelayAccessIdentityProof> => invoke('collaboration_identity_sign_relay_access', { claim })
+
+/** Sign one action-bound relay administration claim; the relay still enforces enrolled admin authority. */
+export const collaborationIdentitySignRelayAdmin = (
+  claim: RelayAdminIdentityClaim,
+): Promise<RelayAdminIdentityProof> => invoke('collaboration_identity_sign_relay_admin', { claim })
 
 /** Local project-scoped device-key decisions. This does not return or grant relay authorization. */
 export const collaborationDeviceTrustStatus = (projectId: string): Promise<DeviceTrustReport> =>

@@ -4,9 +4,14 @@
 //! distinguish document sync from ephemeral awareness. It never interprets Syzygy domain data.
 //! Document sync frames are stored in a bounded append-only room log; awareness is memory-only.
 
+use crate::collaboration_identity::{verify_relay_admin_signature, RelayAdminIdentityClaim};
 use crate::collaboration_relay_membership::{
-    authorize, load_registry, registry_path, RelayAuthorization, RelayMembershipRegistry,
+    authorize, issue_member, load_registry, registry_path, report_room, revoke_member,
+    rotate_member, validate_relay_device_binding, RelayAuthorization, RelayDeviceBinding,
+    RelayMemberCredential, RelayMemberRole, RelayMembershipRegistry, RelayRoomMembershipReport,
 };
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, OpenOptions};
@@ -17,7 +22,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 use tungstenite::handshake::server::{Request, Response};
-use tungstenite::{accept_hdr, Error as WebsocketError, Message};
+use tungstenite::{accept_hdr, Error as WebsocketError, HandshakeError, Message};
 
 const LOG_MAGIC: &[u8] = b"SYZYGY-YWS-RELAY-V1\n";
 pub const MAX_FRAME_BYTES: usize = 12 * 1024 * 1024;
@@ -33,10 +38,15 @@ const SOCKET_POLL: Duration = Duration::from_millis(50);
 const HANDSHAKE_DEADLINE: Duration = Duration::from_secs(5);
 const REPLAY_DEADLINE: Duration = Duration::from_secs(15);
 const MAX_AUTH_REPLAY_ENTRIES: usize = 4_096;
+const REMOTE_ADMIN_PATH_PREFIX: &str = "/__syzygy_relay_admin_v1/";
+const MAX_REMOTE_ADMIN_MESSAGE_BYTES: usize = 64 * 1024;
 const EMPTY_STATE_VECTOR_SYNC_STEP_ONE: &[u8] = &[0, 0, 1, 0];
 // y-protocol sync step two containing Yjs's canonical empty update. This completes a viewer's
 // handshake after retained frames without asking the viewer to send document state to the relay.
 const EMPTY_UPDATE_SYNC_STEP_TWO: &[u8] = &[0, 1, 2, 0, 0];
+// y-websocket's query-awareness message asks connected peers to rebroadcast their current
+// ephemeral state. It restores presence after a reconnect without retaining awareness server-side.
+const QUERY_AWARENESS: &[u8] = &[3];
 
 type PeerId = u64;
 struct Peer {
@@ -73,6 +83,48 @@ struct RelayState {
     auth_replays: HashMap<String, u64>,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+enum RelayRemoteAdminAction {
+    Status,
+    Issue {
+        role: RelayMemberRole,
+        #[serde(rename = "expiresInSeconds")]
+        expires_in_seconds: Option<u64>,
+        device: RelayDeviceBinding,
+    },
+    Rotate {
+        #[serde(rename = "memberId")]
+        member_id: String,
+        #[serde(rename = "expiresInSeconds")]
+        expires_in_seconds: Option<u64>,
+        device: Option<RelayDeviceBinding>,
+    },
+    Revoke {
+        #[serde(rename = "memberId")]
+        member_id: String,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RelayRemoteAdminRequest {
+    schema_version: u8,
+    claim: RelayAdminIdentityClaim,
+    action: serde_json::Value,
+    signature: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RelayRemoteAdminResponse {
+    schema_version: u8,
+    ok: bool,
+    error: Option<String>,
+    room: Option<RelayRoomMembershipReport>,
+    credential: Option<RelayMemberCredential>,
+}
+
 fn wall_clock_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -80,6 +132,83 @@ fn wall_clock_ms() -> u64 {
         .as_millis()
         .try_into()
         .unwrap_or(u64::MAX)
+}
+
+fn role_name(role: RelayMemberRole) -> &'static str {
+    match role {
+        RelayMemberRole::Admin => "admin",
+        RelayMemberRole::Editor => "editor",
+        RelayMemberRole::Viewer => "viewer",
+    }
+}
+
+fn expiry_name(expires_in_seconds: Option<u64>) -> String {
+    expires_in_seconds
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "none".into())
+}
+
+fn device_name(device: Option<&RelayDeviceBinding>) -> Result<String, String> {
+    let Some(device) = device else {
+        return Ok("none".into());
+    };
+    validate_relay_device_binding(device)?;
+    Ok(format!(
+        "{}\n{}\n{}\n{}",
+        device.schema_version, device.algorithm, device.key_id, device.public_key
+    ))
+}
+
+fn canonical_remote_admin_action(action: &RelayRemoteAdminAction) -> Result<Vec<u8>, String> {
+    let value = match action {
+        RelayRemoteAdminAction::Status => "status".into(),
+        RelayRemoteAdminAction::Issue {
+            role,
+            expires_in_seconds,
+            device,
+        } => format!(
+            "issue\n{}\n{}\n{}",
+            role_name(*role),
+            expiry_name(*expires_in_seconds),
+            device_name(Some(device))?,
+        ),
+        RelayRemoteAdminAction::Rotate {
+            member_id,
+            expires_in_seconds,
+            device,
+        } => format!(
+            "rotate\n{member_id}\n{}\n{}",
+            expiry_name(*expires_in_seconds),
+            device_name(device.as_ref())?,
+        ),
+        RelayRemoteAdminAction::Revoke { member_id } => format!("revoke\n{member_id}"),
+    };
+    Ok(value.into_bytes())
+}
+
+fn remote_admin_action_sha256(action: &RelayRemoteAdminAction) -> Result<String, String> {
+    Ok(URL_SAFE_NO_PAD.encode(Sha256::digest(canonical_remote_admin_action(action)?)))
+}
+
+fn parse_remote_admin_action(value: serde_json::Value) -> Result<RelayRemoteAdminAction, String> {
+    let object = value
+        .as_object()
+        .ok_or_else(|| "Relay administrator action is invalid".to_string())?;
+    let kind = object
+        .get("kind")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| "Relay administrator action is invalid".to_string())?;
+    let expected = match kind {
+        "status" => &["kind"][..],
+        "issue" => &["kind", "role", "expiresInSeconds", "device"][..],
+        "rotate" => &["kind", "memberId", "expiresInSeconds", "device"][..],
+        "revoke" => &["kind", "memberId"][..],
+        _ => return Err("Relay administrator action is invalid".into()),
+    };
+    if object.len() != expected.len() || !expected.iter().all(|key| object.contains_key(*key)) {
+        return Err("Relay administrator action is invalid".into());
+    }
+    serde_json::from_value(value).map_err(|_| "Relay administrator action is invalid".into())
 }
 
 fn is_unique_local_ipv6(address: Ipv6Addr) -> bool {
@@ -104,6 +233,14 @@ pub fn valid_room_id(value: &str) -> bool {
 
 fn room_from_path(path: &str) -> Option<String> {
     let room = path.strip_prefix('/')?;
+    if room.contains('/') || !valid_room_id(room) {
+        return None;
+    }
+    Some(room.to_string())
+}
+
+fn remote_admin_room_from_path(path: &str) -> Option<String> {
+    let room = path.strip_prefix(REMOTE_ADMIN_PATH_PREFIX)?;
     if room.contains('/') || !valid_room_id(room) {
         return None;
     }
@@ -183,6 +320,10 @@ fn classify_frame(frame: &[u8]) -> Result<FrameClass, String> {
 
 fn is_persistable_sync_frame(frame: &[u8]) -> bool {
     classify_frame(frame) == Ok(FrameClass::DocumentWrite)
+}
+
+fn is_canonical_empty_sync_update(frame: &[u8]) -> bool {
+    frame == EMPTY_UPDATE_SYNC_STEP_TWO
 }
 
 fn encode_log(frames: &[Vec<u8>]) -> Result<Vec<u8>, String> {
@@ -417,6 +558,182 @@ fn send_binary(
         .map_err(|error| format!("Could not send relay frame: {error}"))
 }
 
+fn send_remote_admin_response(
+    socket: &mut tungstenite::WebSocket<TcpStream>,
+    response: RelayRemoteAdminResponse,
+) -> Result<(), String> {
+    let encoded = serde_json::to_string(&response)
+        .map_err(|error| format!("Could not encode relay administrator response: {error}"))?;
+    if encoded.len() > MAX_REMOTE_ADMIN_MESSAGE_BYTES {
+        return Err("Relay administrator response exceeds its 64 KiB limit".into());
+    }
+    socket
+        .send(Message::Text(encoded.into()))
+        .map_err(|error| format!("Could not send relay administrator response: {error}"))
+}
+
+fn evict_room_peers(state: &mut RelayState, room_id: &str) {
+    if let Some(room) = state.rooms.get_mut(room_id) {
+        for peer in room.peers.values() {
+            peer.evicted.store(true, Ordering::Relaxed);
+        }
+    }
+}
+
+fn execute_remote_admin_action(
+    shared: &Arc<Mutex<RelayState>>,
+    room_id: &str,
+    expected_revision: u64,
+    action: RelayRemoteAdminAction,
+) -> Result<(RelayRoomMembershipReport, Option<RelayMemberCredential>), String> {
+    let mut state = shared
+        .lock()
+        .map_err(|_| "Relay state lock was poisoned".to_string())?;
+    let path = registry_path(&state.data_dir);
+    let (room, credential, mutated) = match action {
+        RelayRemoteAdminAction::Status => {
+            if expected_revision != 0 {
+                return Err("Relay administrator status requests must use revision zero".into());
+            }
+            (report_room(&path, room_id)?, None, false)
+        }
+        RelayRemoteAdminAction::Issue {
+            role,
+            expires_in_seconds,
+            device,
+        } => {
+            let (credential, room) = issue_member(
+                &path,
+                room_id,
+                expected_revision,
+                role,
+                expires_in_seconds,
+                Some(device),
+            )?;
+            (room, Some(credential), true)
+        }
+        RelayRemoteAdminAction::Rotate {
+            member_id,
+            expires_in_seconds,
+            device,
+        } => {
+            let (credential, room) = rotate_member(
+                &path,
+                room_id,
+                &member_id,
+                expected_revision,
+                expires_in_seconds,
+                device,
+            )?;
+            (room, Some(credential), true)
+        }
+        RelayRemoteAdminAction::Revoke { member_id } => (
+            revoke_member(&path, room_id, &member_id, expected_revision)?,
+            None,
+            true,
+        ),
+    };
+    if mutated {
+        state.membership = load_registry(&path)?;
+        evict_room_peers(&mut state, room_id);
+    }
+    Ok((room, credential))
+}
+
+fn handle_remote_admin_connection(
+    mut socket: tungstenite::WebSocket<TcpStream>,
+    shared: Arc<Mutex<RelayState>>,
+    room_id: &str,
+    authorization: RelayAuthorization,
+) -> Result<(), String> {
+    let (administrator_member_id, device) = match authorization {
+        RelayAuthorization::Member {
+            member_id,
+            role: RelayMemberRole::Admin,
+            replay: Some(_),
+            device: Some(device),
+        } => (member_id, device),
+        _ => return Err("Relay administrator authorization was denied".into()),
+    };
+    socket
+        .get_mut()
+        .set_read_timeout(Some(HANDSHAKE_DEADLINE))
+        .map_err(|error| format!("Could not bound relay administrator request: {error}"))?;
+    let request_deadline = Instant::now() + HANDSHAKE_DEADLINE;
+    let text = loop {
+        if Instant::now() >= request_deadline {
+            return Err("Relay administrator request exceeded its five-second deadline".into());
+        }
+        match socket.read() {
+            Ok(Message::Text(text)) => break text,
+            Ok(Message::Ping(payload)) => socket
+                .send(Message::Pong(payload))
+                .map_err(|error| format!("Could not answer relay administrator ping: {error}"))?,
+            Ok(Message::Close(_)) => {
+                return Err("Relay administrator closed before sending a request".into())
+            }
+            Ok(_) => return Err("Relay administrator requests must be one text message".into()),
+            Err(WebsocketError::Io(error))
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                ) => {}
+            Err(error) => {
+                return Err(format!(
+                    "Could not read relay administrator request: {error}"
+                ))
+            }
+        }
+    };
+    if text.len() > MAX_REMOTE_ADMIN_MESSAGE_BYTES {
+        return Err("Relay administrator request exceeds its 64 KiB limit".into());
+    }
+    let request: RelayRemoteAdminRequest = serde_json::from_str(text.as_ref())
+        .map_err(|_| "Relay administrator request is invalid".to_string())?;
+    let action = parse_remote_admin_action(request.action)?;
+    if request.schema_version != 1
+        || request.claim.room_id != room_id
+        || request.claim.administrator_member_id != administrator_member_id
+        || request.claim.issued_at_ms != device.issued_at_ms
+        || request.claim.nonce != device.nonce
+        || request.claim.action_sha256 != remote_admin_action_sha256(&action)?
+    {
+        return Err("Relay administrator request binding is invalid".into());
+    }
+    verify_relay_admin_signature(
+        &device.public_key,
+        &device.key_id,
+        &request.claim,
+        &request.signature,
+    )
+    .map_err(|_| "Relay administrator request signature was denied".to_string())?;
+
+    let response = match execute_remote_admin_action(
+        &shared,
+        room_id,
+        request.claim.expected_revision,
+        action,
+    ) {
+        Ok((room, credential)) => RelayRemoteAdminResponse {
+            schema_version: 1,
+            ok: true,
+            error: None,
+            room: Some(room),
+            credential,
+        },
+        Err(error) => RelayRemoteAdminResponse {
+            schema_version: 1,
+            ok: false,
+            error: Some(error),
+            room: None,
+            credential: None,
+        },
+    };
+    send_remote_admin_response(&mut socket, response)?;
+    let _ = socket.close(None);
+    Ok(())
+}
+
 fn handle_connection(
     stream: TcpStream,
     shared: Arc<Mutex<RelayState>>,
@@ -430,14 +747,35 @@ fn handle_connection(
         .map_err(|error| format!("Could not bound relay handshake writes: {error}"))?;
     let target = Arc::new(Mutex::new((None::<String>, None::<String>)));
     let captured_target = target.clone();
-    let mut socket = accept_hdr(stream, move |request: &Request, response: Response| {
+    let handshake_deadline = Instant::now() + HANDSHAKE_DEADLINE;
+    let accepted = accept_hdr(stream, move |request: &Request, response: Response| {
         if let Ok(mut target) = captured_target.lock() {
             target.0 = Some(request.uri().path().to_string());
             target.1 = request.uri().query().map(str::to_string);
         }
         Ok(response)
-    })
-    .map_err(|error| format!("WebSocket relay handshake failed: {error}"))?;
+    });
+    let mut socket = match accepted {
+        Ok(socket) => socket,
+        Err(HandshakeError::Failure(error)) => {
+            return Err(format!("WebSocket relay handshake failed: {error}"))
+        }
+        Err(HandshakeError::Interrupted(mut handshake)) => loop {
+            if Instant::now() >= handshake_deadline {
+                return Err("WebSocket relay handshake exceeded its five-second deadline".into());
+            }
+            match handshake.handshake() {
+                Ok(socket) => break socket,
+                Err(HandshakeError::Failure(error)) => {
+                    return Err(format!("WebSocket relay handshake failed: {error}"))
+                }
+                Err(HandshakeError::Interrupted(next)) => {
+                    handshake = next;
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+            }
+        },
+    };
     socket
         .get_mut()
         .set_read_timeout(Some(SOCKET_POLL))
@@ -450,8 +788,10 @@ fn handle_connection(
         .lock()
         .map(|target| target.clone())
         .map_err(|_| "Relay handshake target lock was poisoned".to_string())?;
-    let room_id = path
-        .and_then(|path| room_from_path(&path))
+    let remote_admin_room = path.as_deref().and_then(remote_admin_room_from_path);
+    let room_id = remote_admin_room
+        .clone()
+        .or_else(|| path.as_deref().and_then(room_from_path))
         .ok_or_else(|| "WebSocket relay room path is invalid".to_string())?;
     let authorization = {
         let mut state = shared
@@ -479,12 +819,16 @@ fn handle_connection(
         }
         authorization
     };
+    if remote_admin_room.is_some() {
+        return handle_remote_admin_connection(socket, shared, &room_id, authorization);
+    }
     let can_write = match authorization {
         RelayAuthorization::LegacyBearer => true,
         RelayAuthorization::Member { role, .. } => role.can_write(),
     };
     let (peer_id, outgoing, evicted, retained) = register_peer(&shared, &room_id)?;
     let result = (|| {
+        broadcast(&shared, &room_id, peer_id, QUERY_AWARENESS);
         let replay_deadline = Instant::now() + REPLAY_DEADLINE;
         for frame in retained {
             if Instant::now() >= replay_deadline {
@@ -512,6 +856,9 @@ fn handle_connection(
                     }
                     let class = classify_frame(&frame)?;
                     if class == FrameClass::DocumentWrite && !can_write {
+                        if is_canonical_empty_sync_update(&frame) {
+                            continue;
+                        }
                         return Err("Relay member role does not permit document updates".into());
                     }
                     persist_if_new(&shared, &room_id, &frame)?;
@@ -673,6 +1020,8 @@ mod tests {
         assert!(is_persistable_sync_frame(&[0, 2, 2]));
         assert!(!is_persistable_sync_frame(&[0, 0, 1, 0]));
         assert!(!is_persistable_sync_frame(&[1, 2, 3]));
+        assert!(is_canonical_empty_sync_update(EMPTY_UPDATE_SYNC_STEP_TWO));
+        assert!(!is_canonical_empty_sync_update(&[0, 1, 2, 0, 1]));
         assert_eq!(
             classify_frame(&[0, 0, 1, 0]).unwrap(),
             FrameClass::SyncStepOne
@@ -686,6 +1035,10 @@ mod tests {
             FrameClass::DocumentWrite
         );
         assert_eq!(classify_frame(&[1, 2, 3]).unwrap(), FrameClass::NonDocument);
+        assert_eq!(
+            classify_frame(QUERY_AWARENESS).unwrap(),
+            FrameClass::NonDocument
+        );
         assert!(classify_frame(&[0, 3]).is_err());
         assert!(classify_frame(&[0x80]).is_err());
         assert_eq!(MAX_ACTIVE_ROOMS, 256);
@@ -714,5 +1067,44 @@ mod tests {
         fs::write(&path, oversized).unwrap();
         assert!(load_room_log(&path).unwrap_err().contains("oversized"));
         let _ = fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn remote_administrator_actions_are_strict_camel_case_and_semantically_canonical() {
+        let public_key = URL_SAFE_NO_PAD.encode([7u8; 32]);
+        let fingerprint = URL_SAFE_NO_PAD.encode(Sha256::digest([7u8; 32]));
+        let device = RelayDeviceBinding {
+            schema_version: 1,
+            algorithm: "Ed25519".into(),
+            key_id: format!("ed25519-sha256:{fingerprint}"),
+            public_key: public_key.clone(),
+        };
+        let issue = parse_remote_admin_action(serde_json::json!({
+            "kind": "issue",
+            "role": "editor",
+            "expiresInSeconds": 3600,
+            "device": device,
+        }))
+        .unwrap();
+        assert_eq!(
+            String::from_utf8(canonical_remote_admin_action(&issue).unwrap()).unwrap(),
+            format!(
+                "issue\neditor\n3600\n1\nEd25519\ned25519-sha256:{}\n{}",
+                fingerprint, public_key,
+            )
+        );
+        assert_eq!(remote_admin_action_sha256(&issue).unwrap().len(), 43);
+        assert!(parse_remote_admin_action(serde_json::json!({
+            "kind": "rotate",
+            "member_id": "m".repeat(24),
+            "expires_in_seconds": null,
+            "device": null,
+        }))
+        .is_err());
+        assert!(parse_remote_admin_action(serde_json::json!({
+            "kind": "status",
+            "unexpected": true,
+        }))
+        .is_err());
     }
 }

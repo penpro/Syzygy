@@ -38,6 +38,45 @@ function randomNonce(): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
+function readVarUint(bytes: Uint8Array, offset: { value: number }): number | null {
+  let value = 0
+  let shift = 0
+  while (offset.value < bytes.length && shift < 35) {
+    const byte = bytes[offset.value++]
+    value += (byte & 0x7f) * 2 ** shift
+    if ((byte & 0x80) === 0) return value
+    shift += 7
+  }
+  return null
+}
+
+function binaryPayload(data: string | ArrayBufferLike | Blob | ArrayBufferView): Uint8Array | null {
+  if (typeof data === 'string' || data instanceof Blob) return null
+  if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+  return new Uint8Array(data)
+}
+
+export function isRelayDocumentWritePayload(
+  data: string | ArrayBufferLike | Blob | ArrayBufferView,
+): boolean {
+  const bytes = binaryPayload(data)
+  if (!bytes) return false
+  const offset = { value: 0 }
+  if (readVarUint(bytes, offset) !== 0) return false
+  const subtype = readVarUint(bytes, offset)
+  return subtype === 1 || subtype === 2
+}
+
+function viewerWebSocketConstructor(): typeof WebSocket {
+  const NativeWebSocket = globalThis.WebSocket
+  return class ViewerWebSocket extends NativeWebSocket {
+    override send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
+      if (isRelayDocumentWritePayload(data)) return
+      super.send(data)
+    }
+  }
+}
+
 export {
   createWebsocketRoomId,
   normalizeWebsocketProjectBinding,
@@ -231,6 +270,9 @@ export class WebsocketProjectProvider implements ProjectCollaborationProvider {
       disableBc: true,
       maxBackoffTime: 2_500,
       params,
+      ...(this.binding.access?.role === 'viewer'
+        ? { WebSocketPolyfill: viewerWebSocketConstructor() }
+        : {}),
     })
     remote.on('status', this.forwardStatus)
     remote.on('sync', this.forwardSync)

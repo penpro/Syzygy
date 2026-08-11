@@ -10,6 +10,7 @@ import { UpdateCheck } from './UpdateCheck'
 import { McpSetupModal } from './McpSetupModal'
 import { RemoteProviderSettings } from './RemoteProviderSettings'
 import { LanAgentSettings } from './LanAgentSettings'
+import { CollaborationRelaySettings } from './CollaborationRelaySettings'
 import { NetworkBoundarySummary } from './NetworkBoundarySummary'
 import { crashReportsAvailable, startCrashReports, stopCrashReports } from '../crashReports'
 import { useConfirm } from './ConfirmDialog'
@@ -253,6 +254,8 @@ export function SettingsPanel({
         </div>
 
         <LanAgentSettings />
+
+        <CollaborationRelaySettings />
 
         <RemoteProviderSettings />
         <label className="field">

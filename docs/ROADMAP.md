@@ -83,8 +83,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - The same slice adds a provider-neutral collaboration lifecycle and a deterministic two-editor
   Memory transport. Its headless suite proves bidirectional live document/domain updates,
   partition isolation, offline edits, reconnect merging, awareness cleanup, and identical final
-  state. The Drive implementation now uses that lifecycle for append-only selected-workspace updates;
-  WebSocket collaboration remains unimplemented.
+  state. Drive adds append-only selected-workspace updates; WebSocket now adds live awareness, a
+  persisted bearer-invite product binding, and an app-managed private-LAN relay with bounded native
+  lifecycle and recovery storage. Authenticated identity and packaged multi-install proof remain open.
 - The first original product node is now implemented but not yet interaction-verified: a Lexical
   `PolicyBlockNode` with stable
   identity, editable text, draft/review/approved state, strict JSON import, theme-token UI, and a
@@ -152,8 +153,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   connected peers disappear immediately, and a partitioned stale peer cannot resurrect presence
   after reconnect. Local and Drive modes are deliberately honest; Drive polling still synchronizes
   edits but does not claim live cursors or online status. Focused tests and the production build
-  pass. No installed live network provider, authenticated identity, physical two-install cursor
-  proof, or five-client soak exists yet, so P-11 is `implemented_unverified`. Evidence:
+  pass. A live WebSocket provider plus bundled private-LAN relay now exist, but authenticated
+  identity, physical two-install cursor proof, and five-client soak do not, so P-11 remains
+  `implemented_unverified`. Evidence:
   `docs/audits/runs/PRESENCE-LIFECYCLE-2026-07-18.json`.
 - P-16 now connects selected scenarios to one bounded provider-neutral response contract. Local
   generation uses the optional loopback model; OpenAI, Anthropic, Gemini, and xAI reuse the native
@@ -588,9 +590,13 @@ collaborators are not required to download large project folders.
    interruption repair. WebSocket bindings now persist through store v4; explicit advanced product
    controls create/join/leave bounded bearer invitations, connection state is visible, offline
    archives redact the live binding, CSP/network copy is activated, and a real relay harness proves
-   two provider instances plus one IndexedDB destroy/reopen. Next: bundle or one-click provision the
-   relay, add authenticated identity/authorization, durable relay deployment/backups and abuse
-   controls, then run packaged physical two-install and five-client soak gates.
+   two provider instances plus one IndexedDB destroy/reopen. The app-managed private-LAN relay is now
+   a bundled Syzygy child with saved enable/listen/port settings, supervised restart, graceful
+   shutdown plus listener-release verification, and bounded document-sync recovery logs that exclude
+   awareness. A native-executable harness proves all-source-client exit, process restart, server-only
+   recovery into an empty client, product-provider compatibility, and listener reuse. Next: add
+   authenticated identity/authorization/revocation, public WSS operations, compaction/export/backups
+   and broader abuse controls, then run packaged physical two-install and five-client soak gates.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.
    v0.1.14 added same-name folder codes and the bounded MCP/LAN diagnostic; the two-physical-install
    run then proved the client had no selected workspace rather than a failed project upload.

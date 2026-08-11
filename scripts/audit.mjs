@@ -128,7 +128,53 @@ record(
     websocketProductEvidence.includes('"productManifestBindingUsed": true') &&
     websocketProductEvidence.includes('"packagedTwoInstallUsed": false') &&
     websocketProductEvidence.includes('"status": "implemented_unverified"'),
-  'store-v4 manifest binding, strict invite, explicit bearer disclosure, stale-safe status, archive redaction, CSP/network inventory, real provider reopen, and physical/auth/bundled-relay nonclaims are present',
+  'store-v4 manifest binding, strict invite, explicit bearer disclosure, stale-safe status, archive redaction, CSP/network inventory, real provider reopen, and physical/auth/public-hosting nonclaims are present',
+)
+
+const collaborationRelayCargo = text('frontend/src-tauri/Cargo.toml')
+const collaborationRelayLock = text('frontend/src-tauri/Cargo.lock')
+const collaborationRelayMain = text('frontend/src-tauri/src/main.rs')
+const collaborationRelayLib = text('frontend/src-tauri/src/lib.rs')
+const collaborationRelayRuntime = text('frontend/src-tauri/src/collaboration_relay_runtime.rs')
+const collaborationRelayServer = text('frontend/src-tauri/src/collaboration_relay_server.rs')
+const collaborationRelaySettings = text('frontend/src/components/CollaborationRelaySettings.tsx')
+const collaborationRelayHarness = text('scripts/bundled-collaboration-relay-harness.mjs')
+const collaborationRelayEvidence = text('docs/audits/runs/APP-MANAGED-COLLABORATION-RELAY-2026-08-11.json')
+record(
+  'app-managed collaboration relay remains private, bounded, durable, reaped, and identity-honest',
+  collaborationRelayCargo.includes('tungstenite = "=0.21.0"') &&
+    collaborationRelayLock.includes('name = "tungstenite"') &&
+    collaborationRelayLock.includes('version = "0.21.0"') &&
+    collaborationRelayMain.includes('"--collaboration-relay"') &&
+    collaborationRelayLib.includes('.manage(collaboration_relay_runtime::CollaborationRelayRuntime::default())') &&
+    collaborationRelayLib.includes('collaboration_relay_runtime::shutdown(window.app_handle())') &&
+    collaborationRelayLib.includes('collaboration_relay_runtime::collaboration_relay_configure') &&
+    collaborationRelayRuntime.includes('current_exe()') &&
+    collaborationRelayRuntime.includes('drop(child.stdin.take())') &&
+    collaborationRelayRuntime.includes('wait_for_port_release(address)') &&
+    collaborationRelayRuntime.includes('RESTART_DELAYS') &&
+    collaborationRelayServer.includes('MAX_FRAME_BYTES: usize = 12 * 1024 * 1024') &&
+    collaborationRelayServer.includes('MAX_ROOM_BYTES: usize = 64 * 1024 * 1024') &&
+    collaborationRelayServer.includes('MAX_ROOM_FRAMES: usize = 8_192') &&
+    collaborationRelayServer.includes('MAX_ROOM_CLIENTS: usize = 32') &&
+    collaborationRelayServer.includes('MAX_ACTIVE_ROOMS: usize = 256') &&
+    collaborationRelayServer.includes('MAX_SERVER_BYTES: usize = 512 * 1024 * 1024') &&
+    collaborationRelayServer.includes('MAX_SERVER_CONNECTIONS: usize = 256') &&
+    collaborationRelayServer.includes('REPLAY_DEADLINE: Duration = Duration::from_secs(15)') &&
+    collaborationRelayServer.includes('is_persistable_sync_frame') &&
+    collaborationRelayServer.includes('partial tail record') &&
+    collaborationRelaySettings.includes('does not require Node.js or PowerShell') &&
+    collaborationRelaySettings.includes('participant names are still self-reported') &&
+    collaborationRelaySettings.includes('Awareness is never written') &&
+    frontendPackage.scripts?.['test:collaboration:bundled-relay']?.includes('bundled-collaboration-relay-harness.mjs') &&
+    collaborationRelayHarness.includes('server-only document recovery') &&
+    collaborationRelayHarness.includes('ephemeral awareness survived relay restart') &&
+    collaborationRelayHarness.includes('assertPortReleased(port)') &&
+    collaborationRelayEvidence.includes('"serverOnlyRecoveryIntoEmptyClient": true') &&
+    collaborationRelayEvidence.includes('"awarenessPersisted": false') &&
+    collaborationRelayEvidence.includes('"packagedTwoInstallUsed": false') &&
+    collaborationRelayEvidence.includes('"status": "implemented_unverified"'),
+  'same-executable child mode, private bind, bounded synced document log, awareness exclusion, crash-tail repair, lifecycle verification, real empty-client recovery, and explicit auth/backup nonclaims are present',
 )
 
 const sourceFiles = [

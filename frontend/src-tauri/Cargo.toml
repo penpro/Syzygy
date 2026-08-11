@@ -43,6 +43,7 @@ url = "2"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 filetime = "0.2"
 zeroize = "1.8.1"
+tungstenite = "=0.21.0"
 
 # Windows-only — DXGI VRAM detection (used under #[cfg(windows)]); not built on macOS/Linux.
 [target.'cfg(windows)'.dependencies]

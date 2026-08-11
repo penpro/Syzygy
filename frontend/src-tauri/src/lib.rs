@@ -1,6 +1,8 @@
 //! Syzygy Tauri backend. Domain logic lives in the modules below; this file wires up
 //! state and command handlers. The persisted frontend preference owns engine startup.
 mod automation;
+mod collaboration_relay_runtime;
+pub mod collaboration_relay_server;
 pub mod credential_vault;
 mod documents;
 mod downloads;
@@ -43,6 +45,7 @@ pub fn run() {
         .manage(Downloads(Mutex::new(HashMap::new())))
         .manage(Granted(Mutex::new(HashSet::new())))
         .manage(automation::AutomationState::default())
+        .manage(collaboration_relay_runtime::CollaborationRelayRuntime::default())
         .manage(lan_dev_coordinator::LanDevCoordinatorRuntime::default())
         .manage(lan_runtime::LanAgentRuntime::default())
         .manage(provider_runtime::ProviderRuntimeState::default())
@@ -58,6 +61,10 @@ pub fn run() {
                 // MCP is an optional local interoperability surface. A locked/unwritable temp
                 // directory must not prevent the primary desktop workspace from opening.
                 log::warn!("Live MCP bridge unavailable: {error}");
+            }
+            if let Err(error) = collaboration_relay_runtime::start_saved(app.handle()) {
+                // Hosting is opt-in. Invalid saved settings must never block the local workspace.
+                log::warn!("App-managed collaboration relay unavailable: {error}");
             }
             if let Err(error) = lan_dev_coordinator::start_saved(app.handle()) {
                 // Developer mode is optional and must never block the local research workspace.
@@ -91,28 +98,33 @@ pub fn run() {
                             .kind(MessageDialogKind::Error)
                             .show(|_| {});
                     } else {
-                        let mut lan_errors = Vec::new();
+                        let mut service_errors = Vec::new();
                         if let Err(error) = lan_runtime::shutdown(window.app_handle()) {
-                            lan_errors.push(format!("Connection: {error}"));
+                            service_errors.push(format!("Developer connection: {error}"));
                         }
                         if let Err(error) = lan_dev_coordinator::shutdown(window.app_handle()) {
-                            lan_errors.push(format!("Host: {error}"));
+                            service_errors.push(format!("Developer host: {error}"));
                         }
-                        if lan_errors.is_empty() {
+                        if let Err(error) =
+                            collaboration_relay_runtime::shutdown(window.app_handle())
+                        {
+                            service_errors.push(format!("Research relay: {error}"));
+                        }
+                        if service_errors.is_empty() {
                             automation::cleanup(window.app_handle());
                         } else {
                             api.prevent_close();
-                            let details = lan_errors.join("\n");
-                            log::error!("Syzygy stayed open because the LAN developer network did not finish shutting down: {details}");
+                            let details = service_errors.join("\n");
+                            log::error!("Syzygy stayed open because a collaboration background service did not finish shutting down: {details}");
                             window
                                 .app_handle()
                                 .dialog()
                                 .message(format!(
-                                    "Syzygy is still open because the LAN developer network did not release its processes. Try closing again.
+                                    "Syzygy is still open because a collaboration background service did not release its process or listener. Try closing again.
 
 {details}"
                                 ))
-                                .title("Developer network did not finish closing")
+                                .title("Collaboration service did not finish closing")
                                 .kind(MessageDialogKind::Error)
                                 .show(|_| {});
                         }
@@ -128,6 +140,11 @@ pub fn run() {
                         log::error!(
                             "Private LAN developer coordinator did not shut down cleanly: {error}"
                         );
+                    }
+                    if let Err(error) =
+                        collaboration_relay_runtime::shutdown(window.app_handle())
+                    {
+                        log::error!("App-managed collaboration relay did not shut down cleanly: {error}");
                     }
                     if let Err(error) = engine::shutdown_engine_state(window.app_handle()) {
                         log::error!(
@@ -203,6 +220,8 @@ pub fn run() {
             lan_runtime::lan_agent_reconnect,
             lan_dev_coordinator::lan_dev_coordinator_settings,
             lan_dev_coordinator::lan_dev_coordinator_configure,
+            collaboration_relay_runtime::collaboration_relay_settings,
+            collaboration_relay_runtime::collaboration_relay_configure,
             mcp_setup::mcp_connection_info,
             provider_runtime::provider_generate,
             provider_runtime::provider_generate_stream,

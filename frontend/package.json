@@ -43,6 +43,7 @@
     "test:mcp:lan:packaged": "node ../scripts/lan-packaged-agent-harness.mjs",
     "test:mcp:lan:drive-live": "node ../scripts/lan-drive-live-harness.mjs",
     "test:collaboration:websocket": "node ../scripts/websocket-collaboration-harness.mjs",
+    "test:collaboration:bundled-relay": "node ../scripts/bundled-collaboration-relay-harness.mjs --relay-executable src-tauri/target/debug/collaboration-relay.exe",
     "test:mcp:live": "node ../scripts/mcp-live-harness.mjs --write-proof",
     "audit": "node ../scripts/audit.mjs",
     "test:drive-live": "cargo run --manifest-path src-tauri/Cargo.toml --bin drive-harness --",

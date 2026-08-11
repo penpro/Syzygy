@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '../store'
+import { collaborationRelaySettings, desktopRuntimeAvailable } from '../tauri'
 import type { ResearchProjectManifest } from './schema'
 import {
   createWebsocketRoomId,
@@ -42,7 +43,13 @@ function useWebsocketProjectStatus(projectId: string | null): WebsocketProjectSt
   return status
 }
 
-export function SelfHostedProjectControls({ project }: { project?: ResearchProjectManifest }) {
+export function SelfHostedProjectControls({
+  project,
+  managedRelayEndpoint: suppliedManagedRelayEndpoint,
+}: {
+  project?: ResearchProjectManifest
+  managedRelayEndpoint?: string
+}) {
   const bindProject = useStore((state) => state.bindProjectToWebsocket)
   const addProject = useStore((state) => state.addSelfHostedProject)
   const leaveProject = useStore((state) => state.leaveSelfHostedProject)
@@ -51,6 +58,7 @@ export function SelfHostedProjectControls({ project }: { project?: ResearchProje
   const [acknowledged, setAcknowledged] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [managedRelayEndpoint, setManagedRelayEndpoint] = useState(suppliedManagedRelayEndpoint ?? '')
   const websocketProject = project?.transport.kind === 'websocket' ? project : null
   const websocketBinding = project?.transport.kind === 'websocket' ? project.transport : null
   const status = useWebsocketProjectStatus(websocketProject?.id ?? null)
@@ -58,6 +66,17 @@ export function SelfHostedProjectControls({ project }: { project?: ResearchProje
     () => websocketProject ? createWebsocketProjectInvite(websocketProject) : '',
     [websocketProject],
   )
+
+  useEffect(() => {
+    if (suppliedManagedRelayEndpoint !== undefined || !desktopRuntimeAvailable()) return
+    let disposed = false
+    void collaborationRelaySettings()
+      .then((report) => {
+        if (!disposed && report.running && report.endpoint) setManagedRelayEndpoint(report.endpoint)
+      })
+      .catch(() => {})
+    return () => { disposed = true }
+  }, [suppliedManagedRelayEndpoint])
 
   const connect = () => {
     if (!project || project.transport.kind !== 'local') return
@@ -159,6 +178,15 @@ export function SelfHostedProjectControls({ project }: { project?: ResearchProje
             onChange={(event) => setEndpoint(event.target.value)}
           />
         </label>
+        {managedRelayEndpoint ? (
+          <button
+            className="btn sm ghost"
+            type="button"
+            onClick={() => setEndpoint(managedRelayEndpoint)}
+          >
+            Use this app’s relay · {managedRelayEndpoint}
+          </button>
+        ) : null}
         {acknowledgement}
         <button className="btn primary sm" type="button" disabled={!acknowledged} onClick={connect}>
           Create invitation and connect

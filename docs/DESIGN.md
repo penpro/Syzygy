@@ -180,8 +180,18 @@ the configured endpoint, live/connecting/offline/error state, a manually copyabl
 **Leave relay · keep local copy**. Copy must say that anyone with the invitation can read and edit,
 participant names are self-reported, local IndexedDB is the durable copy, and the relay is not a
 backup. Public plaintext, embedded credentials, queries, fragments, room paths, and weak room IDs
-fail before persistence. Offline archive export strips the endpoint and bearer room. Do not imply
-that Syzygy currently bundles, authenticates, backs up, or administers the relay.
+fail before persistence. Offline archive export strips the endpoint and bearer room.
+
+Settings includes **App-managed research relay**, visibly separate from the developer MCP network.
+The control owns enablement, one explicit private/loopback IP, port, real process status, storage
+path, bounded-persistence label, and a copyable endpoint. It says the relay is bundled and requires
+neither Node.js nor PowerShell, but also says invitations remain bearer keys, participant names are
+self-reported, public hosting needs a separately managed TLS/WSS proxy, awareness is never stored,
+and the bounded update log is not a backup. A local project may fill its endpoint from a running
+app-managed relay, but the existing acknowledgement remains mandatory. Do not imply that Syzygy
+authenticates people, provides roles/revocation, or administers public hosting/backups.
+If any owned LAN or research-relay child does not release its process/listener during shutdown,
+Syzygy remains open and the native dialog names the failing service instead of disappearing.
 The UI must not describe polling as real-time presence.
 A compact **Presence** strip below the editor toolbar always names the actual capability. Local
 projects say that no remote editing session is connected. Drive-shared projects say edits sync
@@ -189,8 +199,8 @@ but live cursors and online status are unavailable. The self-hosted live provide
 session chips with **this device**, **editing**, or **viewing** state. Invalid/excess peer records
 produce an accessible warning rather than rendering attacker-controlled identity data. Live mode
 must state that presence is ephemeral and collaborator names are self-reported, not authenticated.
-Self-hosted WS/WSS synchronization is implemented for a user-operated relay; the bundled one-click
-relay and authenticated participant identity remain open. The portable archive is still a separate
+Self-hosted WS/WSS synchronization and an app-managed private-LAN relay are implemented;
+authenticated participant identity, public WSS hosting, and backup administration remain open. The portable archive is still a separate
 handoff that creates independent local state after import and contains no relay invitation.
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,
 empty, integrity-error, and mutation-error states; creates and selects stable scenarios; edits title,

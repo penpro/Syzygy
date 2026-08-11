@@ -927,3 +927,29 @@ reaps the relay in `finally`. The result explicitly reports that the basic relay
 state. This proves a synthetic same-computer product flow, not authenticated identity, a bundled
 relay, relay persistence/backups, five-client soak, physical two-install use, or packaged CSP/network
 behavior.
+
+Build and exercise the exact bundled Rust relay separately:
+
+```powershell
+cd D:\PolicyPad\syzygy\frontend
+node ..\scripts\run-with-heartbeat.mjs `
+  --timeout-seconds 120 `
+  --heartbeat-seconds 30 `
+  -- cargo build --manifest-path src-tauri\Cargo.toml --bin collaboration-relay
+
+cd D:\PolicyPad\syzygy
+node scripts\run-with-heartbeat.mjs `
+  --timeout-seconds 120 `
+  --heartbeat-seconds 30 `
+  -- node scripts\bundled-collaboration-relay-harness.mjs `
+    --relay-executable frontend\src-tauri\target\debug\collaboration-relay.exe
+```
+
+The second harness starts the same relay server used by the installed executable, proves live
+two-client convergence, exits every source client, gracefully stops and restarts the process, then
+recovers the document into a brand-new empty client from the server log. It also proves awareness
+was not persisted, the listener is reusable after shutdown, and the exact invitation/provider/
+IndexedDB product flow passes. Rust unit tests cover private binding, secret-free child arguments,
+message-class persistence, bounds, damaged-header denial, and partial-tail repair. This does not
+prove authenticated humans, public TLS/WSS, backup restoration, hostile-frame fuzzing, physical
+packaged clients, or five-client soak.

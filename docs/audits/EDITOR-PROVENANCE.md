@@ -62,6 +62,12 @@
 | `frontend/src/workspace/websocketProjectStore.test.ts` | Penumbra original | Persisted bind/join/leave state, collision, normalization, and transport-authority fixtures |
 | `frontend/src/workspace/SelfHostedProjectControls.tsx` | Penumbra original | Explicit advanced create/join/leave product controls with bearer-access and non-backup disclosure |
 | `frontend/src/workspace/websocketProjectProductFlow.integration.test.ts` | Penumbra original | Real-relay invite, two-provider, separate-IndexedDB, destroy/reopen, and return-sync product fixture |
+| `frontend/src/components/CollaborationRelaySettings.tsx` | Penumbra original | App-managed private relay lifecycle, endpoint, process/storage status, and exact bearer/persistence/public-hosting disclosures |
+| `frontend/src/components/CollaborationRelaySettings.ui.test.tsx` | Penumbra original | Headless separation of lifecycle, bounded persistence, awareness, identity, and backup claims |
+| `frontend/src-tauri/src/collaboration_relay_runtime.rs` | Penumbra original | Saved private-listener configuration, same-executable child supervision, bounded restart/shutdown, reaping, and port-release verification |
+| `frontend/src-tauri/src/collaboration_relay_server.rs` | Penumbra original | Bounded y-websocket binary relay with document-only deduplicated append log, awareness exclusion, partial-tail repair, and private binding |
+| `frontend/src-tauri/src/bin/collaboration-relay.rs` | Penumbra original | Headless entrypoint for exercising the exact bundled relay server without a webview |
+| `scripts/bundled-collaboration-relay-harness.mjs` | Penumbra original | Native process lifecycle, all-source-client exit, server-only recovery, awareness exclusion, listener release, and exact product-provider proof |
 | `frontend/src/workspace/driveTitleRepairJobs.ts` | Penumbra original | Content-minimized bounded background jobs for exact-inventory Drive shared-title inspection and recoverable repair, with 30-second heartbeats and one-hour terminal retention |
 | `frontend/src/workspace/driveProjectMaintenanceRegistry.ts` | Penumbra original | Identity-safe lifecycle registry exposing explicit compaction/title maintenance only for the currently ready Drive provider without stale-disconnect teardown |
 | `frontend/src/workspace/driveProjectActions.ts` | Penumbra original | Exact-revision Drive publish and refetched exact-identity Join actions shared by product UI and MCP automation |

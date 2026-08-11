@@ -36,9 +36,9 @@ export const NETWORK_BOUNDARY_ITEMS: readonly NetworkBoundaryItem[] = [
     id: 'self-hosted-collaboration',
     label: 'Self-hosted project relay',
     defaultState: 'Off until you create or accept a bearer invitation',
-    activation: 'When you explicitly connect a project or join a self-hosted invitation',
-    destination: 'The WS/WSS relay endpoint in the invitation',
-    data: 'The relay receives project updates and ephemeral presence. The invitation is the access key; identities are self-reported, and the relay is not a backup.',
+    activation: 'When you explicitly connect/join a project or enable the app-managed private-LAN relay',
+    destination: 'The WS/WSS endpoint in the invitation; bundled hosting listens only on the private address you configure',
+    data: 'The relay receives project updates and ephemeral presence. Bundled hosting persists bounded document-sync updates but never awareness. The invitation is the access key; identities are self-reported, and the relay log is not a backup.',
   },
   {
     id: 'downloads-updates',

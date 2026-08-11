@@ -1,12 +1,12 @@
 {
   "format": "syzygy-network-boundary-proof",
   "schemaVersion": 1,
-  "generatedAt": "2026-08-11T10:16:54.673Z",
-  "manifestDigest": "8f44284d22ffe29e9b0edd10ddadb78d267c391b64d4f651e1a894ae13fbb15e",
-  "sourceDigest": "0b7eafc0ac4973bfbe83ea3c1fb4f62248fcdfe48ba29610a69a8c30bcf1c60a",
+  "generatedAt": "2026-08-11T10:44:33.339Z",
+  "manifestDigest": "871e1b734aa75fae1d1a8328b472b7898796c9361505de483d390f0f85c497fc",
+  "sourceDigest": "6316a5701a75750de714baad0cec46d27e3dfc8ab6ea234223511b3fed0ff82d",
   "summary": {
     "boundaryCount": 9,
-    "productionSourceCount": 181,
+    "productionSourceCount": 184,
     "observedLiteralCount": 51,
     "boundaryLiteralCounts": {
       "local-model": 0,

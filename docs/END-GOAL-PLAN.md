@@ -424,10 +424,13 @@ The harness rejected the current Yjs-14 relay line and pins the compatible MIT 0
 The next product slice now persists a strict WebSocket transport through store v4, exposes explicit
 advanced create/join/leave controls, uses a bounded bearer-invitation codec, shows connection state,
 activates disclosed WS/WSS CSP access, strips the binding from offline archives, and headlessly proves
-invite-to-provider reopen through separate IndexedDB stores. This is a usable bring-your-own-relay
-transport, not completion of the phase: a bundled relay, authenticated identity/authorization,
-durable relay storage/backups, quotas/abuse controls, packaged physical two-install use, and
-five-client soak remain open.
+invite-to-provider reopen through separate IndexedDB stores. Syzygy now also owns an opt-in bundled
+private-LAN relay child: Settings starts/supervises it without Node/PowerShell, shutdown reaps it and
+verifies port release, and a bounded crash-tail-repairing sync-update log recovers a document into a
+new empty client after every source client and relay process exit. Frames/rooms/clients are capped;
+awareness is never persisted. This advances the phase but does not complete it: authenticated
+identity/authorization and revocation, public WSS operation, compaction/export/backups, broader abuse
+controls, packaged physical two-install use, and five-client soak remain open.
 
 ### Phase 6 — scenario workflow (`XL`)
 

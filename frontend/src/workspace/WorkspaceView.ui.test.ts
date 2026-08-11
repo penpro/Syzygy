@@ -104,6 +104,15 @@ describe('workspace collaboration entry points', () => {
     expect(html).not.toContain('Shared project titles are fixed')
   })
 
+  it('offers a running app-managed relay without weakening bearer disclosure', () => {
+    const html = renderToStaticMarkup(createElement(SelfHostedProjectControls, {
+      project: localProject,
+      managedRelayEndpoint: 'ws://192.168.1.20:37665',
+    }))
+    expect(html).toContain('Use this app’s relay · ws://192.168.1.20:37665')
+    expect(html).toContain('invitation is the access key')
+  })
+
   it('retains the exact revision guards captured when a shared-title draft became dirty', () => {
     const original = {
       schemaVersion: 1 as const,

@@ -93,6 +93,22 @@ export interface ProviderResearchSource {
   excerpt: string
 }
 
+export interface CollaborationRelayConfig {
+  enabled: boolean
+  listen: string
+  port: number
+}
+
+export interface CollaborationRelayReport {
+  config: CollaborationRelayConfig
+  running: boolean
+  pid: number | null
+  endpoint: string | null
+  storagePath: string
+  persistence: 'bounded-sync-update-log-v1'
+  lastError: string | null
+}
+
 export interface ProviderToolDefinition {
   name: string
   description: string
@@ -689,6 +705,15 @@ export const lanDevCoordinatorSettings = (): Promise<LanDevCoordinatorReport> =>
 export const lanDevCoordinatorConfigure = (
   config: LanDevCoordinatorConfig,
 ): Promise<LanDevCoordinatorReport> => invoke('lan_dev_coordinator_configure', { config })
+
+/** Current app-owned research relay. It stores bounded sync updates, never awareness. */
+export const collaborationRelaySettings = (): Promise<CollaborationRelayReport> =>
+  invoke('collaboration_relay_settings')
+
+/** Save/apply the research relay; disabled config stops, reaps, and verifies port release. */
+export const collaborationRelayConfigure = (
+  config: CollaborationRelayConfig,
+): Promise<CollaborationRelayReport> => invoke('collaboration_relay_configure', { config })
 
 /** Pick the pairing-key file without reading its contents into the webview. */
 export async function pickLanPairingKeyFile(): Promise<string | null> {

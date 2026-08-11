@@ -13,6 +13,16 @@ fn main() {
             eprintln!("Syzygy LAN agent stopped: {error}");
             std::process::exit(1);
         }
+    } else if arguments
+        .iter()
+        .any(|argument| argument == "--collaboration-relay")
+    {
+        if let Err(error) =
+            app_lib::collaboration_relay_server::run_from_args(arguments.into_iter().skip(1))
+        {
+            eprintln!("Syzygy collaboration relay stopped: {error}");
+            std::process::exit(1);
+        }
     } else {
         app_lib::run();
     }

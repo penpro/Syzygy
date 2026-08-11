@@ -222,9 +222,21 @@ invitation, reopen through IndexedDB, show owned connection status, and leave th
 the local copy. Store v4 is the idempotent persistence boundary; offline archives deliberately redact
 the endpoint and bearer room. The webview CSP permits dynamic WS/WSS connections because endpoints
 are user-configured, while the application parser retains the private-plaintext boundary. The room
-identifier grants project access but does not authenticate participant identity. A bundled relay,
-identity authentication/authorization, server persistence/backups, quotas, and abuse controls remain
-gates. The
+identifier grants project access but does not authenticate participant identity.
+
+The optional app-managed relay is a separate child mode of the installed Syzygy executable. Its
+saved native configuration contains only enabled/listen/port; room IDs never appear in process
+arguments. It binds only an explicit loopback/private-LAN address, is supervised with bounded
+restart backoff, and treats stdin closure as graceful shutdown. Desktop close does not complete
+until the child is reaped and its port can be rebound. The relay implements the stable
+`y-websocket` binary exchange without interpreting Syzygy domain nodes. It caps frames at 12 MiB,
+rooms at 32 clients, 256 total connections and 256 active rooms, 512 MiB total storage, and each room's deduplicated
+append-only document-sync log at 64 MiB/8,192 records. Awareness is broadcast but never written. Complete log records are synced before relay,
+and one partial crash tail is repaired without discarding earlier complete records. This is bounded
+recovery storage, not an independently administered backup. Node.js and PowerShell are not runtime
+dependencies for this research relay. Public WSS termination, authenticated human identity/roles,
+invitation revocation, log compaction/export/backup, broader abuse controls, and physical packaged
+multi-install proof remain gates. The
 Drive provider publishes to the UI/MCP automation registry only after local reopen plus its initial
 remote pull, and a live canary proves the underlying Google create/list/readback/cleanup path.
 Drive project titles are a second, metadata-only append path rather than a mutable manifest field.

@@ -147,11 +147,20 @@ describe('workspace collaboration entry points', () => {
         ? managedWebsocketProject.transport.endpoint
         : '',
       initialMembership: {
-        schemaVersion: 3 as const,
+        schemaVersion: 4 as const,
         registryRevision: 8,
         roomId: 'room_' + 'a'.repeat(40),
         projectId: managedWebsocketProject.id,
         protected: true as const,
+        adminPolicy: {
+          schemaVersion: 1 as const,
+          requiredApprovals: 2,
+          configuredAtMs: 1_750_000_000_000,
+          signerKeyIds: [
+            `ed25519-sha256:${'a'.repeat(43)}`,
+            `ed25519-sha256:${'b'.repeat(43)}`,
+          ],
+        },
         members: [{
           memberId: 'member_' + 'b'.repeat(24),
           role: 'viewer' as const,
@@ -174,6 +183,11 @@ describe('workspace collaboration entry points', () => {
     expect(host).toContain('Expiry uses')
     expect(host).toContain('invalidates every prior copy')
     expect(host).toContain('No automatic expiry')
+    expect(host).toContain('Shared approval policy')
+    expect(host).toContain('2 of 2')
+    expect(host).toContain('exact action and registry')
+    expect(host).toContain('relay host remains an emergency local authority')
+    expect(host).toContain('Mount a healthy shared project device directory')
   })
 
   it('retains the exact revision guards captured when a shared-title draft became dirty', () => {

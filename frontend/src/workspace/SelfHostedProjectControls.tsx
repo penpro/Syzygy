@@ -4,12 +4,14 @@ import {
   collaborationRelayMemberIssue,
   collaborationRelayMemberRevoke,
   collaborationRelayMemberRotate,
+  collaborationRelayAdminPolicyConfigure,
   collaborationRelayRoomCreate,
   collaborationRelayRoomStatus,
   collaborationRelaySettings,
   collaborationIdentityStatus,
   desktopRuntimeAvailable,
   type RelayDeviceBinding,
+  type RelayAdminPolicyConfig,
   type RelayMemberCredential,
   type RelayMemberRole,
   type RelayRoomMembershipReport,
@@ -33,12 +35,16 @@ import {
 } from './websocketProjectStatus'
 import { parseRelayDeviceEnrollment } from './relayDeviceEnrollment'
 import {
+  relayRemoteAdminActionSha256,
   runRelayRemoteAdminAction,
   type RelayRemoteAdminAction,
   type RelayRemoteAdminResult,
 } from './relayRemoteAdmin'
 import { getProjectPresence, subscribeProjectPresence } from './presenceRegistry'
-import { inspectProjectDeviceDirectory } from './projectDeviceDirectory'
+import {
+  inspectProjectDeviceDirectory,
+  type ProjectDeviceDirectoryInspection,
+} from './projectDeviceDirectory'
 import {
   createProjectRelayAdminDecisionRecord,
   describeRelayAdminDecisionAction,
@@ -46,6 +52,14 @@ import {
   publishProjectRelayAdminDecision,
   type ProjectRelayAdminDecisionInspection,
 } from './projectRelayAdminDecision'
+import {
+  activeProjectRelayAdminApprovalProofs,
+  createProjectRelayAdminApprovalRecord,
+  describeProjectRelayAdminApprovalAction,
+  inspectProjectRelayAdminApprovals,
+  publishProjectRelayAdminApproval,
+  type ProjectRelayAdminApprovalInspection,
+} from './projectRelayAdminApproval'
 
 function errorText(value: unknown): string {
   return value instanceof Error ? value.message : String(value)
@@ -177,6 +191,10 @@ export function SelfHostedProjectControls({
   const [managedRelayEndpoint, setManagedRelayEndpoint] = useState(suppliedManagedRelayEndpoint ?? '')
   const [presenceRevision, setPresenceRevision] = useState(0)
   const [decisionInspection, setDecisionInspection] = useState<ProjectRelayAdminDecisionInspection | null>(null)
+  const [approvalInspection, setApprovalInspection] = useState<ProjectRelayAdminApprovalInspection | null>(null)
+  const [deviceDirectory, setDeviceDirectory] = useState<ProjectDeviceDirectoryInspection | null>(null)
+  const [policySignerKeys, setPolicySignerKeys] = useState<string[]>([])
+  const [policyRequiredApprovals, setPolicyRequiredApprovals] = useState('1')
   const websocketProject = project?.transport.kind === 'websocket' ? project : null
   const websocketBinding = project?.transport.kind === 'websocket' ? project.transport : null
   const status = useWebsocketProjectStatus(websocketProject?.id ?? null)
@@ -206,6 +224,8 @@ export function SelfHostedProjectControls({
     let disposed = false
     let refreshId = 0
     setDecisionInspection(null)
+    setApprovalInspection(null)
+    setDeviceDirectory(null)
     if (!websocketProject) return () => { disposed = true }
     const presence = getProjectPresence(websocketProject.id)
     if (!presence) return () => { disposed = true }
@@ -213,12 +233,24 @@ export function SelfHostedProjectControls({
     const refresh = () => {
       const currentRefresh = ++refreshId
       void inspectProjectDeviceDirectory(settings, websocketProject.id)
-        .then((directory) => inspectProjectRelayAdminDecisions(settings, websocketProject.id, directory))
-        .then((inspection) => {
-          if (!disposed && currentRefresh === refreshId) setDecisionInspection(inspection)
+        .then(async (directory) => ({
+          directory,
+          decisions: await inspectProjectRelayAdminDecisions(settings, websocketProject.id, directory),
+          approvals: await inspectProjectRelayAdminApprovals(settings, websocketProject.id, directory),
+        }))
+        .then(({ directory, decisions, approvals }) => {
+          if (!disposed && currentRefresh === refreshId) {
+            setDeviceDirectory(directory)
+            setDecisionInspection(decisions)
+            setApprovalInspection(approvals)
+          }
         })
         .catch(() => {
-          if (!disposed && currentRefresh === refreshId) setDecisionInspection(null)
+          if (!disposed && currentRefresh === refreshId) {
+            setDeviceDirectory(null)
+            setDecisionInspection(null)
+            setApprovalInspection(null)
+          }
         })
     }
     settings.observe(refresh)
@@ -228,6 +260,12 @@ export function SelfHostedProjectControls({
       settings.unobserve(refresh)
     }
   }, [presenceRevision, websocketProject?.id])
+
+  useEffect(() => {
+    const signerKeys = membership?.adminPolicy?.signerKeyIds ?? []
+    setPolicySignerKeys(signerKeys)
+    setPolicyRequiredApprovals(String(membership?.adminPolicy?.requiredApprovals ?? 1))
+  }, [membership?.adminPolicy?.configuredAtMs])
 
   const recordRemoteDecision = async (
     action: RelayRemoteAdminAction,
@@ -263,6 +301,111 @@ export function SelfHostedProjectControls({
       return ' Its installation-signed decision was added to shared project history.'
     } catch (value) {
       return ` The relay applied the action, but shared signed history was not updated: ${errorText(value)}`
+    }
+  }
+
+  const prepareRemoteApprovalBundle = async (
+    action: RelayRemoteAdminAction,
+    expectedRevision: number,
+  ) => {
+    const policy = membership?.adminPolicy
+    if (!policy) return []
+    if (!websocketProject || !websocketBinding) {
+      throw new Error('Shared relay approval context is unavailable')
+    }
+    const presence = getProjectPresence(websocketProject.id)
+    if (!presence) {
+      throw new Error('Mount project collaboration before requesting a shared relay approval')
+    }
+    const settings = getProjectSharedTypes(presence.awareness.doc).settings
+    const directory = await inspectProjectDeviceDirectory(settings, websocketProject.id)
+    if (!directory.healthy) {
+      throw new Error('The shared project device directory is not healthy enough to authorize relay changes')
+    }
+    const actionSha256 = await relayRemoteAdminActionSha256(action)
+    let inspection = await inspectProjectRelayAdminApprovals(settings, websocketProject.id, directory)
+    if (!inspection.healthy) {
+      throw new Error('Shared relay approvals contain conflicts or invalid records; resolve them before changing membership')
+    }
+    const identity = await collaborationIdentityStatus()
+    const configuredKeys = new Set(policy.signerKeyIds)
+    let proofs = activeProjectRelayAdminApprovalProofs(
+      inspection,
+      websocketBinding.roomId,
+      expectedRevision,
+      actionSha256,
+    ).filter(({ keyId }) => configuredKeys.has(keyId))
+    if (configuredKeys.has(identity.keyId) && !proofs.some(({ keyId }) => keyId === identity.keyId)) {
+      const record = await createProjectRelayAdminApprovalRecord(
+        websocketProject.id,
+        websocketBinding.roomId,
+        expectedRevision,
+        action,
+      )
+      inspection = await publishProjectRelayAdminApproval(
+        settings,
+        websocketProject.id,
+        directory,
+        record,
+      )
+      setApprovalInspection(inspection)
+      proofs = activeProjectRelayAdminApprovalProofs(
+        inspection,
+        websocketBinding.roomId,
+        expectedRevision,
+        actionSha256,
+      ).filter(({ keyId }) => configuredKeys.has(keyId))
+    }
+    if (proofs.length < policy.requiredApprovals) {
+      const signedHere = configuredKeys.has(identity.keyId)
+        ? 'This installation’s approval is now in the shared project. '
+        : 'This installation is not a configured policy signer. '
+      throw new Error(`${signedHere}${proofs.length} of ${policy.requiredApprovals} required installation-key approvals are active. Have another configured installation approve this exact action, then retry.`)
+    }
+    return proofs
+  }
+
+  const configureSharedAdminPolicy = async (remove: boolean) => {
+    if (!hostLocalBinding || !websocketBinding || !membership || busy) return
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      let config: RelayAdminPolicyConfig | null = null
+      if (!remove) {
+        if (!deviceDirectory?.healthy) {
+          throw new Error('The shared project device directory must be healthy before installing a relay policy')
+        }
+        const signerSet = new Set(policySignerKeys)
+        const signers = deviceDirectory.devices
+          .filter(({ keyId, status }) => signerSet.has(keyId) && status === 'registered-device')
+          .map(({ keyId, publicKey }) => ({
+            schemaVersion: 1 as const,
+            algorithm: 'Ed25519' as const,
+            keyId,
+            publicKey,
+          }))
+          .sort((left, right) => left.keyId.localeCompare(right.keyId))
+        const requiredApprovals = Number(policyRequiredApprovals)
+        if (!signers.length || !Number.isSafeInteger(requiredApprovals) ||
+          requiredApprovals < 1 || requiredApprovals > signers.length) {
+          throw new Error('Choose at least one registered installation and a quorum no larger than that signer set')
+        }
+        config = { schemaVersion: 1, requiredApprovals, signers }
+      }
+      const report = await collaborationRelayAdminPolicyConfigure(
+        websocketBinding.roomId,
+        membership.registryRevision,
+        config,
+      )
+      setMembership(report)
+      setMessage(remove
+        ? 'Shared approval enforcement is off. Device-bound remote administrators can mutate membership independently.'
+        : `Shared approval enforcement is on: ${report.adminPolicy?.requiredApprovals} of ${report.adminPolicy?.signerKeyIds.length} configured installation keys must approve each exact remote mutation.`)
+    } catch (value) {
+      setError(errorText(value))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -379,6 +522,7 @@ export function SelfHostedProjectControls({
         expiresInSeconds: selectedLifetimeSeconds,
         device,
       }
+      const approvals = hostLocalBinding ? [] : await prepareRemoteApprovalBundle(action, expectedRevision)
       let historyMessage = ''
       const issued = hostLocalBinding
         ? await collaborationRelayMemberIssue(
@@ -388,7 +532,14 @@ export function SelfHostedProjectControls({
           selectedLifetimeSeconds,
           device,
         )
-        : await runRelayRemoteAdminAction(websocketProject.id, websocketBinding, action, expectedRevision).then(async (result) => {
+        : await runRelayRemoteAdminAction(
+          websocketProject.id,
+          websocketBinding,
+          action,
+          expectedRevision,
+          undefined,
+          approvals,
+        ).then(async (result) => {
           if (!result.credential) throw new Error('Relay did not return the newly issued credential')
           historyMessage = await recordRemoteDecision(action, expectedRevision, result)
           return { credential: result.credential, room: result.room }
@@ -427,6 +578,7 @@ export function SelfHostedProjectControls({
         expiresInSeconds: selectedLifetimeSeconds,
         device,
       }
+      const approvals = hostLocalBinding ? [] : await prepareRemoteApprovalBundle(action, expectedRevision)
       let historyMessage = ''
       const rotated = hostLocalBinding
         ? await collaborationRelayMemberRotate(
@@ -436,7 +588,14 @@ export function SelfHostedProjectControls({
           selectedLifetimeSeconds,
           device,
         )
-        : await runRelayRemoteAdminAction(websocketProject.id, websocketBinding, action, expectedRevision).then(async (result) => {
+        : await runRelayRemoteAdminAction(
+          websocketProject.id,
+          websocketBinding,
+          action,
+          expectedRevision,
+          undefined,
+          approvals,
+        ).then(async (result) => {
           if (!result.credential) throw new Error('Relay did not return the rotated credential')
           historyMessage = await recordRemoteDecision(action, expectedRevision, result)
           return { credential: result.credential, room: result.room }
@@ -472,6 +631,7 @@ export function SelfHostedProjectControls({
     try {
       const expectedRevision = membership.registryRevision
       const action: RelayRemoteAdminAction = { kind: 'revoke', memberId }
+      const approvals = hostLocalBinding ? [] : await prepareRemoteApprovalBundle(action, expectedRevision)
       let historyMessage = ''
       const next = hostLocalBinding
         ? await collaborationRelayMemberRevoke(
@@ -479,7 +639,14 @@ export function SelfHostedProjectControls({
           memberId,
           expectedRevision,
         )
-        : await runRelayRemoteAdminAction(websocketProject.id, websocketBinding, action, expectedRevision)
+        : await runRelayRemoteAdminAction(
+          websocketProject.id,
+          websocketBinding,
+          action,
+          expectedRevision,
+          undefined,
+          approvals,
+        )
           .then(async (result) => {
             historyMessage = await recordRemoteDecision(action, expectedRevision, result)
             return result.room
@@ -551,6 +718,90 @@ export function SelfHostedProjectControls({
         </> : null}
 
         {canAdminister && membership ? <div aria-label="Relay room members">
+          <div aria-label="Shared relay approval policy">
+            <div className="workspace-panel-label mono">
+              Shared approval policy · {membership.adminPolicy
+                ? `${membership.adminPolicy.requiredApprovals} of ${membership.adminPolicy.signerKeyIds.length}`
+                : 'off'}
+            </div>
+            <p>
+              When enabled, every remote issue, rotation, recovery, or revocation must carry a
+              quorum of registered installation-key approvals for the exact action and registry
+              revision. The relay host remains an emergency local authority. Installation keys
+              prove possession of a device key, not a person or organization.
+            </p>
+            {hostLocalBinding ? <>
+              {deviceDirectory?.healthy ? <div className="self-hosted-project-actions">
+                <fieldset>
+                  <legend>Allowed approval installations</legend>
+                  {deviceDirectory.devices
+                    .filter(({ status }) => status === 'registered-device')
+                    .map((device) => <label key={device.keyId}>
+                      <input
+                        type="checkbox"
+                        checked={policySignerKeys.includes(device.keyId)}
+                        disabled={busy}
+                        onChange={(event) => setPolicySignerKeys((current) => event.target.checked
+                          ? Array.from(new Set([...current, device.keyId])).sort()
+                          : current.filter((keyId) => keyId !== device.keyId))}
+                      />
+                      <span>
+                        {device.participantIds.join(', ') || 'Unnamed participant'} · device{' '}
+                        <span className="mono">{device.keyId.slice(-8)}</span>
+                      </span>
+                    </label>)}
+                </fieldset>
+                <label>
+                  <span>Approvals required</span>
+                  <select
+                    value={policyRequiredApprovals}
+                    disabled={busy || policySignerKeys.length === 0}
+                    onChange={(event) => setPolicyRequiredApprovals(event.target.value)}
+                  >
+                    {Array.from({ length: Math.max(1, policySignerKeys.length) }, (_, index) => index + 1)
+                      .map((count) => <option key={count} value={count}>{count}</option>)}
+                  </select>
+                </label>
+                <button
+                  className="btn sm primary"
+                  type="button"
+                  disabled={busy || policySignerKeys.length === 0}
+                  onClick={() => void configureSharedAdminPolicy(false)}
+                >
+                  {membership.adminPolicy ? 'Update shared approval policy' : 'Turn on shared approvals'}
+                </button>
+                {membership.adminPolicy ? <button
+                  className="btn sm ghost"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void configureSharedAdminPolicy(true)}
+                >Turn off shared approvals</button> : null}
+              </div> : <p>
+                Mount a healthy shared project device directory before configuring approval signers.
+              </p>}
+            </> : membership.adminPolicy ? <p>
+              This relay host requires shared approvals. Attempting an exact membership action
+              adds this configured installation’s approval to the project; once the quorum is
+              present, retrying submits the complete bundle to the relay.
+            </p> : null}
+            {approvalInspection ? <div>
+              <div className="workspace-panel-label mono">
+                Active shared approval intents · {approvalInspection.intents.length}
+              </div>
+              {!approvalInspection.healthy ? <p className="drive-project-message error" role="alert">
+                Shared approval records contain invalid, unavailable, or conflicting entries.
+                Remote membership changes are blocked until the shared history is healthy.
+              </p> : null}
+              {approvalInspection.intents
+                .filter(({ roomId }) => roomId === websocketBinding.roomId)
+                .slice(-5)
+                .reverse()
+                .map((intent) => <p key={`${intent.expectedRevision}:${intent.actionSha256}`}>
+                  Revision {intent.expectedRevision} · {describeProjectRelayAdminApprovalAction(intent.action)} ·{' '}
+                  {intent.approvalCount} installation-key approval{intent.approvalCount === 1 ? '' : 's'}
+                </p>)}
+            </div> : null}
+          </div>
           <div className="workspace-panel-label mono">Relay members · revision {membership.registryRevision}</div>
           <ul>
             {membership.members.map((member) => <li key={member.memberId}>

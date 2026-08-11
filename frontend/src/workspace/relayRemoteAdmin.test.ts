@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import type {
+  ProjectRelayAdminApprovalProof,
   RelayAccessIdentityClaim,
   RelayAdminIdentityClaim,
   RelayDeviceBinding,
 } from '../tauri'
 import {
   canonicalRelayRemoteAdminAction,
+  relayRemoteAdminActionSha256,
   runRelayRemoteAdminAction,
   type RelayRemoteAdminDependencies,
 } from './relayRemoteAdmin'
@@ -122,6 +124,7 @@ describe('remote relay administration', () => {
       claim: adminClaim,
       action: { kind: 'status' },
       signature,
+      approvals: [],
     })
     expect(harness.socket()!.closed).toBe(true)
   })
@@ -219,6 +222,50 @@ describe('remote relay administration', () => {
     })
     await expect(runRelayRemoteAdminAction('project-remote-admin', binding, action, 6, mismatchedRevision.deps))
       .rejects.toThrow('does not match its room report')
+  })
+
+  it('sends an exact shared approval bundle and accepts the policy-aware room schema', async () => {
+    const action = { kind: 'revoke' as const, memberId: 'x'.repeat(22) }
+    const actionSha256 = await relayRemoteAdminActionSha256(action)
+    const approvalKeyId = `ed25519-sha256:${'a'.repeat(43)}`
+    const approval: ProjectRelayAdminApprovalProof = {
+      schemaVersion: 1,
+      algorithm: 'Ed25519',
+      keyId: approvalKeyId,
+      publicKey: 'p'.repeat(43),
+      claim: {
+        schemaVersion: 1,
+        projectId: 'project-remote-admin',
+        roomId,
+        expectedRevision: 6,
+        actionSha256,
+        approvedAtMs: 1_750_000_000_000,
+        expiresAtMs: 1_750_003_600_000,
+        approvalNonce: 'a'.repeat(43),
+      },
+      signature,
+    }
+    const policyRoom = {
+      ...room,
+      schemaVersion: 4 as const,
+      adminPolicy: {
+        schemaVersion: 1 as const,
+        requiredApprovals: 1,
+        configuredAtMs: 1_749_999_000_000,
+        signerKeyIds: [approvalKeyId],
+      },
+    }
+    const harness = dependencies({
+      schemaVersion: 1, ok: true, error: null, room: policyRoom, credential: null,
+    })
+    await expect(runRelayRemoteAdminAction(
+      'project-remote-admin', binding, action, 6, harness.deps, [approval],
+    )).resolves.toEqual({ room: policyRoom, credential: null })
+    expect(JSON.parse(harness.socket()!.sent).approvals).toEqual([approval])
+
+    await expect(runRelayRemoteAdminAction(
+      'project-remote-admin', binding, action, 6, harness.deps, [approval, approval],
+    )).rejects.toThrow('approval bundle')
   })
 
   it('rejects a successful response for another project, revision transition, or action', async () => {

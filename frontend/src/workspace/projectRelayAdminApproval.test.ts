@@ -9,6 +9,7 @@ import {
   activeProjectRelayAdminApprovalProofs,
   canonicalProjectRelayAdminApprovalClaim,
   createProjectRelayAdminApprovalRecord,
+  describeProjectRelayAdminApprovalAction,
   inspectProjectRelayAdminApprovals,
   MAX_PROJECT_RELAY_ADMIN_APPROVALS,
   parseProjectRelayAdminApprovalRecord,
@@ -138,6 +139,23 @@ function merge(left: Y.Doc, right: Y.Doc): void {
 }
 
 describe('signed shared relay administrator approvals', () => {
+  it('describes every approval-relevant action field without capability material', () => {
+    const device = {
+      schemaVersion: 1 as const,
+      algorithm: 'Ed25519' as const,
+      keyId: `ed25519-sha256:${'k'.repeat(43)}`,
+      publicKey: 'p'.repeat(43),
+    }
+    expect(describeProjectRelayAdminApprovalAction({
+      kind: 'issue', role: 'editor', expiresInSeconds: 3600, device,
+    })).toBe(`issue editor; 3600 seconds; device ${device.keyId}`)
+    expect(describeProjectRelayAdminApprovalAction({
+      kind: 'rotate', memberId: memberA, expiresInSeconds: null, device: null,
+    })).toBe(`rotate member ${memberA}; no automatic expiry; retain enrolled device`)
+    expect(describeProjectRelayAdminApprovalAction({ kind: 'revoke', memberId: memberB }))
+      .toBe(`revoke member ${memberB}`)
+  })
+
   it('counts distinct registered-device approvals for one exact action without authority or capability data', async () => {
     const alice = await identity('participant-alice')
     const bob = await identity('participant-bob')

@@ -186,8 +186,8 @@ pub struct ProjectRelayAdminDecisionProof {
     pub signature: String,
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectRelayAdminApprovalProof {
     pub schema_version: u8,
     pub algorithm: String,
@@ -835,6 +835,13 @@ pub fn ephemeral_registration_proof(
 ) -> Result<ProjectDeviceRegistrationProof, String> {
     let identity = generate_identity().map_err(|error| error.to_string())?;
     sign_registration(&identity, claim).map_err(|error| error.to_string())
+}
+
+pub fn ephemeral_relay_admin_approval_proof(
+    claim: ProjectRelayAdminApprovalClaim,
+) -> Result<ProjectRelayAdminApprovalProof, String> {
+    let identity = generate_identity().map_err(|error| error.to_string())?;
+    sign_relay_admin_approval(&identity, claim).map_err(|error| error.to_string())
 }
 
 pub fn ephemeral_identity_interop_proofs(

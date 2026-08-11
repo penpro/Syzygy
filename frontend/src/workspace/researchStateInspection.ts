@@ -164,7 +164,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
         actionKind: intent.action.kind,
         approvalCount: intent.approvalCount,
       })),
-      enforcement: 'not-configured-at-relay' as const,
+      enforcement: 'relay-policy-state-not-part-of-shared-project' as const,
     },
     heuristics: {
       totalRecords: heuristicMap.size,

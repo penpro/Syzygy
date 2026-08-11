@@ -4,11 +4,14 @@
 //! distinguish document sync from ephemeral awareness. It never interprets Syzygy domain data.
 //! Document sync frames are stored in a bounded append-only room log; awareness is memory-only.
 
-use crate::collaboration_identity::{verify_relay_admin_signature, RelayAdminIdentityClaim};
+use crate::collaboration_identity::{
+    verify_relay_admin_signature, ProjectRelayAdminApprovalProof, RelayAdminIdentityClaim,
+};
 use crate::collaboration_relay_membership::{
     authorize, issue_member, load_registry, registry_path, report_room, revoke_member,
-    rotate_member, validate_relay_device_binding, RelayAuthorization, RelayDeviceBinding,
-    RelayMemberCredential, RelayMemberRole, RelayMembershipRegistry, RelayRoomMembershipReport,
+    rotate_member, validate_relay_device_binding, verify_admin_approval_bundle, RelayAuthorization,
+    RelayDeviceBinding, RelayMemberCredential, RelayMemberRole, RelayMembershipRegistry,
+    RelayRoomMembershipReport,
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use serde::{Deserialize, Serialize};
@@ -113,6 +116,8 @@ struct RelayRemoteAdminRequest {
     claim: RelayAdminIdentityClaim,
     action: serde_json::Value,
     signature: String,
+    #[serde(default)]
+    approvals: Vec<ProjectRelayAdminApprovalProof>,
 }
 
 #[derive(Debug, Serialize)]
@@ -692,13 +697,14 @@ fn handle_remote_admin_connection(
     let request: RelayRemoteAdminRequest = serde_json::from_str(text.as_ref())
         .map_err(|_| "Relay administrator request is invalid".to_string())?;
     let action = parse_remote_admin_action(request.action)?;
+    let action_sha256 = remote_admin_action_sha256(&action)?;
     if request.schema_version != 1
         || request.claim.project_id != project_id
         || request.claim.room_id != room_id
         || request.claim.administrator_member_id != administrator_member_id
         || request.claim.issued_at_ms != device.issued_at_ms
         || request.claim.nonce != device.nonce
-        || request.claim.action_sha256 != remote_admin_action_sha256(&action)?
+        || request.claim.action_sha256 != action_sha256
     {
         return Err("Relay administrator request binding is invalid".into());
     }
@@ -710,26 +716,53 @@ fn handle_remote_admin_connection(
     )
     .map_err(|_| "Relay administrator request signature was denied".to_string())?;
 
-    let response = match execute_remote_admin_action(
-        &shared,
-        room_id,
-        request.claim.expected_revision,
-        action,
-    ) {
-        Ok((room, credential)) => RelayRemoteAdminResponse {
-            schema_version: 1,
-            ok: true,
-            error: None,
-            room: Some(room),
-            credential,
-        },
-        Err(error) => RelayRemoteAdminResponse {
+    let approval_error = if matches!(action, RelayRemoteAdminAction::Status) {
+        if !request.approvals.is_empty() {
+            return Err("Relay administrator status requests cannot include approvals".into());
+        }
+        None
+    } else {
+        let state = shared
+            .lock()
+            .map_err(|_| "Relay state lock was poisoned".to_string())?;
+        verify_admin_approval_bundle(
+            &state.membership,
+            room_id,
+            project_id,
+            request.claim.expected_revision,
+            &action_sha256,
+            &request.approvals,
+            wall_clock_ms(),
+        )
+        .err()
+    };
+
+    let response = if let Some(error) = approval_error {
+        RelayRemoteAdminResponse {
             schema_version: 1,
             ok: false,
             error: Some(error),
             room: None,
             credential: None,
-        },
+        }
+    } else {
+        match execute_remote_admin_action(&shared, room_id, request.claim.expected_revision, action)
+        {
+            Ok((room, credential)) => RelayRemoteAdminResponse {
+                schema_version: 1,
+                ok: true,
+                error: None,
+                room: Some(room),
+                credential,
+            },
+            Err(error) => RelayRemoteAdminResponse {
+                schema_version: 1,
+                ok: false,
+                error: Some(error),
+                room: None,
+                credential: None,
+            },
+        }
     };
     send_remote_admin_response(&mut socket, response)?;
     let _ = socket.close(None);
@@ -1121,5 +1154,22 @@ mod tests {
             "unexpected": true,
         }))
         .is_err());
+        let legacy_request: RelayRemoteAdminRequest = serde_json::from_value(serde_json::json!({
+            "schemaVersion": 1,
+            "claim": {
+                "schemaVersion": 1,
+                "projectId": "project-a",
+                "roomId": "r".repeat(32),
+                "administratorMemberId": "m".repeat(24),
+                "expectedRevision": 0,
+                "issuedAtMs": 1,
+                "nonce": URL_SAFE_NO_PAD.encode([1u8; 32]),
+                "actionSha256": URL_SAFE_NO_PAD.encode([2u8; 32])
+            },
+            "action": { "kind": "status" },
+            "signature": URL_SAFE_NO_PAD.encode([3u8; 64])
+        }))
+        .unwrap();
+        assert!(legacy_request.approvals.is_empty());
     }
 }

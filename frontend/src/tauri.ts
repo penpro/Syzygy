@@ -141,13 +141,27 @@ export interface RelayMemberSummary {
   deviceKeyId: string | null
 }
 
+export interface RelayAdminPolicyConfig {
+  schemaVersion: 1
+  requiredApprovals: number
+  signers: RelayDeviceBinding[]
+}
+
+export interface RelayAdminPolicyReport {
+  schemaVersion: 1
+  requiredApprovals: number
+  configuredAtMs: number
+  signerKeyIds: string[]
+}
+
 export interface RelayRoomMembershipReport {
-  schemaVersion: 3
+  schemaVersion: 3 | 4
   registryRevision: number
   roomId: string
   projectId: string
   protected: true
   members: RelayMemberSummary[]
+  adminPolicy?: RelayAdminPolicyReport
 }
 
 export interface RelayRoomCredentialResult {
@@ -953,6 +967,17 @@ export const collaborationRelayMemberRevoke = (
   roomId,
   memberId,
   expectedRevision,
+})
+
+/** Install or remove exact shared-approval enforcement for remote mutations on a hosted room. */
+export const collaborationRelayAdminPolicyConfigure = (
+  roomId: string,
+  expectedRevision: number,
+  config: RelayAdminPolicyConfig | null,
+): Promise<RelayRoomMembershipReport> => invoke('collaboration_relay_admin_policy_configure', {
+  roomId,
+  expectedRevision,
+  config,
 })
 
 /** Public installation-key metadata. The private Ed25519 key never crosses this boundary. */

@@ -5,6 +5,7 @@ import {
   type RelayAccessIdentityProof,
   type RelayAdminIdentityClaim,
   type RelayAdminIdentityProof,
+  type ProjectRelayAdminApprovalProof,
   type RelayDeviceBinding,
   type RelayMemberCredential,
   type RelayMemberRole,
@@ -200,16 +201,70 @@ function normalizeMember(value: unknown): RelayRoomMembershipReport['members'][n
   return value as unknown as RelayRoomMembershipReport['members'][number]
 }
 
+function normalizeAdminPolicy(value: unknown): RelayRoomMembershipReport['adminPolicy'] {
+  if (!isRecord(value)) {
+    throw new Error('Relay administrator response contains malformed shared approval policy')
+  }
+  const signerKeyIds = value.signerKeyIds
+  if (!exactKeys(value, [
+    'schemaVersion', 'requiredApprovals', 'configuredAtMs', 'signerKeyIds',
+  ]) || value.schemaVersion !== 1 || !Number.isSafeInteger(value.requiredApprovals) ||
+    Number(value.requiredApprovals) < 1 || Number(value.requiredApprovals) > 16 ||
+    !Number.isSafeInteger(value.configuredAtMs) || Number(value.configuredAtMs) <= 0 ||
+    !Array.isArray(signerKeyIds) || signerKeyIds.length < Number(value.requiredApprovals) ||
+    signerKeyIds.length > 16 || signerKeyIds.some((keyId) =>
+      typeof keyId !== 'string' || !KEY_ID.test(keyId)) ||
+    signerKeyIds.some((keyId, index) => index > 0 && keyId <= signerKeyIds[index - 1])) {
+    throw new Error('Relay administrator response contains malformed shared approval policy')
+  }
+  return value as unknown as RelayRoomMembershipReport['adminPolicy']
+}
+
 function normalizeRoom(value: unknown, roomId: string): RelayRoomMembershipReport {
-  if (!isRecord(value) || !exactKeys(value, [
-    'schemaVersion', 'registryRevision', 'roomId', 'projectId', 'protected', 'members',
-  ]) || value.schemaVersion !== 3 || !Number.isSafeInteger(value.registryRevision) ||
+  if (!isRecord(value) || (value.schemaVersion !== 3 && value.schemaVersion !== 4) ||
+    !exactKeys(value, value.schemaVersion === 3
+      ? ['schemaVersion', 'registryRevision', 'roomId', 'projectId', 'protected', 'members']
+      : ['schemaVersion', 'registryRevision', 'roomId', 'projectId', 'protected', 'members', 'adminPolicy']) ||
+    !Number.isSafeInteger(value.registryRevision) ||
     Number(value.registryRevision) < 1 || value.roomId !== roomId ||
     !validStableId(value.projectId, 8, 128) || value.protected !== true ||
     !Array.isArray(value.members) || value.members.length < 1 || value.members.length > 64) {
     throw new Error('Relay administrator response contains a malformed room report')
   }
-  return { ...value, members: value.members.map(normalizeMember) } as RelayRoomMembershipReport
+  return {
+    ...value,
+    members: value.members.map(normalizeMember),
+    ...(value.schemaVersion === 4 ? { adminPolicy: normalizeAdminPolicy(value.adminPolicy) } : {}),
+  } as RelayRoomMembershipReport
+}
+
+function validateApprovalProofs(
+  approvals: ProjectRelayAdminApprovalProof[],
+  claim: RelayAdminIdentityClaim,
+  action: RelayRemoteAdminAction,
+): void {
+  if (!Array.isArray(approvals) || approvals.length > 16 ||
+    (action.kind === 'status' && approvals.length > 0)) {
+    throw new Error('Relay administrator approval bundle is invalid')
+  }
+  const signerKeys = new Set<string>()
+  for (const proof of approvals) {
+    if (!isRecord(proof) || !exactKeys(proof, [
+      'schemaVersion', 'algorithm', 'keyId', 'publicKey', 'claim', 'signature',
+    ]) || proof.schemaVersion !== 1 || proof.algorithm !== 'Ed25519' || !KEY_ID.test(proof.keyId) ||
+      !BASE64URL_32.test(proof.publicKey) || !/^[A-Za-z0-9_-]{86}$/.test(proof.signature) ||
+      signerKeys.has(proof.keyId) || !isRecord(proof.claim) || !exactKeys(proof.claim, [
+        'schemaVersion', 'projectId', 'roomId', 'expectedRevision', 'actionSha256',
+        'approvedAtMs', 'expiresAtMs', 'approvalNonce',
+      ]) || proof.claim.schemaVersion !== 1 || proof.claim.projectId !== claim.projectId ||
+      proof.claim.roomId !== claim.roomId || proof.claim.expectedRevision !== claim.expectedRevision ||
+      proof.claim.actionSha256 !== claim.actionSha256 || !Number.isSafeInteger(proof.claim.approvedAtMs) ||
+      proof.claim.approvedAtMs <= 0 || !Number.isSafeInteger(proof.claim.expiresAtMs) ||
+      proof.claim.expiresAtMs <= proof.claim.approvedAtMs || !BASE64URL_32.test(proof.claim.approvalNonce)) {
+      throw new Error('Relay administrator approval bundle is invalid')
+    }
+    signerKeys.add(proof.keyId)
+  }
 }
 
 function normalizeCredential(value: unknown, roomId: string): RelayMemberCredential {
@@ -313,6 +368,7 @@ export async function runRelayRemoteAdminAction(
   action: RelayRemoteAdminAction,
   expectedRevision: number,
   dependencies: RelayRemoteAdminDependencies = DEFAULT_DEPENDENCIES,
+  approvals: ProjectRelayAdminApprovalProof[] = [],
 ): Promise<RelayRemoteAdminResult> {
   const binding = normalizeWebsocketProjectBinding(bindingValue)
   if (!validStableId(projectId, 1, 200)) {
@@ -354,6 +410,7 @@ export async function runRelayRemoteAdminAction(
   }
   const adminProof = await dependencies.signAdmin(adminClaim)
   validateAdminProof(adminProof, adminClaim, access)
+  validateApprovalProofs(approvals, adminClaim, action)
 
   const query = new URLSearchParams({
     member: access.memberId,
@@ -390,6 +447,7 @@ export async function runRelayRemoteAdminAction(
       claim: adminClaim,
       action,
       signature: adminProof.signature,
+      approvals,
     }))
     socket.onmessage = (event) => {
       if (typeof event.data !== 'string' ||

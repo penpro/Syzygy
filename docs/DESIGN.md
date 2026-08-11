@@ -215,13 +215,19 @@ and role remain, and the replacement invitation is shown once. If no other admin
 the relay-host operator is required. Never promise private-key export/escrow, recovery after both all
 admins and the relay host are lost, or automatic delivery to the replacement installation.
 
-Shared project-device approvals are currently an inspection-only foundation, not a product
-authorization control. Any future approval surface must show the exact relay action and registry
-revision, the registered installation fingerprint/participant claim, the bounded expiry, duplicate
-and conflicting-signer state, and whether the relay has an enforcement policy installed. Until the
-relay reports an installed quorum policy and verifies the exact approval bundle, say
-**not configured at relay** and do not imply that a shared approval constrains an administrator.
-Registration is self-issued installation continuity, not verified human or organizational identity.
+Shared relay approvals are an optional host-installed device-key authorization control. The host
+surface must list only healthy registered project installations, show short key fingerprints and
+self-reported participant claims, constrain the threshold to the selected signer count, and state
+that host-local administration remains an emergency authority. A configured remote mutation must
+show its exact action and registry revision; attempting it publishes this installation's bounded
+approval, reports the current `N of M` quorum without claiming a relay change, and submits only after
+enough active configured proofs exist. Duplicate, expired, foreign, future-dated, mutated, or
+same-revision conflicting approvals must never appear sufficient. Policy changes advance the relay
+revision and make earlier approvals stale. When no policy is installed, say **Shared approval policy:
+off** rather than implying approvals constrain remote administrators. Read-only shared-state/MCP
+inspection must say that relay policy state is not part of the shared project; only a fresh relay
+room report can attest the current policy. Registration and quorum signatures are self-issued
+installation continuity/authorization, not verified human or organizational identity or consent.
 
 After a successful remote issue, rotate, or revoke, the controls attempt to add an
 installation-signed statement to **Shared signed decisions** in the collaborative project. Show the

@@ -160,6 +160,7 @@ const relayRemoteAdminEvidence = text('docs/audits/runs/MANAGED-RELAY-REMOTE-ADM
 const projectRelayAdminApprovalSource = text('frontend/src/workspace/projectRelayAdminApproval.ts')
 const projectRelayAdminApprovalTest = text('frontend/src/workspace/projectRelayAdminApproval.test.ts')
 const projectRelayAdminApprovalEvidence = text('docs/audits/runs/SIGNED-PROJECT-RELAY-ADMIN-APPROVALS-2026-08-11.json')
+const relayAdminPolicyEvidence = text('docs/audits/runs/MANAGED-RELAY-SHARED-APPROVAL-POLICY-2026-08-11.json')
 const relayAdminApprovalTauriSource = text('frontend/src/tauri.ts')
 const relayAdminApprovalResearchInspection = text('frontend/src/workspace/researchStateInspection.ts')
 const relayAdminRecoveryUiTest = text('frontend/src/workspace/WorkspaceView.ui.test.ts')
@@ -299,7 +300,7 @@ record(
   'exact result/action signature, verified-directory signer, bounded Yjs inspection, conflict retention, capability exclusion, and relay/human-authority nonclaims are present',
 )
 record(
-  'shared relay administration approvals remain exact, bounded, convergent, and explicitly non-enforcing',
+  'shared relay administration approvals remain exact, bounded, convergent, and relay-enforced when configured',
   collaborationIdentitySource.includes('syzygy-project-relay-admin-approval-v1') &&
     collaborationIdentitySource.includes('collaboration_identity_sign_relay_admin_approval') &&
     relayAdminApprovalTauriSource.includes('collaborationIdentitySignRelayAdminApproval') &&
@@ -316,15 +317,34 @@ record(
     projectRelayAdminApprovalTest.includes("not.toContain('capability')") &&
     collaborationIdentityInterop.includes('relayAdminApprovalVerified: true') &&
     collaborationIdentityInterop.includes('rejectedRelayAdminApprovalMutations') &&
-    relayAdminApprovalResearchInspection.includes("enforcement: 'not-configured-at-relay'") &&
+    relayAdminApprovalResearchInspection.includes("enforcement: 'relay-policy-state-not-part-of-shared-project'") &&
     projectRelayAdminApprovalEvidence.includes('"relayEnforcementConfigured": false') &&
     projectRelayAdminApprovalEvidence.includes('"supervisedRunId": "20260811-160007-9f9b7f"') &&
     projectRelayAdminApprovalEvidence.includes('"frontendTestsPassed": 531') &&
     projectRelayAdminApprovalEvidence.includes('"rustAppRecompiled": true') &&
     projectRelayAdminApprovalEvidence.includes('"repositoryAuditPassed": true') &&
     projectRelayAdminApprovalEvidence.includes('"fullValidationPending": false') &&
-    projectRelayAdminApprovalEvidence.includes('"status": "implemented_unverified"'),
-  'registered-device exact action/revision/expiry signatures, duplicate counting, equivocation exclusion, offline convergence, content-minimized inspection, and relay-enforcement nonclaims are present',
+    projectRelayAdminApprovalEvidence.includes('"status": "implemented_unverified"') &&
+    collaborationRelayMembership.includes('MAX_ADMIN_POLICY_SIGNERS: usize = 16') &&
+    collaborationRelayMembership.includes('pub fn configure_admin_policy(') &&
+    collaborationRelayMembership.includes('pub fn verify_admin_approval_bundle(') &&
+    collaborationRelayServer.includes('verify_admin_approval_bundle(') &&
+    collaborationRelayRuntime.includes('collaboration_relay_admin_policy_configure') &&
+    relayRemoteAdminSource.includes('approvals: ProjectRelayAdminApprovalProof[] = []') &&
+    relayRemoteAdminSoak.includes('sharedApprovalQuorumEnforcedByExactBinary: true') &&
+    relayRemoteAdminSoak.includes('sharedApprovalAdversarialMutationsRejected: 8') &&
+    relayRemoteAdminSoak.includes('sharedApprovalReplayRejected: true') &&
+    websocketControlsSource.includes('Shared approval policy') &&
+    websocketControlsSource.includes('prepareRemoteApprovalBundle') &&
+    relayAdminPolicyEvidence.includes('"hostPolicyPersistenceAndRemoval": true') &&
+    relayAdminPolicyEvidence.includes('"adversarialApprovalBundleClassesRejected": 8') &&
+    relayAdminPolicyEvidence.includes('"supervisedRunId": "20260811-163535-ca869a"') &&
+    relayAdminPolicyEvidence.includes('"frontendTestsPassed": 533') &&
+    relayAdminPolicyEvidence.includes('"rustAppRecompiled": true') &&
+    relayAdminPolicyEvidence.includes('"repositoryAuditPassed": true') &&
+    relayAdminPolicyEvidence.includes('"fullValidationPending": false') &&
+    relayAdminPolicyEvidence.includes('"status": "implemented_unverified"'),
+  'registered-device exact action/revision/expiry signatures, offline convergence, host policy lifecycle, strict v3/v4 clients, configured exact-bundle enforcement, adversarial/replay denial, emergency-host and human-identity nonclaims are present',
 )
 record(
   'surviving-administrator recovery remains exact, replacement-bound, and escrow-free',

@@ -127,7 +127,7 @@ function canonicalAdminAction(action) {
   throw new Error('Unsupported relay administrator action')
 }
 
-function prepareAdminRequest(endpoint, roomId, access, device, action, expectedRevision) {
+function prepareAdminRequest(endpoint, roomId, access, device, action, expectedRevision, approvals = []) {
   const issuedAtMs = Date.now()
   const nonce = token()
   const params = signedAccessParams(roomId, access, device, issuedAtMs, nonce)
@@ -152,7 +152,35 @@ function prepareAdminRequest(endpoint, roomId, access, device, action, expectedR
       claim,
       action,
       signature: sign(null, Buffer.from(canonicalClaim), device.privateKey).toString('base64url'),
+      approvals,
     }),
+  }
+}
+
+function relayAdminApproval(device, roomId, action, expectedRevision, overrides = {}) {
+  const approvedAtMs = overrides.approvedAtMs ?? Date.now()
+  const claim = {
+    schemaVersion: 1,
+    projectId: overrides.projectId ?? projectId,
+    roomId: overrides.roomId ?? roomId,
+    expectedRevision: overrides.expectedRevision ?? expectedRevision,
+    actionSha256: overrides.actionSha256 ?? sha256Base64Url(canonicalAdminAction(action)),
+    approvedAtMs,
+    expiresAtMs: overrides.expiresAtMs ?? approvedAtMs + 60_000,
+    approvalNonce: overrides.approvalNonce ?? token(),
+  }
+  const canonical = [
+    'syzygy-project-relay-admin-approval-v1', claim.projectId, claim.roomId,
+    claim.expectedRevision, claim.actionSha256, claim.approvedAtMs, claim.expiresAtMs,
+    claim.approvalNonce,
+  ].join('\n')
+  return {
+    schemaVersion: 1,
+    algorithm: 'Ed25519',
+    keyId: device.binding.keyId,
+    publicKey: device.binding.publicKey,
+    claim,
+    signature: sign(null, Buffer.from(canonical), device.privateKey).toString('base64url'),
   }
 }
 
@@ -212,9 +240,9 @@ async function sendPreparedAdminRequest(request, label, expectResponse = true) {
   return response
 }
 
-async function adminRequest(endpoint, roomId, access, device, action, expectedRevision, label) {
+async function adminRequest(endpoint, roomId, access, device, action, expectedRevision, label, approvals = []) {
   return sendPreparedAdminRequest(
-    prepareAdminRequest(endpoint, roomId, access, device, action, expectedRevision),
+    prepareAdminRequest(endpoint, roomId, access, device, action, expectedRevision, approvals),
     label,
   )
 }
@@ -239,14 +267,21 @@ async function assertAuthorization(endpoint, roomId, access, device, accepted, l
   const params = signedAccessParams(roomId, access, device)
   const socket = new WebSocket(`${endpoint}/${roomId}?${new URLSearchParams(params)}`)
   let authorizedFrame = false
+  let closeCode = null
   socket.addEventListener('message', () => { authorizedFrame = true }, { once: true })
+  socket.addEventListener('close', (event) => { closeCode = event.code }, { once: true })
   await waitFor(
-    () => accepted ? authorizedFrame : socket.readyState === WebSocket.CLOSED,
+    () => accepted
+      ? authorizedFrame || socket.readyState === WebSocket.CLOSED
+      : socket.readyState === WebSocket.CLOSED,
     label,
     5_000,
   )
   socket.close()
-  if (accepted !== authorizedFrame) throw new Error(`${label} authorization result was incorrect`)
+  if (accepted !== authorizedFrame) throw new Error(
+    `${label} authorization result was incorrect (close=${closeCode ?? 'none'}; relay=${
+      relay?.diagnostics?.() ?? 'none'})`,
+  )
 }
 
 function converged(documents, expected) {
@@ -462,9 +497,105 @@ try {
     throw new Error('replacement administrator could not administer the recovered room')
   }
 
+  // Install the same persisted host policy produced by the native configuration command, then
+  // restart the exact relay binary so the network gate is exercised against disk-authoritative
+  // state. Host policy configuration itself is covered by Rust lifecycle tests.
+  await stopRelay(relay)
+  const policyRegistry = JSON.parse(await readFile(membershipPath, 'utf8'))
+  const policySigners = [devices[1].binding, devices[2].binding]
+    .sort((left, right) => left.keyId.localeCompare(right.keyId))
+  policyRegistry.revision = 7
+  policyRegistry.rooms[0].adminPolicy = {
+    schemaVersion: 1,
+    requiredApprovals: 2,
+    configuredAtMs: Date.now(),
+    signers: policySigners,
+  }
+  await writeFile(membershipPath, JSON.stringify(policyRegistry, null, 2), 'utf8')
+  relay = await startRelay(executable, port, dataDirectory)
+
+  const policyStatus = await adminRequest(
+    endpoint, roomId, replacementAdminAccess, replacementAdminDevice,
+    { kind: 'status' }, 0, 'policy-aware administrator status',
+  )
+  if (!policyStatus.ok || policyStatus.room.schemaVersion !== 4 ||
+    policyStatus.room.registryRevision !== 7 ||
+    policyStatus.room.adminPolicy?.requiredApprovals !== 2 ||
+    JSON.stringify(policyStatus.room.adminPolicy.signerKeyIds) !==
+      JSON.stringify(policySigners.map(({ keyId }) => keyId))) {
+    throw new Error('policy-aware status did not expose the content-minimized signer quorum')
+  }
+
+  const policyIssueDevice = deviceIdentity()
+  const policyAction = {
+    kind: 'issue', role: 'viewer', expiresInSeconds: 3600, device: policyIssueDevice.binding,
+  }
+  const firstApproval = relayAdminApproval(devices[1], roomId, policyAction, 7)
+  const secondApproval = relayAdminApproval(devices[2], roomId, policyAction, 7)
+  const expectPolicyDenied = async (label, approvals) => {
+    const response = await adminRequest(
+      endpoint, roomId, replacementAdminAccess, replacementAdminDevice,
+      policyAction, 7, label, approvals,
+    )
+    if (response.ok || !response.error?.includes('approval policy')) {
+      throw new Error(`${label} did not fail closed at the relay policy boundary`)
+    }
+  }
+  await expectPolicyDenied('missing shared approvals', [])
+  await expectPolicyDenied('insufficient shared approvals', [firstApproval])
+  await expectPolicyDenied('duplicate shared approval signer', [firstApproval, firstApproval])
+  await expectPolicyDenied('foreign shared approval signer', [
+    firstApproval, relayAdminApproval(devices[3], roomId, policyAction, 7),
+  ])
+  await expectPolicyDenied('wrong-action shared approval', [
+    firstApproval,
+    relayAdminApproval(devices[2], roomId, policyAction, 7, { actionSha256: token() }),
+  ])
+  await expectPolicyDenied('wrong-revision shared approval', [
+    firstApproval,
+    relayAdminApproval(devices[2], roomId, policyAction, 7, { expectedRevision: 8 }),
+  ])
+  const expiredAt = Date.now() - 1
+  await expectPolicyDenied('expired shared approval', [
+    firstApproval,
+    relayAdminApproval(devices[2], roomId, policyAction, 7, {
+      approvedAtMs: expiredAt - 60_000,
+      expiresAtMs: expiredAt,
+    }),
+  ])
+  const futureAt = Date.now() + 15_100
+  await expectPolicyDenied('future-dated shared approval', [
+    firstApproval,
+    relayAdminApproval(devices[2], roomId, policyAction, 7, {
+      approvedAtMs: futureAt,
+      expiresAtMs: futureAt + 60_000,
+    }),
+  ])
+  const tamperedApproval = structuredClone(secondApproval)
+  tamperedApproval.signature = `${tamperedApproval.signature.slice(0, -1)}${
+    tamperedApproval.signature.endsWith('A') ? 'B' : 'A'}`
+  await expectPolicyDenied('tampered shared approval signature', [firstApproval, tamperedApproval])
+
+  const policyIssued = await adminRequest(
+    endpoint, roomId, replacementAdminAccess, replacementAdminDevice,
+    policyAction, 7, 'quorum-approved remote issuance', [firstApproval, secondApproval],
+  )
+  if (!policyIssued.ok || policyIssued.room.registryRevision !== 8 ||
+    policyIssued.room.schemaVersion !== 4 || policyIssued.credential?.schemaVersion !== 3) {
+    throw new Error('exact shared approval quorum did not authorize one remote mutation')
+  }
+  const staleApprovalReplay = await adminRequest(
+    endpoint, roomId, replacementAdminAccess, replacementAdminDevice,
+    policyAction, 7, 'stale shared approval replay', [firstApproval, secondApproval],
+  )
+  if (staleApprovalReplay.ok || !staleApprovalReplay.error?.includes('approval policy')) {
+    throw new Error('accepted shared approvals replayed after their exact revision transition')
+  }
+
   const stored = await readFile(membershipPath, 'utf8')
   if (stored.includes(issuedAccess.capability) || stored.includes(rotatedAccess.capability) ||
-    stored.includes(backupAdminAccess.capability) || stored.includes(replacementAdminAccess.capability)) {
+    stored.includes(backupAdminAccess.capability) || stored.includes(replacementAdminAccess.capability) ||
+    stored.includes(policyIssued.credential.capability)) {
     throw new Error('remote administrator mutation stored a plaintext member capability')
   }
 
@@ -485,9 +616,14 @@ try {
     survivingAdministratorRecovery: true,
     lostAdministratorDenied: true,
     replacementAdministratorCanAdminister: true,
+    hostInstalledSharedApprovalPolicy: true,
+    sharedApprovalQuorumEnforcedByExactBinary: true,
+    sharedApprovalAdversarialMutationsRejected: 8,
+    sharedApprovalReplayRejected: true,
+    roomsWithoutPolicyRemainCompatible: true,
     keyExportOrEscrowUsed: false,
     credentialsHashedAtRest: true,
-    finalRegistryRevision: recoveredStatus.room.registryRevision,
+    finalRegistryRevision: policyIssued.room.registryRevision,
   }, null, 2))
 } finally {
   providers.forEach((provider) => provider.destroy())

@@ -438,9 +438,13 @@ one fresh action-signed status/issue/rotate/revoke request against the exact pro
 registry revision. A successful remote mutation can append a separately domain-signed,
 capability-free installation statement to bounded shared project history; independent verification,
 offline reopen, disconnected convergence, and contradictory-revision retention pass. The relay does
-not sign that statement and the directory does not grant its role. The next identity increment must
-define key recovery and actual shared-directory administration policy, general durable research-event
-signatures, device-key rotation/recovery, and a replay policy before the product may say authenticated.
+not sign that statement and the directory does not grant its role. The relay host can now install an
+exact bounded installation-key signer set and threshold; configured remote mutations require a valid
+project/room/revision/action-bound quorum, while no-policy rooms remain compatible and the host
+retains emergency local authority. Product controls publish partial approvals and submit a completed
+bundle automatically. The next identity increments are general durable research-event signatures,
+device-key rotation/recovery, authenticated human/organizational enrollment, trusted time, and
+policy/approval withdrawal or relay attestation before the product may say authenticated consent.
 
 Gate: five-client rapid-edit soak converges; stale presence disappears; restart/partition loses
 no edit; schema is unchanged when switching providers; P-11/P-12/S-05 pass. The deterministic
@@ -469,13 +473,15 @@ explicitly compatible. Device-bound admins now have one bounded remote control r
 connection, with an independent action/revision signature and forced room reauthentication after
 mutation. A five-client exact-binary soak covers rapid edits, partition merge, awareness recovery,
 viewer reconnect, replay/stale-revision denial, and remote issue/rotate/revoke. This advances the
-phase but does not complete it: authenticated human identity, shared-directory approval, recovery
+phase but does not complete it: authenticated human identity, recovery
 when no separately enrolled admin or relay host survives, trusted time, automatic replacement delivery, public WSS operation, compaction/export/
 backups, broader abuse controls, and packaged physical two-install use remain open.
 The shared directory now has a bounded, convergent, installation-signed pre-mutation approval
-record with exact action/revision binding, expiry, and signer-equivocation exclusion. It remains a
-non-enforcing prerequisite until the relay host installs a signer/quorum policy and the relay
-verifies a sufficient exact approval bundle.
+record with exact action/revision binding, expiry, and signer-equivocation exclusion. The relay host
+can install/remove a sorted 1-16 signer policy under an exact registry revision. The exact binary
+rejects eight adversarial bundle classes and stale replay, and accepts a complete quorum once.
+Shared-state/MCP inspection deliberately cannot attest that host-local policy; a fresh room status
+is authoritative. Packaged physical two-install policy interaction remains open.
 
 ### Phase 6 — scenario workflow (`XL`)
 

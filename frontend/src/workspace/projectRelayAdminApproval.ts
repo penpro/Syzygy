@@ -426,5 +426,20 @@ export function activeProjectRelayAdminApprovalProofs(
     .filter((approval, index, values) =>
       values.findIndex(({ proof }) => proof.keyId === approval.proof.keyId) === index)
     .map(({ proof }) => proof)
-    .sort((left, right) => left.keyId.localeCompare(right.keyId))
+    .sort((left, right) => left.keyId < right.keyId ? -1 : left.keyId > right.keyId ? 1 : 0)
+}
+
+export function describeProjectRelayAdminApprovalAction(action: RelayRemoteAdminAction): string {
+  const lifetime = (seconds: number | null) => seconds === null
+    ? 'no automatic expiry'
+    : `${seconds} seconds`
+  if (action.kind === 'issue') {
+    return `issue ${action.role}; ${lifetime(action.expiresInSeconds)}; device ${action.device.keyId}`
+  }
+  if (action.kind === 'rotate') {
+    return `rotate member ${action.memberId}; ${lifetime(action.expiresInSeconds)}; ${
+      action.device ? `replacement device ${action.device.keyId}` : 'retain enrolled device'}`
+  }
+  if (action.kind === 'revoke') return `revoke member ${action.memberId}`
+  return 'inspect relay status'
 }

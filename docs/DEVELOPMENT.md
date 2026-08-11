@@ -351,11 +351,19 @@ disconnected signers converge into one intent, reopen from a full Yjs update, an
 Expired records do not count; one signer approving different actions at the same room revision is
 retained but excluded from every intent. Cross-project, unregistered, mutated, malformed, excessive,
 and poisoned records fail closed under 500-approval/2,000-setting/eight-verification bounds.
-`researchStateInspection.test.ts` requires body-free counts/action kinds plus the explicit
-`not-configured-at-relay` state. `npm run test:collaboration:identity` verifies the Rust-produced
-approval in Node WebCrypto and rejects five signed-field mutations. These gates do not prove relay
-quorum enforcement, policy installation, withdrawal, trusted time, authenticated participants, or
-resistance to deletion by a Yjs writer.
+`researchStateInspection.test.ts` requires body-free counts/action kinds and explicitly says host
+relay-policy state is not part of the shared project. `npm run test:collaboration:identity` verifies
+the Rust-produced approval in Node WebCrypto and rejects five signed-field mutations.
+`collaboration_relay_membership::tests` additionally covers sorted policy persistence/removal,
+strict invalid/no-op/stale guards, exact quorum acceptance, and missing/duplicate/foreign/action/
+revision/expiry/future/signature rejection. `relayRemoteAdmin.test.ts` covers the strict v3/v4
+client schema and approval request body. `npm run test:collaboration:relay-admin-soak` starts the
+exact Rust relay with five device-bound clients, proves rooms without policy retain prior behavior,
+restarts it from a persisted two-of-two policy, rejects eight adversarial approval bundles, accepts
+the exact quorum once, and rejects replay after the revision transition. `WorkspaceView.ui.test.ts`
+keeps the policy/quorum/emergency-authority language product visible. These gates still do not prove
+approval withdrawal, trusted time, authenticated people or organizations, resistance to deletion or
+withholding by a Yjs writer, public WSS operation, or packaged physical two-install interaction.
 
 The same suite includes `heuristicsModel.test.ts`. Forty seeded delivery orders prove concurrent
 field edits retain both values and attribution events, and another forty prove concurrent additions

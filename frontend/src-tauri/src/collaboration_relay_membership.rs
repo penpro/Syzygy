@@ -5,7 +5,8 @@
 //! relay's device-bound administrator channel share these exact-revision mutation primitives.
 
 use crate::collaboration_identity::{
-    validate_relay_device_identity, verify_relay_access_signature, RelayAccessIdentityClaim,
+    validate_relay_device_identity, verify_project_relay_admin_approval_proof,
+    verify_relay_access_signature, ProjectRelayAdminApprovalProof, RelayAccessIdentityClaim,
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use serde::{Deserialize, Serialize};
@@ -20,9 +21,13 @@ const REGISTRY_SCHEMA_VERSION: u8 = 1;
 const UNBOUND_CREDENTIAL_SCHEMA_VERSION: u8 = 2;
 const BOUND_CREDENTIAL_SCHEMA_VERSION: u8 = 3;
 const REPORT_SCHEMA_VERSION: u8 = 3;
+const POLICY_REPORT_SCHEMA_VERSION: u8 = 4;
+const ADMIN_POLICY_SCHEMA_VERSION: u8 = 1;
 const MAX_REGISTRY_BYTES: usize = 1024 * 1024;
 const MAX_ROOMS: usize = 256;
 const MAX_MEMBERS_PER_ROOM: usize = 64;
+const MAX_ADMIN_POLICY_SIGNERS: usize = 16;
+const ADMIN_APPROVAL_FUTURE_SKEW_MS: u64 = 15_000;
 const MEMBER_ID_BYTES: usize = 24;
 const CAPABILITY_BYTES: usize = 32;
 const MAX_AUTH_QUERY_BYTES: usize = 512;
@@ -84,6 +89,34 @@ struct StoredRoom {
     project_id: String,
     created_at_ms: u64,
     members: Vec<StoredMember>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    admin_policy: Option<StoredRelayAdminPolicy>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct StoredRelayAdminPolicy {
+    schema_version: u8,
+    required_approvals: u16,
+    configured_at_ms: u64,
+    signers: Vec<RelayDeviceBinding>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RelayAdminPolicyConfig {
+    pub schema_version: u8,
+    pub required_approvals: u16,
+    pub signers: Vec<RelayDeviceBinding>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RelayAdminPolicyReport {
+    pub schema_version: u8,
+    pub required_approvals: u16,
+    pub configured_at_ms: u64,
+    pub signer_key_ids: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -141,6 +174,8 @@ pub struct RelayRoomMembershipReport {
     pub project_id: String,
     pub protected: bool,
     pub members: Vec<RelayMemberSummary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub admin_policy: Option<RelayAdminPolicyReport>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -193,6 +228,28 @@ pub fn validate_relay_device_binding(device: &RelayDeviceBinding) -> Result<(), 
         .map_err(|_| "Relay member device enrollment is invalid".to_string())
 }
 
+fn validate_admin_policy(policy: &StoredRelayAdminPolicy) -> Result<(), String> {
+    if policy.schema_version != ADMIN_POLICY_SCHEMA_VERSION
+        || policy.signers.is_empty()
+        || policy.signers.len() > MAX_ADMIN_POLICY_SIGNERS
+        || policy.required_approvals == 0
+        || usize::from(policy.required_approvals) > policy.signers.len()
+        || policy.configured_at_ms == 0
+    {
+        return Err("Saved relay administration policy is invalid".into());
+    }
+    let mut previous_key_id: Option<&str> = None;
+    for signer in &policy.signers {
+        validate_relay_device_binding(signer)
+            .map_err(|_| "Saved relay administration policy is invalid".to_string())?;
+        if previous_key_id.is_some_and(|previous| previous >= signer.key_id.as_str()) {
+            return Err("Saved relay administration policy is invalid".into());
+        }
+        previous_key_id = Some(&signer.key_id);
+    }
+    Ok(())
+}
+
 fn validate_registry(registry: &RelayMembershipRegistry) -> Result<(), String> {
     if registry.schema_version != REGISTRY_SCHEMA_VERSION || registry.rooms.len() > MAX_ROOMS {
         return Err("Saved relay membership registry is invalid".into());
@@ -242,6 +299,12 @@ fn validate_registry(registry: &RelayMembershipRegistry) -> Result<(), String> {
         }
         if active_admins == 0 {
             return Err("Saved relay membership registry has no active administrator".into());
+        }
+        if let Some(policy) = &room.admin_policy {
+            validate_admin_policy(policy)?;
+            if policy.configured_at_ms < room.created_at_ms {
+                return Err("Saved relay administration policy is invalid".into());
+            }
         }
     }
     Ok(())
@@ -402,7 +465,11 @@ fn issue_record(
 
 fn room_report(registry: &RelayMembershipRegistry, room: &StoredRoom) -> RelayRoomMembershipReport {
     RelayRoomMembershipReport {
-        schema_version: REPORT_SCHEMA_VERSION,
+        schema_version: if room.admin_policy.is_some() {
+            POLICY_REPORT_SCHEMA_VERSION
+        } else {
+            REPORT_SCHEMA_VERSION
+        },
         registry_revision: registry.revision,
         room_id: room.room_id.clone(),
         project_id: room.project_id.clone(),
@@ -421,6 +488,19 @@ fn room_report(registry: &RelayMembershipRegistry, room: &StoredRoom) -> RelayRo
                 device_key_id: member.device.as_ref().map(|device| device.key_id.clone()),
             })
             .collect(),
+        admin_policy: room
+            .admin_policy
+            .as_ref()
+            .map(|policy| RelayAdminPolicyReport {
+                schema_version: ADMIN_POLICY_SCHEMA_VERSION,
+                required_approvals: policy.required_approvals,
+                configured_at_ms: policy.configured_at_ms,
+                signer_key_ids: policy
+                    .signers
+                    .iter()
+                    .map(|signer| signer.key_id.clone())
+                    .collect(),
+            }),
     }
 }
 
@@ -449,6 +529,7 @@ pub fn create_room(
         project_id: project_id.into(),
         created_at_ms,
         members: vec![admin],
+        admin_policy: None,
     });
     registry.revision = registry
         .revision
@@ -672,6 +753,140 @@ pub fn report_room(path: &Path, room_id: &str) -> Result<RelayRoomMembershipRepo
     Ok(room_report(&registry, room))
 }
 
+fn stored_admin_policy(
+    config: RelayAdminPolicyConfig,
+    configured_at_ms: u64,
+) -> Result<StoredRelayAdminPolicy, String> {
+    if config.schema_version != ADMIN_POLICY_SCHEMA_VERSION
+        || config.signers.is_empty()
+        || config.signers.len() > MAX_ADMIN_POLICY_SIGNERS
+        || config.required_approvals == 0
+        || usize::from(config.required_approvals) > config.signers.len()
+    {
+        return Err("Relay administration policy input is invalid".into());
+    }
+    let mut signers = config.signers;
+    signers.sort_by(|left, right| left.key_id.cmp(&right.key_id));
+    for signer in &signers {
+        validate_relay_device_binding(signer)
+            .map_err(|_| "Relay administration policy input is invalid".to_string())?;
+    }
+    if signers
+        .windows(2)
+        .any(|pair| pair[0].key_id == pair[1].key_id)
+    {
+        return Err("Relay administration policy signers must be unique".into());
+    }
+    let policy = StoredRelayAdminPolicy {
+        schema_version: ADMIN_POLICY_SCHEMA_VERSION,
+        required_approvals: config.required_approvals,
+        configured_at_ms,
+        signers,
+    };
+    validate_admin_policy(&policy)?;
+    Ok(policy)
+}
+
+pub fn configure_admin_policy(
+    path: &Path,
+    room_id: &str,
+    expected_revision: u64,
+    config: Option<RelayAdminPolicyConfig>,
+) -> Result<RelayRoomMembershipReport, String> {
+    if !stable_id(room_id, 32, 128) {
+        return Err("Relay administration policy input is invalid".into());
+    }
+    let mut registry = load_registry(path)?;
+    if registry.revision != expected_revision {
+        return Err("Relay membership changed; refresh and try again".into());
+    }
+    let room_index = registry
+        .rooms
+        .iter()
+        .position(|room| room.room_id == room_id)
+        .ok_or_else(|| "Relay room is not managed by this installation".to_string())?;
+    let next = config
+        .map(|config| stored_admin_policy(config, now_ms()))
+        .transpose()?;
+    let current = &registry.rooms[room_index].admin_policy;
+    if current
+        .as_ref()
+        .map(|policy| (&policy.required_approvals, &policy.signers))
+        == next
+            .as_ref()
+            .map(|policy| (&policy.required_approvals, &policy.signers))
+    {
+        return Err("Relay administration policy already matches this configuration".into());
+    }
+    registry.rooms[room_index].admin_policy = next;
+    registry.revision = registry
+        .revision
+        .checked_add(1)
+        .ok_or_else(|| "Relay membership revision overflowed".to_string())?;
+    save_registry(path, &registry)?;
+    Ok(room_report(&registry, &registry.rooms[room_index]))
+}
+
+pub fn verify_admin_approval_bundle(
+    registry: &RelayMembershipRegistry,
+    room_id: &str,
+    project_id: &str,
+    expected_revision: u64,
+    action_sha256: &str,
+    approvals: &[ProjectRelayAdminApprovalProof],
+    current_time_ms: u64,
+) -> Result<(), String> {
+    let room = registry
+        .rooms
+        .iter()
+        .find(|room| room.room_id == room_id && room.project_id == project_id)
+        .ok_or_else(|| "Relay room is not managed by this installation".to_string())?;
+    let Some(policy) = &room.admin_policy else {
+        return if approvals.is_empty() {
+            Ok(())
+        } else {
+            Err("Relay room has no shared administration approval policy".into())
+        };
+    };
+    if expected_revision != registry.revision
+        || approvals.len() < usize::from(policy.required_approvals)
+        || approvals.len() > policy.signers.len()
+        || current_time_ms == 0
+    {
+        return Err("Relay administrator approval policy was not satisfied".into());
+    }
+    let mut accepted = std::collections::HashSet::new();
+    for proof in approvals {
+        let claim = &proof.claim;
+        if claim.project_id != project_id
+            || claim.room_id != room_id
+            || claim.expected_revision != expected_revision
+            || claim.action_sha256 != action_sha256
+            || claim.approved_at_ms > current_time_ms.saturating_add(ADMIN_APPROVAL_FUTURE_SKEW_MS)
+            || claim.expires_at_ms <= current_time_ms
+            || !accepted.insert(proof.key_id.as_str())
+        {
+            return Err("Relay administrator approval policy was not satisfied".into());
+        }
+        let Some(signer) = policy
+            .signers
+            .iter()
+            .find(|signer| signer.key_id == proof.key_id && signer.public_key == proof.public_key)
+        else {
+            return Err("Relay administrator approval policy was not satisfied".into());
+        };
+        if signer.algorithm != proof.algorithm
+            || verify_project_relay_admin_approval_proof(proof).is_err()
+        {
+            return Err("Relay administrator approval policy was not satisfied".into());
+        }
+    }
+    if accepted.len() < usize::from(policy.required_approvals) {
+        return Err("Relay administrator approval policy was not satisfied".into());
+    }
+    Ok(())
+}
+
 fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
     if left.len() != right.len() {
         return false;
@@ -824,6 +1039,9 @@ pub fn authorize(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::collaboration_identity::{
+        ephemeral_relay_admin_approval_proof, ProjectRelayAdminApprovalClaim,
+    };
     use ring::rand::SystemRandom;
     use ring::signature::{Ed25519KeyPair, KeyPair};
 
@@ -877,6 +1095,40 @@ mod tests {
             nonce,
             signature,
         )
+    }
+
+    fn approval_claim(
+        project_id: &str,
+        room_id: &str,
+        expected_revision: u64,
+        action_sha256: &str,
+        approved_at_ms: u64,
+        expires_at_ms: u64,
+        nonce: &str,
+    ) -> ProjectRelayAdminApprovalClaim {
+        ProjectRelayAdminApprovalClaim {
+            schema_version: 1,
+            project_id: project_id.into(),
+            room_id: room_id.into(),
+            expected_revision,
+            action_sha256: action_sha256.into(),
+            approved_at_ms,
+            expires_at_ms,
+            approval_nonce: nonce.into(),
+        }
+    }
+
+    fn binding(proof: &ProjectRelayAdminApprovalProof) -> RelayDeviceBinding {
+        RelayDeviceBinding {
+            schema_version: 1,
+            algorithm: proof.algorithm.clone(),
+            key_id: proof.key_id.clone(),
+            public_key: proof.public_key.clone(),
+        }
+    }
+
+    fn digest(byte: u8) -> String {
+        URL_SAFE_NO_PAD.encode([byte; 32])
     }
 
     #[test]
@@ -1170,5 +1422,285 @@ mod tests {
         .unwrap();
         assert!(load_registry(&path).is_err());
         let _ = fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn configures_persists_and_removes_a_sorted_shared_admin_policy() {
+        let directory = directory("admin-policy-lifecycle");
+        let path = registry_path(&directory);
+        let room_id = "p".repeat(32);
+        let project_id = "project-policy";
+        let (_, initial) = create_room(&path, project_id, &room_id, None).unwrap();
+        assert_eq!(initial.schema_version, REPORT_SCHEMA_VERSION);
+        assert!(initial.admin_policy.is_none());
+
+        let now = now_ms();
+        let action = digest(10);
+        let first = ephemeral_relay_admin_approval_proof(approval_claim(
+            project_id,
+            &room_id,
+            initial.registry_revision + 1,
+            &action,
+            now,
+            now + 60_000,
+            &digest(1),
+        ))
+        .unwrap();
+        let second = ephemeral_relay_admin_approval_proof(approval_claim(
+            project_id,
+            &room_id,
+            initial.registry_revision + 1,
+            &action,
+            now,
+            now + 60_000,
+            &digest(2),
+        ))
+        .unwrap();
+        let configured = configure_admin_policy(
+            &path,
+            &room_id,
+            initial.registry_revision,
+            Some(RelayAdminPolicyConfig {
+                schema_version: ADMIN_POLICY_SCHEMA_VERSION,
+                required_approvals: 2,
+                signers: vec![binding(&second), binding(&first)],
+            }),
+        )
+        .unwrap();
+        assert_eq!(configured.schema_version, POLICY_REPORT_SCHEMA_VERSION);
+        assert_eq!(configured.registry_revision, initial.registry_revision + 1);
+        let policy = configured.admin_policy.unwrap();
+        assert_eq!(policy.required_approvals, 2);
+        assert_eq!(policy.signer_key_ids.len(), 2);
+        assert!(policy
+            .signer_key_ids
+            .windows(2)
+            .all(|pair| pair[0] < pair[1]));
+        let reloaded = report_room(&path, &room_id).unwrap();
+        assert_eq!(reloaded.schema_version, POLICY_REPORT_SCHEMA_VERSION);
+        assert_eq!(
+            reloaded.admin_policy.unwrap().signer_key_ids,
+            policy.signer_key_ids
+        );
+        let before_noop = fs::read(&path).unwrap();
+        assert!(configure_admin_policy(
+            &path,
+            &room_id,
+            configured.registry_revision,
+            Some(RelayAdminPolicyConfig {
+                schema_version: ADMIN_POLICY_SCHEMA_VERSION,
+                required_approvals: 2,
+                signers: vec![binding(&second), binding(&first)],
+            }),
+        )
+        .unwrap_err()
+        .contains("already matches"));
+        assert_eq!(fs::read(&path).unwrap(), before_noop);
+        assert!(
+            configure_admin_policy(&path, &room_id, initial.registry_revision, None,)
+                .unwrap_err()
+                .contains("changed")
+        );
+        let removed =
+            configure_admin_policy(&path, &room_id, configured.registry_revision, None).unwrap();
+        assert_eq!(removed.schema_version, REPORT_SCHEMA_VERSION);
+        assert!(removed.admin_policy.is_none());
+        let _ = fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn rejects_malformed_or_duplicate_shared_admin_policy_without_mutation() {
+        let directory = directory("admin-policy-guards");
+        let path = registry_path(&directory);
+        let room_id = "q".repeat(32);
+        let (_, initial) = create_room(&path, "project-policy", &room_id, None).unwrap();
+        let before = fs::read(&path).unwrap();
+        for config in [
+            RelayAdminPolicyConfig {
+                schema_version: ADMIN_POLICY_SCHEMA_VERSION,
+                required_approvals: 1,
+                signers: vec![],
+            },
+            RelayAdminPolicyConfig {
+                schema_version: ADMIN_POLICY_SCHEMA_VERSION,
+                required_approvals: 2,
+                signers: vec![enrolled_device().0],
+            },
+        ] {
+            assert!(configure_admin_policy(
+                &path,
+                &room_id,
+                initial.registry_revision,
+                Some(config),
+            )
+            .is_err());
+            assert_eq!(fs::read(&path).unwrap(), before);
+        }
+        let device = enrolled_device().0;
+        assert!(configure_admin_policy(
+            &path,
+            &room_id,
+            initial.registry_revision,
+            Some(RelayAdminPolicyConfig {
+                schema_version: ADMIN_POLICY_SCHEMA_VERSION,
+                required_approvals: 1,
+                signers: vec![device.clone(), device],
+            }),
+        )
+        .unwrap_err()
+        .contains("unique"));
+        assert_eq!(fs::read(&path).unwrap(), before);
+        let _ = fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn enforces_exact_quorum_approval_bundles_and_rejects_replay_mutations() {
+        let policy_directory = directory("admin-policy-enforcement");
+        let path = registry_path(&policy_directory);
+        let room_id = "u".repeat(32);
+        let project_id = "project-policy";
+        let action = digest(10);
+        let now = now_ms();
+        let (_, initial) = create_room(&path, project_id, &room_id, None).unwrap();
+        let approval_revision = initial.registry_revision + 1;
+        let first = ephemeral_relay_admin_approval_proof(approval_claim(
+            project_id,
+            &room_id,
+            approval_revision,
+            &action,
+            now,
+            now + 60_000,
+            &digest(1),
+        ))
+        .unwrap();
+        let second = ephemeral_relay_admin_approval_proof(approval_claim(
+            project_id,
+            &room_id,
+            approval_revision,
+            &action,
+            now,
+            now + 60_000,
+            &digest(2),
+        ))
+        .unwrap();
+        let foreign = ephemeral_relay_admin_approval_proof(approval_claim(
+            project_id,
+            &room_id,
+            approval_revision,
+            &action,
+            now,
+            now + 60_000,
+            &digest(3),
+        ))
+        .unwrap();
+        let configured = configure_admin_policy(
+            &path,
+            &room_id,
+            initial.registry_revision,
+            Some(RelayAdminPolicyConfig {
+                schema_version: ADMIN_POLICY_SCHEMA_VERSION,
+                required_approvals: 2,
+                signers: vec![binding(&first), binding(&second)],
+            }),
+        )
+        .unwrap();
+        let registry = load_registry(&path).unwrap();
+        assert_eq!(configured.registry_revision, approval_revision);
+        assert!(verify_admin_approval_bundle(
+            &registry,
+            &room_id,
+            project_id,
+            approval_revision,
+            &action,
+            &[first.clone(), second.clone()],
+            now + 1,
+        )
+        .is_ok());
+        for approvals in [
+            vec![],
+            vec![first.clone()],
+            vec![first.clone(), first.clone()],
+            vec![first.clone(), foreign],
+        ] {
+            assert!(verify_admin_approval_bundle(
+                &registry,
+                &room_id,
+                project_id,
+                approval_revision,
+                &action,
+                &approvals,
+                now + 1,
+            )
+            .is_err());
+        }
+        let mut changed_action = second.clone();
+        changed_action.claim.action_sha256 = digest(11);
+        let mut changed_revision = second.clone();
+        changed_revision.claim.expected_revision += 1;
+        let mut expired = second.clone();
+        expired.claim.expires_at_ms = now + 1;
+        let mut future = second.clone();
+        future.claim.approved_at_ms = now + ADMIN_APPROVAL_FUTURE_SKEW_MS + 2;
+        let mut tampered = second.clone();
+        tampered.signature = "z".repeat(86);
+        for invalid in [changed_action, changed_revision, expired, future, tampered] {
+            assert!(verify_admin_approval_bundle(
+                &registry,
+                &room_id,
+                project_id,
+                approval_revision,
+                &action,
+                &[first.clone(), invalid],
+                now + 1,
+            )
+            .is_err());
+        }
+        assert!(verify_admin_approval_bundle(
+            &registry,
+            &room_id,
+            project_id,
+            approval_revision + 1,
+            &action,
+            &[first, second],
+            now + 1,
+        )
+        .is_err());
+
+        let other_directory = directory("admin-policy-legacy");
+        let other_path = registry_path(&other_directory);
+        let (_, other) = create_room(&other_path, project_id, &room_id, None).unwrap();
+        let other_registry = load_registry(&other_path).unwrap();
+        assert!(verify_admin_approval_bundle(
+            &other_registry,
+            &room_id,
+            project_id,
+            other.registry_revision,
+            &action,
+            &[],
+            now,
+        )
+        .is_ok());
+        let extra = ephemeral_relay_admin_approval_proof(approval_claim(
+            project_id,
+            &room_id,
+            other.registry_revision,
+            &action,
+            now,
+            now + 60_000,
+            &digest(4),
+        ))
+        .unwrap();
+        assert!(verify_admin_approval_bundle(
+            &other_registry,
+            &room_id,
+            project_id,
+            other.registry_revision,
+            &action,
+            &[extra],
+            now,
+        )
+        .is_err());
+        let _ = fs::remove_dir_all(policy_directory);
+        let _ = fs::remove_dir_all(other_directory);
     }
 }

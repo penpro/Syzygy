@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "runId": "MANAGED-RELAY-SHARED-APPROVAL-POLICY-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "91fb680",
+  "capabilities": ["P-11", "S-05"],
+  "status": "implemented_unverified",
+  "claim": "A relay host can install an exact bounded installation-key signer set and threshold. The exact relay binary preserves rooms without policy but refuses protected remote membership mutations until it receives a unique, valid, project/room/revision/action-bound approval quorum; product controls publish, collect, and submit those approvals without capability copying.",
+  "commands": [
+    "node ../../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --locked collaboration_relay_ -- --nocapture",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm test -- --run src/workspace/projectRelayAdminApproval.test.ts src/workspace/relayRemoteAdmin.test.ts src/workspace/researchStateInspection.test.ts src/workspace/WorkspaceView.ui.test.ts src/workspace/SelfHostedProjectControls.ui.test.tsx",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run test:collaboration:relay-admin-soak",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run check:supervised"
+  ],
+  "result": {
+    "hostPolicyPersistenceAndRemoval": true,
+    "hostPolicyNoOpAndStaleWritesRejected": true,
+    "maxConfiguredSigners": 16,
+    "quorumBoundedBySignerCount": true,
+    "roomsWithoutPolicyRemainCompatible": true,
+    "policyReportContentMinimized": true,
+    "exactBinaryFiveClientSoakPassed": true,
+    "rapidWrites": 60,
+    "missingApprovalQuorumRejected": true,
+    "adversarialApprovalBundleClassesRejected": 8,
+    "exactApprovalQuorumAcceptedOnce": true,
+    "acceptedApprovalReplayRejected": true,
+    "remoteMutationForcesReauthentication": true,
+    "plaintextCapabilitiesStored": false,
+    "privateKeyExported": false,
+    "hostEmergencyAuthorityRetained": true,
+    "sharedStateMcpClaimsHostPolicyAttestation": false,
+    "physicalPackagedTwoInstallUsed": false,
+    "supervisedRunId": "20260811-163535-ca869a",
+    "frontendTestFilesPassed": 126,
+    "frontendTestFilesSkipped": 3,
+    "frontendTestsPassed": 533,
+    "frontendTestsSkipped": 3,
+    "frontendModulesTransformed": 1264,
+    "rustAppRecompiled": true,
+    "repositoryAuditPassed": true,
+    "supervisedElapsedSeconds": 18,
+    "fullValidationPending": false
+  },
+  "proved": [
+    "The host-local typed command persists or removes a sorted 1-16 signer policy under an exact registry revision, restarts the relay lifecycle, and rejects stale, invalid, duplicate, and no-op configurations.",
+    "A configured room reports schema v4 with threshold, configuration time, and sorted key IDs only; an unconfigured room retains schema v3 and prior managed-administrator behavior.",
+    "The relay accepts only unique configured Ed25519 proofs bound to its current project, room, registry revision, and semantic action hash, with relay-clock expiry/future-skew checks and exact signatures.",
+    "The exact Rust binary rejects missing, insufficient, duplicate, foreign, wrong-action, wrong-revision, expired, future-dated, and tampered-signature bundles, accepts a two-of-two bundle once, and rejects its stale replay after revision advancement.",
+    "Product controls select healthy registered installations, show the threshold and emergency-host boundary, publish an exact approval on attempted remote mutation, report partial quorum, and automatically attach a complete verified bundle on retry.",
+    "Read-only shared-state/MCP inspection remains body-free and explicitly refuses to attest host policy because that state is not stored in the shared project."
+  ],
+  "notProved": [
+    "That a configured installation key belongs to an authenticated person or organization or represents legal/organizational consent.",
+    "Trusted time, approval withdrawal, availability or completeness against a Yjs writer, or a relay-signed approval receipt.",
+    "Recovery after every administrator and the relay-host operator are unavailable.",
+    "Public WSS operation, third-party relay enforcement, hostile-frame fuzzing, or packaged physical two-install interaction."
+  ],
+  "implementationAnchors": [
+    "frontend/src-tauri/src/collaboration_relay_membership.rs",
+    "frontend/src-tauri/src/collaboration_relay_server.rs",
+    "frontend/src-tauri/src/collaboration_relay_runtime.rs",
+    "frontend/src-tauri/src/collaboration_identity.rs",
+    "frontend/src/tauri.ts",
+    "frontend/src/workspace/projectRelayAdminApproval.ts",
+    "frontend/src/workspace/relayRemoteAdmin.ts",
+    "frontend/src/workspace/SelfHostedProjectControls.tsx",
+    "scripts/relay-remote-admin-soak.mjs"
+  ]
+}

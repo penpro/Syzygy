@@ -66,7 +66,7 @@ Recommended first instruction to an MCP-capable model:
 | `open_project` | navigation | Opens a non-archived project by stable ID |
 | `rename_project` | local metadata or Drive title event | Local projects change local metadata. Drive projects require the complete exact `sharedTitle.revisionGuards`; stale calls fail, simultaneous siblings remain visible, and an all-tip rename reconciles without deleting history |
 | `read_active_project` | no | Returns the manifest plus structured blocks, plain text, and a revision; Drive projects also return bounded shared-title tips and exact rename guards |
-| `inspect_research_state` | no | Validates bounded signed project-device registrations plus live scenario/vote/flag/note/label/heuristic/adversarial-review/version/head/lineage state; returns stable public device fingerprints and self-reported participant IDs but omits private keys and research bodies and grants no identity, role, revocation, relay, or mutation authority |
+| `inspect_research_state` | no | Validates bounded signed project-device registrations and relay-approval intent metadata plus live scenario/vote/flag/note/label/heuristic/adversarial-review/version/head/lineage state; omits proof bodies, private keys, member capabilities, and research bodies; shared state explicitly cannot attest the relay host's current policy and grants no identity, role, revocation, relay, or mutation authority |
 | `read_scenario` | explicit scenario content | Reads one validated scenario background plus at most 1,000 ordered turn identities, roles, immutable-revision counts, selected heads, complete tip sets, and reconciliation state; turn bodies remain omitted |
 | `read_scenario_turn_revision` | explicit scenario content | Reads exactly one selected-head, named, or zero-based indexed immutable turn revision body plus bounded head/tip metadata and the current research revision; no mutation or model authority |
 | `start_adversarial_review` | remote model job | Freezes selected block indexes from the exact live document revision, complete built-in-provider call graph, and limits; returns a job immediately before one native batch disclosure |
@@ -171,7 +171,11 @@ MCP host
   assignments are metadata returned to the connected host. Explicit signed device registrations add
   stable public fingerprints, self-reported participant IDs, conflict state, and integrity counts.
   Those entries are durable shared project metadata and can correlate an installation across projects;
-  inspection cannot register, approve, revoke, authenticate, assign a role, or change relay access.
+  bounded relay-approval projection adds only action kind, expected revision, counts, and integrity
+  state. `relay-policy-state-not-part-of-shared-project` means a fresh relay room report is required
+  to know whether the host currently enforces a signer quorum. Inspection omits approval action
+  bodies, keys, signatures, participant IDs, and expiry timestamps and cannot register, sign,
+  approve, configure policy, revoke, authenticate, assign a role, or change relay access.
 - Adversarial start requires the exact live document revision and 1–200 block indexes. Sources
   are derived from those blocks rather than accepted as arbitrary MCP text. Only built-in remote
   provider IDs are accepted. Start returns immediately; at most eight jobs run; heartbeats are 30

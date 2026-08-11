@@ -6,8 +6,9 @@
 //! does not claim authenticated human identity.
 
 use crate::collaboration_relay_membership::{
-    create_room, issue_member, registry_path, report_room, revoke_member, rotate_member,
-    RelayDeviceBinding, RelayMemberCredential, RelayMemberRole, RelayRoomMembershipReport,
+    configure_admin_policy, create_room, issue_member, registry_path, report_room, revoke_member,
+    rotate_member, RelayAdminPolicyConfig, RelayDeviceBinding, RelayMemberCredential,
+    RelayMemberRole, RelayRoomMembershipReport,
 };
 use crate::collaboration_relay_server::is_private_listen_address;
 use serde::{Deserialize, Serialize};
@@ -583,6 +584,25 @@ pub fn collaboration_relay_member_revoke(
         .map_err(|_| "Collaboration relay state lock was poisoned".to_string())?;
     stop_for_membership_change(&mut inner)?;
     let result = revoke_member(&membership_path, &room_id, &member_id, expected_revision);
+    resume_after_membership_change(&app, &mut inner);
+    result
+}
+
+#[tauri::command]
+pub fn collaboration_relay_admin_policy_configure(
+    app: AppHandle,
+    state: State<'_, CollaborationRelayRuntime>,
+    room_id: String,
+    expected_revision: u64,
+    config: Option<RelayAdminPolicyConfig>,
+) -> Result<RelayRoomMembershipReport, String> {
+    let membership_path = registry_path(&storage_path(&app)?);
+    let mut inner = state
+        .0
+        .lock()
+        .map_err(|_| "Collaboration relay state lock was poisoned".to_string())?;
+    stop_for_membership_change(&mut inner)?;
+    let result = configure_admin_policy(&membership_path, &room_id, expected_revision, config);
     resume_after_membership_change(&app, &mut inner);
     result
 }

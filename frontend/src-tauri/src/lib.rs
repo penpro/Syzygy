@@ -230,6 +230,7 @@ pub fn run() {
             collaboration_relay_runtime::collaboration_relay_member_issue,
             collaboration_relay_runtime::collaboration_relay_member_rotate,
             collaboration_relay_runtime::collaboration_relay_member_revoke,
+            collaboration_relay_runtime::collaboration_relay_admin_policy_configure,
             collaboration_identity::collaboration_identity_status,
             collaboration_identity::collaboration_identity_sign_presence,
             collaboration_identity::collaboration_identity_sign_registration,

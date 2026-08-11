@@ -210,7 +210,7 @@ describe('research state inspection', () => {
       excessRecords: 0,
       truncated: false,
       items: [],
-      enforcement: 'not-configured-at-relay',
+      enforcement: 'relay-policy-state-not-part-of-shared-project',
     })
     expect(result.versions).toMatchObject({ totalRecords: 1, validRecords: 1, invalidRecords: 0, headVersionId: version.versionId, headLineageDepth: 1 })
     const serialized = JSON.stringify(result)

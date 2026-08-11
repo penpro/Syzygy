@@ -92,12 +92,17 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   This is explicitly not a relay receipt or directory-granted role. A five-client partition/reconnect
   soak now passes. A separately enrolled surviving admin can recover a lost admin member onto a
   replacement installation without private-key export/escrow; the old capability/key is denied and
-  the replacement can administer. Authenticated human identity, shared-directory approval,
+  the replacement can administer. Authenticated human identity,
   recovery with no surviving admin or relay host, and packaged multi-install proof remain open.
   A bounded capability-free signed approval ledger now supplies the shared-directory prerequisite:
   registered devices can converge exact action/revision approvals, while expiry, mutation, unknown
-  signers, and same-signer equivocation fail closed. It is honestly reported as
-  `not-configured-at-relay`; quorum policy installation and relay enforcement remain the next gate.
+  signers, and same-signer equivocation fail closed. The host can now install a bounded exact signer
+  set and threshold. The exact relay binary refuses protected remote mutations without a valid
+  project/room/revision/action-bound quorum, preserves no-policy compatibility, and rejects eight
+  adversarial bundle classes plus stale replay. Product controls select registered installation
+  keys, publish partial approvals into shared Yjs state, and automatically submit a completed
+  quorum. Shared-state/MCP inspection reports that host policy state is not part of the project
+  rather than falsely attesting it. Packaged physical two-install interaction remains open.
 - The first original product node is now implemented but not yet interaction-verified: a Lexical
   `PolicyBlockNode` with stable
   identity, editable text, draft/review/approved state, strict JSON import, theme-token UI, and a
@@ -654,9 +659,12 @@ collaborators are not required to download large project folders.
    rotate/revoke. A surviving-admin recovery gate now rotates the lost original admin onto a
    replacement installation, denies the lost binding, and proves the replacement can administer
    without private-key export or escrow. The shared project now has an exact-revision signed
-   approval ledger with convergence/equivocation/expiry gates, but the relay does not enforce it.
-   Next: add host-configured signer/quorum policy plus exact approval-bundle relay enforcement and
-   product proposal/approval controls, then
+   approval ledger with convergence/equivocation/expiry gates. A host-installed 1-16 signer policy
+   and bounded threshold are persisted in the relay registry; protected remote mutations require
+   exact configured proofs, while absent policy remains compatible and the host retains emergency
+   local authority. Product controls configure the policy and publish/collect/submit exact
+   approvals; the deterministic exact-binary gate covers quorum success, eight adversarial bundle
+   rejections, and stale replay. Next: run packaged physical two-install policy interaction, then
    recovery when no admin survives (which still requires the relay host), signed durable-event
    envelopes, device-key rotation/recovery, trusted time and replacement-invitation delivery, public WSS operations, compaction/export/backups
    and broader abuse controls, then run packaged physical two-install gates.

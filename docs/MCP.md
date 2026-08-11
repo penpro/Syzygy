@@ -57,6 +57,7 @@ Recommended first instruction to an MCP-capable model:
 | `list_shared_projects` | no | Refetches the bounded cross-workspace Drive project catalog and returns only join identities plus parent folder label/code |
 | `share_active_project` | Drive project state | Publishes the exact active local Yjs state only when `expectedDocumentRevision` still matches, then binds only the returned exact identities |
 | `join_shared_project` | local workspace/project registration | Refetches and joins one exact workspace/project/document identity, rejects local collisions, and waits for the Drive-backed editor |
+| `compact_drive_project` | Drive maintenance | After a final sync and exact `expectedDocumentRevision` plus `expectedResearchRevision` checks, appends a complete snapshot and recoverably archives only applied update records; reports partial/concurrent counts and returns no Drive file IDs |
 | `create_project` | yes | Creates and opens a local project with a non-empty title |
 | `open_project` | navigation | Opens a non-archived project by stable ID |
 | `rename_project` | yes | Changes project metadata only |
@@ -96,6 +97,10 @@ conflict. The caller must read again and reconcile; there is no blind last-write
 Revisions combine a controller-session nonce, monotonic live-editor generation, and deterministic
 content fingerprint, so a draft that changes away and back to identical content still rejects an
 older read (the ABA case).
+Drive compaction additionally requires the exact research revision returned by
+`inspect_research_state`. Both guards are checked after the provider's final pull and before snapshot
+encoding/upload. Compaction does not change project content: the snapshot is appended first, unknown
+concurrent records remain active, and interrupted archive moves are safe to retry.
 
 ## Local bridge and security boundary
 

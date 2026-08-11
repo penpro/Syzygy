@@ -187,6 +187,7 @@ pub fn run() {
             drive_projects::google_drive_project_discover,
             drive_projects::google_drive_project_pull,
             drive_projects::google_drive_project_push,
+            drive_projects::google_drive_project_compact,
             google_drive::google_drive_mirror_dir,
             google_drive::google_drive_sync_folder,
             google_drive::google_drive_mirror_append_log,

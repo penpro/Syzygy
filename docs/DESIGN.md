@@ -138,8 +138,12 @@ workspace has been selected locally. Each row shows the exact parent folder name
 offers **Join** unless the project/document identity already exists. Join validates and selects that
 exact folder before adding the project. Every refresh reports check time, project/folder counts, skipped
 ambiguous or unreadable roots, or a visible sanitized error; an empty list may never look like a button
-that did nothing. The header reports connecting, synced time, error, or offline-copy state. Shared titles are read-only in
-this first transport slice because manifest rename has not been given a conflict-safe contract.
+that did nothing. The header reports connecting, synced time, error, or offline-copy state. A ready
+Drive-shared project offers **Compact Drive history** as an explicit maintenance action. Its tooltip
+states that a complete snapshot is appended before only already-applied records are archived, while
+concurrent records remain active. Success and partial results report archived, remaining, and
+concurrent counts; a partial run is safe to repeat and is never described as data deletion. Shared
+titles are read-only in this transport slice because manifest rename has not been given a conflict-safe contract.
 The UI must not describe polling as real-time presence.
 A compact **Presence** strip below the editor toolbar always names the actual capability. Local
 projects say that no remote editing session is connected. Drive-shared projects say edits sync

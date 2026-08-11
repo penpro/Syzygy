@@ -445,6 +445,18 @@ export interface DriveProjectPullResult {
   updates: DriveProjectUpdate[]
 }
 
+export interface DriveProjectCompactionResult {
+  snapshotUpdateId: string
+  snapshotByteLength: number
+  activeUpdateCountBefore: number
+  activeUpdateCountAfter: number
+  archivedUpdateCount: number
+  failedArchiveCount: number
+  remainingIncludedUpdateCount: number
+  retainedConcurrentUpdateCount: number
+  complete: boolean
+}
+
 export const googleDriveProjectPublish = (
   projectId: string,
   documentId: string,
@@ -477,6 +489,16 @@ export const googleDriveProjectPush = (
   updateBase64: string,
 ): Promise<{ updateId: string }> => invoke('google_drive_project_push', {
   projectId, documentId, clientId, updateBase64,
+})
+
+export const googleDriveProjectCompact = (
+  projectId: string,
+  documentId: string,
+  clientId: string,
+  snapshotUpdateBase64: string,
+  includedUpdateIds: string[],
+): Promise<DriveProjectCompactionResult> => invoke('google_drive_project_compact', {
+  projectId, documentId, clientId, snapshotUpdateBase64, includedUpdateIds,
 })
 
 /** The local mirror of the shared Drive folder (Documents/Syzygy), created + granted on demand. */

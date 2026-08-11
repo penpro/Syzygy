@@ -129,9 +129,18 @@ the live automation registry until that IndexedDB merge finishes. Migration test
 store v3 to rewrite the generated researcher ID once, preserve an existing ID/name, and reject a
 future store version. The version-rail component contract separately requires corrupt history to
 replace stale results with an alert and a disabled save action against unverified state.
-`driveProjectProvider.test.ts` now proves two logical installations converge through the Drive
-provider contract, including independent offline edits and reconnect. This remains distinct from a
-two-physical-install packaged gate and from the known policy-block move-versus-edit expected failure.
+`driveProjectProvider.test.ts` proves two logical installations converge through the Drive provider
+contract, including independent offline edits and reconnect. It also proves explicit compaction pulls
+first, appends a complete snapshot before archival, retains a record arriving during compaction,
+reconstructs the exact Yjs state on a clean installation, reports partial archival without losing
+state, retries safely, and runs a caller revision guard after the final pull but before snapshot
+upload. `driveProjectMaintenanceRegistry.test.ts` proves a disconnecting old provider cannot remove
+its replacement's maintenance authority. Rust `drive_projects::tests` cap each archival batch at 200,
+exclude the snapshot and unknown concurrent IDs, retain recoverable zero-move retry behavior, and
+the structural audit requires a 30-second deadline on every native Drive-project HTTP request plus
+a 60-second deadline around the post-snapshot validation/archive phase. A phase timeout is an
+explicit safe-retry result: the snapshot already exists and moved records remain recoverable.
+These remain distinct from a real-Drive compaction canary and two-physical-install packaged gate.
 
 Portable archives are covered by `projectArchive.test.ts` and
 `ProjectArchiveControls.ui.test.ts`. The domain fixture exports the exact Yjs state, reopens every

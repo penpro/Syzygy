@@ -37,7 +37,9 @@ import {
   listSharedDriveProjects,
   shareProjectToSelectedDrive,
 } from './workspace/driveProjectActions'
+import { compactDriveProject } from './workspace/driveProjectMaintenanceRegistry'
 import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
+import { projectStateFingerprint } from './workspace/projectModel'
 import { restoreAutomationPolicyVersion, saveAutomationPolicyVersion } from './workspace/versionAutomation'
 
 interface AutomationRequest {
@@ -126,6 +128,39 @@ export async function dispatchAutomationRequest(
       return {
         project: summarizeProject(project, project.id),
         document: getAutomationEditorController(project.id).read(),
+      }
+    }
+    case 'project.compactDriveHistory': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; open a Drive-shared project first')
+      if (project.transport.kind !== 'drive') throw new Error('The active project is not Drive-shared')
+      const expectedDocumentRevision = requiredString(params, 'expectedDocumentRevision')
+      const expectedResearchRevision = requiredString(params, 'expectedResearchRevision')
+      const controller = getAutomationEditorController(project.id)
+      const doc = getAutomationProjectDocument(project.id)
+      const result = await compactDriveProject(project.id, () => {
+        if (controller.read().revision !== expectedDocumentRevision) {
+          throw new Error('Document revision conflict; read the active project again before compacting')
+        }
+        if (projectStateFingerprint(doc) !== expectedResearchRevision) {
+          throw new Error('Research revision conflict; inspect research state again before compacting')
+        }
+      })
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        compaction: {
+          snapshotByteLength: result.snapshotByteLength,
+          activeUpdateCountBefore: result.activeUpdateCountBefore,
+          activeUpdateCountAfter: result.activeUpdateCountAfter,
+          archivedUpdateCount: result.archivedUpdateCount,
+          failedArchiveCount: result.failedArchiveCount,
+          remainingIncludedUpdateCount: result.remainingIncludedUpdateCount,
+          retainedConcurrentUpdateCount: result.retainedConcurrentUpdateCount,
+          complete: result.complete,
+        },
       }
     }
     case 'project.create': {

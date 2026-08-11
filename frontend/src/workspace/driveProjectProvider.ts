@@ -2,8 +2,10 @@ import type { Provider } from '@lexical/yjs'
 import { Awareness } from 'y-protocols/awareness'
 import * as Y from 'yjs'
 import {
+  googleDriveProjectCompact,
   googleDriveProjectPull,
   googleDriveProjectPush,
+  type DriveProjectCompactionResult,
   type DriveProjectPullResult,
 } from '../tauri'
 import type {
@@ -18,6 +20,7 @@ import { migrateScenarioDocument } from '../migrations'
 import { registerAutomationProjectDocument } from './workspaceAutomationRegistry'
 import { publishDriveProjectStatus, type DriveProjectSyncStatus } from './driveProjectStatus'
 import { registerProjectPresence } from './presenceRegistry'
+import { registerDriveProjectMaintenance } from './driveProjectMaintenanceRegistry'
 
 const POLL_INTERVAL_MS = 3_000
 const PUSH_DEBOUNCE_MS = 750
@@ -25,11 +28,19 @@ const PUSH_DEBOUNCE_MS = 750
 export interface DriveProjectRemote {
   pull(projectId: string, documentId: string, knownUpdateIds: string[]): Promise<DriveProjectPullResult>
   push(projectId: string, documentId: string, clientId: string, updateBase64: string): Promise<{ updateId: string }>
+  compact(
+    projectId: string,
+    documentId: string,
+    clientId: string,
+    snapshotUpdateBase64: string,
+    includedUpdateIds: string[],
+  ): Promise<DriveProjectCompactionResult>
 }
 
 const tauriRemote: DriveProjectRemote = {
   pull: googleDriveProjectPull,
   push: googleDriveProjectPush,
+  compact: googleDriveProjectCompact,
 }
 
 export function bytesToBase64(bytes: Uint8Array): string {
@@ -69,6 +80,7 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
   private syncing: Promise<void> | null = null
   private unregisterAutomation: (() => void) | null = null
   private unregisterPresence: (() => void) | null = null
+  private unregisterMaintenance: (() => void) | null = null
   private readyPromise: Promise<void> = Promise.resolve()
   private resolveReady: (() => void) | null = null
   private rejectReady: ((error: unknown) => void) | null = null
@@ -125,6 +137,8 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
     this.updatesAttached = false
     this.unregisterAutomation?.()
     this.unregisterAutomation = null
+    this.unregisterMaintenance?.()
+    this.unregisterMaintenance = null
     this.local.disconnect()
     this.awareness.setLocalState(null)
     this.unregisterPresence?.()
@@ -157,6 +171,29 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
     return this.syncing
   }
 
+  /**
+   * Explicit snapshot-first Drive maintenance. The native boundary archives only update IDs this
+   * provider has already applied; unknown concurrent records remain active and are pulled again.
+   */
+  async compactNow(assertSnapshotReady?: () => void): Promise<DriveProjectCompactionResult> {
+    if (!this.connected) throw new Error('Drive project is disconnected')
+    await this.syncNow()
+    assertSnapshotReady?.()
+    const includedUpdateIds = [...this.seenUpdateIds]
+    if (includedUpdateIds.length === 0) throw new Error('Drive project has no applied updates to compact')
+    const result = await this.remote.compact(
+      this.manifest.id,
+      this.manifest.documentId,
+      this.clientId,
+      bytesToBase64(Y.encodeStateAsUpdate(this.doc)),
+      includedUpdateIds,
+    )
+    this.seenUpdateIds.clear()
+    this.seenUpdateIds.add(result.snapshotUpdateId)
+    await this.pullRemote()
+    return result
+  }
+
   private async initialize(generation: number): Promise<void> {
     try {
       await this.local.whenReady()
@@ -168,6 +205,7 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
       await this.pushUpdate(Y.encodeStateAsUpdate(this.doc))
       await this.flushPending()
       if (!this.connected || generation !== this.generation) return
+      this.unregisterMaintenance = registerDriveProjectMaintenance(this.manifest.id, this)
       this.unregisterAutomation = registerAutomationProjectDocument(this.manifest.id, this.doc)
       this.emit('sync', true)
       this.reportStatus({ state: 'synced', syncedAt: Date.now() })
@@ -198,8 +236,8 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
     for (const update of result.updates) {
       if (this.seenUpdateIds.has(update.id)) continue
       const bytes = base64ToBytes(update.updateBase64)
-      this.seenUpdateIds.add(update.id)
       Y.applyUpdate(this.doc, bytes, this)
+      this.seenUpdateIds.add(update.id)
     }
   }
 

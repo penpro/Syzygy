@@ -79,13 +79,27 @@ an ambient Drive tool.
 
 The selected workspace now contains an app-owned `.syzygy-projects` folder. Each published project
 has an immutable schema-v1 `manifest.json` and an `updates/` folder of content-addressed,
-append-only update envelopes. A writer never replaces another writer's project state. The frontend
+immutable update envelopes. A writer never replaces another writer's project state. The frontend
 coalesces local Yjs updates, appends them, polls unseen Drive file IDs, validates base64/identity/
 SHA-256/size bounds in Rust, and gives the decoded updates to Yjs as the merge authority. IndexedDB
 remains the local offline cache. Scenario schema migration runs only after the initial remote pull
 and before the document is exposed to UI/MCP automation. A valid v1 scenario history receives
 deterministic heads and revision parents and is republished as an ordinary append-only v2 Yjs update;
 malformed or future records fail provider readiness without a partial migration write.
+
+Explicit **Compact Drive history** maintenance first performs a normal pull/flush, checks any MCP
+document and research revision guards, and appends one complete content-addressed Yjs snapshot. Only
+active update file IDs that this live provider has already applied are then moved, in batches of at
+most 200 with eight requests in flight, to the same project's recoverable `compacted-updates/`
+folder. An update uploaded concurrently is not in that applied-ID set and remains active. Partial
+move failures also remain active and are reported rather than hidden; repeating the action is safe.
+Afterward the provider forgets archived file IDs and pulls every remaining active record again. The
+webview and MCP response expose counts but never Drive file IDs. Every Drive-project HTTP request,
+including each archive move, has a 30-second native deadline. The entire validation/archive phase
+also stops after 60 seconds; because the complete snapshot is appended first, a deadline may leave
+some records active or archived but cannot invalidate the project, and the action can be retried.
+Headless fake-transport and Rust planning tests pass; a real-Drive interruption/cleanup canary and
+storage-retention policy remain open.
 
 **Drive & shared projects** is always available from the project sidebar, with a second permanent
 **Drive** footer destination. Both open the collaboration home without archiving the current project.
@@ -192,7 +206,8 @@ typed Sheet action is exposed by v0.1.7.
 - Drive project delivery is polling-based (currently three seconds), not presence or sub-second
   real-time collaboration.
 - One selected workspace at a time. Each project binding records that workspace ID and fails closed
-  if code attempts to rebind it silently. Shared manifest rename and compaction are not yet exposed.
+  if code attempts to rebind it silently. Shared manifest rename is not yet exposed. Compacted update
+  records remain recoverable in Drive; automated retention/deletion is intentionally not implemented.
 - Native Google Docs and Slides remain read-only research sources in Ask. Native Sheet support is
   currently literal rectangular value replacement from one starting cell; formatting, formulas,
   named-tab selection, structural edits, and conflict-aware revision controls are not yet exposed.

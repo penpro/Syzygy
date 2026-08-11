@@ -34,5 +34,8 @@ describe('Drive project controls UI contract', () => {
       project: { ...localProject, transport: { kind: 'drive', workspaceId: 'workspace-1' } },
     }))
     expect(html).toContain('Drive shared · starting sync')
+    expect(html).toContain('Compact Drive history')
+    expect(html).toContain('Concurrent updates stay active')
+    expect(html).toContain('disabled')
   })
 })

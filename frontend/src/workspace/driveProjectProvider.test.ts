@@ -7,6 +7,7 @@ import type {
   ProjectProviderListener,
 } from './collaborationProvider'
 import {
+  base64ToBytes,
   bytesToBase64,
   DriveProjectProvider,
   type DriveProjectRemote,
@@ -31,6 +32,13 @@ class ImmediateLocalProvider implements ProjectCollaborationProvider {
 class FakeDriveHub implements DriveProjectRemote {
   private updates: Array<{ id: string; updateBase64: string }> = []
   private nextId = 1
+  pendingConcurrentUpdateBase64: string | null = null
+  failNextArchiveCount = 0
+  compactCallCount = 0
+
+  get activeUpdateCount() {
+    return this.updates.length
+  }
 
   async pull(_projectId: string, _documentId: string, knownUpdateIds: string[]) {
     const known = new Set(knownUpdateIds)
@@ -43,6 +51,43 @@ class FakeDriveHub implements DriveProjectRemote {
     const update = { id: `drive-update-${this.nextId++}`, updateBase64 }
     this.updates.push(update)
     return { updateId: update.id }
+  }
+
+  async compact(
+    projectId: string,
+    documentId: string,
+    clientId: string,
+    snapshotUpdateBase64: string,
+    includedUpdateIds: string[],
+  ) {
+    this.compactCallCount += 1
+    const snapshot = await this.push(projectId, documentId, clientId, snapshotUpdateBase64)
+    if (this.pendingConcurrentUpdateBase64) {
+      await this.push(projectId, documentId, 'concurrent', this.pendingConcurrentUpdateBase64)
+      this.pendingConcurrentUpdateBase64 = null
+    }
+    const included = new Set(includedUpdateIds)
+    const candidates = this.updates.filter((update) =>
+      update.id !== snapshot.updateId && included.has(update.id))
+    const failedArchiveCount = Math.min(this.failNextArchiveCount, candidates.length)
+    this.failNextArchiveCount = 0
+    const archived = candidates.slice(failedArchiveCount)
+    const archivedIds = new Set(archived.map(({ id }) => id))
+    const retainedConcurrentUpdateCount = this.updates.filter((update) =>
+      update.id !== snapshot.updateId && !included.has(update.id)).length
+    const activeUpdateCountBefore = this.updates.length
+    this.updates = this.updates.filter((update) => !archivedIds.has(update.id))
+    return {
+      snapshotUpdateId: snapshot.updateId,
+      snapshotByteLength: base64ToBytes(snapshotUpdateBase64).byteLength,
+      activeUpdateCountBefore,
+      activeUpdateCountAfter: this.updates.length,
+      archivedUpdateCount: archived.length,
+      failedArchiveCount,
+      remainingIncludedUpdateCount: failedArchiveCount,
+      retainedConcurrentUpdateCount,
+      complete: failedArchiveCount === 0,
+    }
   }
 }
 
@@ -142,6 +187,77 @@ describe('DriveProjectProvider', () => {
       .toEqual(readScenario(getProjectSharedTypes(firstDoc).scenarios, 'drive-legacy'))
   })
 
+  it('compacts snapshot-first, retains a concurrent update, and lets a clean installation converge', async () => {
+    const hub = new FakeDriveHub()
+    const docA = new Y.Doc({ guid: manifest.documentId })
+    const first = provider(docA, hub)
+    first.connect()
+    await first.whenReady()
+    docA.getMap('research').set('before-compaction', 'retained')
+    await first.syncNow()
+
+    const concurrent = new Y.Doc({ guid: manifest.documentId })
+    Y.applyUpdate(concurrent, Y.encodeStateAsUpdate(docA))
+    concurrent.getMap('research').set('concurrent-during-compaction', 'retained too')
+    hub.pendingConcurrentUpdateBase64 = bytesToBase64(Y.encodeStateAsUpdate(concurrent))
+
+    const compacted = await first.compactNow()
+    expect(compacted).toMatchObject({
+      complete: true,
+      failedArchiveCount: 0,
+      retainedConcurrentUpdateCount: 1,
+    })
+    expect(compacted.archivedUpdateCount).toBeGreaterThan(0)
+    expect(docA.getMap('research').toJSON()).toEqual({
+      'before-compaction': 'retained',
+      'concurrent-during-compaction': 'retained too',
+    })
+
+    const cleanDoc = new Y.Doc({ guid: manifest.documentId })
+    const clean = provider(cleanDoc, hub)
+    clean.connect()
+    await clean.whenReady()
+    expect(cleanDoc.getMap('research').toJSON()).toEqual(docA.getMap('research').toJSON())
+    expect(Y.encodeStateVector(cleanDoc)).toEqual(Y.encodeStateVector(docA))
+  })
+
+  it('reports partial archival without losing state and safely retries it', async () => {
+    const hub = new FakeDriveHub()
+    const doc = new Y.Doc({ guid: manifest.documentId })
+    const value = provider(doc, hub)
+    value.connect()
+    await value.whenReady()
+    doc.getMap('research').set('must-survive', 'yes')
+    await value.syncNow()
+    hub.failNextArchiveCount = 1
+
+    const partial = await value.compactNow()
+    expect(partial.complete).toBe(false)
+    expect(partial.failedArchiveCount).toBe(1)
+    expect(partial.remainingIncludedUpdateCount).toBe(1)
+    const retried = await value.compactNow()
+    expect(retried.complete).toBe(true)
+    expect(doc.getMap('research').get('must-survive')).toBe('yes')
+    expect(hub.activeUpdateCount).toBeGreaterThan(0)
+  })
+
+  it('runs an exact-state guard after its final pull and before uploading a snapshot', async () => {
+    const hub = new FakeDriveHub()
+    const doc = new Y.Doc({ guid: manifest.documentId })
+    const value = provider(doc, hub)
+    value.connect()
+    await value.whenReady()
+    const remote = new Y.Doc({ guid: manifest.documentId })
+    remote.getMap('research').set('arrived-before-snapshot', true)
+    await hub.push(manifest.id, manifest.documentId, 'peer', bytesToBase64(Y.encodeStateAsUpdate(remote)))
+
+    await expect(value.compactNow(() => {
+      expect(doc.getMap('research').get('arrived-before-snapshot')).toBe(true)
+      throw new Error('document revision conflict')
+    })).rejects.toThrow('document revision conflict')
+    expect(hub.compactCallCount).toBe(0)
+  })
+
   it('fails readiness closed when Drive returns malformed update bytes', async () => {
     const remote: DriveProjectRemote = {
       async pull() {
@@ -149,6 +265,9 @@ describe('DriveProjectProvider', () => {
       },
       async push() {
         throw new Error('push should not run')
+      },
+      async compact() {
+        throw new Error('compact should not run')
       },
     }
     const doc = new Y.Doc({ guid: manifest.documentId })

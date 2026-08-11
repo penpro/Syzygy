@@ -449,7 +449,7 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   Two explicit MCP reads now provide a bounded scenario traversal chain while broad inspection stays
   body-free: `read_scenario` returns one background plus ordered turn identity/head/tip metadata,
   then `read_scenario_turn_revision` returns one chosen selected-head, named, or indexed body. The
-  two-minute physical harness now requires both nodes and all 37 tools; it discovers the turn on
+  two-minute physical harness now requires both nodes and all 38 tools; it discovers the turn on
   both installations, reads both simultaneous scenario siblings, requires the same head/tip set,
   appends one exact all-parent reconciliation, requires the four-revision merge on both nodes, and
   rejects stale document and scenario writes with boolean-only output. Component, Rust, MCP, and synthetic host gates pass;
@@ -499,7 +499,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   persists its parent set and source, and projection derives the complete acyclic tip set. Concurrent
   exact-parent edits remain visible siblings; ordinary edits stop until an exact all-tip merge is
   appended. The engine-free UI exposes explicit sibling selection without deleting alternatives,
-  and MCP discovery now exposes 37 tools including `reconcile_scenario_turn`. Valid v1 IndexedDB,
+  and MCP discovery now exposes 38 tools including `reconcile_scenario_turn` and revision-guarded
+  `compact_drive_project`. Valid v1 IndexedDB,
   Drive, project-archive, and scenario-pack histories migrate deterministically; malformed/future
   records fail before the first migration write. Headless domain, provider, archive, schema, Rust,
   stdio, and structural gates pass. A packaged physical two-install merge remains unverified and is
@@ -538,8 +539,10 @@ collaborators are not required to download large project folders.
 4. **Harden collaboration beyond the first Drive transport** — append-only Yjs Drive sharing,
    share/join UI, deterministic partition convergence, a real Drive canary, persistent outbound LAN
    agents, guarded MCP catalog/share/join tooling, and exact scenario sibling reconciliation have
-   landed. Next: run and record the packaged two-install convergence-and-reconciliation harness,
-   then bounded compaction, conflict-safe shared rename, and presence.
+   landed. Snapshot-first bounded compaction is now an explicit product and MCP action: it archives
+   only applied records into a recoverable Drive folder, keeps concurrent/partial records active,
+   and has clean-install convergence and retry fixtures. Next: run and record the packaged two-install
+   convergence/reconciliation and real-Drive compaction harnesses, then conflict-safe shared rename.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.
    v0.1.14 added same-name folder codes and the bounded MCP/LAN diagnostic; the two-physical-install
    run then proved the client had no selected workspace rather than a failed project upload.

@@ -1,29 +1,46 @@
-//! Append-only Google Drive transport for collaborative Yjs project updates.
-//! Each coalesced update is an immutable file. Concurrent writers therefore never replace one
-//! another; Yjs is the merge authority and local IndexedDB remains the offline durability layer.
+//! Snapshot-first Google Drive transport for collaborative Yjs project updates.
+//! Active updates are immutable files. Explicit bounded compaction first appends a complete Yjs
+//! snapshot, then moves only records the live caller has applied into a recoverable archive folder.
+//! Concurrent writers therefore never replace one another; Yjs remains the merge authority and
+//! local IndexedDB remains the offline durability layer.
 
 use crate::google_drive::{
     collaboration_access, folder_metadata, selected_workspace_access, DriveWorkspace,
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use futures_util::{stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
+use std::time::Duration;
 
 const FILES_ENDPOINT: &str = "https://www.googleapis.com/drive/v3/files";
 const UPLOAD_ENDPOINT: &str = "https://www.googleapis.com/upload/drive/v3/files";
 const PROJECTS_FOLDER: &str = ".syzygy-projects";
 const MANIFEST_FILE: &str = "manifest.json";
 const UPDATES_FOLDER: &str = "updates";
+const COMPACTED_UPDATES_FOLDER: &str = "compacted-updates";
 const MAX_UPDATE_BYTES: usize = 4 * 1024 * 1024;
 const MAX_PULL_BYTES: usize = 32 * 1024 * 1024;
 const MAX_UPDATE_FILES: usize = 5_000;
 const MAX_KNOWN_IDS: usize = 10_000;
+const MAX_LISTED_FILES: usize = 10_000;
+const MAX_COMPACTION_BATCH: usize = 200;
+const COMPACTION_CONCURRENCY: usize = 8;
+const DRIVE_REQUEST_TIMEOUT_SECONDS: u64 = 30;
+const COMPACTION_ARCHIVE_DEADLINE_SECONDS: u64 = 60;
 const MAX_PROJECT_ROOTS: usize = 200;
 const MAX_DISCOVERED_PROJECTS: usize = 1_000;
 
 fn esc(value: &str) -> String {
     value.replace('\\', "\\\\").replace('\'', "\\'")
+}
+
+fn drive_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(Duration::from_secs(DRIVE_REQUEST_TIMEOUT_SECONDS))
+        .build()
+        .map_err(|error| format!("Drive project HTTP client could not start: {error}"))
 }
 
 fn valid_identity(value: &str) -> bool {
@@ -86,7 +103,7 @@ async fn find_child(
         esc(parent_id),
         mime
     );
-    let response = reqwest::Client::new()
+    let response = drive_client()?
         .get(FILES_ENDPOINT)
         .bearer_auth(token)
         .query(&[
@@ -113,7 +130,7 @@ async fn find_child(
 }
 
 async fn create_folder(token: &str, parent_id: &str, name: &str) -> Result<String, String> {
-    let response = reqwest::Client::new()
+    let response = drive_client()?
         .post(FILES_ENDPOINT)
         .bearer_auth(token)
         .query(&[("supportsAllDrives", "true"), ("fields", "id")])
@@ -168,7 +185,7 @@ async fn create_text_file(
                 .mime_str("application/json")
                 .map_err(|error| error.to_string())?,
         );
-    let response = reqwest::Client::new()
+    let response = drive_client()?
         .post(UPLOAD_ENDPOINT)
         .bearer_auth(token)
         .query(&[
@@ -190,7 +207,7 @@ async fn create_text_file(
 }
 
 async fn read_text_file(token: &str, file_id: &str) -> Result<String, String> {
-    let response = reqwest::Client::new()
+    let response = drive_client()?
         .get(format!("{FILES_ENDPOINT}/{file_id}"))
         .bearer_auth(token)
         .query(&[("alt", "media"), ("supportsAllDrives", "true")])
@@ -209,6 +226,31 @@ async fn read_text_file(token: &str, file_id: &str) -> Result<String, String> {
         .map_err(|_| "Drive project record is not valid UTF-8 JSON.".into())
 }
 
+async fn move_file_to_folder(
+    token: &str,
+    file_id: &str,
+    from_parent_id: &str,
+    to_parent_id: &str,
+) -> Result<(), String> {
+    let response = drive_client()?
+        .patch(format!("{FILES_ENDPOINT}/{file_id}"))
+        .bearer_auth(token)
+        .query(&[
+            ("addParents", to_parent_id),
+            ("removeParents", from_parent_id),
+            ("supportsAllDrives", "true"),
+            ("fields", "id,parents"),
+        ])
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .map_err(|error| {
+            format!("Drive project archive move failed before Google responded: {error}")
+        })?;
+    require_success(response, "archive update").await?;
+    Ok(())
+}
+
 #[derive(Debug)]
 struct ListedFile {
     id: String,
@@ -216,12 +258,61 @@ struct ListedFile {
     size: usize,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+struct CompactionPlan {
+    archive_ids: Vec<String>,
+    remaining_included_count: usize,
+    retained_concurrent_count: usize,
+}
+
+struct CompactionArchiveOutcome {
+    active_update_count_before: usize,
+    active_update_count_after: usize,
+    archived_update_count: usize,
+    failed_archive_count: usize,
+    remaining_included_update_count: usize,
+    retained_concurrent_update_count: usize,
+}
+
+fn plan_compaction(
+    listed: &[ListedFile],
+    included: &HashSet<String>,
+    snapshot_update_id: &str,
+) -> CompactionPlan {
+    let eligible = listed
+        .iter()
+        .filter(|file| {
+            file.name.starts_with("update-")
+                && file.id != snapshot_update_id
+                && included.contains(&file.id)
+        })
+        .map(|file| file.id.clone())
+        .collect::<Vec<_>>();
+    let retained_concurrent_count = listed
+        .iter()
+        .filter(|file| {
+            file.name.starts_with("update-")
+                && file.id != snapshot_update_id
+                && !included.contains(&file.id)
+        })
+        .count();
+    CompactionPlan {
+        archive_ids: eligible
+            .iter()
+            .take(MAX_COMPACTION_BATCH)
+            .cloned()
+            .collect(),
+        remaining_included_count: eligible.len().saturating_sub(MAX_COMPACTION_BATCH),
+        retained_concurrent_count,
+    }
+}
+
 async fn list_children(token: &str, parent_id: &str) -> Result<Vec<ListedFile>, String> {
     let query = format!("'{}' in parents and trashed = false", esc(parent_id));
     let mut page_token: Option<String> = None;
     let mut files = Vec::new();
     loop {
-        let mut request = reqwest::Client::new()
+        let mut request = drive_client()?
             .get(FILES_ENDPOINT)
             .bearer_auth(token)
             .query(&[
@@ -255,8 +346,8 @@ async fn list_children(token: &str, parent_id: &str) -> Result<Vec<ListedFile>, 
                     name: name.to_string(),
                     size,
                 });
-                if files.len() > MAX_UPDATE_FILES {
-                    return Err("Drive project contains too many update records; compact it before continuing.".into());
+                if files.len() > MAX_LISTED_FILES {
+                    return Err("Drive folder contains too many records to inspect safely.".into());
                 }
             }
         }
@@ -340,7 +431,7 @@ async fn list_project_roots(token: &str) -> Result<Vec<ProjectRoot>, String> {
     let mut page_token: Option<String> = None;
     let mut roots = Vec::new();
     loop {
-        let mut request = reqwest::Client::new()
+        let mut request = drive_client()?
             .get(FILES_ENDPOINT)
             .bearer_auth(token)
             .query(&[
@@ -503,6 +594,20 @@ pub struct DriveProjectPullResult {
 #[serde(rename_all = "camelCase")]
 pub struct DriveProjectPushResult {
     update_id: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DriveProjectCompactionResult {
+    snapshot_update_id: String,
+    snapshot_byte_length: usize,
+    active_update_count_before: usize,
+    active_update_count_after: usize,
+    archived_update_count: usize,
+    failed_archive_count: usize,
+    remaining_included_update_count: usize,
+    retained_concurrent_update_count: usize,
+    complete: bool,
 }
 
 async fn project_root(
@@ -742,6 +847,138 @@ pub async fn google_drive_project_push(
     .await
 }
 
+/// Append a complete Yjs snapshot, then move only update records the live provider says it has
+/// applied into a recoverable sibling folder. Unknown records are concurrent and remain active.
+/// Moves are bounded and partial failure is returned explicitly so the caller can safely retry.
+#[tauri::command]
+pub async fn google_drive_project_compact(
+    app: tauri::AppHandle,
+    project_id: String,
+    document_id: String,
+    client_id: String,
+    snapshot_update_base64: String,
+    included_update_ids: Vec<String>,
+) -> Result<DriveProjectCompactionResult, String> {
+    if included_update_ids.is_empty()
+        || included_update_ids.len() > MAX_KNOWN_IDS
+        || included_update_ids
+            .iter()
+            .any(|id| id.is_empty() || id.len() > 256)
+        || included_update_ids.iter().collect::<HashSet<_>>().len() != included_update_ids.len()
+    {
+        return Err(
+            "Drive compaction update list is invalid, empty, duplicated, or too large.".into(),
+        );
+    }
+    validate_identity("client id", client_id.trim())?;
+    let snapshot_byte_length = STANDARD
+        .decode(&snapshot_update_base64)
+        .map_err(|_| "Drive compaction snapshot is not valid base64.".to_string())?
+        .len();
+    if snapshot_byte_length == 0 || snapshot_byte_length > MAX_UPDATE_BYTES {
+        return Err("Drive compaction snapshot is empty or exceeds 4 MiB.".into());
+    }
+
+    let included = included_update_ids.into_iter().collect::<HashSet<_>>();
+    let (token, workspace) = selected_workspace_access(&app).await?;
+    let (folder, _) =
+        require_project_manifest(&token, &workspace, project_id.trim(), document_id.trim()).await?;
+    let snapshot = push_update(
+        &token,
+        &folder,
+        project_id.trim(),
+        document_id.trim(),
+        client_id.trim(),
+        snapshot_update_base64,
+    )
+    .await?;
+    let archive_outcome = tokio::time::timeout(
+        Duration::from_secs(COMPACTION_ARCHIVE_DEADLINE_SECONDS),
+        async {
+            let updates_folder = find_or_create_folder(&token, &folder, UPDATES_FOLDER).await?;
+            let mut listed = list_children(&token, &updates_folder).await?;
+            listed.sort_by(|left, right| left.name.cmp(&right.name).then(left.id.cmp(&right.id)));
+            let active_update_count_before = listed
+                .iter()
+                .filter(|file| file.name.starts_with("update-"))
+                .count();
+            let plan = plan_compaction(&listed, &included, &snapshot.update_id);
+
+            for id in &plan.archive_ids {
+                let file = listed
+                    .iter()
+                    .find(|file| &file.id == id)
+                    .ok_or("Drive compaction plan referenced a missing update.")?;
+                if file.size > MAX_UPDATE_BYTES * 2 {
+                    return Err(
+                        "Drive compaction candidate exceeds the supported size limit.".into(),
+                    );
+                }
+                let update: StoredProjectUpdate =
+                    serde_json::from_str(&read_text_file(&token, id).await?)
+                        .map_err(|_| "Drive compaction candidate is malformed.".to_string())?;
+                update.validate_for(project_id.trim(), document_id.trim())?;
+            }
+
+            let archive_folder = if plan.archive_ids.is_empty() {
+                None
+            } else {
+                Some(find_or_create_folder(&token, &folder, COMPACTED_UPDATES_FOLDER).await?)
+            };
+            let move_results = if let Some(archive_folder) = archive_folder.as_ref() {
+                stream::iter(plan.archive_ids.iter().cloned())
+                    .map(|id| {
+                        let token = &token;
+                        let updates_folder = &updates_folder;
+                        let archive_folder = archive_folder;
+                        async move {
+                            move_file_to_folder(token, &id, updates_folder, archive_folder).await
+                        }
+                    })
+                    .buffer_unordered(COMPACTION_CONCURRENCY)
+                    .collect::<Vec<_>>()
+                    .await
+            } else {
+                Vec::new()
+            };
+            let archived_update_count = move_results.iter().filter(|result| result.is_ok()).count();
+            let failed_archive_count = move_results.len().saturating_sub(archived_update_count);
+            let remaining_included_update_count = plan
+                .remaining_included_count
+                .saturating_add(failed_archive_count);
+            let active_update_count_after =
+                active_update_count_before.saturating_sub(archived_update_count);
+
+            Ok::<CompactionArchiveOutcome, String>(CompactionArchiveOutcome {
+                active_update_count_before,
+                active_update_count_after,
+                archived_update_count,
+                failed_archive_count,
+                remaining_included_update_count,
+                retained_concurrent_update_count: plan.retained_concurrent_count,
+            })
+        },
+    )
+    .await
+    .map_err(|_| {
+        "Drive compaction reached its 60-second archive deadline after the complete snapshot was appended. Some records may already be archived; retry compaction safely."
+            .to_string()
+    })??;
+
+    Ok(DriveProjectCompactionResult {
+        snapshot_update_id: snapshot.update_id,
+        snapshot_byte_length,
+        active_update_count_before: archive_outcome.active_update_count_before,
+        active_update_count_after: archive_outcome.active_update_count_after,
+        archived_update_count: archive_outcome.archived_update_count,
+        failed_archive_count: archive_outcome.failed_archive_count,
+        remaining_included_update_count: archive_outcome.remaining_included_update_count,
+        retained_concurrent_update_count: archive_outcome.retained_concurrent_update_count,
+        complete: archive_outcome.failed_archive_count == 0
+            && archive_outcome.remaining_included_update_count == 0,
+    })
+}
+
 #[tauri::command]
 pub async fn google_drive_project_pull(
     app: tauri::AppHandle,
@@ -774,6 +1011,17 @@ pub async fn google_drive_project_pull(
     };
     let mut listed = list_children(&token, &updates_folder).await?;
     listed.sort_by(|left, right| left.name.cmp(&right.name).then(left.id.cmp(&right.id)));
+    if listed
+        .iter()
+        .filter(|file| file.name.starts_with("update-"))
+        .count()
+        > MAX_UPDATE_FILES
+    {
+        return Err(
+            "Drive project contains too many active update records; compact it before continuing."
+                .into(),
+        );
+    }
     let mut total_bytes = 0usize;
     let mut updates = Vec::new();
     for file in listed {
@@ -955,5 +1203,69 @@ mod tests {
         ]);
         assert_eq!(roots, vec![("workspace-a".into(), "root-a".into())]);
         assert_eq!(skipped, 3);
+    }
+
+    #[test]
+    fn compaction_archives_only_applied_records_and_bounds_each_batch() {
+        let mut listed = (0..205)
+            .map(|index| ListedFile {
+                id: format!("known-{index:03}"),
+                name: format!("update-known-{index:03}.json"),
+                size: 100,
+            })
+            .collect::<Vec<_>>();
+        listed.push(ListedFile {
+            id: "snapshot".into(),
+            name: "update-snapshot.json".into(),
+            size: 100,
+        });
+        listed.push(ListedFile {
+            id: "concurrent".into(),
+            name: "update-concurrent.json".into(),
+            size: 100,
+        });
+        listed.push(ListedFile {
+            id: "manifest-like".into(),
+            name: "notes.txt".into(),
+            size: 100,
+        });
+        let mut included = (0..205)
+            .map(|index| format!("known-{index:03}"))
+            .collect::<HashSet<_>>();
+        included.insert("snapshot".into());
+        included.insert("already-archived".into());
+
+        let plan = plan_compaction(&listed, &included, "snapshot");
+        assert_eq!(plan.archive_ids.len(), MAX_COMPACTION_BATCH);
+        assert_eq!(
+            plan.archive_ids.first().map(String::as_str),
+            Some("known-000")
+        );
+        assert_eq!(
+            plan.archive_ids.last().map(String::as_str),
+            Some("known-199")
+        );
+        assert_eq!(plan.remaining_included_count, 5);
+        assert_eq!(plan.retained_concurrent_count, 1);
+        assert!(!plan.archive_ids.contains(&"snapshot".to_string()));
+        assert!(!plan.archive_ids.contains(&"concurrent".to_string()));
+    }
+
+    #[test]
+    fn compaction_retry_with_only_its_snapshot_is_a_zero_move_plan() {
+        let listed = vec![ListedFile {
+            id: "snapshot".into(),
+            name: "update-snapshot.json".into(),
+            size: 100,
+        }];
+        let included = HashSet::from(["snapshot".to_string(), "already-archived".to_string()]);
+        assert_eq!(
+            plan_compaction(&listed, &included, "snapshot"),
+            CompactionPlan {
+                archive_ids: Vec::new(),
+                remaining_included_count: 0,
+                retained_concurrent_count: 0,
+            }
+        );
     }
 }

@@ -958,6 +958,7 @@ const advertisedMcpTools = [
   'list_shared_projects',
   'share_active_project',
   'join_shared_project',
+  'compact_drive_project',
   'create_project',
   'open_project',
   'rename_project',
@@ -1029,6 +1030,51 @@ record(
     mcpSource.includes('"join_shared_project" => live("project.joinDrive"'),
   'selected-folder MCP diagnostics, bounded cross-workspace Syzygy-root catalog, duplicate/orphan rejection, explicit exact-parent Join, no token/file-ID diagnostic disclosure, and hostile workspace fixtures are present',
 )
+const driveCompactionCommand = driveProjectNativeSource.slice(
+  driveProjectNativeSource.indexOf('pub async fn google_drive_project_compact'),
+  driveProjectNativeSource.indexOf('pub async fn google_drive_project_pull'),
+)
+const driveProjectProviderSource = text('frontend/src/workspace/driveProjectProvider.ts')
+const driveProviderCompaction = driveProjectProviderSource.slice(
+  driveProjectProviderSource.indexOf('async compactNow'),
+  driveProjectProviderSource.indexOf('private async initialize'),
+)
+const driveProjectProviderTestSource = text('frontend/src/workspace/driveProjectProvider.test.ts')
+const driveMaintenanceRegistrySource = text('frontend/src/workspace/driveProjectMaintenanceRegistry.ts')
+const driveMaintenanceRegistryTestSource = text('frontend/src/workspace/driveProjectMaintenanceRegistry.test.ts')
+record(
+  'Drive project compaction remains snapshot-first, recoverable, concurrent-safe, bounded, and revision-guarded',
+  driveProjectNativeSource.includes('COMPACTED_UPDATES_FOLDER: &str = "compacted-updates"') &&
+    driveProjectNativeSource.includes('MAX_COMPACTION_BATCH: usize = 200') &&
+    driveProjectNativeSource.includes('COMPACTION_CONCURRENCY: usize = 8') &&
+    driveProjectNativeSource.includes('DRIVE_REQUEST_TIMEOUT_SECONDS: u64 = 30') &&
+    driveProjectNativeSource.includes('COMPACTION_ARCHIVE_DEADLINE_SECONDS: u64 = 60') &&
+    !driveProjectNativeSource.includes('reqwest::Client::new()') &&
+    driveProjectNativeSource.includes('retained_concurrent_count') &&
+    driveCompactionCommand.indexOf('push_update(') < driveCompactionCommand.indexOf('move_file_to_folder(') &&
+    driveCompactionCommand.includes('tokio::time::timeout(') &&
+    driveCompactionCommand.includes('Some records may already be archived; retry compaction safely.') &&
+    driveCompactionCommand.includes('failed_archive_count') &&
+    driveCompactionCommand.includes('remaining_included_update_count') &&
+    driveProviderCompaction.indexOf('await this.syncNow()') <
+      driveProviderCompaction.indexOf('assertSnapshotReady?.()') &&
+    driveProviderCompaction.indexOf('assertSnapshotReady?.()') <
+      driveProviderCompaction.indexOf('Y.encodeStateAsUpdate(this.doc)') &&
+    driveProjectProviderSource.includes('this.seenUpdateIds.clear()') &&
+    driveProjectProviderTestSource.includes('retains a concurrent update') &&
+    driveProjectProviderTestSource.includes('reports partial archival without losing state') &&
+    driveProjectProviderTestSource.includes('after its final pull and before uploading a snapshot') &&
+    driveMaintenanceRegistrySource.includes('if (maintenanceByProject.get(projectId) === maintenance)') &&
+    driveMaintenanceRegistryTestSource.includes('keeps a replacement provider registered') &&
+    driveProjectControlsSource.includes('Compact Drive history') &&
+    driveProjectControlsSource.includes('Concurrent updates stay active') &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.compactDriveHistory'") &&
+    text('frontend/src/automationBridge.ts').includes('expectedResearchRevision') &&
+    mcpSource.includes('"compact_drive_project" => live("project.compactDriveHistory"') &&
+    text('scripts/mcp-harness.mjs').includes("tool.name === 'compact_drive_project'") &&
+    existsSync(join(root, 'docs/audits/runs/DRIVE-PROJECT-COMPACTION-2026-08-10.json')),
+  'full snapshot precedes recoverable bounded archival; only applied IDs move, concurrent/partial records remain active, stale MCP guards fail before upload, and headless clean-install convergence passes',
+)
 const researchInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
 const automationRegistrySource = text('frontend/src/workspace/workspaceAutomationRegistry.ts')
 record(
@@ -1085,7 +1131,7 @@ record(
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioIndexReadback') &&
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioSiblingMerge') &&
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioStaleRevisionRejected') &&
-    text('scripts/lan-drive-live-harness.mjs').includes('item.toolCount >= 37') &&
+    text('scripts/lan-drive-live-harness.mjs').includes('item.toolCount >= 38') &&
     existsSync(join(root, 'docs/audits/runs/MCP-SCENARIO-INDEX-2026-08-05.json')),
   'one bounded scenario background/turn-head index, one exact current/named/indexed body, graph and identity validation, zero-write proof, named live routes, packaged traversal assertion, and two-node discovery/sibling/stale gates are present',
 )
@@ -1185,7 +1231,7 @@ record(
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioAnnotationRejected: true') &&
     text('scripts/mcp-live-harness.mjs').includes('scenarioLabelLifecycleGuarded: true') &&
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioLabelRejected: true'),
-  'stable inspection revision, exact-head/tip sibling reconciliation, zero-write stale rejection, live Y.Doc scenario/turn/vote/annotation/label routes, 37-tool MCP surface, and packaged-live assertions are present',
+  'stable inspection revision, exact-head/tip sibling reconciliation, zero-write stale rejection, live Y.Doc scenario/turn/vote/annotation/label routes, 38-tool MCP surface, and packaged-live assertions are present',
 )
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))
@@ -1365,7 +1411,7 @@ record(
     researchStateInspectionSource.includes('adversarial-review question/source/result/decision-note bodies') &&
     mcpSource.includes('"save_adversarial_review"') &&
     mcpSource.includes('"decide_adversarial_review"') &&
-    mcpHarnessSource.includes('tools.length < 37') &&
+    mcpHarnessSource.includes('tools.length < 38') &&
     frontendPackage.scripts?.['test:adversarial']?.includes('adversarialHistory.test.ts'),
   'full archives persist only by explicit revision-guarded save; canonical hashes, provider provenance, peer convergence, exact-parent decision history, fail-closed conflicts, content-minimized inspection, and zero draft authority are enforced',
 )
@@ -1704,7 +1750,7 @@ record(
     lanMcpHarnessSource.includes('if (child.kill()) return') &&
     lanPackagedHarnessSource.includes("'--control-port', String(controlPort)") &&
     lanPackagedHarnessSource.includes('if (child.kill()) return') &&
-    lanPackagedHarnessSource.includes('tools.structuredContent.tools.length >= 37') &&
+    lanPackagedHarnessSource.includes('tools.structuredContent.tools.length >= 38') &&
     lanLocalMcpSource.includes('if (child.kill()) return') &&
     lanSettingsSource.includes('Private LAN test connection') &&
     lanSettingsSource.includes('pickLanPairingKeyFile') &&
@@ -1714,7 +1760,7 @@ record(
     lanDriveHarnessSource.includes('absoluteDeadline = Date.now() + 2 * 60_000') &&
     lanDriveHarnessSource.includes('Math.min(timeoutMs, 60_000)') &&
     lanDriveHarnessSource.includes('staleRevisionRejected') &&
-    lanDriveHarnessSource.includes('item.toolCount >= 37') &&
+    lanDriveHarnessSource.includes('item.toolCount >= 38') &&
     lanDriveHarnessSource.includes('scenarioIndexReadback') &&
     lanDriveHarnessSource.includes('scenarioSiblingMerge') &&
     lanDriveHarnessSource.includes('scenarioCurrentConverged') &&
@@ -1731,7 +1777,7 @@ record(
     existsSync(join(root, 'docs/audits/runs/LAN-COLLABORATION-SUPERVISION-2026-07-17.json')) &&
     existsSync(join(root, 'docs/audits/runs/LAN-DEV-MODE-LIFECYCLE-2026-07-18.json')) &&
     existsSync(join(root, 'docs/audits/runs/MCP-SCENARIO-TURN-READBACK-2026-08-02.json')),
-  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, 37-tool discovery, explicit scenario-index and sibling-body readback, deterministic current convergence, exact sibling reconciliation, and stale-write gates are present',
+  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, 38-tool discovery, explicit scenario-index and sibling-body readback, deterministic current convergence, exact sibling reconciliation, and stale-write gates are present',
 )
 const ledger = JSON.parse(text('docs/audits/CAPABILITIES.json'))
 const expectedIds = [

@@ -51,12 +51,13 @@
 | `frontend/src/workspace/policyVersionModel.ts` | Penumbra original | Canonical SHA-256-addressed immutable policy envelopes, parent validation, detached readback, and historical attribution snapshots |
 | `frontend/src/workspace/policyVersionHistory.ts` | Penumbra original | Exact-head commits, restore-as-new-child history, concurrent branch retention, and deterministic engine-free structured diffs |
 | `frontend/src/workspace/localProvider.ts` | Penumbra original | Local IndexedDB provider implementing the Lexical/Yjs boundary with migration-before-automation reopen |
-| `frontend/src/workspace/driveProjectProvider.ts` | Penumbra original | Append-only Drive-backed Yjs provider with IndexedDB durability, partition/reconnect merge, post-pull scenario migration, v2 republish, and migration-before-automation publication |
+| `frontend/src/workspace/driveProjectProvider.ts` | Penumbra original | Immutable-update Drive-backed Yjs provider with IndexedDB durability, partition/reconnect merge, post-pull migration, and final-sync snapshot-first compaction that forgets archived IDs and re-pulls active records |
+| `frontend/src/workspace/driveProjectMaintenanceRegistry.ts` | Penumbra original | Identity-safe lifecycle registry exposing explicit maintenance only for the currently ready Drive provider without stale-disconnect teardown |
 | `frontend/src/workspace/driveProjectActions.ts` | Penumbra original | Exact-revision Drive publish and refetched exact-identity Join actions shared by product UI and MCP automation |
 | `frontend/src/workspace/driveProjectStatus.ts` | Penumbra original | Content-free per-project Drive transport lifecycle registry for honest product status |
 | `frontend/src/workspace/driveProjectDiscovery.ts` | Penumbra original | Selected-workspace folder-code labeling, explicit refresh outcomes, and bounded content-free MCP/LAN project identity diagnostics |
-| `frontend/src/workspace/DriveProjectControls.tsx` | Penumbra original | Explicit share plus bounded account-visible project catalog whose Join selects the exact parent workspace under identity/readiness guards |
-| `frontend/src-tauri/src/drive_projects.rs` | Penumbra original | Strict selected-workspace manifest/update transport, bounded app-root catalog with duplicate/orphan rejection, and real Google cleanup canary |
+| `frontend/src/workspace/DriveProjectControls.tsx` | Penumbra original | Explicit share/Join catalog plus honest snapshot-first, concurrent-retaining, safely repeatable Drive-history maintenance controls |
+| `frontend/src-tauri/src/drive_projects.rs` | Penumbra original | Strict selected-workspace manifest/update transport, bounded app-root catalog, and recoverable snapshot-first update archival with duplicate/orphan/concurrent/partial handling |
 | `frontend/src/workspace/collaborationProvider.ts` | Penumbra original | Provider-neutral lifecycle shared by local and test/future transports |
 | `frontend/src/workspace/memoryProvider.ts` | Penumbra original | Deterministic two-editor live/partition convergence transport used only by the headless contract suite |
 | `frontend/src/workspace/presenceModel.ts` | Penumbra original | Bounded fail-closed projection of schema-versioned ephemeral researcher awareness metadata |

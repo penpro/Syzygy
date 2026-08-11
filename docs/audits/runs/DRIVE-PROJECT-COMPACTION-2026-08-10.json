@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "runId": "DRIVE-PROJECT-COMPACTION-2026-08-10",
+  "date": "2026-08-10",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "ea5493b",
+  "capabilities": ["P-12", "P-13", "S-05"],
+  "status": "implemented_unverified",
+  "claim": "Explicit Drive project compaction performs a final sync, appends a complete Yjs snapshot before recoverably archiving only applied records, retains concurrent and partial records as active, and exposes exact-revision product/MCP maintenance without Drive file-ID disclosure.",
+  "commands": [
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend test -- --run src/workspace/driveProjectProvider.test.ts src/workspace/driveProjectMaintenanceRegistry.test.ts src/workspace/DriveProjectControls.ui.test.ts",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend/src-tauri/Cargo.toml drive_projects::tests:: -- --nocapture",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend/src-tauri/Cargo.toml mcp::tests:: -- --nocapture",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/mcp-harness.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node --test scripts/lan-bridge.test.mjs scripts/lan-agent-supervisor.test.mjs scripts/lan-dev-mode.test.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/lan-mcp-harness.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/lan-packaged-agent-harness.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/audit.mjs",
+    "npm --prefix frontend run check:supervised",
+    "npm --prefix frontend run build:status -- 20260811-051438-739a8a"
+  ],
+  "result": {
+    "focusedFrontendTestFilesPassed": 3,
+    "focusedFrontendTestsPassed": 10,
+    "rustDriveProjectTestsPassed": 5,
+    "rustMcpTestsPassed": 18,
+    "compiledMcpToolCount": 38,
+    "fullFrontendTestFilesPassed": 108,
+    "fullFrontendTestsPassed": 449,
+    "frontendBuildPassed": true,
+    "structuralAuditPassed": true,
+    "fullSupervisedValidationPassed": true,
+    "supervisedRunId": "20260811-051438-739a8a",
+    "pendingFullValidation": false,
+    "lanLifecycleUnitTestsPassed": 8,
+    "syntheticLanHarnessPassed": true,
+    "packagedAgentHarnessPassed": true,
+    "realDriveCompactionPassed": false,
+    "physicalTwoInstallCompactionPassed": false,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "The provider performs its final pull/flush and caller guard before synchronously encoding the snapshot passed to native compaction.",
+    "A complete snapshot is appended before any candidate move, and candidates are restricted to active IDs the provider already applied.",
+    "Archival moves at most 200 records per run with eight requests in flight into a recoverable same-project folder rather than Trash.",
+    "Every native Drive-project request has a 30-second deadline and the post-snapshot validation/archive phase has a 60-second deadline whose error explicitly directs a safe retry.",
+    "An update injected during compaction remains active, is pulled after compaction, and is present with pre-compaction state on a clean logical installation.",
+    "Partial move failure remains active, is reported as incomplete, preserves document state, and succeeds on retry.",
+    "Disconnecting an old provider cannot unregister a replacement provider's maintenance authority.",
+    "MCP advertises a strict 38th tool requiring exact document and research revisions and returns counts without Drive file IDs.",
+    "The complete frontend suite, production frontend build, structural audit, Rust check, 38-tool stdio MCP harness, eight LAN lifecycle tests, synthetic two-node bridge, and packaged agent harness pass under bounded supervision."
+  ],
+  "notProved": [
+    "The production Google Drive API completed compaction under injected timeout, quota, rate-limit, process-exit, and partial-move failures.",
+    "Two packaged physical installations edited during compaction and reconstructed identical state afterward.",
+    "Archived update retention, restore, and eventual deletion policy is complete.",
+    "Near-limit 4-MiB snapshots and 5,000-10,000 active records meet measured latency and memory budgets.",
+    "A release/updater artifact contains this development checkpoint."
+  ]
+}

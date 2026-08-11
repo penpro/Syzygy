@@ -92,7 +92,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, adversarial review archives/decisions, and immutable history. Use read_scenario for one explicit scenario background and its bounded turn identity/head index, then read_scenario_turn_revision for one current, named, or indexed revision body; both are content-disclosing reads. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. When a scenario turn reports sibling tips, read the candidate revisions and call reconcile_scenario_turn with the exact research revision, selected head, and complete tip set; ordinary revision writes fail closed until reconciliation. Adversarial model review starts with start_adversarial_review followed by inspect_adversarial_review or cancel_adversarial_review; it requires configured built-in provider credentials and one native disclosure approval, and its result remains transient and pending human review. Call save_adversarial_review only with explicit authority to make the full question, selected source excerpts, and results shared project content that can synchronize through Drive. Call decide_adversarial_review separately to append an immutable accept/reject event; it never edits the draft. Never claim real-time collaborator presence is available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Compact Drive history only on explicit request and only with the latest exact revisions from both read_active_project and inspect_research_state; compaction appends a snapshot before recoverably archiving applied records and reports partial work. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, adversarial review archives/decisions, and immutable history. Use read_scenario for one explicit scenario background and its bounded turn identity/head index, then read_scenario_turn_revision for one current, named, or indexed revision body; both are content-disclosing reads. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. When a scenario turn reports sibling tips, read the candidate revisions and call reconcile_scenario_turn with the exact research revision, selected head, and complete tip set; ordinary revision writes fail closed until reconciliation. Adversarial model review starts with start_adversarial_review followed by inspect_adversarial_review or cancel_adversarial_review; it requires configured built-in provider credentials and one native disclosure approval, and its result remains transient and pending human review. Call save_adversarial_review only with explicit authority to make the full question, selected source excerpts, and results shared project content that can synchronize through Drive. Call decide_adversarial_review separately to append an immutable accept/reject event; it never edits the draft. Never claim real-time collaborator presence is available."
             })
         }
         "ping" => json!({}),
@@ -126,6 +126,7 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "list_shared_projects" => live("drive.listSharedProjects", json!({})),
         "share_active_project" => live("project.shareDrive", arguments),
         "join_shared_project" => live("project.joinDrive", arguments),
+        "compact_drive_project" => live("project.compactDriveHistory", arguments),
         "workspace_walkthrough" => live("workspace.walkthrough", json!({})),
         "create_project" => live("project.create", arguments),
         "open_project" => live("project.open", arguments),
@@ -240,6 +241,17 @@ fn tool_definitions() -> Vec<Value> {
                     ("workspaceId", string_schema("Exact workspace ID from list_shared_projects.")),
                 ],
                 &["projectId", "documentId", "workspaceId"],
+            ),
+        ),
+        tool(
+            "compact_drive_project",
+            "Explicitly compact the active Drive-shared project's update history. After one final sync, the app requires the exact document and research revisions, appends a complete Yjs snapshot, and archives only records this installation has applied. Unknown concurrent records remain active; partial archival is reported and safe to retry.",
+            object_schema(
+                &[
+                    ("expectedDocumentRevision", string_schema("Exact revision from read_active_project.")),
+                    ("expectedResearchRevision", string_schema("Exact revision from inspect_research_state.")),
+                ],
+                &["expectedDocumentRevision", "expectedResearchRevision"],
             ),
         ),
         tool(
@@ -775,6 +787,7 @@ mod tests {
         assert!(names.contains(&"list_shared_projects"));
         assert!(names.contains(&"share_active_project"));
         assert!(names.contains(&"join_shared_project"));
+        assert!(names.contains(&"compact_drive_project"));
         assert!(names.contains(&"create_scenario"));
         assert!(names.contains(&"add_scenario_turn"));
         assert!(names.contains(&"revise_scenario_turn"));
@@ -793,8 +806,19 @@ mod tests {
         assert!(names.contains(&"cancel_adversarial_review"));
         assert!(names.contains(&"save_adversarial_review"));
         assert!(names.contains(&"decide_adversarial_review"));
-        assert_eq!(names.len(), 37);
+        assert_eq!(names.len(), 38);
         assert!(names.contains(&"replace_active_document"));
+        let compact = tools["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|tool| tool["name"] == "compact_drive_project")
+            .unwrap();
+        assert_eq!(compact["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            compact["inputSchema"]["required"],
+            json!(["expectedDocumentRevision", "expectedResearchRevision"])
+        );
     }
 
     #[test]
@@ -848,9 +872,11 @@ mod tests {
             ("list_shared_projects", "drive.listSharedProjects"),
             ("share_active_project", "project.shareDrive"),
             ("join_shared_project", "project.joinDrive"),
+            ("compact_drive_project", "project.compactDriveHistory"),
         ] {
             let arguments = json!({
                 "expectedDocumentRevision": "revision-1",
+                "expectedResearchRevision": "research-1",
                 "projectId": "project-1",
                 "documentId": "document-1",
                 "workspaceId": "workspace-1"
@@ -889,10 +915,7 @@ mod tests {
                 "cancel_adversarial_review",
                 "research.cancelAdversarialReview",
             ),
-            (
-                "save_adversarial_review",
-                "research.saveAdversarialReview",
-            ),
+            ("save_adversarial_review", "research.saveAdversarialReview"),
             (
                 "decide_adversarial_review",
                 "research.decideAdversarialReview",
@@ -1035,8 +1058,14 @@ mod tests {
             &fake_live,
         )
         .unwrap();
-        assert_eq!(response["result"]["structuredContent"]["method"], "project.reconcileScenarioTurn");
-        assert_eq!(response["result"]["structuredContent"]["params"]["expectedTipEditIds"][1], "turn-right");
+        assert_eq!(
+            response["result"]["structuredContent"]["method"],
+            "project.reconcileScenarioTurn"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["params"]["expectedTipEditIds"][1],
+            "turn-right"
+        );
     }
 
     #[test]
@@ -1048,8 +1077,14 @@ mod tests {
             }),
             &fake_live,
         ).unwrap();
-        assert_eq!(response["result"]["structuredContent"]["method"], "project.readScenario");
-        assert_eq!(response["result"]["structuredContent"]["params"]["scenarioId"], "test-scenario");
+        assert_eq!(
+            response["result"]["structuredContent"]["method"],
+            "project.readScenario"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["params"]["scenarioId"],
+            "test-scenario"
+        );
     }
 
     #[test]

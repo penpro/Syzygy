@@ -145,6 +145,7 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-updater",
  "tauri-plugin-upload",
+ "tokio",
  "url",
  "windows",
  "wit-parser",

@@ -10,6 +10,7 @@ import { useStore } from '../store'
 import { driveWorkspaceLabel } from './driveProjectDiscovery'
 import { joinSharedDriveProject, shareProjectToSelectedDrive } from './driveProjectActions'
 import { subscribeDriveProjectStatus, type DriveProjectSyncStatus } from './driveProjectStatus'
+import { compactDriveProject } from './driveProjectMaintenanceRegistry'
 import type { ResearchProjectManifest } from './schema'
 import {
   automationProjectDocumentReady,
@@ -124,8 +125,44 @@ export function DriveProjectControls({ project }: { project?: ResearchProjectMan
     }
   }
 
+  const compact = async () => {
+    if (!project || project.transport.kind !== 'drive') return
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      const result = await compactDriveProject(project.id)
+      if (!result.complete) {
+        setMessage(`Compaction paused safely after archiving ${result.archivedUpdateCount} applied update records. ${result.remainingIncludedUpdateCount} applied records remain active; run it again to continue.`)
+      } else if (result.archivedUpdateCount === 0) {
+        setMessage(`Drive history already has a current snapshot. ${result.retainedConcurrentUpdateCount} concurrent update records remain active.`)
+      } else {
+        setMessage(`Compacted Drive history by archiving ${result.archivedUpdateCount} applied update records. ${result.retainedConcurrentUpdateCount} concurrent update records remained active.`)
+      }
+    } catch (value) {
+      setError(`Drive compaction failed: ${errorText(value)}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (project?.transport.kind === 'drive') {
-    return <span className={`workspace-status mono${syncStatus?.state === 'error' ? ' error' : ''}`}>{syncLabel(syncStatus)}</span>
+    return (
+      <div className="drive-project-controls">
+        <span className={`workspace-status mono${syncStatus?.state === 'error' ? ' error' : ''}`}>{syncLabel(syncStatus)}</span>
+        <button
+          className="btn sm"
+          type="button"
+          disabled={busy || !documentReady || syncStatus?.state === 'error'}
+          title="Append a complete snapshot, then archive only Drive updates this installation has already applied. Concurrent updates stay active."
+          onClick={() => void compact()}
+        >
+          {busy ? 'Compacting...' : 'Compact Drive history'}
+        </button>
+        {message && <span className="drive-project-message">{message}</span>}
+        {error && <span className="drive-project-message error" role="alert">{error}</span>}
+      </div>
+    )
   }
 
   if (project) {

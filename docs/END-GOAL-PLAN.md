@@ -386,6 +386,14 @@ Gate: partitioned two-machine edits converge; no unreferenced large download; in
 compaction recovers; P-12/P-13/S-01/S-02/S-05 and authorization tests pass; network trace and
 Drive object layout match docs.
 
+Progress: explicit compaction now pulls and flushes first, applies exact document/research guards for
+MCP, appends a complete Yjs snapshot, then moves at most 200 already-applied update records per run
+into a recoverable sibling folder with eight-way bounded concurrency. Unknown concurrent and failed
+moves stay active. Headless tests prove clean-install reconstruction, concurrent retention, partial
+retry, and replacement-provider lifecycle; Rust proves the bounded plan. Real-Drive interrupted-run,
+quota/latency, archive-retention, and packaged two-install evidence remain open, so the affected
+capabilities stay `implemented_unverified`.
+
 ### Phase 5 — optional real-time and presence (`L`)
 
 Deliver provider-neutral awareness UI and a documented self-hostable WebSocket deployment with

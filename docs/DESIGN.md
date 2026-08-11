@@ -109,6 +109,13 @@ evaluation panel. Versioning is live: the rail provides a compact optional note,
 bounded block-change list. Saving and diffing require no model. The researcher display name is
 editable in Settings and old attribution remains visually historical.
 
+The optional **Remote perspective** advanced tool panel accepts only the documented bounded schema
+subset. A returned function call is always labeled **inspect only · not executed**. Each call shows
+one separate structural state—schema pending, matches, mismatch, or definition missing—alongside
+**domain unreviewed · not executable**. Validation failures may show bounded path/keyword codes but
+never an execution affordance. A green structural match must not look like approval, truth, safety,
+or permission; domain review and any future authority grant are distinct later actions.
+
 Restore is a deliberate two-step action on a non-head checkpoint. **Prepare restore** reveals the
 exact short checkpoint ID, a cancel action, and **Restore as new version**. The copy states that the
 live draft is replaced, a new child is created on the current head, and existing versions remain.

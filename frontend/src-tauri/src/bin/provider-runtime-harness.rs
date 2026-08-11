@@ -2,10 +2,12 @@
 
 use app_lib::credential_vault::{CredentialId, CredentialVault, CredentialVaultError};
 use app_lib::model_provider::{
-    GenerationRequest, InputRole, ProviderInput, ProviderSecret, RemoteProviderId,
+    GenerationRequest, InputRole, ProviderInput, ProviderSecret, ProviderToolDefinition,
+    RemoteProviderId,
 };
 use app_lib::provider_runtime::{execute_with, ProviderRuntimeState, ProviderTaskRequest};
 use reqwest::{Client, Url};
+use serde_json::json;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;
@@ -32,6 +34,7 @@ impl CredentialVault for FixtureVault {
 }
 
 fn main() {
+    let tool_validation_mode = std::env::args().any(|argument| argument == "--tool-validation");
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback fixture");
     let endpoint = Url::parse(&format!(
         "http://{}/v1/responses",
@@ -46,7 +49,11 @@ fn main() {
         assert!(request
             .to_ascii_lowercase()
             .contains("authorization: bearer interop-secret-canary"));
-        let body = r#"{"id":"interop-response","status":"completed","model":"interop-model","output":[{"type":"message","content":[{"type":"output_text","text":"interop answer"}]}],"usage":{"input_tokens":5,"output_tokens":2,"total_tokens":7}}"#;
+        let body = if tool_validation_mode {
+            r#"{"id":"interop-tool-response","status":"completed","model":"interop-model","output":[{"type":"function_call","call_id":"call-valid","name":"lookup_source","arguments":"{\"query\":\"budget\",\"limit\":5}"},{"type":"function_call","call_id":"call-invalid","name":"lookup_source","arguments":"{\"query\":42,\"ambientPath\":\"C:\\\\private\"}"},{"type":"function_call","call_id":"call-unknown","name":"ambient_shell","arguments":"{\"command\":\"whoami\"}"}],"usage":{"input_tokens":5,"output_tokens":9,"total_tokens":14}}"#
+        } else {
+            r#"{"id":"interop-response","status":"completed","model":"interop-model","output":[{"type":"message","content":[{"type":"output_text","text":"interop answer"}]}],"usage":{"input_tokens":5,"output_tokens":2,"total_tokens":7}}"#
+        };
         write!(
             stream,
             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
@@ -70,7 +77,22 @@ fn main() {
                 content: "interop prompt canary".to_owned(),
             }],
             max_output_tokens: 128,
-            tools: Vec::new(),
+            tools: tool_validation_mode
+                .then(|| ProviderToolDefinition {
+                    name: "lookup_source".to_owned(),
+                    description: "Propose a bounded source lookup.".to_owned(),
+                    parameters: json!({
+                        "type": "object",
+                        "properties": {
+                            "query": { "type": "string", "minLength": 1, "maxLength": 200 },
+                            "limit": { "type": "integer", "minimum": 1, "maximum": 20 }
+                        },
+                        "required": ["query"],
+                        "additionalProperties": false
+                    }),
+                })
+                .into_iter()
+                .collect(),
         },
     };
     let outcome = tauri::async_runtime::block_on(execute_with(
@@ -83,8 +105,16 @@ fn main() {
     ))
     .expect("provider runtime fixture");
     server.join().expect("fixture server");
-    println!(
-        "{}",
-        serde_json::to_string(&outcome.run_record).expect("serialize provider run record")
-    );
+    if tool_validation_mode {
+        println!(
+            "{}",
+            serde_json::to_string(&outcome.response.expect("tool validation response"))
+                .expect("serialize provider tool validation response")
+        );
+    } else {
+        println!(
+            "{}",
+            serde_json::to_string(&outcome.run_record).expect("serialize provider run record")
+        );
+    }
 }

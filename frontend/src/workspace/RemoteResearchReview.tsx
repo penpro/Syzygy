@@ -6,6 +6,8 @@ import {
   providerGenerate,
   providerGenerateStream,
   type ProviderTaskOutcome,
+  type ProviderToolDefinition,
+  type ProviderToolProposalValidation,
   type RemoteProviderId,
 } from '../tauri'
 import {
@@ -13,6 +15,7 @@ import {
   initialProviderStreamState,
   type ProviderStreamState,
 } from '../providerStream'
+import { validateProviderToolProposal } from '../providerToolValidation'
 import { getAutomationEditorController } from './editorAutomationRegistry'
 import type { ResearchProjectManifest } from './schema'
 import { buildRemoteReviewRequest, parseProviderToolDefinitions, REMOTE_REVIEW_PROVIDERS } from './remoteResearchTask'
@@ -26,13 +29,23 @@ export type RemoteResearchReviewResultProps = {
   model: string
   outcome: ProviderTaskOutcome | null
   streamState: ProviderStreamState | null
+  toolDefinitions?: ProviderToolDefinition[]
 }
 
 export function providerUsesNativeStreaming(provider: RemoteProviderId): boolean {
   return provider === 'openai' || provider === 'anthropic' || provider === 'gemini' || provider === 'xai'
 }
 
-export function RemoteResearchReviewResult({ provider, model, outcome, streamState }: RemoteResearchReviewResultProps) {
+function validationLabel(validation: ProviderToolProposalValidation): string {
+  switch (validation.schemaStatus) {
+    case 'pending': return 'Schema check pending · domain unreviewed · not executable'
+    case 'valid': return 'Schema matches · domain unreviewed · not executable'
+    case 'invalid': return 'Schema mismatch · domain unreviewed · not executable'
+    case 'missing-definition': return 'Definition missing · domain unreviewed · not executable'
+  }
+}
+
+export function RemoteResearchReviewResult({ provider, model, outcome, streamState, toolDefinitions = [] }: RemoteResearchReviewResultProps) {
   const response = outcome?.response
   const text = response?.text ?? streamState?.text ?? ''
   const toolProposals = response?.toolProposals ?? streamState?.toolCalls ?? []
@@ -47,12 +60,23 @@ export function RemoteResearchReviewResult({ provider, model, outcome, streamSta
       {toolProposals.length ? (
         <div className="remote-review-tool-proposals">
           <div className="remote-review-tool-heading">Tool proposals · inspect only · not executed</div>
-          {toolProposals.map((proposal) => (
-            <div className="remote-review-tool-proposal" key={proposal.callId}>
-              <div className="mono">{proposal.name} · {proposal.callId}</div>
-              <pre>{proposal.arguments ? JSON.stringify(proposal.arguments, null, 2) : ('argumentsText' in proposal ? proposal.argumentsText : '')}</pre>
-            </div>
-          ))}
+          {toolProposals.map((proposal) => {
+            const validation = 'validation' in proposal
+              ? proposal.validation
+              : validateProviderToolProposal(toolDefinitions, proposal)
+            return (
+              <div className="remote-review-tool-proposal" key={proposal.callId}>
+                <div className="mono">{proposal.name} · {proposal.callId}</div>
+                <div className={`remote-review-tool-validation ${validation.schemaStatus}`}>
+                  {validationLabel(validation)}
+                </div>
+                {validation.errors.length ? (
+                  <div className="remote-review-tool-errors mono">Schema issues: {validation.errors.join(', ')}</div>
+                ) : null}
+                <pre>{proposal.arguments ? JSON.stringify(proposal.arguments, null, 2) : ('argumentsText' in proposal ? proposal.argumentsText : '')}</pre>
+              </div>
+            )
+          })}
         </div>
       ) : null}
       {streamState?.warnings.length ? <div className="remote-review-retention mono">Provider notices: {streamState.warnings.join(', ')}</div> : null}
@@ -67,6 +91,7 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
   const [model, setModel] = useState(REMOTE_REVIEW_PROVIDERS[0].defaultModel)
   const [question, setQuestion] = useState(DEFAULT_QUESTION)
   const [toolDefinitionsJson, setToolDefinitionsJson] = useState('')
+  const [submittedToolDefinitions, setSubmittedToolDefinitions] = useState<ProviderToolDefinition[]>([])
   const [phase, setPhase] = useState<ReviewPhase>('idle')
   const [message, setMessage] = useState('Nothing is sent until the native Send once confirmation.')
   const [outcome, setOutcome] = useState<ProviderTaskOutcome | null>(null)
@@ -78,6 +103,7 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
     setModel(REMOTE_REVIEW_PROVIDERS.find(({ id }) => id === next)?.defaultModel ?? '')
     setOutcome(null)
     setStreamState(null)
+    setSubmittedToolDefinitions([])
     setPhase('idle')
     setMessage('Nothing is sent until the native Send once confirmation.')
   }
@@ -98,6 +124,7 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
       if (!await providerCredentialStatus(provider)) throw new Error(`Add a ${REMOTE_REVIEW_PROVIDERS.find(({ id }) => id === provider)?.name} key in Settings first.`)
       const snapshot = getAutomationEditorController(project.id).read()
       const toolDefinitions = parseProviderToolDefinitions(toolDefinitionsJson)
+      setSubmittedToolDefinitions(toolDefinitions)
       const request = await buildRemoteReviewRequest({
         provider, model, question, runId: `remote-review-${crypto.randomUUID()}`, callId,
         toolDefinitions,
@@ -175,7 +202,7 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
       </label>
       <details className="remote-review-tools">
         <summary>Tool proposals (advanced)</summary>
-        <p>Optionally provide a JSON array of custom function schemas. The model may propose calls; Syzygy displays them but never executes them or sends results back.</p>
+        <p>Optionally provide a JSON array of custom function schemas from Syzygy's bounded safe subset. Returned arguments are checked against the matching schema, but domain review remains separate. Syzygy never executes the calls or sends results back.</p>
         <label>
           Function schemas (JSON)
           <textarea
@@ -195,7 +222,13 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
         {busy && <button className="btn ghost danger" type="button" onClick={() => void cancelReview()}>Cancel</button>}
       </div>
       <div className={`remote-review-status ${phase}`} role="status">{message}</div>
-      <RemoteResearchReviewResult provider={provider} model={model} outcome={outcome} streamState={streamState} />
+      <RemoteResearchReviewResult
+        provider={provider}
+        model={model}
+        outcome={outcome}
+        streamState={streamState}
+        toolDefinitions={submittedToolDefinitions}
+      />
     </div>
   )
 }

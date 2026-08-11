@@ -1,4 +1,5 @@
 import type { ProviderResearchTaskRequest, ProviderToolDefinition, RemoteProviderId } from '../tauri'
+import { assertSafeProviderToolSchema } from '../providerToolValidation'
 
 const MAX_TOOL_DEFINITIONS = 32
 const MAX_TOOL_DEFINITION_JSON_CHARS = 256 * 1024
@@ -54,6 +55,7 @@ export function parseProviderToolDefinitions(value: string): ProviderToolDefinit
       throw new Error(`Tool ${name} parameters must be a JSON Schema object with type "object"`)
     }
     if (JSON.stringify(parameters).length > 64 * 1024) throw new Error(`Tool ${name} schema exceeds 64 KiB`)
+    assertSafeProviderToolSchema(parameters, name)
     names.add(name)
     return { name, description, parameters }
   })

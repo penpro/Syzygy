@@ -135,6 +135,14 @@ export interface ProviderToolProposal {
   callId: string
   name: string
   arguments: Record<string, unknown>
+  validation: ProviderToolProposalValidation
+}
+
+export interface ProviderToolProposalValidation {
+  schemaStatus: 'pending' | 'valid' | 'invalid' | 'missing-definition'
+  domainStatus: 'unreviewed'
+  executable: false
+  errors: string[]
 }
 
 export interface ProviderTaskOutcome {

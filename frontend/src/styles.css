@@ -2758,6 +2758,25 @@ input.workspace-title-input:focus {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.remote-review-tool-validation {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.4;
+}
+.remote-review-tool-validation.valid {
+  color: var(--accent-2);
+}
+.remote-review-tool-validation.invalid,
+.remote-review-tool-validation.missing-definition {
+  color: var(--danger);
+}
+.remote-review-tool-errors {
+  margin-top: 3px;
+  color: var(--danger);
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
 .workspace-rail-node {
   position: relative;
   margin: 18px 0 12px;

@@ -87,6 +87,12 @@ from the checked-in goal and supervisor templates; the independent supervisor st
 recovers after two silent one-minute checks, resumes from the last verified Git checkpoint, and
 removes itself when the goal finishes.
 
+If every sandboxed command fails before PowerShell, Node, or Git starts with
+`helper_unknown_error: apply deny-read ACLs`, stop repository work and follow the dated
+[Codex Windows sandbox incident recovery](UNATTENDED-GOAL-FRAMEWORK.md#codex-windows-sandbox-incident--2026-08-10).
+The failure is user-level Codex sandbox state, not evidence of repository corruption; do not reset
+the worktree or broadly rewrite repository ACLs.
+
 ## Headless local-AI lifecycle proof
 
 ```powershell
@@ -595,13 +601,21 @@ snapshots, and optional bounded custom-function definitions; Rust serializes the
 derives the categories and unique provenance IDs, includes tool names/descriptions/schemas in the
 native disclosure, then validates bounds before opening the native dialog. The workspace displays
 normalized calls as inspect-only proposals and has no execution or result-return path. A content-free
-output hash binds both response text and proposal bodies while the run record retains neither body.
+output hash binds both response text, proposal bodies, and their validation state while the run
+record retains neither body. Definitions outside the depth/node/property/keyword-bounded schema
+subset fail before disclosure. Rust validates every complete proposal against the exact approved
+definition and authors valid/invalid/missing-definition status; the frontend's pinned AJV 2020
+validator independently checks definition preflight and streaming display. Both paths keep domain
+review unperformed and execution false.
 Evidence and remaining domain/live-provider gaps are recorded in
 `docs/audits/runs/PROVIDER-RESEARCH-ENVELOPE-2026-07-15.json`.
 The evidence and explicit limitations are recorded in
 `docs/audits/runs/NATIVE-PROVIDER-DISCLOSURE-2026-07-15.json`.
 The provider-neutral proposal lifecycle, hostile fixtures, limits, authority exclusions, and live
 non-claims are recorded in `docs/audits/runs/PROVIDER-TOOL-PROPOSALS-2026-08-11.json`.
+The safe-subset keyword/depth/node gates, cross-language valid/invalid/missing-definition fixtures,
+bounded diagnostics, and remaining domain/authority non-claims are recorded in
+`docs/audits/runs/PROVIDER-TOOL-SCHEMA-VALIDATION-2026-08-11.json`.
 
 Settings now has a collapsed remote-provider key section for OpenAI, Anthropic, Gemini, and xAI.
 The component calls only typed status/set/delete wrappers, keeps the key out of React state and all

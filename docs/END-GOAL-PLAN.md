@@ -646,8 +646,8 @@ live-provider certification separate from local conformance and report:
 
 Progress: OpenAI Responses one-shot request construction, bounded whole-operation timeout,
 idempotent in-flight/inter-event cancellation, and fake-network incremental SSE dispatch now pass
-unwired Rust conformance suites and are reported as `request-stream-and-tool-proposal-conformance`.
-Aggregate remote execution is now `native-disclosure-openai-anthropic-gemini-xai-stream-tool-proposal-review-ui-no-live-proof`: the registered task bridge
+unwired Rust conformance suites and are reported as `request-stream-and-schema-validated-tool-proposal-conformance`.
+Aggregate remote execution is now `native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-tool-proposal-review-ui-no-live-proof`: the registered task bridge
 retrieves an OS-vault credential, applies native one-use disclosure/timeout/cancellation controls,
 normalizes the response, and authors content-free provenance. All four built-in providers use an ordered per-call Tauri
 channel and bounded Rust/TypeScript accumulators so one workspace component can render the exact-draft
@@ -655,8 +655,11 @@ review incrementally without mutating shared state. xAI also binds its mandatory
 header into the typed outcome and content-free run record before any stream event is dispatched.
 All four transports map bounded custom-function definitions and normalize calls to a common
 start/delta/complete lifecycle. The product renders those calls as transient inspect-only proposals;
-it has no result loop or MCP/Drive/filesystem/plugin/editor/network/shared-mutation authority. Tool
-execution, argument-schema validation before execution, slow-consumer/backpressure proof, packaged adversarial UI interaction, and
+Rust and the pinned frontend AJV independently classify complete arguments against the exact
+approved safe-subset schema as valid, invalid, or missing-definition. Domain status remains
+unreviewed and execution false. The surface has no result loop or MCP/Drive/filesystem/plugin/editor/
+network/shared-mutation authority. Tool execution, domain validation/authority design,
+slow-consumer/backpressure proof, packaged adversarial UI interaction, and
 opt-in live-provider evidence remain open; the durable product workflow and shared history are implemented.
 The cross-language record gate now passes: the Rust loopback execution record is explicitly marked
 as conformance evidence and passes both the public TypeScript schema and semantic validator without
@@ -664,16 +667,17 @@ leaking its secret or prompt canaries.
 
 Anthropic Messages request/stream/control conformance now passes the same bounded Rust boundary and
 the exact-draft review routes its normalized SSE events and fragmented tool proposals through the
-scoped product channel. Tool execution/result continuation and live-provider evidence remain open,
+scoped product channel with safe-subset schema status. Tool execution/result continuation, domain
+validation/authority design, and live-provider evidence remain open,
 so no live compatibility claim is made.
 Gemini Interactions stable-v1 request/stream/control conformance now passes with storage,
 background execution, and thought summaries forced off. Its indexed SSE step path is routed through
-the exact-draft review while omitting thought/signature bodies and normalizing complete function-call
-steps. Tool execution/result continuation and
+the exact-draft review while omitting thought/signature bodies and normalizing/schema-validating complete function-call
+steps. Tool execution/result continuation, domain validation/authority design, and
 live-provider evidence remain open, so no live compatibility claim is made.
 xAI Responses request/stream/control conformance now passes with storage off, no thread/cache
 identifier, explicit pre-dispatch ZDR response attestation, bounded Responses SSE normalization,
-whole-call custom-function proposal normalization, and exact-draft product routing. Tool execution/result continuation, encrypted-reasoning/
+whole-call custom-function proposal normalization/schema validation, and exact-draft product routing. Tool execution/result continuation, domain validation/authority design, encrypted-reasoning/
 WebSocket continuation, and live-provider evidence remain open, so no live compatibility claim is made.
 
 Credential progress: the cross-platform OS-vault abstraction, zeroizing secret wrapper, memory

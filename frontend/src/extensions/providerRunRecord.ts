@@ -8,6 +8,7 @@ export type ProviderAdapterStatus =
   | 'request-control-conformance'
   | 'request-and-stream-control-conformance'
   | 'request-stream-and-tool-proposal-conformance'
+  | 'request-stream-and-schema-validated-tool-proposal-conformance'
   | 'live-verified'
 
 export interface ProviderRunRecord {

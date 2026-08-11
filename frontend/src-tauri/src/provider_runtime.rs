@@ -11,11 +11,11 @@ use crate::model_provider::{
     execute_gemini_response_controlled, execute_gemini_stream_controlled,
     execute_openai_response_controlled, execute_openai_stream_controlled,
     execute_xai_response_controlled, execute_xai_stream_controlled, normalize_tool_proposal,
-    provider_execution, GenerationRequest, InputRole, NormalizedResponse, NormalizedToolProposal,
-    NormalizedUsage, ProviderCancellation, ProviderError, ProviderInput, ProviderToolDefinition,
-    RemoteProviderId, TransmissionApproval, ANTHROPIC_ADAPTER_STATUS, GEMINI_ADAPTER_STATUS,
-    MAX_TOOL_ARGUMENT_BYTES, MAX_TOOL_ARGUMENT_TOTAL_BYTES, MAX_TOOL_CALLS, OPENAI_ADAPTER_STATUS,
-    XAI_ADAPTER_STATUS,
+    provider_execution, validate_tool_proposals, GenerationRequest, InputRole, NormalizedResponse,
+    NormalizedToolProposal, NormalizedUsage, ProviderCancellation, ProviderError, ProviderInput,
+    ProviderToolDefinition, RemoteProviderId, TransmissionApproval, ANTHROPIC_ADAPTER_STATUS,
+    GEMINI_ADAPTER_STATUS, MAX_TOOL_ARGUMENT_BYTES, MAX_TOOL_ARGUMENT_TOTAL_BYTES, MAX_TOOL_CALLS,
+    OPENAI_ADAPTER_STATUS, XAI_ADAPTER_STATUS,
 };
 use crate::provider_stream::NormalizedStreamEvent;
 use chrono::{SecondsFormat, Utc};
@@ -1467,7 +1467,7 @@ impl ProviderStreamAccumulator {
         if !self.active_tools.is_empty() {
             return Err(ProviderError::MalformedResponse);
         }
-        Ok(NormalizedResponse {
+        let mut response = NormalizedResponse {
             provider: request.provider,
             id: self.response_id.ok_or(ProviderError::MalformedResponse)?,
             status: status.clone(),
@@ -1480,7 +1480,9 @@ impl ProviderStreamAccumulator {
             unknown_output_types: self.warnings,
             tool_proposals: self.tool_proposals,
             usage: self.usage,
-        })
+        };
+        validate_tool_proposals(&request.generation.tools, &mut response.tool_proposals);
+        Ok(response)
     }
 }
 
@@ -1766,21 +1768,24 @@ pub async fn execute_with<V: CredentialVault>(
     }
     let completed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     match result {
-        Ok((response, zero_data_retention)) => Ok(ProviderTaskOutcome {
-            run_record: run_record(
-                &request,
-                &endpoint,
-                true,
-                &started_at,
-                &completed_at,
-                Some(&response),
+        Ok((mut response, zero_data_retention)) => {
+            validate_tool_proposals(&request.generation.tools, &mut response.tool_proposals);
+            Ok(ProviderTaskOutcome {
+                run_record: run_record(
+                    &request,
+                    &endpoint,
+                    true,
+                    &started_at,
+                    &completed_at,
+                    Some(&response),
+                    zero_data_retention,
+                    None,
+                ),
+                response: Some(response),
                 zero_data_retention,
-                None,
-            ),
-            response: Some(response),
-            zero_data_retention,
-            error_code: None,
-        }),
+                error_code: None,
+            })
+        }
         Err(error) => Ok(ProviderTaskOutcome {
             run_record: run_record(
                 &request,
@@ -2397,14 +2402,34 @@ mod tests {
                 status: "completed".to_owned(),
             })
             .unwrap();
+        let mut tool_task = task();
+        tool_task.generation.tools = vec![ProviderToolDefinition {
+            name: "lookup_source".to_owned(),
+            description: "Propose a bounded lookup.".to_owned(),
+            parameters: json!({
+                "type": "object",
+                "properties": { "query": { "type": "string", "maxLength": 200 } },
+                "required": ["query"],
+                "additionalProperties": false
+            }),
+        }];
         let response = accumulator
-            .into_response(&task())
+            .into_response(&tool_task)
             .expect("tool proposal response");
         assert_eq!(response.tool_proposals.len(), 1);
         assert_eq!(
             response.tool_proposals[0].arguments,
             json!({ "query": "budget" })
         );
+        assert_eq!(
+            response.tool_proposals[0].validation.schema_status,
+            crate::model_provider::ProviderToolSchemaStatus::Valid
+        );
+        assert_eq!(
+            response.tool_proposals[0].validation.domain_status,
+            crate::model_provider::ProviderToolDomainStatus::Unreviewed
+        );
+        assert!(!response.tool_proposals[0].validation.executable);
         let proposal_hash = normalized_output_sha256(&response);
         let mut without_proposal = response.clone();
         without_proposal.tool_proposals.clear();
@@ -2766,6 +2791,11 @@ mod tests {
             response.tool_proposals[0].arguments,
             json!({ "query": "runtime-xai-tool-canary" })
         );
+        assert_eq!(
+            response.tool_proposals[0].validation.schema_status,
+            crate::model_provider::ProviderToolSchemaStatus::MissingDefinition
+        );
+        assert!(!response.tool_proposals[0].validation.executable);
         assert_eq!(outcome.zero_data_retention, Some(true));
         assert_eq!(outcome.run_record["request"]["stream"], true);
         assert_eq!(outcome.run_record["provider"]["id"], "xai");

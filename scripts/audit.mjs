@@ -1592,6 +1592,10 @@ record(
     providerStreamSource.includes('xai_responses_decoder_preserves_provider_identity_and_omits_error_body') &&
     providerRuntimeSource.includes('pub struct ProviderToolDefinition') &&
     providerRuntimeSource.includes('MAX_TOOL_ARGUMENT_TOTAL_BYTES') &&
+    providerRuntimeSource.includes('MAX_TOOL_SCHEMA_DEPTH') &&
+    providerRuntimeSource.includes('ProviderToolProposalValidation') &&
+    providerRuntimeSource.includes('validate_tool_proposals') &&
+    providerRuntimeSource.includes('tool_proposal_schema_validation_is_bounded_explicit_and_never_executable') &&
     providerRuntimeSource.includes('"parallel_tool_calls"') &&
     providerRuntimeSource.includes('"input_schema"') &&
     providerStreamSource.includes('ToolCallStart') &&
@@ -1600,8 +1604,9 @@ record(
     providerStreamSource.includes('provider_tool_call_shapes_normalize_to_one_non_executing_lifecycle') &&
     providerTaskRuntimeSource.includes('"tool names, descriptions, and argument schemas"') &&
     providerTaskRuntimeSource.includes('normalized_output_sha256') &&
+    providerTaskRuntimeSource.includes('validate_tool_proposals(&request.generation.tools') &&
     providerTaskRuntimeSource.includes('stream_accumulator_retains_validated_tool_proposals_without_executing_them') &&
-    platformContractsSource.includes('request-stream-and-tool-proposal-conformance') &&
+    platformContractsSource.includes('request-stream-and-schema-validated-tool-proposal-conformance') &&
     platformContractsSource.includes('ANTHROPIC_ADAPTER_STATUS') &&
     platformContractsSource.includes('GEMINI_ADAPTER_STATUS') &&
     platformContractsSource.includes('XAI_ADAPTER_STATUS') &&
@@ -1633,7 +1638,7 @@ record(
     providerTaskRuntimeSource.includes('.blocking_show()') &&
     providerTaskRuntimeSource.includes('spawn_blocking') &&
     !providerTaskRuntimeSource.includes('pub disclosure_accepted') &&
-    platformContractsSource.includes('"remoteProviderAdapters": "native-disclosure-openai-anthropic-gemini-xai-stream-tool-proposal-review-ui-no-live-proof"') &&
+    platformContractsSource.includes('"remoteProviderAdapters": "native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-tool-proposal-review-ui-no-live-proof"') &&
     platformContractsSource.includes('"providerTaskRuntime": "native-disclosure-research-envelope"') &&
     providerTaskRuntimeSource.includes('"executionMode": execution_mode') &&
     text('frontend/src/tauri.ts').includes("invoke('provider_generate'") &&
@@ -1651,6 +1656,14 @@ record(
     text('frontend/src/providerStream.ts').includes("type: 'tool-call-complete'") &&
     text('frontend/src/providerStream.test.ts').includes('fails closed on missing, duplicate, or out-of-order protocol events') &&
     text('frontend/src/providerStream.test.ts').includes('assembles inspectable tool proposals without adding execution authority') &&
+    text('frontend/src/providerToolValidation.ts').includes('SAFE_SCHEMA_KEYWORDS') &&
+    text('frontend/src/providerToolValidation.ts').includes("domainStatus: 'unreviewed'") &&
+    text('frontend/src/providerToolValidation.ts').includes('executable: false') &&
+    text('frontend/src/providerToolValidation.test.ts').includes('distinguishes schema validity from domain review and execution authority') &&
+    text('frontend/src/providerToolValidationInterop.test.ts').includes('agrees on valid, invalid, and missing-definition status without execution authority') &&
+    text('frontend/package.json').includes('test:provider-tool-validation-interop') &&
+    text('scripts/provider-tool-validation-interop.mjs').includes('SYZYGY_PROVIDER_TOOL_VALIDATION') &&
+    text('frontend/src-tauri/src/bin/provider-runtime-harness.rs').includes('--tool-validation') &&
     text('frontend/src/workspace/RemoteResearchReview.tsx').includes('providerCancel(activeCallId)') &&
     text('frontend/src/workspace/RemoteResearchReview.tsx').includes('getAutomationEditorController(project.id).read()') &&
     text('frontend/src/workspace/remoteResearchTask.ts').includes("taskType: 'research.remote-review'") &&
@@ -1658,6 +1671,7 @@ record(
     text('frontend/src/workspace/remoteResearchTask.test.ts').includes('without forging disclosure or provenance fields') &&
     text('frontend/src/workspace/remoteResearchTask.ts').includes('parseProviderToolDefinitions') &&
     text('frontend/src/workspace/RemoteResearchReview.tsx').includes('Tool proposals · inspect only · not executed') &&
+    text('frontend/src/workspace/RemoteResearchReview.tsx').includes('Schema matches · domain unreviewed · not executable') &&
     !text('frontend/src/workspace/RemoteResearchReview.tsx').includes('Run tool') &&
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_authorize'") &&
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_execute'") &&

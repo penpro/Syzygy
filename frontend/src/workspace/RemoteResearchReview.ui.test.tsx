@@ -58,11 +58,59 @@ describe('remote research streaming result', () => {
     })
 
     const html = renderToStaticMarkup(
-      <RemoteResearchReviewResult provider="xai" model="fixture-model" outcome={null} streamState={streamState} />,
+      <RemoteResearchReviewResult
+        provider="xai"
+        model="fixture-model"
+        outcome={null}
+        streamState={streamState}
+        toolDefinitions={[{
+          name: 'lookup_source',
+          description: 'Propose a bounded source lookup.',
+          parameters: {
+            type: 'object',
+            properties: { query: { type: 'string' } },
+            required: ['query'],
+            additionalProperties: false,
+          },
+        }]}
+      />,
     )
     expect(html).toContain('Tool proposals · inspect only · not executed')
     expect(html).toContain('lookup_source')
     expect(html).toContain('&quot;query&quot;: &quot;budget&quot;')
+    expect(html).toContain('Schema matches · domain unreviewed · not executable')
     expect(html).not.toContain('Run tool')
+  })
+
+  it('renders schema failure and missing-definition state without creating an execution control', () => {
+    let streamState = initialProviderStreamState()
+    for (const event of [
+      { type: 'message-start' as const, provider: 'anthropic', responseId: 'response-invalid' },
+      { type: 'tool-call-start' as const, callId: 'call-invalid', name: 'lookup_source' },
+      { type: 'tool-call-delta' as const, callId: 'call-invalid', argumentsDelta: '{"query":42}' },
+      { type: 'tool-call-complete' as const, callId: 'call-invalid', name: 'lookup_source', arguments: { query: 42 } },
+    ]) streamState = applyProviderStreamEvent(streamState, event)
+
+    const invalid = renderToStaticMarkup(
+      <RemoteResearchReviewResult
+        provider="anthropic"
+        model="fixture-model"
+        outcome={null}
+        streamState={streamState}
+        toolDefinitions={[{
+          name: 'lookup_source',
+          description: 'Propose a bounded source lookup.',
+          parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+        }]}
+      />,
+    )
+    expect(invalid).toContain('Schema mismatch · domain unreviewed · not executable')
+    expect(invalid).toContain('Schema issues:')
+
+    const missing = renderToStaticMarkup(
+      <RemoteResearchReviewResult provider="anthropic" model="fixture-model" outcome={null} streamState={streamState} />,
+    )
+    expect(missing).toContain('Definition missing · domain unreviewed · not executable')
+    expect(missing).not.toContain('Run tool')
   })
 })

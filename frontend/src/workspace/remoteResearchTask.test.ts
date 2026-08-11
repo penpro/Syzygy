@@ -61,6 +61,7 @@ describe('remote research review request', () => {
 
     expect(() => parseProviderToolDefinitions('[{"name":"bad space","description":"x","parameters":{"type":"object"}}]')).toThrow('Tool names')
     expect(() => parseProviderToolDefinitions('[{"name":"x","description":"x","parameters":{"type":"string"}}]')).toThrow('JSON Schema object')
+    expect(() => parseProviderToolDefinitions('[{"name":"unsafe","description":"x","parameters":{"type":"object","properties":{"query":{"type":"string","pattern":"(a+)+$"}}}}]')).toThrow('unsupported keyword pattern')
     expect(() => parseProviderToolDefinitions(JSON.stringify([
       { name: 'same', description: 'one', parameters: { type: 'object' } },
       { name: 'same', description: 'two', parameters: { type: 'object' } },

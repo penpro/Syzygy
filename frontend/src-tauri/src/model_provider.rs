@@ -25,10 +25,14 @@ use std::collections::{BTreeMap, HashSet};
 use std::{fmt, time::Duration};
 use zeroize::Zeroize;
 
-pub const OPENAI_ADAPTER_STATUS: &str = "request-stream-and-tool-proposal-conformance";
-pub const ANTHROPIC_ADAPTER_STATUS: &str = "request-stream-and-tool-proposal-conformance";
-pub const GEMINI_ADAPTER_STATUS: &str = "request-stream-and-tool-proposal-conformance";
-pub const XAI_ADAPTER_STATUS: &str = "request-stream-and-tool-proposal-conformance";
+pub const OPENAI_ADAPTER_STATUS: &str =
+    "request-stream-and-schema-validated-tool-proposal-conformance";
+pub const ANTHROPIC_ADAPTER_STATUS: &str =
+    "request-stream-and-schema-validated-tool-proposal-conformance";
+pub const GEMINI_ADAPTER_STATUS: &str =
+    "request-stream-and-schema-validated-tool-proposal-conformance";
+pub const XAI_ADAPTER_STATUS: &str =
+    "request-stream-and-schema-validated-tool-proposal-conformance";
 pub const DEFAULT_PROVIDER_TIMEOUT: Duration = Duration::from_secs(60);
 const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_STREAM_BYTES: usize = 32 * 1024 * 1024;
@@ -38,6 +42,9 @@ pub(crate) const MAX_TOOL_ARGUMENT_BYTES: usize = 256 * 1024;
 pub(crate) const MAX_TOOL_ARGUMENT_TOTAL_BYTES: usize = 1024 * 1024;
 const MAX_TOOL_SCHEMA_BYTES: usize = 64 * 1024;
 const MAX_TOOL_SCHEMA_TOTAL_BYTES: usize = 256 * 1024;
+const MAX_TOOL_SCHEMA_DEPTH: usize = 12;
+const MAX_TOOL_SCHEMA_NODES: usize = 2_048;
+const MAX_TOOL_VALIDATION_ERRORS: usize = 8;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum RemoteProviderId {
@@ -162,12 +169,37 @@ pub struct ProviderToolDefinition {
     pub parameters: Value,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ProviderToolSchemaStatus {
+    Pending,
+    Valid,
+    Invalid,
+    MissingDefinition,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ProviderToolDomainStatus {
+    Unreviewed,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderToolProposalValidation {
+    pub schema_status: ProviderToolSchemaStatus,
+    pub domain_status: ProviderToolDomainStatus,
+    pub executable: bool,
+    pub errors: Vec<String>,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NormalizedToolProposal {
     pub call_id: String,
     pub name: String,
     pub arguments: Value,
+    pub validation: ProviderToolProposalValidation,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -247,6 +279,7 @@ fn valid_tool_definitions(tools: &[ProviderToolDefinition]) -> bool {
             return false;
         };
         total_schema_bytes = next_total;
+        let mut schema_nodes = 0_usize;
         valid_tool_name(&tool.name)
             && names.insert(tool.name.as_str())
             && !tool.description.trim().is_empty()
@@ -256,7 +289,164 @@ fn valid_tool_definitions(tools: &[ProviderToolDefinition]) -> bool {
             && tool.parameters.get("type").and_then(Value::as_str) == Some("object")
             && schema.len() <= MAX_TOOL_SCHEMA_BYTES
             && total_schema_bytes <= MAX_TOOL_SCHEMA_TOTAL_BYTES
+            && valid_tool_schema(&tool.parameters, 0, &mut schema_nodes)
     })
+}
+
+fn valid_schema_bound(value: Option<&Value>) -> bool {
+    value
+        .map(|value| value.as_u64().is_some_and(|value| value <= 1_000_000))
+        .unwrap_or(true)
+}
+
+fn valid_schema_number(value: Option<&Value>) -> bool {
+    value
+        .map(|value| value.as_f64().is_some_and(f64::is_finite))
+        .unwrap_or(true)
+}
+
+fn valid_tool_schema(value: &Value, depth: usize, nodes: &mut usize) -> bool {
+    if depth > MAX_TOOL_SCHEMA_DEPTH || *nodes >= MAX_TOOL_SCHEMA_NODES {
+        return false;
+    }
+    *nodes += 1;
+    let Some(schema) = value.as_object() else {
+        return false;
+    };
+    const ALLOWED: &[&str] = &[
+        "type",
+        "properties",
+        "required",
+        "additionalProperties",
+        "items",
+        "minProperties",
+        "maxProperties",
+        "minItems",
+        "maxItems",
+        "minLength",
+        "maxLength",
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "enum",
+        "const",
+        "title",
+        "description",
+        "default",
+        "examples",
+    ];
+    if schema.keys().any(|key| !ALLOWED.contains(&key.as_str())) {
+        return false;
+    }
+    if let Some(schema_type) = schema.get("type") {
+        if !matches!(
+            schema_type.as_str(),
+            Some("object" | "array" | "string" | "number" | "integer" | "boolean" | "null")
+        ) {
+            return false;
+        }
+    }
+    if !valid_schema_bound(schema.get("minProperties"))
+        || !valid_schema_bound(schema.get("maxProperties"))
+        || !valid_schema_bound(schema.get("minItems"))
+        || !valid_schema_bound(schema.get("maxItems"))
+        || !valid_schema_bound(schema.get("minLength"))
+        || !valid_schema_bound(schema.get("maxLength"))
+        || !valid_schema_number(schema.get("minimum"))
+        || !valid_schema_number(schema.get("maximum"))
+        || !valid_schema_number(schema.get("exclusiveMinimum"))
+        || !valid_schema_number(schema.get("exclusiveMaximum"))
+    {
+        return false;
+    }
+    for (minimum, maximum) in [
+        ("minProperties", "maxProperties"),
+        ("minItems", "maxItems"),
+        ("minLength", "maxLength"),
+    ] {
+        if let (Some(minimum), Some(maximum)) = (
+            schema.get(minimum).and_then(Value::as_u64),
+            schema.get(maximum).and_then(Value::as_u64),
+        ) {
+            if minimum > maximum {
+                return false;
+            }
+        }
+    }
+    if let (Some(minimum), Some(maximum)) = (
+        schema.get("minimum").and_then(Value::as_f64),
+        schema.get("maximum").and_then(Value::as_f64),
+    ) {
+        if minimum > maximum {
+            return false;
+        }
+    }
+    if schema
+        .get("additionalProperties")
+        .is_some_and(|value| !value.is_boolean())
+    {
+        return false;
+    }
+    if schema.get("enum").is_some_and(|value| {
+        !value
+            .as_array()
+            .is_some_and(|values| !values.is_empty() && values.len() <= 256)
+    }) {
+        return false;
+    }
+    if schema
+        .get("examples")
+        .is_some_and(|value| !value.is_array())
+        || schema.get("title").is_some_and(|value| !value.is_string())
+        || schema
+            .get("description")
+            .is_some_and(|value| !value.is_string())
+    {
+        return false;
+    }
+    let properties = match schema.get("properties") {
+        None => None,
+        Some(value) => match value.as_object() {
+            Some(properties) if properties.len() <= 128 => Some(properties),
+            _ => return false,
+        },
+    };
+    if let Some(properties) = properties {
+        for (name, property_schema) in properties {
+            if name.is_empty()
+                || name.chars().count() > 128
+                || name.chars().any(char::is_control)
+                || !valid_tool_schema(property_schema, depth + 1, nodes)
+            {
+                return false;
+            }
+        }
+    }
+    if let Some(required) = schema.get("required") {
+        let Some(required) = required.as_array() else {
+            return false;
+        };
+        let mut seen = HashSet::new();
+        if required.len() > 128
+            || required.iter().any(|name| {
+                let Some(name) = name.as_str() else {
+                    return true;
+                };
+                name.is_empty()
+                    || !seen.insert(name)
+                    || properties.is_none_or(|properties| !properties.contains_key(name))
+            })
+        {
+            return false;
+        }
+    }
+    if let Some(items) = schema.get("items") {
+        if !valid_tool_schema(items, depth + 1, nodes) {
+            return false;
+        }
+    }
+    true
 }
 
 pub(crate) fn normalize_tool_proposal(
@@ -278,7 +468,197 @@ pub(crate) fn normalize_tool_proposal(
         call_id: call_id.to_owned(),
         name: name.to_owned(),
         arguments,
+        validation: ProviderToolProposalValidation {
+            schema_status: ProviderToolSchemaStatus::Pending,
+            domain_status: ProviderToolDomainStatus::Unreviewed,
+            executable: false,
+            errors: Vec::new(),
+        },
     })
+}
+
+fn validation_path(parent: &str, property: &str) -> String {
+    let mut property = property.chars().take(64).collect::<String>();
+    property = property.replace('~', "~0").replace('/', "~1");
+    format!("{parent}/{property}")
+}
+
+fn push_validation_error(errors: &mut Vec<String>, path: &str, keyword: &str) {
+    if errors.len() < MAX_TOOL_VALIDATION_ERRORS {
+        errors.push(format!("{path}:{keyword}"));
+    }
+}
+
+fn matches_schema_type(schema_type: &str, value: &Value) -> bool {
+    match schema_type {
+        "object" => value.is_object(),
+        "array" => value.is_array(),
+        "string" => value.is_string(),
+        "number" => value.is_number(),
+        "integer" => value
+            .as_f64()
+            .is_some_and(|number| number.is_finite() && number.fract() == 0.0),
+        "boolean" => value.is_boolean(),
+        "null" => value.is_null(),
+        _ => false,
+    }
+}
+
+fn validate_schema_value(schema: &Value, value: &Value, path: &str, errors: &mut Vec<String>) {
+    if errors.len() >= MAX_TOOL_VALIDATION_ERRORS {
+        return;
+    }
+    let schema = schema
+        .as_object()
+        .expect("validated provider tool schemas are objects");
+    if let Some(schema_type) = schema.get("type").and_then(Value::as_str) {
+        if !matches_schema_type(schema_type, value) {
+            push_validation_error(errors, path, "type");
+            return;
+        }
+    }
+    if schema
+        .get("enum")
+        .and_then(Value::as_array)
+        .is_some_and(|allowed| !allowed.contains(value))
+    {
+        push_validation_error(errors, path, "enum");
+    }
+    if schema
+        .get("const")
+        .is_some_and(|constant| constant != value)
+    {
+        push_validation_error(errors, path, "const");
+    }
+    if let Some(object) = value.as_object() {
+        if let Some(minimum) = schema.get("minProperties").and_then(Value::as_u64) {
+            if object.len() < minimum as usize {
+                push_validation_error(errors, path, "minProperties");
+            }
+        }
+        if let Some(maximum) = schema.get("maxProperties").and_then(Value::as_u64) {
+            if object.len() > maximum as usize {
+                push_validation_error(errors, path, "maxProperties");
+            }
+        }
+        if let Some(required) = schema.get("required").and_then(Value::as_array) {
+            for required in required.iter().filter_map(Value::as_str) {
+                if !object.contains_key(required) {
+                    push_validation_error(errors, &validation_path(path, required), "required");
+                }
+            }
+        }
+        let properties = schema.get("properties").and_then(Value::as_object);
+        for (name, property_value) in object {
+            if let Some(property_schema) = properties.and_then(|properties| properties.get(name)) {
+                validate_schema_value(
+                    property_schema,
+                    property_value,
+                    &validation_path(path, name),
+                    errors,
+                );
+            } else if schema.get("additionalProperties").and_then(Value::as_bool) == Some(false) {
+                push_validation_error(errors, &validation_path(path, name), "additionalProperties");
+            }
+        }
+    }
+    if let Some(array) = value.as_array() {
+        if let Some(minimum) = schema.get("minItems").and_then(Value::as_u64) {
+            if array.len() < minimum as usize {
+                push_validation_error(errors, path, "minItems");
+            }
+        }
+        if let Some(maximum) = schema.get("maxItems").and_then(Value::as_u64) {
+            if array.len() > maximum as usize {
+                push_validation_error(errors, path, "maxItems");
+            }
+        }
+        if let Some(item_schema) = schema.get("items") {
+            for (index, item) in array.iter().enumerate() {
+                validate_schema_value(item_schema, item, &format!("{path}/{index}"), errors);
+                if errors.len() >= MAX_TOOL_VALIDATION_ERRORS {
+                    break;
+                }
+            }
+        }
+    }
+    if let Some(text) = value.as_str() {
+        let length = text.chars().count();
+        if schema
+            .get("minLength")
+            .and_then(Value::as_u64)
+            .is_some_and(|minimum| length < minimum as usize)
+        {
+            push_validation_error(errors, path, "minLength");
+        }
+        if schema
+            .get("maxLength")
+            .and_then(Value::as_u64)
+            .is_some_and(|maximum| length > maximum as usize)
+        {
+            push_validation_error(errors, path, "maxLength");
+        }
+    }
+    if let Some(number) = value.as_f64() {
+        if schema
+            .get("minimum")
+            .and_then(Value::as_f64)
+            .is_some_and(|minimum| number < minimum)
+        {
+            push_validation_error(errors, path, "minimum");
+        }
+        if schema
+            .get("maximum")
+            .and_then(Value::as_f64)
+            .is_some_and(|maximum| number > maximum)
+        {
+            push_validation_error(errors, path, "maximum");
+        }
+        if schema
+            .get("exclusiveMinimum")
+            .and_then(Value::as_f64)
+            .is_some_and(|minimum| number <= minimum)
+        {
+            push_validation_error(errors, path, "exclusiveMinimum");
+        }
+        if schema
+            .get("exclusiveMaximum")
+            .and_then(Value::as_f64)
+            .is_some_and(|maximum| number >= maximum)
+        {
+            push_validation_error(errors, path, "exclusiveMaximum");
+        }
+    }
+}
+
+pub(crate) fn validate_tool_proposals(
+    tools: &[ProviderToolDefinition],
+    proposals: &mut [NormalizedToolProposal],
+) {
+    for proposal in proposals {
+        proposal.validation =
+            if let Some(tool) = tools.iter().find(|tool| tool.name == proposal.name) {
+                let mut errors = Vec::new();
+                validate_schema_value(&tool.parameters, &proposal.arguments, "$", &mut errors);
+                ProviderToolProposalValidation {
+                    schema_status: if errors.is_empty() {
+                        ProviderToolSchemaStatus::Valid
+                    } else {
+                        ProviderToolSchemaStatus::Invalid
+                    },
+                    domain_status: ProviderToolDomainStatus::Unreviewed,
+                    executable: false,
+                    errors,
+                }
+            } else {
+                ProviderToolProposalValidation {
+                    schema_status: ProviderToolSchemaStatus::MissingDefinition,
+                    domain_status: ProviderToolDomainStatus::Unreviewed,
+                    executable: false,
+                    errors: vec!["$:definition-missing".to_owned()],
+                }
+            };
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1497,34 +1877,84 @@ mod tests {
 
     #[test]
     fn tool_definitions_are_bounded_and_mapped_to_each_provider_contract() {
-        let mut request = request();
-        request.tools = vec![tool_definition()];
-        request.validate().expect("valid tool definition");
+        let mut tool_request = request();
+        tool_request.tools = vec![tool_definition()];
+        tool_request.validate().expect("valid tool definition");
 
-        let responses = openai_body(&request, true);
+        let responses = openai_body(&tool_request, true);
         assert_eq!(responses["tools"][0]["type"], "function");
         assert_eq!(responses["tools"][0]["name"], "lookup_source");
         assert_eq!(responses["tools"][0]["parameters"]["type"], "object");
         assert_eq!(responses["tool_choice"], "auto");
         assert_eq!(responses["parallel_tool_calls"], true);
 
-        let anthropic = anthropic_body(&request, true).expect("Anthropic body");
+        let anthropic = anthropic_body(&tool_request, true).expect("Anthropic body");
         assert_eq!(anthropic["tools"][0]["name"], "lookup_source");
         assert_eq!(anthropic["tools"][0]["input_schema"]["type"], "object");
         assert_eq!(anthropic["tool_choice"]["type"], "auto");
 
-        let gemini = gemini_body(&request, true).expect("Gemini body");
+        let gemini = gemini_body(&tool_request, true).expect("Gemini body");
         assert_eq!(gemini["tools"][0]["type"], "function");
         assert_eq!(gemini["tools"][0]["name"], "lookup_source");
         assert_eq!(gemini["tool_choice"], "auto");
 
-        let mut duplicate = request.clone();
+        let mut duplicate = tool_request.clone();
         duplicate.tools.push(tool_definition());
         assert_eq!(duplicate.validate(), Err(ProviderError::InvalidRequest));
 
-        let mut scalar_schema = request;
+        let mut scalar_schema = tool_request;
         scalar_schema.tools[0].parameters = json!({ "type": "string" });
         assert_eq!(scalar_schema.validate(), Err(ProviderError::InvalidRequest));
+
+        let mut unsafe_pattern = request();
+        unsafe_pattern.tools = vec![tool_definition()];
+        unsafe_pattern.tools[0].parameters["properties"]["query"]["pattern"] =
+            Value::String("(a+)+$".to_owned());
+        assert_eq!(
+            unsafe_pattern.validate(),
+            Err(ProviderError::InvalidRequest)
+        );
+    }
+
+    #[test]
+    fn tool_proposal_schema_validation_is_bounded_explicit_and_never_executable() {
+        let valid =
+            normalize_tool_proposal("call-valid", "lookup_source", json!({ "query": "budget" }))
+                .expect("valid proposal shape");
+        let invalid =
+            normalize_tool_proposal("call-invalid", "lookup_source", json!({ "query": 42 }))
+                .expect("invalid schema value remains an inspectable proposal");
+        let unknown = normalize_tool_proposal(
+            "call-unknown",
+            "ambient_shell",
+            json!({ "command": "whoami" }),
+        )
+        .expect("unknown tool remains an inspectable proposal");
+        let mut proposals = vec![valid, invalid, unknown];
+
+        validate_tool_proposals(&[tool_definition()], &mut proposals);
+
+        assert_eq!(
+            proposals[0].validation.schema_status,
+            ProviderToolSchemaStatus::Valid
+        );
+        assert_eq!(
+            proposals[1].validation.schema_status,
+            ProviderToolSchemaStatus::Invalid
+        );
+        assert_eq!(proposals[1].validation.errors, ["$/query:type"]);
+        assert_eq!(
+            proposals[2].validation.schema_status,
+            ProviderToolSchemaStatus::MissingDefinition
+        );
+        for proposal in proposals {
+            assert_eq!(
+                proposal.validation.domain_status,
+                ProviderToolDomainStatus::Unreviewed
+            );
+            assert!(!proposal.validation.executable);
+            assert!(proposal.validation.errors.len() <= MAX_TOOL_VALIDATION_ERRORS);
+        }
     }
 
     #[test]
@@ -1545,6 +1975,10 @@ mod tests {
         assert_eq!(
             openai.tool_proposals[0].arguments,
             json!({ "query": "budget" })
+        );
+        assert_eq!(
+            openai.tool_proposals[0].validation.schema_status,
+            ProviderToolSchemaStatus::Pending
         );
 
         let anthropic = normalize_anthropic(json!({

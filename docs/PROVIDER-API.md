@@ -2,7 +2,7 @@
 
 **Contract version:** 1. **Runtime status:** local inference remains available; OpenAI Responses,
 Anthropic Messages, Gemini Interactions, and xAI Responses request, stream, and non-executing tool
-proposal controls are at `request-stream-and-tool-proposal-conformance`. Ordinary remote review and content-bound adversarial execution
+proposal controls are at `request-stream-and-schema-validated-tool-proposal-conformance`. Ordinary remote review and content-bound adversarial execution
 use registered Rust commands, OS-vault credentials, fixed built-in endpoints, native disclosure,
 bounded timeout/cancellation, normalized results, and content-free run records. Tests use
 loopback providers only; no live-provider compatibility or quality claim is made. Custom remote
@@ -98,15 +98,38 @@ This is deliberately proposal-only. Syzygy displays the function name, call ID, 
 transient **inspect only · not executed** panel. It has no tool-result loop and grants no MCP,
 Drive, filesystem, plugin, editor, network, or shared-project mutation authority. Tool bodies are
 present in the transient result but remain absent from content-free run records; the record's
-`outputSha256` nevertheless commits to both normalized text and proposal bodies. Argument JSON has
-not yet been validated against its supplied JSON Schema, so future execution must add schema and
-domain validation rather than treating successful assembly as authorization.
+`outputSha256` nevertheless commits to both normalized text, proposal bodies, and their validation
+state.
+
+Definitions are accepted only from a bounded non-executable JSON Schema subset: single string
+`type`; `properties`/`required`; boolean `additionalProperties`; one `items` schema; bounded
+object/array/string lengths; numeric minimum/maximum; `enum`/`const`; and inert annotation keywords.
+Schemas are capped at depth 12, 2,048 nodes, 128 properties per object, 256 enum values, and the byte
+ceilings above. `$ref`, remote references, patterns/formats, conditionals, combinators, unevaluated
+keywords, schema-valued `additionalProperties`, and unknown keywords are rejected before native
+disclosure or transmission. This deliberately excludes regex denial-of-service and reference/
+branch expansion from the current surface.
+
+After complete argument assembly, Rust validates the exact normalized object against the matching
+definition and authors `schemaStatus` as `valid`, `invalid`, or `missing-definition`, with at most
+eight bounded path/keyword diagnostics. The frontend independently preflights definitions with the
+pinned AJV 2020 implementation and validates completed streaming proposals for immediate display.
+`pending` is display-only while a call is incomplete. Every result separately reports
+`domainStatus: unreviewed` and `executable: false`: schema success is structural evidence, not a
+semantic judgment, permission grant, or execution capability. Any future tool-result loop must add
+tool-specific domain validation and explicit authority review.
 Primary contracts: [OpenAI function calling](https://developers.openai.com/api/docs/guides/function-calling),
 [Anthropic streaming](https://platform.claude.com/docs/en/build-with-claude/streaming),
 [Gemini Interactions v1](https://ai.google.dev/api/interactions-api-v1), and
 [xAI function calling](https://docs.x.ai/developers/tools/function-calling).
+Schema semantics and frontend settings were checked against
+[JSON Schema Draft 2020-12 validation](https://json-schema.org/draft/2020-12/json-schema-validation.html)
+and the [AJV options contract](https://ajv.js.org/options); the product intentionally implements
+only the narrower subset above.
 Adversarial fixtures, exact limits, implementation anchors, and non-claims are recorded in
 `docs/audits/runs/PROVIDER-TOOL-PROPOSALS-2026-08-11.json`.
+Cross-language schema-validation fixtures and the remaining domain/authority gap are recorded in
+`docs/audits/runs/PROVIDER-TOOL-SCHEMA-VALIDATION-2026-08-11.json`.
 
 ## Security boundary
 
@@ -154,7 +177,7 @@ and marks the authoritative content-free run record as streamed. The workspace r
 Anthropic, Gemini, or xAI text, usage, warnings, and proposal-only tool calls incrementally as a
 transient review; it never executes a call or applies the response to the shared draft automatically.
 No live service has been contacted. `syzygy_platform_contracts` reports aggregate status as
-`native-disclosure-openai-anthropic-gemini-xai-stream-tool-proposal-review-ui-no-live-proof`.
+`native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-tool-proposal-review-ui-no-live-proof`.
 
 The incremental OpenAI SSE decoder accepts arbitrary byte fragmentation, including split Unicode;
 joins multiline `data:` fields; ignores keepalives; validates optional SSE event labels against

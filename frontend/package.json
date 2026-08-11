@@ -31,6 +31,7 @@
     "test:providers": "cargo test --manifest-path src-tauri/Cargo.toml model_provider::tests:: -- --nocapture",
     "test:provider-runtime": "cargo test --manifest-path src-tauri/Cargo.toml provider_runtime::tests:: -- --nocapture",
     "test:provider-runtime-interop": "node ../scripts/provider-runtime-interop.mjs",
+    "test:provider-tool-validation-interop": "node ../scripts/provider-tool-validation-interop.mjs",
     "test:provider-streams": "cargo test --manifest-path src-tauri/Cargo.toml provider_stream::tests:: -- --nocapture",
     "test:credentials": "cargo test --manifest-path src-tauri/Cargo.toml credential_vault::tests:: -- --nocapture",
     "test:credentials:live": "cargo run --manifest-path src-tauri/Cargo.toml --bin credential-harness",

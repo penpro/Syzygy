@@ -1017,10 +1017,14 @@ separately domain-signed status/issue/rotate/revoke sequence, exact-revision con
 replay denial, all-room peer eviction and fresh reauthentication, old/rotated/revoked credential
 denial, project-ID binding, and digest-only storage. The separate decision-ledger test builds a
 strict capability-free post-mutation record from the exact returned project/room/revision/member
-shape and proves convergent conflict retention. Every harness wait is internally bounded and the outer watchdog owns
+shape and proves convergent conflict retention. The same exact-binary soak enrolls a second
+administrator, treats the original administrator as lost, rotates its member onto a replacement
+installation from the surviving admin, rejects the lost capability/key, and proves the replacement
+installation can use the admin route. No private-key export or escrow participates. Every harness
+wait is internally bounded and the outer watchdog owns
 the 120-second process-tree deadline. Repeat runs must pass; a close-before-message check drains the
 final Node WebSocket event for 25 ms rather than racing `readyState`.
 
 Together these do not prove authenticated humans or organizations, project-shared device approval,
-administrator-key recovery, trusted time, replacement-invitation delivery, public TLS/WSS, backup
+recovery with no surviving admin or relay host, trusted time, replacement-invitation delivery, public TLS/WSS, backup
 restoration, relay-signed decision receipts, hostile-frame fuzzing, or physical packaged clients.

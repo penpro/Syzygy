@@ -318,15 +318,19 @@ generation plus a 32-byte nonce and issue time; the relay accepts at most a one-
 allows 15 seconds of forward clock skew, and atomically consumes it in a bounded 4,096-entry replay
 cache before sending retained data. y-websocket reconnect creates a new provider and proof instead
 of replaying the old query. Public WSS termination, authenticated human or organizational identity,
-shared-directory approval, administrator recovery, trusted time, automatic replacement-credential
-delivery, log
+shared-directory approval, sole-administrator recovery without the relay host, trusted time,
+automatic replacement-credential delivery, log
 compaction/export/backup, broader abuse controls, and physical packaged multi-install proof remain
 gates. A deterministic binary harness covers five device-bound clients, 60 rapid writes, a two-client
 partition/rejoin, awareness cleanup/recovery, forced reauthentication, exact-revision conflict,
-replay denial, and remote issue/rotate/revoke; it is not packaged physical-client evidence. Active member capabilities may expire between five minutes and one year or remain
+replay denial, remote issue/rotate/revoke, and surviving-administrator recovery; it is not packaged physical-client evidence. Active member capabilities may expire between five minutes and one year or remain
 unbounded. Exact-revision rotation preserves member ID and role, increments a public generation,
-optionally replaces the expiry, and stores only the new digest so every old copy is rejected. This is
-device-authorized capability administration, not key escrow or participant authentication. The
+optionally replaces the expiry, and stores only the new digest so every old copy is rejected. A
+separately enrolled surviving administrator can therefore rotate a lost administrator member onto a
+replacement installation key; the lost capability/key is then denied and the replacement can use
+the admin route. No private key is exported or escrowed. With no surviving administrator, the
+relay-host operator remains the recovery authority; loss of both is not recoverable by Syzygy. This
+is device-authorized capability administration, not participant authentication. The
 Drive provider publishes to the UI/MCP automation registry only after local reopen plus its initial
 remote pull, and a live canary proves the underlying Google create/list/readback/cleanup path.
 Drive project titles are a second, metadata-only append path rather than a mutable manifest field.

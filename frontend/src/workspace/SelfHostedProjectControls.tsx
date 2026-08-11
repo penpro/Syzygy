@@ -634,6 +634,10 @@ export function SelfHostedProjectControls({
             New members require the intended collaborator’s public enrollment request. On rotation,
             leave the field empty to retain the current device binding, or paste a new request to
             move access to a replacement installation.
+            If an administrator loses its installation key or capability, a different surviving
+            administrator can paste the replacement installation’s enrollment request and choose
+            Rotate / recover for that member. Without a surviving administrator, recovery requires
+            the relay-host operator. Syzygy does not export or escrow installation private keys.
           </p>
           {decisionInspection ? <SharedRelayAdminDecisionHistory inspection={decisionInspection} /> : null}
           {issuedInvite ? <>

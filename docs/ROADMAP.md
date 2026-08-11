@@ -90,8 +90,10 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   Successful remote mutations can now add a bounded, convergent, capability-free installation-signed
   decision to shared project history; contradictory revision claims are retained and block extension.
   This is explicitly not a relay receipt or directory-granted role. A five-client partition/reconnect
-  soak now passes. Authenticated human identity, shared-directory
-  approval, administrator recovery, and packaged multi-install proof remain open.
+  soak now passes. A separately enrolled surviving admin can recover a lost admin member onto a
+  replacement installation without private-key export/escrow; the old capability/key is denied and
+  the replacement can administer. Authenticated human identity, shared-directory approval,
+  recovery with no surviving admin or relay host, and packaged multi-install proof remain open.
 - The first original product node is now implemented but not yet interaction-verified: a Lexical
   `PolicyBlockNode` with stable
   identity, editable text, draft/review/approved state, strict JSON import, theme-token UI, and a
@@ -645,8 +647,10 @@ collaborators are not required to download large project folders.
    controls on a remotely hosted project only for the enrolled admin installation. A repeatable exact
    binary soak proves five clients, 60 rapid writes, two-client partition merge, viewer reconnect,
    awareness recovery, replay/stale-revision denial, forced reauthentication, and remote issue/
-   rotate/revoke. Next: add shared-directory administration policy and identity recovery,
-   signed durable-event
+   rotate/revoke. A surviving-admin recovery gate now rotates the lost original admin onto a
+   replacement installation, denies the lost binding, and proves the replacement can administer
+   without private-key export or escrow. Next: add shared-directory administration policy and
+   recovery when no admin survives (which still requires the relay host), signed durable-event
    envelopes, device-key rotation/recovery, trusted time and replacement-invitation delivery, public WSS operations, compaction/export/backups
    and broader abuse controls, then run packaged physical two-install gates.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.

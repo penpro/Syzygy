@@ -157,6 +157,8 @@ const projectRelayAdminDecisionTest = text('frontend/src/workspace/projectRelayA
 const projectRelayAdminDecisionUiTest = text('frontend/src/workspace/SelfHostedProjectControls.ui.test.tsx')
 const projectRelayAdminDecisionEvidence = text('docs/audits/runs/SIGNED-PROJECT-RELAY-ADMIN-DECISIONS-2026-08-11.json')
 const relayRemoteAdminEvidence = text('docs/audits/runs/MANAGED-RELAY-REMOTE-ADMIN-SOAK-2026-08-11.json')
+const relayAdminRecoveryUiTest = text('frontend/src/workspace/WorkspaceView.ui.test.ts')
+const relayAdminRecoveryEvidence = text('docs/audits/runs/MANAGED-RELAY-ADMIN-RECOVERY-2026-08-11.json')
 record(
   'app-managed collaboration relay remains private, bounded, durable, reaped, and identity-honest',
   collaborationRelayCargo.includes('tungstenite = "=0.21.0"') &&
@@ -290,6 +292,28 @@ record(
     collaborationIdentityInterop.includes('rejectedRelayAdminDecisionMutations: relayAdminDecisionMutations.length') &&
     projectRelayAdminDecisionEvidence.includes('"status": "implemented_unverified"'),
   'exact result/action signature, verified-directory signer, bounded Yjs inspection, conflict retention, capability exclusion, and relay/human-authority nonclaims are present',
+)
+record(
+  'surviving-administrator recovery remains exact, replacement-bound, and escrow-free',
+  relayRemoteAdminSoak.includes('survivingAdministratorRecovery: true') &&
+    relayRemoteAdminSoak.includes('lostAdministratorDenied: true') &&
+    relayRemoteAdminSoak.includes('replacementAdministratorCanAdminister: true') &&
+    relayRemoteAdminSoak.includes('keyExportOrEscrowUsed: false') &&
+    websocketControlsSource.includes('a different surviving') &&
+    websocketControlsSource.includes('Without a surviving administrator') &&
+    websocketControlsSource.includes('does not export or escrow installation private keys') &&
+    relayAdminRecoveryUiTest.includes("expect(host).toContain('a different surviving')") &&
+    relayAdminRecoveryUiTest.includes("expect(host).toContain('does not export or escrow installation private keys')") &&
+    relayAdminRecoveryEvidence.includes('"lostAdministratorDenied": true') &&
+    relayAdminRecoveryEvidence.includes('"replacementAdministratorCanAdminister": true') &&
+    relayAdminRecoveryEvidence.includes('"recoveryWithoutSurvivingAdminOrRelayHost": false') &&
+    relayAdminRecoveryEvidence.includes('"supervisedRunId": "20260811-153947-c51f32"') &&
+    relayAdminRecoveryEvidence.includes('"frontendTestsPassed": 527') &&
+    relayAdminRecoveryEvidence.includes('"rustAppRecompiled": true') &&
+    relayAdminRecoveryEvidence.includes('"repositoryAuditPassed": true') &&
+    relayAdminRecoveryEvidence.includes('"fullValidationPending": false') &&
+    relayAdminRecoveryEvidence.includes('"status": "implemented_unverified"'),
+  'surviving admin enrollment, exact member/device rotation, old-key denial, replacement administration, private-key nonexport, and no-survivor nonclaims are present',
 )
 
 const collaborationIdentityFrontend = text('frontend/src/workspace/deviceIdentity.ts')

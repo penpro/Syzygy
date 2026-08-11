@@ -407,8 +407,64 @@ try {
   }
   await assertAuthorization(endpoint, roomId, rotatedAccess, issuedDevice, false, 'revoked member access')
 
+  // Model administrator recovery without exporting or escrowing the lost key. The original admin
+  // first enrolled an independent backup admin. After the original installation is treated as lost,
+  // that surviving admin rotates the original member onto a replacement installation.
+  providers.forEach((provider) => provider.destroy())
+  providers = []
+  const backupAdminDevice = deviceIdentity()
+  const backupAdmin = await adminRequest(endpoint, roomId, accesses[0], devices[0], {
+    kind: 'issue', role: 'admin', expiresInSeconds: null, device: backupAdminDevice.binding,
+  }, 4, 'backup administrator enrollment')
+  if (!backupAdmin.ok || backupAdmin.room.registryRevision !== 5 ||
+    backupAdmin.credential?.role !== 'admin') {
+    throw new Error('backup administrator enrollment did not return administrator access')
+  }
+  const backupAdminAccess = {
+    memberId: backupAdmin.credential.memberId,
+    capability: backupAdmin.credential.capability,
+    capabilityGeneration: backupAdmin.credential.capabilityGeneration,
+    role: backupAdmin.credential.role,
+  }
+  await assertAuthorization(
+    endpoint, roomId, backupAdminAccess, backupAdminDevice, true, 'backup administrator access',
+  )
+  const replacementAdminDevice = deviceIdentity()
+  const recoveredAdmin = await adminRequest(endpoint, roomId, backupAdminAccess, backupAdminDevice, {
+    kind: 'rotate',
+    memberId: accesses[0].memberId,
+    expiresInSeconds: null,
+    device: replacementAdminDevice.binding,
+  }, 5, 'surviving administrator recovery')
+  if (!recoveredAdmin.ok || recoveredAdmin.room.registryRevision !== 6 ||
+    recoveredAdmin.credential?.memberId !== accesses[0].memberId ||
+    recoveredAdmin.credential?.role !== 'admin' ||
+    recoveredAdmin.credential?.capabilityGeneration !== 2 ||
+    recoveredAdmin.credential?.deviceKeyId !== replacementAdminDevice.binding.keyId) {
+    throw new Error('surviving administrator did not recover the original administrator member')
+  }
+  const replacementAdminAccess = {
+    memberId: recoveredAdmin.credential.memberId,
+    capability: recoveredAdmin.credential.capability,
+    capabilityGeneration: recoveredAdmin.credential.capabilityGeneration,
+    role: recoveredAdmin.credential.role,
+  }
+  await assertAuthorization(endpoint, roomId, accesses[0], devices[0], false, 'lost administrator access')
+  await assertAuthorization(
+    endpoint, roomId, replacementAdminAccess, replacementAdminDevice, true,
+    'replacement administrator access',
+  )
+  const recoveredStatus = await adminRequest(
+    endpoint, roomId, replacementAdminAccess, replacementAdminDevice,
+    { kind: 'status' }, 0, 'replacement administrator status',
+  )
+  if (!recoveredStatus.ok || recoveredStatus.room.registryRevision !== 6) {
+    throw new Error('replacement administrator could not administer the recovered room')
+  }
+
   const stored = await readFile(membershipPath, 'utf8')
-  if (stored.includes(issuedAccess.capability) || stored.includes(rotatedAccess.capability)) {
+  if (stored.includes(issuedAccess.capability) || stored.includes(rotatedAccess.capability) ||
+    stored.includes(backupAdminAccess.capability) || stored.includes(replacementAdminAccess.capability)) {
     throw new Error('remote administrator mutation stored a plaintext member capability')
   }
 
@@ -426,8 +482,12 @@ try {
     adminReplayRejected: true,
     roomPeersForcedToReauthenticate: true,
     remoteIssueRotateRevoke: true,
+    survivingAdministratorRecovery: true,
+    lostAdministratorDenied: true,
+    replacementAdministratorCanAdminister: true,
+    keyExportOrEscrowUsed: false,
     credentialsHashedAtRest: true,
-    finalRegistryRevision: revoked.room.registryRevision,
+    finalRegistryRevision: recoveredStatus.room.registryRevision,
   }, null, 2))
 } finally {
   providers.forEach((provider) => provider.destroy())

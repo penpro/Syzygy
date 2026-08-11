@@ -63,7 +63,7 @@
 | `frontend/src/workspace/websocketProjectStatus.ts` | Penumbra original | Detached live connection status with stale-provider teardown protection |
 | `frontend/src/workspace/websocketProjectStatus.test.ts` | Penumbra original | Status replacement ownership and detached-read fixtures |
 | `frontend/src/workspace/websocketProjectStore.test.ts` | Penumbra original | Persisted bind/join/leave state, collision, normalization, and transport-authority fixtures |
-| `frontend/src/workspace/SelfHostedProjectControls.tsx` | Penumbra original | Explicit advanced create/join/leave controls plus host-local or device-bound remote membership administration, exact-revision refresh, shared signed-decision inspection, forced-reauthentication disclosure, and bearer/non-backup warnings |
+| `frontend/src/workspace/SelfHostedProjectControls.tsx` | Penumbra original | Explicit advanced create/join/leave controls plus host-local or device-bound remote membership administration, surviving-admin replacement-device recovery copy, exact-revision refresh, shared signed-decision inspection, forced-reauthentication disclosure, and bearer/non-backup warnings |
 | `frontend/src/workspace/websocketProjectProductFlow.integration.test.ts` | Penumbra original | Real-relay invite, two-provider, separate-IndexedDB, destroy/reopen, and return-sync product fixture |
 | `frontend/src/components/CollaborationRelaySettings.tsx` | Penumbra original | App-managed private relay lifecycle, endpoint, process/storage status, and exact bearer/persistence/public-hosting disclosures |
 | `frontend/src/components/CollaborationRelaySettings.ui.test.tsx` | Penumbra original | Headless separation of lifecycle, bounded persistence, awareness, identity, and backup claims |

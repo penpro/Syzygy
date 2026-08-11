@@ -469,8 +469,8 @@ explicitly compatible. Device-bound admins now have one bounded remote control r
 connection, with an independent action/revision signature and forced room reauthentication after
 mutation. A five-client exact-binary soak covers rapid edits, partition merge, awareness recovery,
 viewer reconnect, replay/stale-revision denial, and remote issue/rotate/revoke. This advances the
-phase but does not complete it: authenticated human identity, shared-directory approval and admin-key
-recovery, trusted time, automatic replacement delivery, public WSS operation, compaction/export/
+phase but does not complete it: authenticated human identity, shared-directory approval, recovery
+when no separately enrolled admin or relay host survives, trusted time, automatic replacement delivery, public WSS operation, compaction/export/
 backups, broader abuse controls, and packaged physical two-install use remain open.
 
 ### Phase 6 — scenario workflow (`XL`)

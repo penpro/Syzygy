@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "runId": "MANAGED-RELAY-ADMIN-RECOVERY-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "da7f919",
+  "capabilities": ["P-11", "S-05"],
+  "status": "implemented_unverified",
+  "claim": "A separately enrolled surviving device-bound administrator can rotate a lost administrator member onto a replacement installation without exporting or escrowing the lost private key. The exact relay denies the lost capability/key and accepts administration from the replacement; recovery still requires either another administrator or the relay host.",
+  "commands": [
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/relay-remote-admin-soak.mjs --relay-executable frontend/src-tauri/target/debug/collaboration-relay.exe",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm test -- --run src/workspace/WorkspaceView.ui.test.ts",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run check:supervised"
+  ],
+  "result": {
+    "fiveClientExactBinarySoakPassed": true,
+    "rapidWrites": 60,
+    "backupAdministratorEnrolled": true,
+    "originalAdministratorTreatedAsLost": true,
+    "originalAdministratorMemberPreserved": true,
+    "originalAdministratorRolePreserved": true,
+    "replacementDeviceBindingApplied": true,
+    "capabilityGenerationAdvanced": true,
+    "lostAdministratorDenied": true,
+    "replacementAdministratorCanConnect": true,
+    "replacementAdministratorCanAdminister": true,
+    "privateKeyExported": false,
+    "privateKeyEscrowUsed": false,
+    "plaintextCapabilitiesStored": false,
+    "finalRegistryRevision": 6,
+    "recoveryWithoutSurvivingAdminOrRelayHost": false,
+    "packagedPhysicalTwoInstallUsed": false,
+    "supervisedRunId": "20260811-153947-c51f32",
+    "frontendTestFilesPassed": 125,
+    "frontendTestFilesSkipped": 3,
+    "frontendTestsPassed": 527,
+    "frontendTestsSkipped": 3,
+    "frontendModulesTransformed": 1263,
+    "rustAppRecompiled": true,
+    "repositoryAuditPassed": true,
+    "supervisedElapsedSeconds": 15,
+    "fullValidationPending": false
+  },
+  "proved": [
+    "The original administrator first enrolls a second independent device-bound administrator under an exact registry revision.",
+    "The surviving administrator, using its own key and capability, rotates the original administrator member onto a new public installation enrollment.",
+    "Rotation preserves the original member ID and admin role, advances the capability generation, replaces the device key, and stores only capability digests.",
+    "The exact relay denies the original capability/key after rotation and accepts both protected-room access and the reserved administration route from the replacement installation.",
+    "The product explains that a different surviving administrator can recover onto a replacement installation, that the relay host is required if none survives, and that Syzygy does not export or escrow installation private keys."
+  ],
+  "notProved": [
+    "Recovery after every administrator and the relay-host operator are unavailable.",
+    "Automatic backup, export, escrow, transfer, or delivery of an installation private key or replacement invitation.",
+    "That an administrator installation belongs to an authenticated person or organization.",
+    "Packaged physical two-install interaction, public WSS operation, trusted time, or third-party relay behavior."
+  ],
+  "implementationAnchors": [
+    "frontend/src-tauri/src/collaboration_relay_membership.rs",
+    "frontend/src-tauri/src/collaboration_relay_server.rs",
+    "frontend/src/workspace/SelfHostedProjectControls.tsx",
+    "frontend/src/workspace/WorkspaceView.ui.test.ts",
+    "scripts/relay-remote-admin-soak.mjs"
+  ]
+}

@@ -208,6 +208,13 @@ confidential from the relay host. The active remote administrator cannot revoke 
 from these controls; the relay-host installation or a different administrator must perform that
 irreversible handoff so the current installation is not silently stranded.
 
+**Rotate / recover** is also the administrator-recovery surface. Copy must explain that a different
+surviving administrator can paste a replacement installation enrollment and rotate the lost admin
+member onto it. State that the old capability and installation binding stop working, the member ID
+and role remain, and the replacement invitation is shown once. If no other administrator survives,
+the relay-host operator is required. Never promise private-key export/escrow, recovery after both all
+admins and the relay host are lost, or automatic delivery to the replacement installation.
+
 After a successful remote issue, rotate, or revoke, the controls attempt to add an
 installation-signed statement to **Shared signed decisions** in the collaborative project. Show the
 action, resulting relay revision, short installation fingerprint, and record time, never a member
@@ -263,7 +270,7 @@ shared directory action.
 Self-hosted WS/WSS synchronization, an app-managed private-LAN relay, relay-enforced
 viewer/editor/admin roles, optional signed installation-key-to-role binding, and device-bound remote
 room administration are implemented. Human/organizational identity, project-shared approval,
-administrator recovery, general research-event signatures, relay-signed administration receipts, public
+sole-administrator recovery without the relay host, general research-event signatures, relay-signed administration receipts, public
 WSS hosting, and backup administration remain open. The portable archive is still a separate
 handoff that creates independent local state after import and contains no relay invitation.
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,

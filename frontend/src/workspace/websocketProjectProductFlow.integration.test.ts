@@ -18,6 +18,10 @@ const hostCapability = import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_HOST_CAPABILIT
 const guestMember = import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_GUEST_MEMBER ?? ''
 const guestCapability = import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_GUEST_CAPABILITY ?? ''
 const managed = Boolean(hostMember && hostCapability && guestMember && guestCapability)
+const capabilityGeneration = Number(import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_CAPABILITY_GENERATION ?? 0)
+const expiresAtMs = Number(import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_EXPIRES_AT_MS ?? 0)
+const managedV3 = managed && Number.isSafeInteger(capabilityGeneration) && capabilityGeneration > 0 &&
+  Number.isSafeInteger(expiresAtMs) && expiresAtMs > Date.now()
 
 const waitFor = async (predicate: () => boolean, label: string, timeoutMilliseconds = 10_000) => {
   const deadline = Date.now() + timeoutMilliseconds
@@ -40,7 +44,14 @@ describe.skipIf(!endpoint || !roomId)('self-hosted product binding against a rea
       transport: {
         kind: 'websocket', endpoint, roomId,
         ...(managed ? {
-          access: {
+          access: managedV3 ? {
+            schemaVersion: 2 as const,
+            memberId: hostMember,
+            capability: hostCapability,
+            role: 'admin' as const,
+            capabilityGeneration,
+            expiresAtMs,
+          } : {
             schemaVersion: 1 as const,
             memberId: hostMember,
             capability: hostCapability,
@@ -50,7 +61,15 @@ describe.skipIf(!endpoint || !roomId)('self-hosted product binding against a rea
       },
     }
     const invite = managed
-      ? createManagedWebsocketProjectInvite(hostManifest, {
+      ? createManagedWebsocketProjectInvite(hostManifest, managedV3 ? {
+          schemaVersion: 2,
+          roomId,
+          memberId: guestMember,
+          capability: guestCapability,
+          role: 'editor',
+          capabilityGeneration,
+          expiresAtMs,
+        } : {
           schemaVersion: 1,
           roomId,
           memberId: guestMember,
@@ -62,7 +81,14 @@ describe.skipIf(!endpoint || !roomId)('self-hosted product binding against a rea
     expect(joinedManifest.id).toBe(hostManifest.id)
     expect(joinedManifest.transport).toEqual(managed ? {
       kind: 'websocket', endpoint, roomId,
-      access: {
+      access: managedV3 ? {
+        schemaVersion: 2,
+        memberId: guestMember,
+        capability: guestCapability,
+        role: 'editor',
+        capabilityGeneration,
+        expiresAtMs,
+      } : {
         schemaVersion: 1,
         memberId: guestMember,
         capability: guestCapability,

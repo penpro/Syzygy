@@ -47,10 +47,12 @@ const managedWebsocketProject: ResearchProjectManifest = {
     endpoint: 'ws://192.168.1.20:1234',
     roomId: 'room_' + 'a'.repeat(40),
     access: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       memberId: 'member_' + 'b'.repeat(24),
       capability: 'c'.repeat(43),
       role: 'viewer',
+      capabilityGeneration: 2,
+      expiresAtMs: 2_000_000_000_000,
     },
   },
 }
@@ -135,7 +137,37 @@ describe('workspace collaboration entry points', () => {
     expect(viewer).toContain('Member access')
     expect(viewer).toContain('viewer')
     expect(viewer).toContain('Viewer document updates are rejected by the relay')
+    expect(viewer).toContain('Generation 2')
+    expect(viewer).toContain('expires 2033-05-18T03:33:20.000Z')
     expect(viewer).not.toContain('Legacy read/edit bearer invitation')
+
+    const host = renderToStaticMarkup(createElement(SelfHostedProjectControls, {
+      project: managedWebsocketProject,
+      managedRelayEndpoint: managedWebsocketProject.transport.kind === 'websocket'
+        ? managedWebsocketProject.transport.endpoint
+        : '',
+      initialMembership: {
+        schemaVersion: 2 as const,
+        registryRevision: 8,
+        roomId: 'room_' + 'a'.repeat(40),
+        projectId: managedWebsocketProject.id,
+        protected: true as const,
+        members: [{
+          memberId: 'member_' + 'b'.repeat(24),
+          role: 'viewer' as const,
+          createdAtMs: 1,
+          rotatedAtMs: 10,
+          expiresAtMs: 2_000_000_000_000,
+          capabilityGeneration: 2,
+          revokedAtMs: null,
+        }],
+      },
+    }))
+    expect(host).toContain('Invitation lifetime')
+    expect(host).toContain('Rotate / recover')
+    expect(host).toContain('Expiry uses')
+    expect(host).toContain('invalidates every prior copy')
+    expect(host).toContain('No automatic expiry')
   })
 
   it('retains the exact revision guards captured when a shared-title draft became dirty', () => {

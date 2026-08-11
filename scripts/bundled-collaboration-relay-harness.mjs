@@ -88,13 +88,16 @@ async function assertPortReleased(port) {
 const token = (bytes = 32) => randomBytes(bytes).toString('base64url')
 const digest = (value) => createHash('sha256').update(value).digest('hex')
 
-function storedMember(memberId, capability, role, createdAtMs, revokedAtMs) {
+function storedMember(memberId, capability, role, createdAtMs, options = {}) {
   return {
     memberId,
     role,
     capabilitySha256: digest(capability),
+    capabilityGeneration: options.capabilityGeneration ?? 1,
     createdAtMs,
-    ...(revokedAtMs ? { revokedAtMs } : {}),
+    ...(options.rotatedAtMs ? { rotatedAtMs: options.rotatedAtMs } : {}),
+    ...(options.expiresAtMs ? { expiresAtMs: options.expiresAtMs } : {}),
+    ...(options.revokedAtMs ? { revokedAtMs: options.revokedAtMs } : {}),
   }
 }
 
@@ -137,6 +140,10 @@ async function runProductProviderFlow(endpoint, roomId, access = null) {
         VITE_SYZYGY_WEBSOCKET_TEST_HOST_CAPABILITY: access.host.capability,
         VITE_SYZYGY_WEBSOCKET_TEST_GUEST_MEMBER: access.guest.memberId,
         VITE_SYZYGY_WEBSOCKET_TEST_GUEST_CAPABILITY: access.guest.capability,
+        ...(access.capabilityGeneration && access.expiresAtMs ? {
+          VITE_SYZYGY_WEBSOCKET_TEST_CAPABILITY_GENERATION: String(access.capabilityGeneration),
+          VITE_SYZYGY_WEBSOCKET_TEST_EXPIRES_AT_MS: String(access.expiresAtMs),
+        } : {}),
       } : {}),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -170,8 +177,12 @@ const createdAtMs = Date.now()
 const adminAccess = { memberId: token(24), capability: token(), role: 'admin' }
 const editorAccess = { memberId: token(24), capability: token(), role: 'editor' }
 const viewerAccess = { memberId: token(24), capability: token(), role: 'viewer' }
+const rotatingAccess = { memberId: token(24), capability: token(), role: 'editor' }
+const rotatedAccess = { ...rotatingAccess, capability: token() }
+const expiredAccess = { memberId: token(24), capability: token(), role: 'viewer' }
 const productAdminAccess = { memberId: token(24), capability: token(), role: 'admin' }
 const productGuestAccess = { memberId: token(24), capability: token(), role: 'editor' }
+const productExpiresAtMs = createdAtMs + 60 * 60 * 1_000
 const membershipPath = join(dataDirectory, 'members-v1.json')
 const registry = {
   schemaVersion: 1,
@@ -185,6 +196,10 @@ const registry = {
         storedMember(adminAccess.memberId, adminAccess.capability, adminAccess.role, createdAtMs),
         storedMember(editorAccess.memberId, editorAccess.capability, editorAccess.role, createdAtMs),
         storedMember(viewerAccess.memberId, viewerAccess.capability, viewerAccess.role, createdAtMs),
+        storedMember(rotatingAccess.memberId, rotatingAccess.capability, rotatingAccess.role, createdAtMs),
+        storedMember(expiredAccess.memberId, expiredAccess.capability, expiredAccess.role, createdAtMs, {
+          expiresAtMs: createdAtMs + 1,
+        }),
       ],
     },
     {
@@ -192,8 +207,12 @@ const registry = {
       projectId: `product-project-${productRoom}`,
       createdAtMs,
       members: [
-        storedMember(productAdminAccess.memberId, productAdminAccess.capability, productAdminAccess.role, createdAtMs),
-        storedMember(productGuestAccess.memberId, productGuestAccess.capability, productGuestAccess.role, createdAtMs),
+        storedMember(productAdminAccess.memberId, productAdminAccess.capability, productAdminAccess.role, createdAtMs, {
+          expiresAtMs: productExpiresAtMs,
+        }),
+        storedMember(productGuestAccess.memberId, productGuestAccess.capability, productGuestAccess.role, createdAtMs, {
+          expiresAtMs: productExpiresAtMs,
+        }),
       ],
     },
   ],
@@ -259,7 +278,7 @@ try {
 
   await writeFile(membershipPath, JSON.stringify(registry, null, 2), { encoding: 'utf8', flag: 'wx' })
   const storedRegistry = await readFile(membershipPath, 'utf8')
-  for (const access of [adminAccess, editorAccess, viewerAccess, productAdminAccess, productGuestAccess]) {
+  for (const access of [adminAccess, editorAccess, viewerAccess, rotatingAccess, expiredAccess, productAdminAccess, productGuestAccess]) {
     if (storedRegistry.includes(access.capability)) throw new Error('relay registry retained a plaintext capability')
   }
 
@@ -269,6 +288,10 @@ try {
     member: editorAccess.memberId,
     capability: token(),
   }, 'incorrect protected-room capability')
+  await assertAuthorizationDenied(endpoint, protectedRoom, {
+    member: expiredAccess.memberId,
+    capability: expiredAccess.capability,
+  }, 'expired protected-room capability')
 
   docA = new Y.Doc()
   docB = new Y.Doc()
@@ -320,12 +343,23 @@ try {
 
   registry.revision += 1
   registry.rooms[0].members[1].revokedAtMs = Date.now()
+  registry.rooms[0].members[3].capabilitySha256 = digest(rotatedAccess.capability)
+  registry.rooms[0].members[3].capabilityGeneration = 2
+  registry.rooms[0].members[3].rotatedAtMs = Date.now()
+  registry.rooms[0].members[3].expiresAtMs = Date.now() + 60 * 60 * 1_000
   await writeFile(membershipPath, JSON.stringify(registry, null, 2), 'utf8')
+  if ((await readFile(membershipPath, 'utf8')).includes(rotatedAccess.capability)) {
+    throw new Error('rotated relay capability was stored in plaintext')
+  }
   relay = await startRelay(executable, port, dataDirectory)
   await assertAuthorizationDenied(endpoint, protectedRoom, {
     member: editorAccess.memberId,
     capability: editorAccess.capability,
   }, 'revoked protected-room member')
+  await assertAuthorizationDenied(endpoint, protectedRoom, {
+    member: rotatingAccess.memberId,
+    capability: rotatingAccess.capability,
+  }, 'pre-rotation protected-room capability')
 
   docA = new Y.Doc()
   providerA = new WebsocketProvider(endpoint, protectedRoom, docA, providerOptions(adminAccess))
@@ -337,6 +371,14 @@ try {
   if (docA.getMap('membership').has('viewer-write')) {
     throw new Error('rejected viewer update was persisted')
   }
+
+  docC = new Y.Doc()
+  providerC = new WebsocketProvider(endpoint, protectedRoom, docC, providerOptions(rotatedAccess))
+  await waitFor(() => providerC.synced, 'rotated member recovery')
+  await waitFor(
+    () => docC.getMap('membership').get('authorized-baseline') === 'retained',
+    'rotated member retained-state readback',
+  )
 
   docB = new Y.Doc()
   providerB = new WebsocketProvider(endpoint, persistedRoom, docB, {
@@ -352,16 +394,22 @@ try {
   await runProductProviderFlow(endpoint, productRoom, {
     host: productAdminAccess,
     guest: productGuestAccess,
+    capabilityGeneration: 1,
+    expiresAtMs: productExpiresAtMs,
   })
 
   providerA.destroy()
   providerB.destroy()
+  providerC.destroy()
   docA.destroy()
   docB.destroy()
+  docC.destroy()
   providerA = null
   providerB = null
+  providerC = null
   docA = null
   docB = null
+  docC = null
   await stopRelay(relay)
   relay = null
   await assertPortReleased(port)
@@ -384,6 +432,9 @@ try {
     managedViewerReadAndAwarenessAllowed: true,
     managedViewerWriteRejectedAndNotPersisted: true,
     managedRevocationAppliedAfterRestart: true,
+    managedExpiredCapabilityDenied: true,
+    managedRotationInvalidatesOldCapabilityAndRecoversState: true,
+    managedV3ExpiringInvitationAndProviderAuthentication: true,
     managedProductInvitationAndProviderAuthentication: true,
     legacyRoomCompatibleBesideManagedRooms: true,
   }, null, 2))

@@ -6,8 +6,8 @@
 //! does not claim authenticated human identity.
 
 use crate::collaboration_relay_membership::{
-    create_room, issue_member, registry_path, report_room, revoke_member, RelayMemberCredential,
-    RelayMemberRole, RelayRoomMembershipReport,
+    create_room, issue_member, registry_path, report_room, revoke_member, rotate_member,
+    RelayMemberCredential, RelayMemberRole, RelayRoomMembershipReport,
 };
 use crate::collaboration_relay_server::is_private_listen_address;
 use serde::{Deserialize, Serialize};
@@ -518,6 +518,7 @@ pub fn collaboration_relay_member_issue(
     room_id: String,
     expected_revision: u64,
     role: RelayMemberRole,
+    expires_in_seconds: Option<u64>,
 ) -> Result<RelayRoomCredentialResult, String> {
     let membership_path = registry_path(&storage_path(&app)?);
     let mut inner = state
@@ -525,7 +526,39 @@ pub fn collaboration_relay_member_issue(
         .lock()
         .map_err(|_| "Collaboration relay state lock was poisoned".to_string())?;
     stop_for_membership_change(&mut inner)?;
-    let result = issue_member(&membership_path, &room_id, expected_revision, role);
+    let result = issue_member(
+        &membership_path,
+        &room_id,
+        expected_revision,
+        role,
+        expires_in_seconds,
+    );
+    resume_after_membership_change(&app, &mut inner);
+    result.map(|(credential, room)| RelayRoomCredentialResult { credential, room })
+}
+
+#[tauri::command]
+pub fn collaboration_relay_member_rotate(
+    app: AppHandle,
+    state: State<'_, CollaborationRelayRuntime>,
+    room_id: String,
+    member_id: String,
+    expected_revision: u64,
+    expires_in_seconds: Option<u64>,
+) -> Result<RelayRoomCredentialResult, String> {
+    let membership_path = registry_path(&storage_path(&app)?);
+    let mut inner = state
+        .0
+        .lock()
+        .map_err(|_| "Collaboration relay state lock was poisoned".to_string())?;
+    stop_for_membership_change(&mut inner)?;
+    let result = rotate_member(
+        &membership_path,
+        &room_id,
+        &member_id,
+        expected_revision,
+        expires_in_seconds,
+    );
     resume_after_membership_change(&app, &mut inner);
     result.map(|(credential, room)| RelayRoomCredentialResult { credential, room })
 }

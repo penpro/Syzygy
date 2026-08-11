@@ -2,15 +2,27 @@ const MAX_ENDPOINT_LENGTH = 2_048
 const ROOM_ID_PATTERN = /^[A-Za-z0-9_-]{32,128}$/
 const MEMBER_ID_PATTERN = /^[A-Za-z0-9_-]{16,128}$/
 const CAPABILITY_PATTERN = /^[A-Za-z0-9_-]{32,128}$/
+const MAX_JAVASCRIPT_DATE_MS = 8_640_000_000_000_000
 
 export type RelayMemberRole = 'admin' | 'editor' | 'viewer'
 
-export interface ManagedRelayAccess {
+export interface ManagedRelayAccessV1 {
   schemaVersion: 1
   memberId: string
   capability: string
   role: RelayMemberRole
 }
+
+export interface ManagedRelayAccessV2 {
+  schemaVersion: 2
+  memberId: string
+  capability: string
+  role: RelayMemberRole
+  capabilityGeneration: number
+  expiresAtMs: number | null
+}
+
+export type ManagedRelayAccess = ManagedRelayAccessV1 | ManagedRelayAccessV2
 
 export interface WebsocketProjectBinding {
   endpoint: string
@@ -43,13 +55,22 @@ function isPrivateHostname(hostname: string): boolean {
 
 function normalizeManagedRelayAccess(value: ManagedRelayAccess | undefined): ManagedRelayAccess | undefined {
   if (value === undefined) return undefined
-  if (!value || typeof value !== 'object' ||
-    Object.keys(value).sort().join(',') !== 'capability,memberId,role,schemaVersion' ||
-    value.schemaVersion !== 1 || !MEMBER_ID_PATTERN.test(value.memberId) ||
+  if (!value || typeof value !== 'object' || !MEMBER_ID_PATTERN.test(value.memberId) ||
     !CAPABILITY_PATTERN.test(value.capability) || !['admin', 'editor', 'viewer'].includes(value.role)) {
     throw new Error('Managed relay member access is malformed')
   }
-  return { ...value }
+  if (value.schemaVersion === 1 &&
+    Object.keys(value).sort().join(',') === 'capability,memberId,role,schemaVersion') {
+    return { ...value }
+  }
+  if (value.schemaVersion === 2 &&
+    Object.keys(value).sort().join(',') === 'capability,capabilityGeneration,expiresAtMs,memberId,role,schemaVersion' &&
+    Number.isSafeInteger(value.capabilityGeneration) && value.capabilityGeneration >= 1 &&
+    (value.expiresAtMs === null || (Number.isSafeInteger(value.expiresAtMs) &&
+      value.expiresAtMs > 0 && value.expiresAtMs <= MAX_JAVASCRIPT_DATE_MS))) {
+    return { ...value }
+  }
+  throw new Error('Managed relay member access is malformed')
 }
 
 /**

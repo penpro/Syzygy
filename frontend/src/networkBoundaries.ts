@@ -38,7 +38,7 @@ export const NETWORK_BOUNDARY_ITEMS: readonly NetworkBoundaryItem[] = [
     defaultState: 'Off until you create or accept a legacy or role-specific bearer invitation',
     activation: 'When you explicitly connect/join a project or enable the app-managed private-LAN relay',
     destination: 'The WS/WSS endpoint in the invitation; bundled hosting listens only on the private address you configure',
-    data: 'The relay receives project updates and ephemeral presence. Bundled hosting persists bounded document-sync updates but never awareness. Managed invitations carry a revocable role-specific bearer capability; legacy rooms use one read/edit room key. These authorize relay access but do not authenticate self-reported identities, and the relay log is not a backup.',
+    data: 'The relay receives project updates and ephemeral presence. Bundled hosting persists bounded document-sync updates but never awareness. Managed invitations carry a role-specific bearer capability that the host can expire, rotate, or revoke; legacy rooms use one read/edit room key. These authorize relay access but do not authenticate self-reported identities, expiry trusts the relay host clock, and the relay log is not a backup.',
   },
   {
     id: 'downloads-updates',

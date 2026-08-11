@@ -14,13 +14,20 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const MEMBERSHIP_FILE: &str = "members-v1.json";
 const REGISTRY_SCHEMA_VERSION: u8 = 1;
-const CREDENTIAL_SCHEMA_VERSION: u8 = 1;
+const CREDENTIAL_SCHEMA_VERSION: u8 = 2;
+const REPORT_SCHEMA_VERSION: u8 = 2;
 const MAX_REGISTRY_BYTES: usize = 1024 * 1024;
 const MAX_ROOMS: usize = 256;
 const MAX_MEMBERS_PER_ROOM: usize = 64;
 const MEMBER_ID_BYTES: usize = 24;
 const CAPABILITY_BYTES: usize = 32;
 const MAX_AUTH_QUERY_BYTES: usize = 512;
+const MIN_EXPIRY_SECONDS: u64 = 5 * 60;
+const MAX_EXPIRY_SECONDS: u64 = 365 * 24 * 60 * 60;
+
+fn initial_capability_generation() -> u32 {
+    1
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -42,7 +49,13 @@ struct StoredMember {
     member_id: String,
     role: RelayMemberRole,
     capability_sha256: String,
+    #[serde(default = "initial_capability_generation")]
+    capability_generation: u32,
     created_at_ms: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rotated_at_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expires_at_ms: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     revoked_at_ms: Option<u64>,
 }
@@ -82,6 +95,8 @@ pub struct RelayMemberCredential {
     pub member_id: String,
     pub role: RelayMemberRole,
     pub capability: String,
+    pub capability_generation: u32,
+    pub expires_at_ms: Option<u64>,
     pub registry_revision: u64,
 }
 
@@ -91,6 +106,9 @@ pub struct RelayMemberSummary {
     pub member_id: String,
     pub role: RelayMemberRole,
     pub created_at_ms: u64,
+    pub rotated_at_ms: Option<u64>,
+    pub expires_at_ms: Option<u64>,
+    pub capability_generation: u32,
     pub revoked_at_ms: Option<u64>,
 }
 
@@ -150,7 +168,18 @@ fn validate_registry(registry: &RelayMembershipRegistry) -> Result<(), String> {
         for member in &room.members {
             if !stable_id(&member.member_id, 16, 128)
                 || !valid_digest(&member.capability_sha256)
+                || member.capability_generation == 0
                 || member.created_at_ms < room.created_at_ms
+                || member
+                    .rotated_at_ms
+                    .is_some_and(|rotated| rotated < member.created_at_ms)
+                || member
+                    .expires_at_ms
+                    .is_some_and(|expires| expires <= member.created_at_ms)
+                || matches!(
+                    (member.expires_at_ms, member.rotated_at_ms),
+                    (Some(expires), Some(rotated)) if expires <= rotated
+                )
                 || member
                     .revoked_at_ms
                     .is_some_and(|revoked| revoked < member.created_at_ms)
@@ -278,9 +307,27 @@ fn capability_digest(capability: &str) -> String {
     )
 }
 
+fn expiration_at(
+    created_at_ms: u64,
+    expires_in_seconds: Option<u64>,
+) -> Result<Option<u64>, String> {
+    let Some(seconds) = expires_in_seconds else {
+        return Ok(None);
+    };
+    if !(MIN_EXPIRY_SECONDS..=MAX_EXPIRY_SECONDS).contains(&seconds) {
+        return Err("Relay member lifetime must be between five minutes and one year".into());
+    }
+    seconds
+        .checked_mul(1_000)
+        .and_then(|duration| created_at_ms.checked_add(duration))
+        .map(Some)
+        .ok_or_else(|| "Relay member lifetime overflowed".to_string())
+}
+
 fn issue_record(
     role: RelayMemberRole,
     created_at_ms: u64,
+    expires_at_ms: Option<u64>,
 ) -> Result<(StoredMember, String), String> {
     let member_id = random_urlsafe(MEMBER_ID_BYTES)?;
     let capability = random_urlsafe(CAPABILITY_BYTES)?;
@@ -289,7 +336,10 @@ fn issue_record(
             member_id,
             role,
             capability_sha256: capability_digest(&capability),
+            capability_generation: initial_capability_generation(),
             created_at_ms,
+            rotated_at_ms: None,
+            expires_at_ms,
             revoked_at_ms: None,
         },
         capability,
@@ -298,7 +348,7 @@ fn issue_record(
 
 fn room_report(registry: &RelayMembershipRegistry, room: &StoredRoom) -> RelayRoomMembershipReport {
     RelayRoomMembershipReport {
-        schema_version: REGISTRY_SCHEMA_VERSION,
+        schema_version: REPORT_SCHEMA_VERSION,
         registry_revision: registry.revision,
         room_id: room.room_id.clone(),
         project_id: room.project_id.clone(),
@@ -310,6 +360,9 @@ fn room_report(registry: &RelayMembershipRegistry, room: &StoredRoom) -> RelayRo
                 member_id: member.member_id.clone(),
                 role: member.role,
                 created_at_ms: member.created_at_ms,
+                rotated_at_ms: member.rotated_at_ms,
+                expires_at_ms: member.expires_at_ms,
+                capability_generation: member.capability_generation,
                 revoked_at_ms: member.revoked_at_ms,
             })
             .collect(),
@@ -332,7 +385,7 @@ pub fn create_room(
         return Err("Relay membership registry reached its room limit".into());
     }
     let created_at_ms = now_ms();
-    let (admin, capability) = issue_record(RelayMemberRole::Admin, created_at_ms)?;
+    let (admin, capability) = issue_record(RelayMemberRole::Admin, created_at_ms, None)?;
     let member_id = admin.member_id.clone();
     registry.rooms.push(StoredRoom {
         room_id: room_id.into(),
@@ -353,6 +406,8 @@ pub fn create_room(
             member_id,
             role: RelayMemberRole::Admin,
             capability,
+            capability_generation: initial_capability_generation(),
+            expires_at_ms: None,
             registry_revision: registry.revision,
         },
         room_report(&registry, room),
@@ -364,6 +419,7 @@ pub fn issue_member(
     room_id: &str,
     expected_revision: u64,
     role: RelayMemberRole,
+    expires_in_seconds: Option<u64>,
 ) -> Result<(RelayMemberCredential, RelayRoomMembershipReport), String> {
     if !stable_id(room_id, 32, 128) {
         return Err("Relay room membership input is invalid".into());
@@ -380,7 +436,9 @@ pub fn issue_member(
     if room.members.len() >= MAX_MEMBERS_PER_ROOM {
         return Err("Relay room reached its member limit".into());
     }
-    let (member, capability) = issue_record(role, now_ms())?;
+    let created_at_ms = now_ms();
+    let expires_at_ms = expiration_at(created_at_ms, expires_in_seconds)?;
+    let (member, capability) = issue_record(role, created_at_ms, expires_at_ms)?;
     let member_id = member.member_id.clone();
     room.members.push(member);
     registry.revision = registry
@@ -400,9 +458,74 @@ pub fn issue_member(
             member_id,
             role,
             capability,
+            capability_generation: initial_capability_generation(),
+            expires_at_ms,
             registry_revision: registry.revision,
         },
         room_report(&registry, room),
+    ))
+}
+
+pub fn rotate_member(
+    path: &Path,
+    room_id: &str,
+    member_id: &str,
+    expected_revision: u64,
+    expires_in_seconds: Option<u64>,
+) -> Result<(RelayMemberCredential, RelayRoomMembershipReport), String> {
+    if !stable_id(room_id, 32, 128) || !stable_id(member_id, 16, 128) {
+        return Err("Relay room membership input is invalid".into());
+    }
+    let mut registry = load_registry(path)?;
+    if registry.revision != expected_revision {
+        return Err("Relay membership changed; refresh and try again".into());
+    }
+    let room_index = registry
+        .rooms
+        .iter()
+        .position(|room| room.room_id == room_id)
+        .ok_or_else(|| "Relay room is not managed by this installation".to_string())?;
+    let member_index = registry.rooms[room_index]
+        .members
+        .iter()
+        .position(|member| member.member_id == member_id)
+        .ok_or_else(|| "Relay member is not registered in this room".to_string())?;
+    if registry.rooms[room_index].members[member_index]
+        .revoked_at_ms
+        .is_some()
+    {
+        return Err("Revoked relay members cannot be recovered; issue a new member".into());
+    }
+    let rotated_at_ms = now_ms();
+    let expires_at_ms = expiration_at(rotated_at_ms, expires_in_seconds)?;
+    let capability = random_urlsafe(CAPABILITY_BYTES)?;
+    let member = &mut registry.rooms[room_index].members[member_index];
+    member.capability_sha256 = capability_digest(&capability);
+    member.capability_generation = member
+        .capability_generation
+        .checked_add(1)
+        .ok_or_else(|| "Relay member capability generation overflowed".to_string())?;
+    member.rotated_at_ms = Some(rotated_at_ms);
+    member.expires_at_ms = expires_at_ms;
+    let role = member.role;
+    let capability_generation = member.capability_generation;
+    registry.revision = registry
+        .revision
+        .checked_add(1)
+        .ok_or_else(|| "Relay membership revision overflowed".to_string())?;
+    save_registry(path, &registry)?;
+    Ok((
+        RelayMemberCredential {
+            schema_version: CREDENTIAL_SCHEMA_VERSION,
+            room_id: room_id.into(),
+            member_id: member_id.into(),
+            role,
+            capability,
+            capability_generation,
+            expires_at_ms,
+            registry_revision: registry.revision,
+        },
+        room_report(&registry, &registry.rooms[room_index]),
     ))
 }
 
@@ -477,10 +600,11 @@ fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
         == 0
 }
 
-pub fn authorize(
+fn authorize_at(
     registry: &RelayMembershipRegistry,
     room_id: &str,
     query: Option<&str>,
+    current_time_ms: u64,
 ) -> Result<RelayAuthorization, String> {
     let Some(room) = registry.rooms.iter().find(|room| room.room_id == room_id) else {
         return Ok(RelayAuthorization::LegacyBearer);
@@ -512,7 +636,14 @@ pub fn authorize(
     let member = room
         .members
         .iter()
-        .find(|member| member.member_id == member_id && member.revoked_at_ms.is_none())
+        .find(|member| {
+            member.member_id == member_id
+                && member.revoked_at_ms.is_none()
+                && member
+                    .expires_at_ms
+                    .map(|expires_at_ms| current_time_ms < expires_at_ms)
+                    .unwrap_or(true)
+        })
         .ok_or_else(|| "Relay member authorization was denied".to_string())?;
     let presented = capability_digest(&capability);
     if !constant_time_eq(presented.as_bytes(), member.capability_sha256.as_bytes()) {
@@ -522,6 +653,14 @@ pub fn authorize(
         member_id,
         role: member.role,
     })
+}
+
+pub fn authorize(
+    registry: &RelayMembershipRegistry,
+    room_id: &str,
+    query: Option<&str>,
+) -> Result<RelayAuthorization, String> {
+    authorize_at(registry, room_id, query, now_ms())
 }
 
 #[cfg(test)]
@@ -564,6 +703,7 @@ mod tests {
             &room_id,
             initial.registry_revision,
             RelayMemberRole::Viewer,
+            None,
         )
         .unwrap();
         assert!(!viewer.role.can_write());
@@ -584,6 +724,75 @@ mod tests {
                 .unwrap_err()
                 .contains("retain one active administrator")
         );
+        let _ = fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn expires_and_rotates_capabilities_without_reusing_member_identity() {
+        let directory = directory("rotation");
+        let path = registry_path(&directory);
+        let room_id = "x".repeat(32);
+        let (_, initial) = create_room(&path, "project-a", &room_id).unwrap();
+        let (editor, report) = issue_member(
+            &path,
+            &room_id,
+            initial.registry_revision,
+            RelayMemberRole::Editor,
+            Some(MIN_EXPIRY_SECONDS),
+        )
+        .unwrap();
+        let original_query = format!(
+            "member={}&capability={}",
+            editor.member_id, editor.capability
+        );
+        let original_expiry = editor.expires_at_ms.unwrap();
+        assert!(authorize_at(
+            &load_registry(&path).unwrap(),
+            &room_id,
+            Some(&original_query),
+            original_expiry - 1,
+        )
+        .is_ok());
+        assert!(authorize_at(
+            &load_registry(&path).unwrap(),
+            &room_id,
+            Some(&original_query),
+            original_expiry,
+        )
+        .is_err());
+
+        let (rotated, rotated_report) = rotate_member(
+            &path,
+            &room_id,
+            &editor.member_id,
+            report.registry_revision,
+            None,
+        )
+        .unwrap();
+        assert_eq!(rotated.member_id, editor.member_id);
+        assert_eq!(rotated.role, editor.role);
+        assert_eq!(rotated.capability_generation, 2);
+        assert_eq!(rotated.expires_at_ms, None);
+        assert!(authorize(
+            &load_registry(&path).unwrap(),
+            &room_id,
+            Some(&original_query)
+        )
+        .is_err());
+        assert!(authorize(
+            &load_registry(&path).unwrap(),
+            &room_id,
+            Some(&format!(
+                "member={}&capability={}",
+                rotated.member_id, rotated.capability
+            )),
+        )
+        .is_ok());
+        let stored = fs::read_to_string(&path).unwrap();
+        assert!(!stored.contains(&editor.capability));
+        assert!(!stored.contains(&rotated.capability));
+        assert_eq!(rotated_report.members[1].capability_generation, 2);
+        assert!(rotated_report.members[1].rotated_at_ms.is_some());
         let _ = fs::remove_dir_all(directory);
     }
 
@@ -618,19 +827,32 @@ mod tests {
             &path,
             &room_id,
             report.registry_revision + 1,
-            RelayMemberRole::Editor
+            RelayMemberRole::Editor,
+            None,
         )
         .unwrap_err()
         .contains("changed"));
         assert_eq!(fs::read(&path).unwrap(), before);
         assert!(issue_member(
             &path,
+            &room_id,
+            report.registry_revision,
+            RelayMemberRole::Editor,
+            Some(MIN_EXPIRY_SECONDS - 1),
+        )
+        .unwrap_err()
+        .contains("five minutes"));
+        assert_eq!(fs::read(&path).unwrap(), before);
+        assert!(issue_member(
+            &path,
             "short",
             report.registry_revision,
-            RelayMemberRole::Editor
+            RelayMemberRole::Editor,
+            None,
         )
         .is_err());
         assert!(revoke_member(&path, &room_id, "short", report.registry_revision).is_err());
+        assert!(rotate_member(&path, &room_id, "short", report.registry_revision, None,).is_err());
         assert!(authorize(
             &load_registry(&path).unwrap(),
             &room_id,

@@ -34,6 +34,16 @@ describe('self-hosted project store binding', () => {
     expect(useStore.getState().projects[0].transport).toEqual({
       kind: 'websocket', endpoint: 'ws://192.168.1.20:1234', roomId: 'room_' + 'a'.repeat(40), access,
     })
+    const rotatedAccess = {
+      schemaVersion: 2 as const,
+      memberId: access.memberId,
+      capability: 'd'.repeat(43),
+      role: 'admin' as const,
+      capabilityGeneration: 2,
+      expiresAtMs: 2_000_000_000_000,
+    }
+    useStore.getState().setSelfHostedProjectAccess(project.id, rotatedAccess)
+    expect(useStore.getState().projects[0].transport).toMatchObject({ access: rotatedAccess })
     useStore.getState().leaveSelfHostedProject(project.id)
     expect(useStore.getState().projects[0].transport).toEqual({ kind: 'local' })
   })

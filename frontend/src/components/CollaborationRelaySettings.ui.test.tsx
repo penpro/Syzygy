@@ -9,6 +9,7 @@ describe('CollaborationRelaySettings', () => {
     expect(html).toContain('App-managed research relay')
     expect(html).toContain('does not require Node.js or PowerShell')
     expect(html).toContain('bearer member capabilities')
+    expect(html).toContain('host-clock expiry, rotation/recovery, and revocation')
     expect(html).toContain('Legacy rooms still use the room ID as one read/edit key')
     expect(html).toContain('Participant names are self-reported')
     expect(html).toContain('Awareness is never written')

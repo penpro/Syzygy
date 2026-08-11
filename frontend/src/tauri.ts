@@ -112,11 +112,13 @@ export interface CollaborationRelayReport {
 export type RelayMemberRole = 'admin' | 'editor' | 'viewer'
 
 export interface RelayMemberCredential {
-  schemaVersion: 1
+  schemaVersion: 2
   roomId: string
   memberId: string
   role: RelayMemberRole
   capability: string
+  capabilityGeneration: number
+  expiresAtMs: number | null
   registryRevision: number
 }
 
@@ -124,11 +126,14 @@ export interface RelayMemberSummary {
   memberId: string
   role: RelayMemberRole
   createdAtMs: number
+  rotatedAtMs: number | null
+  expiresAtMs: number | null
+  capabilityGeneration: number
   revokedAtMs: number | null
 }
 
 export interface RelayRoomMembershipReport {
-  schemaVersion: 1
+  schemaVersion: 2
   registryRevision: number
   roomId: string
   projectId: string
@@ -821,10 +826,25 @@ export const collaborationRelayMemberIssue = (
   roomId: string,
   expectedRevision: number,
   role: RelayMemberRole,
+  expiresInSeconds: number | null,
 ): Promise<RelayRoomCredentialResult> => invoke('collaboration_relay_member_issue', {
   roomId,
   expectedRevision,
   role,
+  expiresInSeconds,
+})
+
+/** Replace one active member capability under an exact revision and return the replacement once. */
+export const collaborationRelayMemberRotate = (
+  roomId: string,
+  memberId: string,
+  expectedRevision: number,
+  expiresInSeconds: number | null,
+): Promise<RelayRoomCredentialResult> => invoke('collaboration_relay_member_rotate', {
+  roomId,
+  memberId,
+  expectedRevision,
+  expiresInSeconds,
 })
 
 /** Revoke one member under an exact registry revision; the native runtime restarts the relay. */

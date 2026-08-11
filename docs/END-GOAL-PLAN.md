@@ -163,7 +163,7 @@ supports explicit deterministic project-device registration in bounded Yjs state
 converge across disconnected peers, reopen offline, remain locally approvable while the peer is
 absent, expose stable-key correlation, retain conflicting participant claims, and appear in bounded
 read-only MCP inspection. They are self-registration evidence, not shared approval. Trusted
-project-shared enrollment, roles, propagated revocation, rotation/recovery, exact same-session replay
+project-shared enrollment, signed roles, propagated identity revocation, device-key rotation/recovery, exact same-session replay
 rejection, signed durable research events, physical two-install product proof, and five-client soak
 remain open, so P-11 is `implemented_unverified`.
 
@@ -432,7 +432,7 @@ authority and is replayable/deletable by bearer peers. The bundled relay separat
 digest-backed bearer viewer/editor/admin roles and host-local revocation; these credentials are not
 bound to the signed device directory. The next identity increment must define trusted shared
 enrollment, signed identity-to-role binding and shared administration, durable research-event
-signatures, key rotation/recovery, and a replay policy before the product may say authenticated.
+signatures, device-key rotation/recovery, and a replay policy before the product may say authenticated.
 
 Gate: five-client rapid-edit soak converges; stale presence disappears; restart/partition loses
 no edit; schema is unchanged when switching providers; P-11/P-12/S-05 pass.
@@ -443,17 +443,21 @@ remote-persistence/attachment capabilities, and the first stable-Yjs-13
 automation registration, and ephemeral presence. A real loopback relay harness proves two-client
 updates, awareness, stale-presence cleanup, relay termination/restart, and partition convergence.
 The harness rejected the current Yjs-14 relay line and pins the compatible MIT 0.1.1 test server.
-The next product slice now persists a strict WebSocket transport through store v5, exposes explicit
-advanced create/join/leave/member controls, uses bounded legacy-v1 and managed-v2 bearer invitation codecs, shows connection state,
+The next product slice now persists a strict WebSocket transport through store v6, exposes explicit
+advanced create/join/leave/member controls, uses bounded legacy-v1, managed-v2, and expiring/rotatable
+managed-v3 bearer invitation codecs, shows connection state,
 activates disclosed WS/WSS CSP access, strips the binding from offline archives, and headlessly proves
 invite-to-provider reopen through separate IndexedDB stores. Syzygy now also owns an opt-in bundled
 private-LAN relay child: Settings starts/supervises it without Node/PowerShell, shutdown reaps it and
 verifies port release, and a bounded crash-tail-repairing sync-update log recovers a document into a
 new empty client after every source client and relay process exit. Frames/rooms/clients are capped;
 awareness is never persisted. Managed rooms now store capability digests, enforce viewer versus
-writer protocol frames, and restart under exact-revision issue/revoke operations; legacy rooms remain
+writer protocol frames, reject operator-clock-expired members, and restart under exact-revision
+issue/rotate/revoke operations. Rotation preserves member ID/role, increments the public generation,
+optionally replaces expiry, and invalidates every prior capability copy; legacy rooms remain
 explicitly compatible. This advances the phase but does not complete it: authenticated human
-identity, signed device-to-role binding/shared administration, public WSS operation, compaction/export/backups, broader abuse
+identity, signed device-to-role binding/shared administration, trusted time, automatic replacement
+delivery, public WSS operation, compaction/export/backups, broader abuse
 controls, packaged physical two-install use, and five-client soak remain open.
 
 ### Phase 6 — scenario workflow (`XL`)

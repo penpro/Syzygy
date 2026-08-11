@@ -3,6 +3,7 @@ import { useStore } from '../store'
 import {
   collaborationRelayMemberIssue,
   collaborationRelayMemberRevoke,
+  collaborationRelayMemberRotate,
   collaborationRelayRoomCreate,
   collaborationRelayRoomStatus,
   collaborationRelaySettings,
@@ -45,7 +46,15 @@ function memberAccess(credential: RelayMemberCredential): ManagedRelayAccess {
     memberId: credential.memberId,
     capability: credential.capability,
     role: credential.role,
+    capabilityGeneration: credential.capabilityGeneration,
+    expiresAtMs: credential.expiresAtMs,
   }
+}
+
+function expirationCopy(expiresAtMs: number | null): string {
+  if (expiresAtMs === null) return 'no automatic expiry'
+  const timestamp = new Date(expiresAtMs).toISOString()
+  return expiresAtMs <= Date.now() ? `expired ${timestamp}` : `expires ${timestamp}`
 }
 
 function useWebsocketProjectStatus(projectId: string | null): WebsocketProjectStatus | null {
@@ -67,9 +76,11 @@ function useWebsocketProjectStatus(projectId: string | null): WebsocketProjectSt
 export function SelfHostedProjectControls({
   project,
   managedRelayEndpoint: suppliedManagedRelayEndpoint,
+  initialMembership = null,
 }: {
   project?: ResearchProjectManifest
   managedRelayEndpoint?: string
+  initialMembership?: RelayRoomMembershipReport | null
 }) {
   const bindProject = useStore((state) => state.bindProjectToWebsocket)
   const setProjectAccess = useStore((state) => state.setSelfHostedProjectAccess)
@@ -82,9 +93,11 @@ export function SelfHostedProjectControls({
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [inviteRole, setInviteRole] = useState<RelayMemberRole>('editor')
+  const [inviteLifetime, setInviteLifetime] = useState('604800')
   const [issuedInvite, setIssuedInvite] = useState('')
   const [issuedInviteRole, setIssuedInviteRole] = useState<RelayMemberRole | null>(null)
-  const [membership, setMembership] = useState<RelayRoomMembershipReport | null>(null)
+  const [issuedInviteExpiresAtMs, setIssuedInviteExpiresAtMs] = useState<number | null>(null)
+  const [membership, setMembership] = useState<RelayRoomMembershipReport | null>(initialMembership)
   const [managedRelayEndpoint, setManagedRelayEndpoint] = useState(suppliedManagedRelayEndpoint ?? '')
   const websocketProject = project?.transport.kind === 'websocket' ? project : null
   const websocketBinding = project?.transport.kind === 'websocket' ? project.transport : null
@@ -97,6 +110,7 @@ export function SelfHostedProjectControls({
     websocketProject && websocketBinding && managedRelayEndpoint &&
     websocketBinding.endpoint === managedRelayEndpoint && membership?.projectId === websocketProject.id,
   )
+  const selectedLifetimeSeconds = inviteLifetime === 'never' ? null : Number(inviteLifetime)
 
   useEffect(() => {
     if (suppliedManagedRelayEndpoint !== undefined || !desktopRuntimeAvailable()) return
@@ -185,11 +199,13 @@ export function SelfHostedProjectControls({
     setError('')
     setIssuedInvite('')
     setIssuedInviteRole(null)
+    setIssuedInviteExpiresAtMs(null)
     try {
       const issued = await collaborationRelayMemberIssue(
         websocketBinding.roomId,
         membership.registryRevision,
         inviteRole,
+        selectedLifetimeSeconds,
       )
       const invite = createManagedWebsocketProjectInvite(websocketProject, {
         schemaVersion: issued.credential.schemaVersion,
@@ -197,11 +213,48 @@ export function SelfHostedProjectControls({
         memberId: issued.credential.memberId,
         capability: issued.credential.capability,
         role: issued.credential.role,
+        capabilityGeneration: issued.credential.capabilityGeneration,
+        expiresAtMs: issued.credential.expiresAtMs,
       })
       setMembership(issued.room)
       setIssuedInvite(invite)
       setIssuedInviteRole(issued.credential.role)
-      setMessage(`${inviteRole} invitation issued. This is the only copy of its member capability.`)
+      setIssuedInviteExpiresAtMs(issued.credential.expiresAtMs)
+      setMessage(`${inviteRole} invitation issued with ${expirationCopy(issued.credential.expiresAtMs)}. This is the only copy of its member capability.`)
+    } catch (value) {
+      setError(errorText(value))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const rotate = async (memberId: string) => {
+    if (!websocketProject || !websocketBinding || !membership || busy) return
+    setBusy(true)
+    setError('')
+    setIssuedInvite('')
+    setIssuedInviteRole(null)
+    setIssuedInviteExpiresAtMs(null)
+    try {
+      const rotated = await collaborationRelayMemberRotate(
+        websocketBinding.roomId,
+        memberId,
+        membership.registryRevision,
+        selectedLifetimeSeconds,
+      )
+      const access = memberAccess(rotated.credential)
+      const invite = createManagedWebsocketProjectInvite(websocketProject, {
+        ...access,
+        roomId: rotated.credential.roomId,
+      })
+      if (memberId === websocketBinding.access?.memberId) {
+        setProjectAccess(websocketProject.id, access)
+      }
+      setMembership(rotated.room)
+      setIssuedInvite(invite)
+      setIssuedInviteRole(rotated.credential.role)
+      setIssuedInviteExpiresAtMs(rotated.credential.expiresAtMs)
+      setMessage(`Member capability rotated to generation ${rotated.credential.capabilityGeneration} with ${expirationCopy(rotated.credential.expiresAtMs)}. The previous invitation can no longer connect.`)
     } catch (value) {
       setError(errorText(value))
     } finally {
@@ -252,6 +305,9 @@ export function SelfHostedProjectControls({
             {websocketBinding.access ? <p>
               Member access · <strong>{websocketBinding.access.role}</strong>. The capability is a
               bearer credential stored only in this installation’s project settings.
+              {websocketBinding.access.schemaVersion === 2
+                ? ` Generation ${websocketBinding.access.capabilityGeneration}; ${expirationCopy(websocketBinding.access.expiresAtMs)}.`
+                : ' Legacy managed invitation without an expiry claim.'}
               {websocketBinding.access.role === 'viewer'
                 ? ' Viewer document updates are rejected by the relay; local edits remain local.'
                 : ''}
@@ -286,13 +342,23 @@ export function SelfHostedProjectControls({
             {membership.members.map((member) => <li key={member.memberId}>
               <span className="mono">{member.memberId.slice(0, 12)}…</span>
               {' · '}{member.role}{member.memberId === websocketBinding.access?.memberId ? ' · this credential' : ''}
+              {' · '}generation {member.capabilityGeneration}
+              {' · '}{expirationCopy(member.expiresAtMs)}
               {member.revokedAtMs ? ' · revoked' : ''}
-              {!member.revokedAtMs ? <button
-                className="btn sm ghost"
-                type="button"
-                disabled={busy}
-                onClick={() => void revoke(member.memberId)}
-              >Revoke</button> : null}
+              {!member.revokedAtMs ? <>
+                <button
+                  className="btn sm ghost"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void rotate(member.memberId)}
+                >Rotate / recover</button>
+                <button
+                  className="btn sm ghost"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void revoke(member.memberId)}
+                >Revoke</button>
+              </> : null}
             </li>)}
           </ul>
           <div className="self-hosted-project-actions">
@@ -308,17 +374,33 @@ export function SelfHostedProjectControls({
                 <option value="admin">Admin · read/write; relay operator still manages membership</option>
               </select>
             </label>
+            <label>
+              <span>Invitation lifetime</span>
+              <select
+                value={inviteLifetime}
+                disabled={busy}
+                onChange={(event) => setInviteLifetime(event.target.value)}
+              >
+                <option value="3600">1 hour</option>
+                <option value="86400">24 hours</option>
+                <option value="604800">7 days</option>
+                <option value="2592000">30 days</option>
+                <option value="never">No automatic expiry</option>
+              </select>
+            </label>
             <button className="btn sm primary" type="button" disabled={busy} onClick={() => void issueInvite()}>
               {busy ? 'Applying…' : 'Issue separate invitation'}
             </button>
           </div>
           <p>
             Membership is managed only on this relay-host installation. Admin credentials do not
-            expose a remote management endpoint; the relay operator retains that authority.
+            expose a remote management endpoint; the relay operator retains that authority. Expiry uses
+            the relay host’s clock. Rotate / recover replaces a member’s capability, preserves
+            its role and member ID, and invalidates every prior copy.
           </p>
           {issuedInvite ? <>
             <label className="self-hosted-invite-field">
-              <span>New {issuedInviteRole} invitation · shown for this issuance</span>
+              <span>New {issuedInviteRole} invitation · {expirationCopy(issuedInviteExpiresAtMs)} · shown for this issuance</span>
               <textarea readOnly rows={4} value={issuedInvite} aria-label="Issued member invitation" />
             </label>
             <button className="btn sm" type="button" onClick={() => void copyText(

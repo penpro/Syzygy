@@ -980,9 +980,13 @@ two-client convergence, exits every source client, gracefully stops/restarts the
 recovers the document into a new empty client. It then writes the exact digest-only membership
 registry, proves missing/wrong credentials receive no protected frame, admin/editor convergence,
 viewer read and awareness, viewer write rejection before broadcast/persistence, revocation after
-restart, managed v2 invitation/provider/IndexedDB reopen, and legacy-room compatibility beside
-protected rooms. Awareness is not persisted and the listener is reusable after shutdown. Rust unit
-tests cover strict registry recovery/bounds/revisions, private binding, secret-free child arguments,
+restart, operator-clock expiry denial, exact-revision capability rotation with old-token denial and
+retained-state recovery, managed v3 expiring invitation/provider/IndexedDB reopen, managed-v2
+backward compatibility, and legacy-room compatibility beside protected rooms. Awareness is not
+persisted and the listener is reusable after shutdown. Rust unit tests cover strict registry
+recovery/bounds/revisions, five-minute-to-one-year expiry limits, rotation generation/digest-only
+storage, private binding, secret-free child arguments,
 protocol message classes, damaged-header denial, and partial-tail repair. This does not prove
-authenticated humans or signed identity-to-role binding, public TLS/WSS, backup restoration,
+authenticated humans or signed identity-to-role binding, trusted time, replacement-invitation
+delivery, public TLS/WSS, backup restoration,
 hostile-frame fuzzing, physical packaged clients, or five-client soak.

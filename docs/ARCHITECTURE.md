@@ -221,9 +221,11 @@ IndexedDB/automation lifecycle with the stable Yjs 13 `y-websocket` protocol, li
 for loopback/private-LAN hosts and rejects credentials, queries, fragments, prefilled room paths, and
 weak room IDs. The product can persist that binding, create or accept a strict bounded invitation,
 reopen through IndexedDB, show owned connection status, and leave the relay while keeping the local
-copy. Store v5 is the idempotent persistence boundary. A v1 third-party/legacy invitation uses the
+copy. Store v6 is the idempotent persistence boundary. A v1 third-party/legacy invitation uses the
 room ID as one read/edit bearer. A v2 app-managed invitation adds an exact member ID, role, and random
-capability without putting credentials in the canonical endpoint or room path. Offline archives
+capability without putting credentials in the canonical endpoint or room path. A v3 managed
+invitation additionally carries the relay-issued capability generation and optional expiry so the
+holder can see the same operator-clock limit the relay enforces; v2 remains readable. Offline archives
 deliberately redact the entire live binding. The webview CSP permits dynamic WS/WSS connections
 because endpoints are user-configured, while the application parser retains the private-plaintext
 boundary. These bearer credentials authorize relay operations but do not authenticate a person.
@@ -284,14 +286,18 @@ dependencies for this research relay. Its separate, strict `members-v1.json` reg
 and 64 members per room, stores only SHA-256 capability digests, and requires one active admin.
 Managed WebSocket queries carry a random member ID and 256-bit capability. Admin/editor roles may
 send Yjs step-two/update frames; viewers may receive retained state, send sync-step-one and awareness,
-but document writes close their connection before broadcast or persistence. Local issue/revoke
-commands require an exact registry revision, stop the owned child, durably replace the registry, and
+but document writes close their connection before broadcast or persistence. Local issue, rotation,
+and revocation commands require an exact registry revision, stop the owned child, durably replace the registry, and
 restart the relay so existing connections reauthenticate. Admin credentials do not expose a remote
 management endpoint; only the relay-host installation controls membership. Rooms absent from the
 registry retain explicit legacy room-bearer compatibility. Public WSS termination, authenticated
-human identity or signed identity-to-role binding, capability recovery/rotation UX, log
+human identity or signed identity-to-role binding, trusted time, automatic replacement-credential
+delivery, log
 compaction/export/backup, broader abuse controls, and physical packaged multi-install proof remain
-gates. The
+gates. Active member capabilities may expire between five minutes and one year or remain
+unbounded. Exact-revision rotation preserves member ID and role, increments a public generation,
+optionally replaces the expiry, stores only the new digest, and restarts the relay so every old copy
+is rejected. This is host-local bearer recovery, not key escrow or participant authentication. The
 Drive provider publishes to the UI/MCP automation registry only after local reopen plus its initial
 remote pull, and a live canary proves the underlying Google create/list/readback/cleanup path.
 Drive project titles are a second, metadata-only append path rather than a mutable manifest field.

@@ -104,13 +104,14 @@ const selfHostedNetworkManifestSource = text('docs/audits/NETWORK-BOUNDARIES.jso
 record(
   'self-hosted product collaboration remains persisted, explicit, live-tested, and bearer-honest',
   projectSchemaSource.includes("{ kind: 'websocket'; endpoint: string; roomId: string; access?: ManagedRelayAccess }") &&
-    migrationSourceForWebsocket.includes('PERSISTED_STORE_VERSION = 5') &&
+    migrationSourceForWebsocket.includes('PERSISTED_STORE_VERSION = 6') &&
     projectStoreSourceForWebsocket.includes('bindProjectToWebsocket: (id, bindingValue) =>') &&
     projectStoreSourceForWebsocket.includes('setSelfHostedProjectAccess: (id, access) =>') &&
     projectStoreSourceForWebsocket.includes('addSelfHostedProject: (value) =>') &&
     projectStoreSourceForWebsocket.includes('leaveSelfHostedProject: (id) =>') &&
     websocketInviteSource.includes("WEBSOCKET_PROJECT_INVITE_PREFIX = 'syzygy-websocket-invite-v1.'") &&
     websocketInviteSource.includes("MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX = 'syzygy-websocket-invite-v2.'") &&
+    websocketInviteSource.includes("EXPIRING_MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX = 'syzygy-websocket-invite-v3.'") &&
     websocketInviteSource.includes('MAX_WEBSOCKET_PROJECT_INVITE_LENGTH = 6_000') &&
     websocketInviteSource.includes("exactKeys(manifest.transport, ['kind', 'endpoint', 'roomId'])") &&
     websocketInviteTestSource.includes('rejects malformed, oversized, archived, non-WebSocket, and extra-field invitations') &&
@@ -130,7 +131,7 @@ record(
     websocketProductEvidence.includes('"productManifestBindingUsed": true') &&
     websocketProductEvidence.includes('"packagedTwoInstallUsed": false') &&
     websocketProductEvidence.includes('"status": "implemented_unverified"'),
-  'store-v5 legacy/managed binding, strict v1/v2 invites, explicit bearer/role disclosure, stale-safe status, archive redaction, CSP/network inventory, real provider reopen, and physical/identity/public-hosting nonclaims are present',
+  'store-v6 legacy/v2/v3 managed binding, strict invitations, explicit bearer/role/expiry disclosure, stale-safe status, archive redaction, CSP/network inventory, real provider reopen, and physical/identity/public-hosting nonclaims are present',
 )
 
 const collaborationRelayCargo = text('frontend/src-tauri/Cargo.toml')
@@ -146,6 +147,7 @@ const collaborationRelaySettings = text('frontend/src/components/CollaborationRe
 const collaborationRelayHarness = text('scripts/bundled-collaboration-relay-harness.mjs')
 const collaborationRelayEvidence = text('docs/audits/runs/APP-MANAGED-COLLABORATION-RELAY-2026-08-11.json')
 const collaborationRelayMembershipEvidence = text('docs/audits/runs/MANAGED-RELAY-MEMBERSHIP-2026-08-11.json')
+const collaborationRelayRotationEvidence = text('docs/audits/runs/MANAGED-RELAY-ROTATION-2026-08-11.json')
 record(
   'app-managed collaboration relay remains private, bounded, durable, reaped, and identity-honest',
   collaborationRelayCargo.includes('tungstenite = "=0.21.0"') &&
@@ -208,6 +210,28 @@ record(
     collaborationRelayMembershipEvidence.includes('"packagedTwoInstallUsed": false') &&
     collaborationRelayMembershipEvidence.includes('"status": "verified"'),
   'strict bounded registry, digest-only random capabilities, exact revision mutations, forced reauthentication, protocol-aware viewer enforcement, managed product flow, legacy coexistence, and human-identity nonclaims are present',
+)
+
+record(
+  'managed relay invitations remain expiring, rotatable, recovery-capable, versioned, and bearer-honest',
+  collaborationRelayMembership.includes('MIN_EXPIRY_SECONDS: u64 = 5 * 60') &&
+    collaborationRelayMembership.includes('MAX_EXPIRY_SECONDS: u64 = 365 * 24 * 60 * 60') &&
+    collaborationRelayMembership.includes('pub fn rotate_member(') &&
+    collaborationRelayMembership.includes('capability_generation') &&
+    collaborationRelayRuntime.includes('collaboration_relay_member_rotate') &&
+    collaborationRelayTauri.includes('collaborationRelayMemberRotate') &&
+    text('frontend/src/workspace/websocketProjectBinding.ts').includes('MAX_JAVASCRIPT_DATE_MS = 8_640_000_000_000_000') &&
+    websocketInviteSource.includes('EXPIRING_MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX') &&
+    websocketInviteTestSource.includes('round-trips a v3 expiring rotated credential') &&
+    websocketControlsSource.includes('Rotate / recover') &&
+    websocketControlsSource.includes('Expiry uses') &&
+    collaborationRelayHarness.includes('managedExpiredCapabilityDenied: true') &&
+    collaborationRelayHarness.includes('managedRotationInvalidatesOldCapabilityAndRecoversState: true') &&
+    collaborationRelayHarness.includes('managedV3ExpiringInvitationAndProviderAuthentication: true') &&
+    collaborationRelayRotationEvidence.includes('"expiredCapabilityDeniedBeforeProtectedData": true') &&
+    collaborationRelayRotationEvidence.includes('"packagedTwoInstallUsed": false') &&
+    collaborationRelayRotationEvidence.includes('"status": "verified"'),
+  'bounded operator-clock expiry, exact-revision digest rotation, old-token denial, retained-state recovery, v2 compatibility, v3 product flow, and identity/trusted-time nonclaims are present',
 )
 
 const collaborationIdentitySource = text('frontend/src-tauri/src/collaboration_identity.rs')
@@ -1209,7 +1233,7 @@ record(
       ) &&
     localProjectProviderTestSource.includes("expect(automationProjectDocumentReady('document-1')).toBe(false)") &&
     localProjectProviderTestSource.includes("expect(automationProjectDocumentReady('document-1')).toBe(true)") &&
-    migrationSource.includes('PERSISTED_STORE_VERSION = 5') &&
+    migrationSource.includes('PERSISTED_STORE_VERSION = 6') &&
     migrationSource.includes('storedVersion > PERSISTED_STORE_VERSION'),
   'post-IndexedDB publication, exact draft/head guards, rollback-aware semantic replacement, two-step UI, one-update two-peer Yjs proof, durable attribution, and truthful P-28 status are present',
 )

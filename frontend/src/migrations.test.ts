@@ -25,10 +25,10 @@ const current = {
 describe('persisted-store migrations', () => {
   it('rewrites older saves for the current transport-capable store and rejects future versions', () => {
     const saved = { settings: defaultSettings }
-    expect(PERSISTED_STORE_VERSION).toBe(5)
+    expect(PERSISTED_STORE_VERSION).toBe(6)
     expect(migratePersistedVersion(saved, 2)).toBe(saved)
     expect(migratePersistedVersion(null, 2)).toEqual({})
-    expect(() => migratePersistedVersion(saved, 6)).toThrow('unsupported persisted store version')
+    expect(() => migratePersistedVersion(saved, 7)).toThrow('unsupported persisted store version')
   })
 
   it('defaults legacy saves to local AI on but preserves an explicit opt-out', () => {
@@ -62,7 +62,7 @@ describe('persisted-store migrations', () => {
     expect(twice.activeProjectId).toBe(once.activeProjectId)
   })
 
-  it('preserves legacy and managed self-hosted bindings through the v5 merge idempotently', () => {
+  it('preserves legacy, v5 managed, and expiring v6 self-hosted bindings idempotently', () => {
     const project = {
       ...createProjectManifest({ id: 'self-hosted', documentId: 'self-hosted-doc', timestamp: 1 }),
       transport: {
@@ -97,6 +97,32 @@ describe('persisted-store migrations', () => {
       settings: defaultSettings, experts: [], asks: [], projects: [managed], activeProjectId: managed.id,
     }, current)
     expect(managedOnce.projects).toEqual([managed])
+    const expiring = {
+      ...managed,
+      id: 'expiring-managed-self-hosted',
+      documentId: 'expiring-managed-self-hosted-doc',
+      transport: {
+        ...managed.transport,
+        access: {
+          schemaVersion: 2 as const,
+          memberId: 'member_' + 'd'.repeat(24),
+          capability: 'e'.repeat(43),
+          role: 'viewer' as const,
+          capabilityGeneration: 2,
+          expiresAtMs: 2_000_000_000_000,
+        },
+      },
+    }
+    expect(mergePersisted({
+      settings: defaultSettings, experts: [], asks: [], projects: [expiring], activeProjectId: expiring.id,
+    }, current).projects).toEqual([expiring])
+    const malformedExpiry = {
+      ...expiring,
+      transport: { ...expiring.transport, access: { ...expiring.transport.access, capabilityGeneration: 0 } },
+    }
+    expect(mergePersisted({
+      settings: defaultSettings, experts: [], asks: [], projects: [malformedExpiry], activeProjectId: expiring.id,
+    }, current).projects).toEqual([])
     const malformed = { ...managed, transport: { ...managed.transport, access: { role: 'editor' } } }
     expect(mergePersisted({
       settings: defaultSettings, experts: [], asks: [], projects: [malformed], activeProjectId: malformed.id,

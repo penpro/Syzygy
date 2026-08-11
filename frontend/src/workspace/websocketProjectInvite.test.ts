@@ -3,6 +3,7 @@ import type { ResearchProjectManifest } from './schema'
 import {
   createManagedWebsocketProjectInvite,
   createWebsocketProjectInvite,
+  EXPIRING_MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX,
   MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX,
   MAX_WEBSOCKET_PROJECT_INVITE_LENGTH,
   parseWebsocketProjectInvite,
@@ -15,6 +16,16 @@ const credential = {
   memberId: 'member_' + 'b'.repeat(24),
   capability: 'c'.repeat(43),
   role: 'viewer' as const,
+}
+
+const expiringCredential = {
+  schemaVersion: 2 as const,
+  roomId: credential.roomId,
+  memberId: 'member_' + 'd'.repeat(24),
+  capability: 'e'.repeat(43),
+  role: 'editor' as const,
+  capabilityGeneration: 3,
+  expiresAtMs: 2_000_000_000_000,
 }
 
 const project: ResearchProjectManifest = {
@@ -63,6 +74,35 @@ describe('self-hosted project invitations', () => {
     expect(() => createWebsocketProjectInvite(host)).toThrow('separate managed relay member')
     expect(() => createManagedWebsocketProjectInvite(project, { ...credential, roomId: 'x'.repeat(32) }))
       .toThrow('different room')
+  })
+
+  it('round-trips a v3 expiring rotated credential while retaining v2 invite compatibility', () => {
+    const invite = createManagedWebsocketProjectInvite(project, expiringCredential)
+    expect(invite.startsWith(EXPIRING_MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX)).toBe(true)
+    expect(parseWebsocketProjectInvite(invite)).toEqual({
+      ...project,
+      transport: {
+        ...project.transport,
+        access: {
+          schemaVersion: 2,
+          memberId: expiringCredential.memberId,
+          capability: expiringCredential.capability,
+          role: 'editor',
+          capabilityGeneration: 3,
+          expiresAtMs: expiringCredential.expiresAtMs,
+        },
+      },
+    })
+    expect(parseWebsocketProjectInvite(createManagedWebsocketProjectInvite(project, credential))
+      .transport).toMatchObject({ access: { schemaVersion: 1 } })
+    expect(() => createManagedWebsocketProjectInvite(project, {
+      ...expiringCredential,
+      capabilityGeneration: 0,
+    })).toThrow('malformed')
+    expect(() => createManagedWebsocketProjectInvite(project, {
+      ...expiringCredential,
+      expiresAtMs: Number.MAX_SAFE_INTEGER,
+    })).toThrow('malformed')
   })
 
   it('rejects malformed, oversized, archived, non-WebSocket, and extra-field invitations', () => {

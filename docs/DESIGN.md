@@ -177,11 +177,17 @@ Self-hosted collaboration is an advanced, explicit flow. A local project accepts
 relay endpoint only after the user acknowledges bearer access. The empty workspace can join only from
 a complete bounded invitation. A third-party or unprotected legacy room exposes one v1 read/edit
 bearer invitation. A room hosted by this app creates an admin credential and issues a distinct v2
-viewer/editor/admin invitation per collaborator. Active relay projects show the configured endpoint,
+viewer/editor/admin invitation per collaborator. Newly issued v3 invitations also show a bounded
+relay-host-clock expiry and capability generation; v2 invitations remain readable as legacy managed
+credentials without an expiry claim. Active relay projects show the configured endpoint,
 live/connecting/offline/error state, actual assigned role, and **Leave relay · keep local copy**.
 Legacy copy must say anyone with that invitation can read and edit. Managed host controls list only
 public member ID/role/status, use exact revisions, show each newly issued capability once, and explain
-that revocation restarts the relay. Viewer copy must say relay writes are rejected while local edits
+that revocation restarts the relay. Hosts select one hour, 24 hours, seven days, 30 days, or no
+automatic expiry. **Rotate / recover** preserves the member ID and role, applies the selected new
+lifetime, increments the generation, replaces the capability, restarts the relay, and presents the
+only new invitation copy. It must say every prior copy is invalid and must update this installation's
+own saved access when rotating its current member. Viewer copy must say relay writes are rejected while local edits
 remain local. Participant names remain self-reported, IndexedDB is the durable local copy, and the
 relay log is not a backup. Public plaintext, endpoint credentials/query/fragment/path, weak rooms,
 partial access objects, and extra invitation fields fail before persistence. Offline archive export
@@ -196,7 +202,8 @@ TLS/WSS proxy for public hosting, never stores awareness, and calls the bounded 
 storage rather than a backup. A local project may fill its endpoint from a running app-managed relay,
 but acknowledgement remains mandatory. Do not imply that bearer roles authenticate people, bind to
 the signed-device directory, expose remote membership administration, or administer public
-hosting/backups.
+hosting/backups. Expiry is only as trustworthy as the relay host's clock, and rotation does not
+deliver the replacement invitation or prevent a recipient from copying it again.
 If any owned LAN or research-relay child does not release its process/listener during shutdown,
 Syzygy remains open and the native dialog names the failing service instead of disappearing.
 The UI must not describe polling as real-time presence.

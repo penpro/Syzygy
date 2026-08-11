@@ -603,8 +603,8 @@ collaborators are not required to download large project folders.
    convergence, awareness propagation, stale-presence cleanup, and process reaping without claiming
    relay persistence. Next: run and record the packaged two-install Drive convergence/reconciliation/
    title harness, large-account catalog latency, and real-Drive update/title compaction plus
-   interruption repair. WebSocket bindings now persist through store v5; explicit advanced product
-   controls create/join/leave bounded v1 legacy and v2 managed-member bearer invitations, connection state is visible, offline
+   interruption repair. WebSocket bindings now persist through store v6; explicit advanced product
+   controls create/join/leave bounded v1 legacy, v2 managed-member, and v3 expiring/rotatable bearer invitations, connection state is visible, offline
    archives redact the live binding, CSP/network copy is activated, and a real relay harness proves
    two provider instances plus one IndexedDB destroy/reopen. The app-managed private-LAN relay is now
    a bundled Syzygy child with saved enable/listen/port settings, supervised restart, graceful
@@ -615,7 +615,11 @@ collaborators are not required to download large project folders.
    require exact-revision issue/revoke operations, restart to reauthenticate every connection, and
    leave unregistered rooms in explicit legacy mode. The native harness rejects missing, wrong, and
    revoked credentials, proves viewer updates neither propagate nor persist, and runs the managed
-   invitation/provider flow. A first
+   invitation/provider flow. Managed v3 invitations now add an explicit capability generation and
+   optional one-hour/24-hour/seven-day/30-day/operator-unbounded expiry while keeping v2 readable.
+   Host-local exact-revision rotation preserves member ID/role, replaces only the digest, restarts
+   every connection, and exposes the only replacement invitation once; the native harness proves
+   expiry denial, old-capability denial, retained-state recovery, and real v3 provider reopen. A first
    identity foundation now gives each installation an OS-vault Ed25519 key and signs only bounded
    ephemeral presence. Cross-language mutation tests pass, and a local project-scoped registry now
    labels verified fingerprints approved or revoked without changing relay access. Managed member
@@ -625,7 +629,7 @@ collaborators are not required to download large project folders.
    authoritative, exact same-session replay and participant-ID impersonation remain possible, and
    durable research events are unsigned. Next: add
    trusted project-shared enrollment, signed identity-to-role binding and shared administration, signed durable-event
-   envelopes, key rotation/recovery, public WSS operations, compaction/export/backups
+   envelopes, device-key rotation/recovery, trusted time and replacement-invitation delivery, public WSS operations, compaction/export/backups
    and broader abuse controls, then run packaged physical two-install and five-client soak gates.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.
    v0.1.14 added same-name folder codes and the bounded MCP/LAN diagnostic; the two-physical-install

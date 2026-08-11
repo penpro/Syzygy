@@ -2,24 +2,31 @@ import { parseProjectManifest, type ResearchProjectManifest } from './schema'
 import {
   normalizeWebsocketProjectBinding,
   type ManagedRelayAccess,
+  type ManagedRelayAccessV1,
+  type ManagedRelayAccessV2,
 } from './websocketProjectBinding'
 
 export const WEBSOCKET_PROJECT_INVITE_PREFIX = 'syzygy-websocket-invite-v1.'
 export const MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX = 'syzygy-websocket-invite-v2.'
+export const EXPIRING_MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX = 'syzygy-websocket-invite-v3.'
 export const MAX_WEBSOCKET_PROJECT_INVITE_LENGTH = 6_000
 const MAX_MANIFEST_ID_LENGTH = 200
 const MAX_TITLE_LENGTH = 200
 const decoder = new TextDecoder('utf-8', { fatal: true })
 const encoder = new TextEncoder()
 
-export interface ManagedRelayInviteCredential extends ManagedRelayAccess {
-  roomId: string
-}
+export type ManagedRelayInviteCredential = ManagedRelayAccess & { roomId: string }
 
-interface ManagedRelayInviteEnvelope {
+interface ManagedRelayInviteEnvelopeV2 {
   schemaVersion: 2
   project: ResearchProjectManifest
-  access: ManagedRelayAccess
+  access: ManagedRelayAccessV1
+}
+
+interface ManagedRelayInviteEnvelopeV3 {
+  schemaVersion: 3
+  project: ResearchProjectManifest
+  access: ManagedRelayAccessV2
 }
 
 function exactKeys(value: object, expected: readonly string[]): boolean {
@@ -106,9 +113,13 @@ export function createManagedWebsocketProjectInvite(
   project: ResearchProjectManifest,
   credential: ManagedRelayInviteCredential,
 ): string {
-  if (!credential || typeof credential !== 'object' || !exactKeys(credential, [
-    'schemaVersion', 'roomId', 'memberId', 'capability', 'role',
-  ])) {
+  if (!credential || typeof credential !== 'object') {
+    throw new Error('Managed relay member credential is malformed')
+  }
+  const expectedCredentialKeys = credential.schemaVersion === 1
+    ? ['schemaVersion', 'roomId', 'memberId', 'capability', 'role']
+    : ['schemaVersion', 'roomId', 'memberId', 'capability', 'role', 'capabilityGeneration', 'expiresAtMs']
+  if (![1, 2].includes(credential.schemaVersion) || !exactKeys(credential, expectedCredentialKeys)) {
     throw new Error('Managed relay member credential is malformed')
   }
   const manifest = normalizedBaseManifest(withoutAccess(project))
@@ -119,11 +130,18 @@ export function createManagedWebsocketProjectInvite(
   if (credential.roomId !== transport.roomId) {
     throw new Error('Managed relay member credential belongs to a different room')
   }
-  const access: ManagedRelayAccess = {
-    schemaVersion: credential.schemaVersion,
+  const access: ManagedRelayAccess = credential.schemaVersion === 1 ? {
+    schemaVersion: 1,
     memberId: credential.memberId,
     capability: credential.capability,
     role: credential.role,
+  } : {
+    schemaVersion: 2,
+    memberId: credential.memberId,
+    capability: credential.capability,
+    role: credential.role,
+    capabilityGeneration: credential.capabilityGeneration,
+    expiresAtMs: credential.expiresAtMs,
   }
   const binding = normalizeWebsocketProjectBinding({
     endpoint: transport.endpoint,
@@ -131,20 +149,29 @@ export function createManagedWebsocketProjectInvite(
     access,
   })
   if (!binding.access) throw new Error('Managed relay member credential is missing')
-  const envelope: ManagedRelayInviteEnvelope = {
-    schemaVersion: 2,
+  if (binding.access.schemaVersion === 1) {
+    const envelope: ManagedRelayInviteEnvelopeV2 = {
+      schemaVersion: 2,
+      project: manifest,
+      access: binding.access,
+    }
+    return MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX + encodeBase64Url(JSON.stringify(envelope))
+  }
+  const envelope: ManagedRelayInviteEnvelopeV3 = {
+    schemaVersion: 3,
     project: manifest,
     access: binding.access,
   }
-  return MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX + encodeBase64Url(JSON.stringify(envelope))
+  return EXPIRING_MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX + encodeBase64Url(JSON.stringify(envelope))
 }
 
-function parseManagedInvite(value: unknown): ResearchProjectManifest {
+function parseManagedInvite(value: unknown, expectedVersion: 2 | 3): ResearchProjectManifest {
   if (!value || typeof value !== 'object' || !exactKeys(value, ['schemaVersion', 'project', 'access'])) {
     throw new Error('Managed relay invitation contains unsupported fields')
   }
-  const envelope = value as Partial<ManagedRelayInviteEnvelope>
-  if (envelope.schemaVersion !== 2 || !envelope.access || !envelope.project) {
+  const envelope = value as Partial<ManagedRelayInviteEnvelopeV2 | ManagedRelayInviteEnvelopeV3>
+  if (envelope.schemaVersion !== expectedVersion || !envelope.access || !envelope.project ||
+    envelope.access.schemaVersion !== expectedVersion - 1) {
     throw new Error('Managed relay invitation is malformed')
   }
   const project = normalizedBaseManifest(envelope.project)
@@ -165,7 +192,10 @@ export function parseWebsocketProjectInvite(value: string): ResearchProjectManif
     throw new Error('Self-hosted project invitation is invalid or too long')
   }
   if (invite.startsWith(MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX)) {
-    return parseManagedInvite(parseEncoded(MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX, invite))
+    return parseManagedInvite(parseEncoded(MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX, invite), 2)
+  }
+  if (invite.startsWith(EXPIRING_MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX)) {
+    return parseManagedInvite(parseEncoded(EXPIRING_MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX, invite), 3)
   }
   if (invite.startsWith(WEBSOCKET_PROJECT_INVITE_PREFIX)) {
     return normalizedBaseManifest(parseEncoded(WEBSOCKET_PROJECT_INVITE_PREFIX, invite))

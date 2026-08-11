@@ -301,8 +301,8 @@ is no project-shared device approval, trusted clock, key rotation/recovery, or b
 fingerprint to a person or organization. A holder can claim any
 participant ID, a rotated key appears unapproved, and an exact captured proof can still be replayed
 for the same project/document/client/nonce context. A parallel bounded ledger can sign exact retained
-scenario lifecycle, turn, vote, annotation, label, policy-version, and adversarial archive/decision
-events after commit, but it covers only seven of ten named domains, can be deleted by a bearer Yjs
+scenario lifecycle, turn, vote, annotation, label, suggestion proposal/decision, policy-version, and
+adversarial archive/decision events after commit, but it covers only eight of ten named domains, can be deleted by a bearer Yjs
 writer, and proves only that one self-issued registered installation key signed the re-resolved
 event—not that its participant claim is a person or organization. Signing failure leaves the event
 committed and explicit unsigned. The local fingerprint decisions do not issue or revoke relay access. Separately, an explicit public
@@ -475,7 +475,13 @@ disconnected opposite decisions both survive and project an explicit conflict. R
 idempotent, identity reuse and disconnected proposal-root collisions fail closed, and proposal or
 decision writes never apply proposal text to the policy root. `SuggestionNode.tsx` persists only
 the stable suggestion ID and projects the live proposal, decision history, missing-target state, and
-conflict state through `SuggestionContext.tsx`. Accept and reject record review decisions only.
+conflict state through `SuggestionContext.tsx`. Proposal and decision envelopes have exact versioned
+SHA-256 hashes and length-prefixed attestation locators. `SuggestionContext.tsx` commits first, then
+best-effort signs the exact retained event and renders pending, signed-device, or explicit unsigned
+status with operation/project stale-result suppression. The revision-guarded
+`suggestionAutomation.ts` path exposes the same lifecycle to MCP with content-minimized responses.
+Signing failure never rolls back the collaboration event, and an installation signature does not
+authenticate a person. Accept and reject record review decisions only.
 `suggestionApplication.ts` separately fingerprints the semantic policy content while excluding
 review-card markers. **Apply to draft** requires the exact accepted proposal and decision, exact live
 editor revision, unchanged policy-content fingerprint, exactly one marker, and no policy-ID collision.

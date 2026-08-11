@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type * as Y from 'yjs'
 import { useStore } from '../store'
 import { now, uid } from '../util'
@@ -10,16 +10,23 @@ import {
   listSuggestions,
   type CollaborativeSuggestion,
   type SuggestionDecisionKind,
+  type SuggestionEvent,
 } from './suggestionModel'
 import { subscribeAutomationProjectDocument } from './workspaceAutomationRegistry'
 import { getAutomationEditorController, type AutomationEditorSnapshot } from './editorAutomationRegistry'
 import { applyAcceptedSuggestion } from './suggestionApplication'
+import {
+  attestSuggestionEvent,
+  type ResearchEventAttributionResult,
+} from './researchEventAttribution'
 
 interface SuggestionState {
   projectId: string
   ready: boolean
   healthy: boolean
   suggestions: CollaborativeSuggestion[]
+  attribution: { eventId: string; result: ResearchEventAttributionResult } | null
+  attributionPendingEventId: string | null
   createHumanSuggestion: (content: string, sourceDocumentRevision: string) => CollaborativeSuggestion
   decide: (
     suggestionId: string,
@@ -40,6 +47,9 @@ export function SuggestionProvider({ projectId, children }: { projectId: string;
   const researcherName = useStore((state) => state.settings.researcherName)
   const [doc, setDoc] = useState<Y.Doc | null>(null)
   const [revision, setRevision] = useState(0)
+  const [attribution, setAttribution] = useState<SuggestionState['attribution']>(null)
+  const [attributionPendingEventId, setAttributionPendingEventId] = useState<string | null>(null)
+  const attributionOperation = useRef(0)
 
   useEffect(() => {
     let active: Y.Doc | null = null
@@ -57,6 +67,12 @@ export function SuggestionProvider({ projectId, children }: { projectId: string;
     }
   }, [projectId])
 
+  useEffect(() => {
+    attributionOperation.current += 1
+    setAttribution(null)
+    setAttributionPendingEventId(null)
+  }, [projectId, doc])
+
   const shared = useMemo(() => doc ? getProjectSharedTypes(doc) : null, [doc, revision])
   const suggestions = useMemo(() => shared ? listSuggestions(shared.discussions) : [], [shared])
   const healthy = useMemo(() => shared ? inspectSuggestions(shared.discussions).healthy : true, [shared])
@@ -66,15 +82,40 @@ export function SuggestionProvider({ projectId, children }: { projectId: string;
     }
     return { participantId: researcherId, displayName: researcherName.trim() }
   }
+  const publishAttribution = (event: SuggestionEvent) => {
+    if (!doc) return
+    const operation = attributionOperation.current + 1
+    attributionOperation.current = operation
+    setAttribution(null)
+    setAttributionPendingEventId(event.eventId)
+    void attestSuggestionEvent(doc, projectId, event).then((result) => {
+      if (attributionOperation.current !== operation) return
+      setAttribution({ eventId: event.eventId, result })
+      setAttributionPendingEventId(null)
+    }, () => {
+      if (attributionOperation.current !== operation) return
+      setAttribution({
+        eventId: event.eventId,
+        result: {
+          status: 'unsigned',
+          reason: 'signing-or-registration-unavailable',
+          authority: 'installation-device-not-human-identity',
+        },
+      })
+      setAttributionPendingEventId(null)
+    })
+  }
   const value = useMemo<SuggestionState>(() => ({
     projectId,
     ready: Boolean(shared),
     healthy,
     suggestions,
+    attribution,
+    attributionPendingEventId,
     createHumanSuggestion: (content, sourceDocumentRevision) => {
       if (!shared) throw new Error('The collaboration document is still loading')
       const author = identity()
-      return createSuggestionRecord(shared.discussions, {
+      const suggestion = createSuggestionRecord(shared.discussions, {
         suggestionId: uid(),
         eventId: uid(),
         content,
@@ -83,19 +124,26 @@ export function SuggestionProvider({ projectId, children }: { projectId: string;
         authorDisplayName: author.displayName,
         timestamp: now(),
       })
+      publishAttribution(suggestion.proposal)
+      return suggestion
     },
     decide: (suggestionId, expectedProposalEventId, decision) => {
       if (!shared) throw new Error('The collaboration document is still loading')
       const reviewer = identity()
-      return decideSuggestion(shared.discussions, {
+      const eventId = uid()
+      const suggestion = decideSuggestion(shared.discussions, {
         suggestionId,
-        eventId: uid(),
+        eventId,
         expectedProposalEventId,
         decision,
         reviewerId: reviewer.participantId,
         reviewerDisplayName: reviewer.displayName,
         timestamp: now(),
       })
+      const event = suggestion.decisions.find((candidate) => candidate.eventId === eventId)
+      if (!event) throw new Error('Suggestion decision was not retained')
+      publishAttribution(event)
+      return suggestion
     },
     apply: (suggestionId, expectedProposalEventId, expectedDecisionEventId) => {
       if (!shared) throw new Error('The collaboration document is still loading')
@@ -107,7 +155,8 @@ export function SuggestionProvider({ projectId, children }: { projectId: string;
         expectedDocumentRevision: controller.read().revision,
       })
     },
-  }), [projectId, shared, healthy, suggestions, researcherId, researcherName])
+  }), [projectId, shared, healthy, suggestions, researcherId, researcherName,
+    attribution, attributionPendingEventId, doc])
 
   return <SuggestionContext.Provider value={value}>{children}</SuggestionContext.Provider>
 }

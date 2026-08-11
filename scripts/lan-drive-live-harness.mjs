@@ -231,7 +231,7 @@ try {
   const selectedProbes = probe.structuredContent.probes.filter((item) =>
     item.nodeId === primaryNode || item.nodeId === secondaryNode)
   assert.equal(selectedProbes.length, 2)
-  assert.equal(selectedProbes.every((item) => item.ok && item.toolCount >= 44), true)
+  assert.equal(selectedProbes.every((item) => item.ok && item.toolCount >= 46), true)
 
   if (!mutate) {
     const [primary, secondary] = await Promise.all([

@@ -155,10 +155,13 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   snapshots and name the exact proposal event. Stale or reused identities fail before mutation,
   disconnected opposite decisions remain visible as a conflict, and proposal/decision writes do
   not apply policy text. The editor, semantic automation, immutable versions, and bounded MCP
-  inspection carry only stable identity or content-free metadata. Focused tests and the production
-  build pass. Authenticated identity, packaged two-client interaction, and model generation
+  inspection carry only stable identity or content-free metadata. Proposal and decision events now
+  have exact retained-event hashes and best-effort installation signatures with explicit unsigned
+  fallback in both product and revision-guarded MCP paths; MCP never edits the draft. Focused tests
+  and the production build pass. Authenticated human identity, packaged two-client interaction, and model generation
   remain open, so P-08 status is `implemented_unverified`. Evidence:
-  `docs/audits/runs/SUGGESTION-DECISIONS-2026-07-18.json`.
+  `docs/audits/runs/SUGGESTION-DECISIONS-2026-07-18.json` and
+  `docs/audits/runs/SIGNED-SUGGESTION-EVENTS-2026-08-11.json`.
 - P-24 adds a distinct revision-guarded **Apply to draft** action for accepted, non-conflicted
   suggestions. A deterministic semantic fingerprint excludes review cards but detects any policy
   content change; application also requires the exact proposal, accepted decision, live editor
@@ -187,16 +190,19 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   explicitly enrolled installation key, rejects stale/replayed connection proofs, and permits only
   that device-bound admin role to execute one fresh action-bound exact-revision room-management
   request. A repeatable five-client binary soak covers 60 rapid writes, two-client partition/rejoin,
-  awareness cleanup/recovery, forced reauthentication, and remote issue/rotate/revoke. Seven of ten
+  awareness cleanup/recovery, forced reauthentication, and remote issue/rotate/revoke. Eight of ten
   named durable research-event domains now have exact retained-device attribution, including full
-  adversarial archives and decisions. Human identity, shared-directory approval, propagated identity
-  revocation, key rotation/recovery, the remaining suggestion/heuristic/scenario-rerun adoption, and physical two-install product proof remain
+  adversarial archives and decisions plus suggestion proposals/decisions. Human identity,
+  shared-directory approval, propagated identity revocation, key rotation/recovery, the remaining
+  heuristic/scenario-rerun adoption, and physical two-install product proof remain
   open, so P-11 remains
   `implemented_unverified`. Evidence:
   `docs/audits/runs/PRESENCE-LIFECYCLE-2026-07-18.json` and
   `docs/audits/runs/SIGNED-DEVICE-PRESENCE-2026-08-11.json` and
   `docs/audits/runs/LOCAL-DEVICE-TRUST-2026-08-11.json` and
   `docs/audits/runs/SIGNED-PROJECT-DEVICE-DIRECTORY-2026-08-11.json`.
+  Signed suggestion-event adoption is recorded in
+  `docs/audits/runs/SIGNED-SUGGESTION-EVENTS-2026-08-11.json`.
 - P-16 now connects selected scenarios to one bounded provider-neutral response contract. Local
   generation uses the optional loopback model; OpenAI, Anthropic, Gemini, and xAI reuse the native
   Send once boundary. Output enters the existing collaborative response lineage only when the exact
@@ -508,7 +514,7 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   Two explicit MCP reads now provide a bounded scenario traversal chain while broad inspection stays
   body-free: `read_scenario` returns one background plus ordered turn identity/head/tip metadata,
   then `read_scenario_turn_revision` returns one chosen selected-head, named, or indexed body. The
-  two-minute physical harness now requires both nodes and all 44 current tools. It discovers the turn on
+  two-minute physical harness now requires both nodes and all 46 current tools. It discovers the turn on
   both installations, reads both simultaneous scenario siblings, requires the same head/tip set,
   appends one exact all-parent reconciliation, requires the four-revision merge on both nodes, and
   rejects stale document and scenario writes with boolean-only output. Component, Rust, MCP, and synthetic host gates pass;
@@ -685,7 +691,7 @@ collaborators are not required to download large project folders.
    policy state and applies an exact-revision install/remove transition using eligible registered
    key IDs. Next: run packaged physical two-install policy interaction, then
    recovery when no admin survives (which still requires the relay host), durable-event attestation
-   adoption for suggestion/heuristic/scenario-rerun, device-key rotation/recovery, trusted time and replacement-invitation
+   adoption for heuristic/scenario-rerun, device-key rotation/recovery, trusted time and replacement-invitation
    delivery, public WSS operations, compaction/export/backups
    and broader abuse controls, then run packaged physical two-install gates.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.

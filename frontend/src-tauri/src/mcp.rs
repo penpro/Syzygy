@@ -95,7 +95,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Compact Drive history only on explicit request and only with the latest exact revisions from both read_active_project and inspect_research_state; compaction appends a snapshot before recoverably archiving applied records and reports partial work. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, adversarial review archives/decisions, and immutable history; it cannot attest host-local relay policy. On a project hosted by this running Syzygy relay, use inspect_relay_approval_policy for authoritative content-minimized policy state and pass its exact registry revision to configure_relay_approval_policy. Installation keys are not authenticated people or organizations, and the relay host remains emergency local authority. Use read_scenario for one explicit scenario background and its bounded turn identity/head index, then read_scenario_turn_revision for one current, named, or indexed revision body; both are content-disclosing reads. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. For a Drive-shared project, read_active_project also returns sharedTitle and its complete revisionGuards; pass those exact guards to rename_project. A stale rename fails closed, simultaneous sibling titles remain visible, and an explicit rename with every current sibling guard reconciles them without deleting history. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. When a scenario turn reports sibling tips, read the candidate revisions and call reconcile_scenario_turn with the exact research revision, selected head, and complete tip set; ordinary revision writes fail closed until reconciliation. Adversarial model review starts with start_adversarial_review followed by inspect_adversarial_review or cancel_adversarial_review; it requires configured built-in provider credentials and one native disclosure approval, and its result remains transient and pending human review. Call save_adversarial_review only with explicit authority to make the full question, selected source excerpts, and results shared project content that can synchronize through Drive. Call decide_adversarial_review separately to append an immutable accept/reject event; both mutations report exact retained-event device attribution as signed or explicitly unsigned and never edit the draft. Never claim real-time collaborator presence is available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Compact Drive history only on explicit request and only with the latest exact revisions from both read_active_project and inspect_research_state; compaction appends a snapshot before recoverably archiving applied records and reports partial work. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, suggestions, heuristics, adversarial review archives/decisions, and immutable history; it cannot attest host-local relay policy. On a project hosted by this running Syzygy relay, use inspect_relay_approval_policy for authoritative content-minimized policy state and pass its exact registry revision to configure_relay_approval_policy. Installation keys are not authenticated people or organizations, and the relay host remains emergency local authority. Use read_scenario for one explicit scenario background and its bounded turn identity/head index, then read_scenario_turn_revision for one current, named, or indexed revision body; both are content-disclosing reads. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. For a Drive-shared project, read_active_project also returns sharedTitle and its complete revisionGuards; pass those exact guards to rename_project. A stale rename fails closed, simultaneous sibling titles remain visible, and an explicit rename with every current sibling guard reconciles them without deleting history. Scenario, turn, vote, annotation, label, and suggestion tools require the latest exact research revision from inspection or the prior mutation; follow-up mutations additionally require their exact retained event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. When a scenario turn reports sibling tips, read the candidate revisions and call reconcile_scenario_turn with the exact research revision, selected head, and complete tip set; ordinary revision writes fail closed until reconciliation. Adversarial model review starts with start_adversarial_review followed by inspect_adversarial_review or cancel_adversarial_review; it requires configured built-in provider credentials and one native disclosure approval, and its result remains transient and pending human review. Call save_adversarial_review only with explicit authority to make the full question, selected source excerpts, and results shared project content that can synchronize through Drive. Call decide_adversarial_review separately to append an immutable accept/reject event; both mutations report exact retained-event device attribution as signed or explicitly unsigned and never edit the draft. Never claim real-time collaborator presence is available."
             })
         }
         "ping" => json!({}),
@@ -164,6 +164,8 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "create_scenario_label" => live("project.createScenarioLabel", arguments),
         "rename_scenario_label" => live("project.renameScenarioLabel", arguments),
         "set_scenario_label_assignment" => live("project.setScenarioLabelAssignment", arguments),
+        "create_suggestion" => live("project.createSuggestion", arguments),
+        "decide_suggestion" => live("project.decideSuggestion", arguments),
         "save_active_policy_version" => live("project.savePolicyVersion", arguments),
         "restore_active_policy_version" => live("project.restorePolicyVersion", arguments),
         "replace_active_document" => live("document.replace", arguments),
@@ -323,7 +325,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "inspect_research_state",
-            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, immutable policy-version, and adversarial archive/decision events, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and policy-version history. Device/attestation entries expose stable key IDs plus self-reported participant IDs but no proof bodies and grant no human identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
+            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, suggestion, immutable policy-version, and adversarial archive/decision events, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, suggestions, heuristics, and policy-version history. Device/attestation entries expose stable key IDs plus self-reported participant IDs but no proof bodies and grant no human identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
             object_schema(&[], &[]),
         ),
         tool(
@@ -559,6 +561,40 @@ fn tool_definitions() -> Vec<Value> {
                     ("participantId", string_schema("Caller-supplied participant ID; identity is not authenticated across installs.")),
                 ],
                 &["expectedResearchRevision", "scenarioId", "labelId", "assigned", "participantId"],
+            ),
+        ),
+        tool(
+            "create_suggestion",
+            "Create one immutable human- or model-sourced proposal without editing the draft. Requires the exact current research revision and source document revision. Model proposals require providerId, modelId, and runId; human proposals must omit them. After commit, Syzygy attempts a best-effort signature over the exact retained event and reports signed or explicitly unsigned attribution plus the post-attribution revision. Signing failure never rolls back the proposal and never authenticates a person.",
+            object_schema(
+                &[
+                    ("expectedResearchRevision", string_schema("Exact research revision from inspect_research_state or the prior mutation.")),
+                    ("suggestionId", string_schema("New stable suggestion ID.")),
+                    ("content", string_schema("Non-empty proposed text retained in shared suggestion history; the draft is unchanged.")),
+                    ("sourceDocumentRevision", string_schema("Exact source draft revision the proposal was made against.")),
+                    ("participantId", string_schema("Caller-supplied proposal author ID; identity is not authenticated across installs.")),
+                    ("displayName", string_schema("Display name retained with the proposal event.")),
+                    ("sourceKind", string_schema("Proposal source: human or model.")),
+                    ("providerId", string_schema("Required stable provider ID for a model proposal; omit for human.")),
+                    ("modelId", string_schema("Required stable model ID for a model proposal; omit for human.")),
+                    ("runId", string_schema("Required stable run ID for a model proposal; omit for human.")),
+                ],
+                &["expectedResearchRevision", "suggestionId", "content", "sourceDocumentRevision", "participantId", "displayName", "sourceKind"],
+            ),
+        ),
+        tool(
+            "decide_suggestion",
+            "Append one immutable human accept/reject event to a pending suggestion without editing the draft. Requires the exact current research revision and proposal event. After commit, Syzygy attempts a best-effort signature over the exact retained decision and reports signed or explicitly unsigned attribution plus the post-attribution revision. Signing failure never rolls back the decision and never authenticates a person.",
+            object_schema(
+                &[
+                    ("expectedResearchRevision", string_schema("Exact research revision from inspect_research_state or the prior mutation.")),
+                    ("suggestionId", string_schema("Existing stable suggestion ID.")),
+                    ("expectedProposalEventId", string_schema("Exact immutable proposal event ID from inspection or create_suggestion.")),
+                    ("decision", string_schema("Human decision: accepted or rejected.")),
+                    ("participantId", string_schema("Caller-supplied reviewer ID; identity is not authenticated across installs.")),
+                    ("displayName", string_schema("Display name retained with the decision event.")),
+                ],
+                &["expectedResearchRevision", "suggestionId", "expectedProposalEventId", "decision", "participantId", "displayName"],
             ),
         ),
         tool(
@@ -864,6 +900,8 @@ mod tests {
         assert!(names.contains(&"create_scenario_label"));
         assert!(names.contains(&"rename_scenario_label"));
         assert!(names.contains(&"set_scenario_label_assignment"));
+        assert!(names.contains(&"create_suggestion"));
+        assert!(names.contains(&"decide_suggestion"));
         assert!(names.contains(&"save_active_policy_version"));
         assert!(names.contains(&"restore_active_policy_version"));
         assert!(names.contains(&"start_adversarial_review"));
@@ -871,7 +909,7 @@ mod tests {
         assert!(names.contains(&"cancel_adversarial_review"));
         assert!(names.contains(&"save_adversarial_review"));
         assert!(names.contains(&"decide_adversarial_review"));
-        assert_eq!(names.len(), 44);
+        assert_eq!(names.len(), 46);
         assert!(names.contains(&"replace_active_document"));
         for tool_name in ["save_adversarial_review", "decide_adversarial_review"] {
             let review_tool = tools["result"]["tools"]
@@ -1446,6 +1484,37 @@ mod tests {
             assert_eq!(
                 response["result"]["structuredContent"]["params"]["expectedResearchRevision"],
                 "13.14.15"
+            );
+        }
+    }
+
+    #[test]
+    fn routes_suggestion_proposal_and_decision_with_exact_guards() {
+        for (name, method) in [
+            ("create_suggestion", "project.createSuggestion"),
+            ("decide_suggestion", "project.decideSuggestion"),
+        ] {
+            let response = dispatch_message(
+                &json!({
+                    "jsonrpc": "2.0",
+                    "id": name,
+                    "method": "tools/call",
+                    "params": {
+                        "name": name,
+                        "arguments": {
+                            "expectedResearchRevision": "16.17.18",
+                            "suggestionId": "suggestion-1",
+                            "expectedProposalEventId": "proposal-1"
+                        }
+                    }
+                }),
+                &fake_live,
+            )
+            .unwrap();
+            assert_eq!(response["result"]["structuredContent"]["method"], method);
+            assert_eq!(
+                response["result"]["structuredContent"]["params"]["expectedResearchRevision"],
+                "16.17.18"
             );
         }
     }

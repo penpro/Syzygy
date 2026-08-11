@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "capability": "signed-suggestion-events",
+  "generatedAt": "2026-08-11",
+  "baseCheckpoint": "bf7dc7e",
+  "status": "implemented_unverified",
+  "implementation": {
+    "signedEventDomains": 8,
+    "totalNamedEventDomains": 10,
+    "remainingUnsignedDomains": ["heuristic", "scenario-rerun"],
+    "mcpToolCount": 46,
+    "newMcpTools": ["create_suggestion", "decide_suggestion"]
+  },
+  "invariants": [
+    "Proposal and decision hashes bind every exact version-1 envelope field.",
+    "Attestation locators bind suggestion and event identities with a length prefix.",
+    "Verification re-resolves the retained event and its proposal author or decision reviewer.",
+    "A cross-author proof, changed body, stale project revision, or stale proposal writes nothing or fails verification.",
+    "Product and MCP commit the immutable suggestion event before best-effort signing.",
+    "Signing failure leaves the event committed and explicitly reports unsigned.",
+    "Suggestion decisions and MCP routes never edit the draft.",
+    "Installation signatures do not authenticate a person or organization."
+  ],
+  "focusedValidation": {
+    "command": "npm exec vitest -- run src/workspace/suggestionModel.test.ts src/workspace/suggestionAutomation.test.ts src/workspace/projectResearchEventAttestation.test.ts src/workspace/nodes/SuggestionNode.test.tsx",
+    "filesPassed": 4,
+    "testsPassed": 23
+  },
+  "mcpValidation": {
+    "command": "npm run test:mcp",
+    "toolCount": 46,
+    "frontendEditorTestsPassed": 10,
+    "rustMcpTestsPassed": 21,
+    "stdioContractPassed": true
+  },
+  "fullValidation": {
+    "supervisedRunId": "20260811-195224-ad1fb6",
+    "frontendFilesPassed": 129,
+    "frontendFilesSkipped": 3,
+    "frontendTestsPassed": 561,
+    "frontendTestsSkipped": 3,
+    "frontendModulesTransformed": 1268,
+    "repositoryAuditPassed": true,
+    "rustAppRecompiled": true,
+    "pending": false
+  },
+  "limits": [
+    "The exact packaged two-install suggestion flow has not been physically replayed.",
+    "The signature proves possession of a self-issued registered installation key, not human identity or review authority.",
+    "A bearer Yjs peer can still delete or flood shared directory and attestation records.",
+    "Model-backed suggestion generation remains separate from these caller-supplied MCP proposal tools."
+  ]
+}

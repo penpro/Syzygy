@@ -145,7 +145,10 @@ retain exact source revision plus human/model provenance; decisions retain revie
 the exact proposal event. Stale/reused identities fail before mutation, disconnected opposite
 decisions remain as an explicit conflict, and no proposal/decision operation applies policy text.
 Semantic automation and immutable versions retain only `[suggestion:<stable-id>]`; MCP inspection
-omits proposal and decision bodies. Authenticated identity, packaged two-client interaction, and model generation remain open, so
+omits proposal and decision bodies. Exact retained-event hashes, best-effort device signatures, and
+explicit unsigned fallback now cover both product actions and revision-guarded MCP create/decide
+tools without granting draft authority. Authenticated human identity, packaged two-client interaction,
+and model generation remain open, so
 P-08 is `implemented_unverified`; accepted-text application is tracked separately as P-24.
 
 P-11 now has bounded schema-versioned ephemeral awareness, an identity-safe active-provider
@@ -167,7 +170,7 @@ relay separately has explicit operator enrollment, signed installation-key roles
 connection proofs, and a second action-bound signature for device-administered exact-revision room
 membership. A repeatable exact-binary five-client partition/reconnect soak passes. Shared-directory
 approval, propagated identity revocation, device-key rotation/recovery, presence-proof replay
-rejection, signed adoption for the remaining suggestion/heuristic/scenario-rerun event domains, and physical two-install product proof remain open, so
+rejection, signed adoption for the remaining heuristic/scenario-rerun event domains, and physical two-install product proof remain open, so
 P-11 is `implemented_unverified`.
 
 
@@ -427,7 +430,7 @@ capabilities stay `implemented_unverified`.
 Shared-title retention independently requires the complete exact tip set, canonicalizes all valid
 events into one content-addressed snapshot before moving active events or superseded snapshots, and
 keeps a rename arriving after the snapshot as an active child whose parent remains resolvable. The
-product and 44-tool MCP expose count-only retryable maintenance. Rust/frontend gates cover canonical
+product and 46-tool MCP expose count-only retryable maintenance. Rust/frontend gates cover canonical
 ordering, missing parents, stale pre-move refusal, concurrent-child projection, and replacement
 provider ownership. Explicit recovery now hashes active plus archived plus quarantined inventory, reconstructs only a
 complete parent-closed graph, snapshots it before moving anything, quarantines invalid active records

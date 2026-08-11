@@ -28,6 +28,7 @@ import {
   attestScenarioLabelEvent,
   attestScenarioTurnRevisionEvent,
   attestScenarioVoteEvent,
+  attestSuggestionEvent,
 } from './workspace/researchEventAttribution'
 import {
   configureHostedRelayPolicy,
@@ -61,6 +62,10 @@ import { driveTitleRepairJobs, type DriveTitleRepairJob } from './workspace/driv
 import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
 import { projectStateFingerprint } from './workspace/projectModel'
 import { restoreAutomationPolicyVersion, saveAutomationPolicyVersion } from './workspace/versionAutomation'
+import {
+  createAutomationSuggestion,
+  decideAutomationSuggestion,
+} from './workspace/suggestionAutomation'
 
 interface AutomationRequest {
   id: string
@@ -774,6 +779,83 @@ export async function dispatchAutomationRequest(
       return {
         project: summarizeProject(project, latest.activeProjectId),
         assignment: summarizeScenarioLabelAssignment(changed.assignment),
+        attribution,
+        researchRevision: projectStateFingerprint(document),
+      }
+    }
+    case 'project.createSuggestion': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const sourceKind = requiredString(params, 'sourceKind')
+      if (sourceKind !== 'human' && sourceKind !== 'model') {
+        throw new Error('sourceKind must be human or model')
+      }
+      const document = getAutomationProjectDocument(project.id)
+      const created = createAutomationSuggestion(document, project.id, {
+        expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
+        suggestionId: requiredString(params, 'suggestionId'),
+        eventId: `mcp-${crypto.randomUUID()}`,
+        content: requiredString(params, 'content'),
+        sourceDocumentRevision: requiredString(params, 'sourceDocumentRevision'),
+        participantId: requiredString(params, 'participantId'),
+        displayName: requiredString(params, 'displayName'),
+        timestamp: Date.now(),
+        sourceKind,
+        providerId: optionalString(params, 'providerId'),
+        modelId: optionalString(params, 'modelId'),
+        runId: optionalString(params, 'runId'),
+      })
+      const attribution = await attestSuggestionEvent(document, project.id, created.event)
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        suggestion: {
+          suggestionId: created.event.suggestionId,
+          proposalEventId: created.event.eventId,
+          status: created.status,
+          sourceKind: created.event.sourceKind,
+          participantId: created.event.authorId,
+          displayName: created.event.authorDisplayName,
+          sourceDocumentRevision: created.event.sourceDocumentRevision,
+        },
+        attribution,
+        researchRevision: projectStateFingerprint(document),
+      }
+    }
+    case 'project.decideSuggestion': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const decision = requiredString(params, 'decision')
+      if (decision !== 'accepted' && decision !== 'rejected') {
+        throw new Error('decision must be accepted or rejected')
+      }
+      const document = getAutomationProjectDocument(project.id)
+      const changed = decideAutomationSuggestion(document, project.id, {
+        expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
+        suggestionId: requiredString(params, 'suggestionId'),
+        eventId: `mcp-${crypto.randomUUID()}`,
+        expectedProposalEventId: requiredString(params, 'expectedProposalEventId'),
+        decision,
+        participantId: requiredString(params, 'participantId'),
+        displayName: requiredString(params, 'displayName'),
+        timestamp: Date.now(),
+      })
+      const attribution = await attestSuggestionEvent(document, project.id, changed.event)
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        suggestion: {
+          suggestionId: changed.event.suggestionId,
+          proposalEventId: changed.event.proposalEventId,
+          decisionEventId: changed.event.eventId,
+          status: changed.status,
+          participantId: changed.event.reviewerId,
+          displayName: changed.event.reviewerDisplayName,
+        },
         attribution,
         researchRevision: projectStateFingerprint(document),
       }

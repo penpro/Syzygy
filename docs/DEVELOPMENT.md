@@ -403,7 +403,7 @@ keeps the policy/quorum/emergency-authority language product visible.
 `relayPolicyAutomation.test.ts` proves the host-only MCP semantic boundary: exact local endpoint and
 room, content-minimized inspection, internal key-ID-to-public-key mapping, stale/unknown/unhealthy
 zero-write rejection, explicit removal shape, and exact returned +1 policy transition. Rust MCP
-tests and `npm run test:mcp` must also expose and route both relay-policy tools in the 44-tool
+tests and `npm run test:mcp` must also expose and route both relay-policy tools in the 46-tool
 surface. These gates still do not prove
 approval withdrawal, trusted time, authenticated people or organizations, resistance to deletion or
 withholding by a Yjs writer, public WSS operation, or packaged physical two-install interaction.

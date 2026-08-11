@@ -21,6 +21,7 @@ import {
 } from './projectResearchEventAttestation'
 import {
   attestPolicyVersionEvent,
+  attestSuggestionEvent,
   attestScenarioAnnotationEvent,
   attestScenarioEditEvent,
   attestScenarioLabelEvent,
@@ -34,6 +35,7 @@ import {
   scenarioEditAttestationEventId,
   scenarioLabelAttestationEventId,
   scenarioTurnAttestationEventId,
+  suggestionAttestationEventId,
 } from './researchEventAttribution'
 import {
   createScenarioAnnotation,
@@ -68,6 +70,7 @@ import {
   type ScenarioLabelEvent,
 } from './scenarioLabelModel'
 import { readScenarioVotes } from './scenarioVoteModel'
+import { createSuggestion, readSuggestionEvent, suggestionEventSha256 } from './suggestionModel'
 import type { ResearchProjectManifest } from './schema'
 
 const projectId = 'project-research-event-attestations'
@@ -194,6 +197,86 @@ async function make(
 }
 
 describe('project research event attestations', () => {
+  it('signs an exact retained suggestion event and rejects a cross-author proof', async () => {
+    const signer = await identity(participantA)
+    const other = await identity(participantB)
+    const document = createProjectDocument(manifest)
+    const { discussions, settings, versions, scenarios } = getProjectSharedTypes(document)
+    const suggestion = createSuggestion(discussions, {
+      suggestionId: 'suggestion-signed',
+      eventId: 'proposal-signed',
+      content: 'Exact proposal body canary',
+      sourceDocumentRevision: 'document-revision-1',
+      authorId: participantA,
+      authorDisplayName: 'Alice',
+      timestamp: 1,
+    })
+    const eventId = suggestionAttestationEventId(suggestion.proposal)
+    const signed = await attestSuggestionEvent(document, projectId, suggestion.proposal, {
+      inspectDirectory: async () => directory([signer, other]),
+      create: (id, participantId, kind, retainedId, hash) => createProjectResearchEventAttestation(
+        id, participantId, kind, retainedId, hash, dependencies(signer, nonceA),
+      ),
+    })
+    expect(signed).toEqual(expect.objectContaining({
+      status: 'signed-device', eventKind: 'suggestion', eventId, attestationCount: 1,
+    }))
+
+    const resolver = researchEventAttestationResolver(discussions, settings, versions, scenarios)
+    await expect(resolver('suggestion', eventId)).resolves.toEqual({
+      eventSha256: await suggestionEventSha256(suggestion.proposal),
+      participantId: participantA,
+    })
+    const forged = await make(
+      other, 'suggestion', eventId, await suggestionEventSha256(suggestion.proposal), nonceB,
+    )
+    await expect(publishProjectResearchEventAttestation(
+      settings, projectId, directory([signer, other]), resolver, forged,
+    )).rejects.toThrow('proof is invalid')
+
+    const bucket = Array.from(discussions.entries()).find(([key]) =>
+      key.startsWith('suggestions:v1:'),
+    )?.[1]
+    if (!(bucket instanceof Y.Map)) throw new Error('Suggestion bucket fixture missing')
+    const events = bucket.get('events')
+    if (!(events instanceof Y.Map)) throw new Error('Suggestion event fixture missing')
+    const proposalEntry = Array.from(events.entries()).find(([, value]) =>
+      typeof value === 'object' && value !== null &&
+      (value as { eventId?: unknown }).eventId === suggestion.proposal.eventId,
+    )
+    if (!proposalEntry) throw new Error('Suggestion proposal fixture missing')
+    events.set(proposalEntry[0], { ...suggestion.proposal, content: 'Changed retained proposal body' })
+    await expect(inspectProjectResearchEventAttestations(
+      settings,
+      projectId,
+      directory([signer, other]),
+      researchEventAttestationResolver(discussions, settings, versions, scenarios),
+    )).resolves.toEqual(expect.objectContaining({ healthy: false, invalidRecords: 1 }))
+  })
+
+  it('keeps a committed suggestion when device signing is unavailable', async () => {
+    const signer = await identity(participantA)
+    const document = createProjectDocument(manifest)
+    const { discussions } = getProjectSharedTypes(document)
+    const suggestion = createSuggestion(discussions, {
+      suggestionId: 'suggestion-unsigned', eventId: 'proposal-unsigned',
+      content: 'Proposal survives signer failure', sourceDocumentRevision: 'draft-unsigned',
+      authorId: participantA, authorDisplayName: 'Alice', timestamp: 2,
+    })
+    const result = await attestSuggestionEvent(document, projectId, suggestion.proposal, {
+      inspectDirectory: async () => directory([signer]),
+      create: async () => { throw new Error('vault unavailable') },
+    })
+    expect(result).toEqual({
+      status: 'unsigned',
+      reason: 'signing-or-registration-unavailable',
+      authority: 'installation-device-not-human-identity',
+    })
+    expect(readSuggestionEvent(discussions, suggestion.id, suggestion.proposal.eventId)).toEqual(
+      suggestion.proposal,
+    )
+  })
+
   it('signs, publishes, reopens, and inspects two event domains without proof bodies', async () => {
     const signer = await identity(participantA)
     const events = resolver([

@@ -439,7 +439,7 @@ record(
     scenarioAnnotationProductTest.includes('without claiming human identity') &&
     scenarioAnnotationAutomationSource.match(/Scenario annotation event was not retained/g)?.length === 3 &&
     scenarioAnnotationBridgeSource.match(/await attestScenarioAnnotationEvent/g)?.length === 3 &&
-    researchEventMcpSource.includes('exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, immutable policy-version, and adversarial archive/decision events') &&
+    researchEventMcpSource.includes('exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, suggestion, immutable policy-version, and adversarial archive/decision events') &&
     scenarioAnnotationEvidence.includes('"productionAdoptedEventKind": "scenario-annotation"') &&
     scenarioAnnotationEvidence.includes('"mutatedRetainedBodyRejected": true') &&
     scenarioAnnotationEvidence.includes('"signingFailurePreservesCommittedMutation": true') &&
@@ -467,7 +467,7 @@ record(
     scenarioAnnotationAutomationSource.match(/Scenario label event was not retained/g)?.length === 2 &&
     scenarioAnnotationAutomationSource.includes('Scenario label assignment event was not retained') &&
     scenarioAnnotationBridgeSource.match(/await attestScenarioLabelEvent/g)?.length === 3 &&
-    scenarioAnnotationBridgeSource.match(/researchRevision: projectStateFingerprint\(document\)/g)?.length === 14 &&
+    scenarioAnnotationBridgeSource.match(/researchRevision: projectStateFingerprint\(document\)/g)?.length === 16 &&
     researchEventAttestationTest.includes('maximum-length label assignment locator') &&
     researchEventAttestationTest.includes('assignmentEvents.set(assignmentStorageKey') &&
     researchEventAttestationTest.includes('not.toBe(mutationOnlyRevision)') &&
@@ -937,6 +937,9 @@ const suggestionInspectionTestSource = text('frontend/src/workspace/researchStat
 const suggestionApplicationSource = text('frontend/src/workspace/suggestionApplication.ts')
 const suggestionApplicationTestSource = text('frontend/src/workspace/suggestionApplication.test.ts')
 const suggestionApplicationIntegrationSource = text('frontend/src/workspace/suggestionApplicationIntegration.test.ts')
+const suggestionAutomationSource = text('frontend/src/workspace/suggestionAutomation.ts')
+const suggestionAutomationTestSource = text('frontend/src/workspace/suggestionAutomation.test.ts')
+const suggestionAttributionEvidence = text('docs/audits/runs/SIGNED-SUGGESTION-EVENTS-2026-08-11.json')
 const presenceModelSource = text('frontend/src/workspace/presenceModel.ts')
 const presenceModelTestSource = text('frontend/src/workspace/presenceModel.test.ts')
 const presenceRegistrySource = text('frontend/src/workspace/presenceRegistry.ts')
@@ -1093,6 +1096,37 @@ record(
     editorLedgerSource.includes('"id": "P-08", "phase": 6, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/SUGGESTION-DECISIONS-2026-07-18.json')),
   'immutable proposal/decision ledger, human/model provenance, explicit conflicts, stable-ID-only editor/version markers, content-free inspection, and truthful P-08 status are present',
+)
+record(
+  'suggestion proposal and decision events have exact retained-device attribution and MCP guards',
+  suggestionModelSource.includes('canonicalSuggestionEvent') &&
+    suggestionModelSource.includes('suggestionEventSha256') &&
+    suggestionModelSource.includes('readSuggestionEvent') &&
+    researchEventAttributionSource.includes('suggestionAttestationEventId') &&
+    researchEventAttributionSource.includes("eventKind === 'suggestion'") &&
+    researchEventAttributionSource.includes('attestSuggestionEvent') &&
+    suggestionModelTestSource.includes('hashes exact proposal and decision envelopes') &&
+    suggestionAutomationSource.includes('projectStateFingerprint(document) !== expectedResearchRevision') &&
+    suggestionAutomationSource.includes('createAutomationSuggestion') &&
+    suggestionAutomationSource.includes('decideAutomationSuggestion') &&
+    suggestionAutomationTestSource.includes('requires exact project/research revisions') &&
+    suggestionContextSource.includes('publishAttribution(suggestion.proposal)') &&
+    suggestionContextSource.includes('attributionOperation.current !== operation') &&
+    suggestionNodeSource.includes('Saving device signature') &&
+    suggestionNodeSource.includes('saved without a device signature') &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.createSuggestion'") &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.decideSuggestion'") &&
+    text('frontend/src-tauri/src/mcp.rs').includes('"create_suggestion" => live("project.createSuggestion"') &&
+    text('frontend/src-tauri/src/mcp.rs').includes('"decide_suggestion" => live("project.decideSuggestion"') &&
+    suggestionAttributionEvidence.includes('"signedEventDomains": 8') &&
+    suggestionAttributionEvidence.includes('"mcpToolCount": 46') &&
+    suggestionAttributionEvidence.includes('"testsPassed": 23') &&
+    suggestionAttributionEvidence.includes('"supervisedRunId": "20260811-195224-ad1fb6"') &&
+    suggestionAttributionEvidence.includes('"frontendTestsPassed": 561') &&
+    suggestionAttributionEvidence.includes('"repositoryAuditPassed": true') &&
+    suggestionAttributionEvidence.includes('"pending": false') &&
+    suggestionAttributionEvidence.includes('"status": "implemented_unverified"'),
+  'exact versioned envelopes, retained-author resolution, commit-first product attribution, strict revision-guarded MCP proposal/decision routes, explicit unsigned fallback, and evidence are present',
 )
 record(
   'accepted suggestions apply as linked policy blocks only against exact unchanged state',
@@ -1698,6 +1732,8 @@ const advertisedMcpTools = [
   'create_scenario_label',
   'rename_scenario_label',
   'set_scenario_label_assignment',
+  'create_suggestion',
+  'decide_suggestion',
   'save_active_policy_version',
   'restore_active_policy_version',
   'replace_active_document',
@@ -1923,7 +1959,7 @@ record(
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioIndexReadback') &&
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioSiblingMerge') &&
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioStaleRevisionRejected') &&
-    text('scripts/lan-drive-live-harness.mjs').includes('item.toolCount >= 44') &&
+    text('scripts/lan-drive-live-harness.mjs').includes('item.toolCount >= 46') &&
     existsSync(join(root, 'docs/audits/runs/MCP-SCENARIO-INDEX-2026-08-05.json')),
   'one bounded scenario background/turn-head index, one exact current/named/indexed body, graph and identity validation, zero-write proof, named live routes, packaged traversal assertion, and two-node discovery/sibling/stale gates are present',
 )
@@ -2015,6 +2051,10 @@ record(
     mcpSource.includes('"rename_scenario_label" => live("project.renameScenarioLabel"') &&
     mcpSource.includes('"set_scenario_label_assignment"') &&
     mcpSource.includes('live("project.setScenarioLabelAssignment", arguments)') &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.createSuggestion'") &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.decideSuggestion'") &&
+    mcpSource.includes('"create_suggestion" => live("project.createSuggestion"') &&
+    mcpSource.includes('"decide_suggestion" => live("project.decideSuggestion"') &&
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioCreateRejected: true') &&
     text('scripts/mcp-live-harness.mjs').includes('scenarioTurnAddAndRevisionGuarded: true') &&
     text('scripts/mcp-live-harness.mjs').includes('scenarioVoteRevisionGuarded: true') &&
@@ -2023,7 +2063,7 @@ record(
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioAnnotationRejected: true') &&
     text('scripts/mcp-live-harness.mjs').includes('scenarioLabelLifecycleGuarded: true') &&
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioLabelRejected: true'),
-  'stable inspection revision, exact-head/tip sibling reconciliation, zero-write stale rejection, live Y.Doc scenario/turn/vote/annotation/label routes, 44-tool MCP surface, and packaged-live assertions are present',
+  'stable inspection revision, exact-head/tip sibling reconciliation, zero-write stale rejection, live Y.Doc scenario/turn/vote/annotation/label/suggestion routes, 46-tool MCP surface, and packaged-live assertions are present',
 )
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))
@@ -2153,7 +2193,7 @@ record(
     automationBridgeSource.includes("case 'project.configureRelayPolicy'") &&
     mcpSource.includes('"inspect_relay_approval_policy"') &&
     mcpSource.includes('"configure_relay_approval_policy"') &&
-    mcpSource.includes('assert_eq!(names.len(), 44)') &&
+    mcpSource.includes('assert_eq!(names.len(), 46)') &&
     mcpHarnessSource.includes("tool.name === 'inspect_relay_approval_policy'") &&
     mcpHarnessSource.includes("tool.name === 'configure_relay_approval_policy'") &&
     relayPolicyAutomationEvidence.includes('"supervisedRunId": "20260811-165714-c11043"') &&
@@ -2162,7 +2202,7 @@ record(
     relayPolicyAutomationEvidence.includes('"repositoryAuditPassed": true') &&
     relayPolicyAutomationEvidence.includes('"fullValidationPending": false') &&
     relayPolicyAutomationEvidence.includes('"status": "implemented_unverified"'),
-  'fresh exact local relay identity, aggregate-only inspection, eligible key-ID mapping, stale and malformed zero-write guards, exact returned transition, 44-tool routing, and human-identity nonclaims are present',
+  'fresh exact local relay identity, aggregate-only inspection, eligible key-ID mapping, stale and malformed zero-write guards, exact returned transition, 46-tool routing, and human-identity nonclaims are present',
 )
 record(
   'adversarial records remain evidence-gated',
@@ -2233,7 +2273,7 @@ record(
     researchStateInspectionSource.includes('adversarial-review question/source/result/decision-note bodies') &&
     mcpSource.includes('"save_adversarial_review"') &&
     mcpSource.includes('"decide_adversarial_review"') &&
-    mcpHarnessSource.includes('tools.length < 44') &&
+    mcpHarnessSource.includes('tools.length < 46') &&
     frontendPackage.scripts?.['test:adversarial']?.includes('adversarialHistory.test.ts'),
   'full archives persist only by explicit revision-guarded save; canonical hashes, provider provenance, peer convergence, exact-parent decision history, fail-closed conflicts, content-minimized inspection, and zero draft authority are enforced',
 )
@@ -2655,7 +2695,7 @@ record(
     lanMcpHarnessSource.includes('if (child.kill()) return') &&
     lanPackagedHarnessSource.includes("'--control-port', String(controlPort)") &&
     lanPackagedHarnessSource.includes('if (child.kill()) return') &&
-    lanPackagedHarnessSource.includes('tools.structuredContent.tools.length >= 44') &&
+    lanPackagedHarnessSource.includes('tools.structuredContent.tools.length >= 46') &&
     lanLocalMcpSource.includes('if (child.kill()) return') &&
     lanSettingsSource.includes('Private LAN test connection') &&
     lanSettingsSource.includes('pickLanPairingKeyFile') &&
@@ -2665,7 +2705,7 @@ record(
     lanDriveHarnessSource.includes('absoluteDeadline = Date.now() + 2 * 60_000') &&
     lanDriveHarnessSource.includes('Math.min(timeoutMs, 60_000)') &&
     lanDriveHarnessSource.includes('staleRevisionRejected') &&
-    lanDriveHarnessSource.includes('item.toolCount >= 44') &&
+    lanDriveHarnessSource.includes('item.toolCount >= 46') &&
     lanDriveHarnessSource.includes('scenarioIndexReadback') &&
     lanDriveHarnessSource.includes('scenarioSiblingMerge') &&
     lanDriveHarnessSource.includes('scenarioCurrentConverged') &&
@@ -2682,7 +2722,7 @@ record(
     existsSync(join(root, 'docs/audits/runs/LAN-COLLABORATION-SUPERVISION-2026-07-17.json')) &&
     existsSync(join(root, 'docs/audits/runs/LAN-DEV-MODE-LIFECYCLE-2026-07-18.json')) &&
     existsSync(join(root, 'docs/audits/runs/MCP-SCENARIO-TURN-READBACK-2026-08-02.json')),
-  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, 44-tool discovery, explicit scenario-index and sibling-body readback, deterministic current convergence, exact sibling reconciliation, title-history retention/repair, and stale-write gates are present',
+  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, 46-tool discovery, explicit scenario-index and sibling-body readback, deterministic current convergence, exact sibling reconciliation, title-history retention/repair, and stale-write gates are present',
 )
 const ledger = JSON.parse(text('docs/audits/CAPABILITIES.json'))
 const expectedIds = [

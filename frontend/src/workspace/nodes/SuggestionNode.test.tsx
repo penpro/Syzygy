@@ -114,6 +114,35 @@ describe('suggestion node', () => {
     expect(missing).toContain('role="alert"')
   })
 
+  it('renders pending, signed-device, and explicit unsigned attribution without human identity claims', () => {
+    const pending = renderToStaticMarkup(
+      <SuggestionCard suggestion={suggestion()} suggestionId="suggestion-a"
+        onDecision={() => undefined} attributionPending />,
+    )
+    expect(pending).toContain('Saving device signature')
+
+    const signed = renderToStaticMarkup(
+      <SuggestionCard suggestion={suggestion()} suggestionId="suggestion-a"
+        onDecision={() => undefined} attribution={{
+          status: 'signed-device', keyId: 'ed25519-sha256:abcdefghijklmnop',
+          eventKind: 'suggestion', eventId: 'proposal-a', eventSha256: 'hash',
+          attestationCount: 1, authority: 'installation-device-not-human-identity',
+        }} />,
+    )
+    expect(signed).toContain('Signed by this installation')
+    expect(signed).not.toContain('verified reviewer')
+
+    const unsigned = renderToStaticMarkup(
+      <SuggestionCard suggestion={suggestion()} suggestionId="suggestion-a"
+        onDecision={() => undefined} attribution={{
+          status: 'unsigned', reason: 'signing-or-registration-unavailable',
+          authority: 'installation-device-not-human-identity',
+        }} />,
+    )
+    expect(unsigned).toContain('saved without a device signature')
+    expect(unsigned).toContain('signing or registration was unavailable')
+  })
+
   it('converges a stable projection across two Yjs-bound editors', async () => {
     const hub = new MemoryProjectHub()
     const leftProvider = new MemoryProjectProvider(new Y.Doc({ guid: 'suggestion-node-document' }), hub)

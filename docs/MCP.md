@@ -66,7 +66,7 @@ Recommended first instruction to an MCP-capable model:
 | `open_project` | navigation | Opens a non-archived project by stable ID |
 | `rename_project` | local metadata or Drive title event | Local projects change local metadata. Drive projects require the complete exact `sharedTitle.revisionGuards`; stale calls fail, simultaneous siblings remain visible, and an all-tip rename reconciles without deleting history |
 | `read_active_project` | no | Returns the manifest plus structured blocks, plain text, and a revision; Drive projects also return bounded shared-title tips and exact rename guards |
-| `inspect_research_state` | no | Validates bounded signed project-device registrations, exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, policy-version, and adversarial archive/decision events, and relay-approval intent metadata plus live scenario/vote/flag/note/label/heuristic/adversarial-review/version/head/lineage state; omits proof bodies, private keys, member capabilities, and research bodies; shared state explicitly cannot attest the relay host's current policy and grants no human identity, role, revocation, relay, or mutation authority |
+| `inspect_research_state` | no | Validates bounded signed project-device registrations, exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, suggestion, policy-version, and adversarial archive/decision events, and relay-approval intent metadata plus live scenario/vote/flag/note/label/suggestion/heuristic/adversarial-review/version/head/lineage state; omits proof bodies, private keys, member capabilities, and research bodies; shared state explicitly cannot attest the relay host's current policy and grants no human identity, role, revocation, relay, or mutation authority |
 | `inspect_relay_approval_policy` | no | On a project hosted by this running Syzygy relay only, reads the authoritative registry revision, aggregate member counts, configured signer key IDs/quorum, and eligible registered installation key IDs; omits member IDs, public keys, capabilities, storage paths, and research bodies |
 | `configure_relay_approval_policy` | hosted relay policy | Under the exact inspected registry revision, installs/updates a 1-16-key policy with a bounded quorum or removes it; every selected key must be an exact healthy project registration and the returned revision and policy must prove the requested transition |
 | `read_scenario` | explicit scenario content | Reads one validated scenario background plus at most 1,000 ordered turn identities, roles, immutable-revision counts, selected heads, complete tip sets, and reconciliation state; turn bodies remain omitted |
@@ -87,6 +87,8 @@ Recommended first instruction to an MCP-capable model:
 | `create_scenario_label` | label event | Creates a shared context label against the exact current research revision; event bodies remain omitted |
 | `rename_scenario_label` | label event | Appends a rename only when both research revision and current label event match |
 | `set_scenario_label_assignment` | assignment event | Assigns/removes a label under the research guard; follow-up events also require the exact assignment event |
+| `create_suggestion` | proposal event | Stores one human/model proposal against exact research and source-document revisions without editing the draft, then reports exact-event signed-device or explicit unsigned attribution and the post-attribution revision; model provenance is mandatory for model sources |
+| `decide_suggestion` | decision event | Appends an accept/reject event against the exact research revision and immutable proposal, never edits the draft, and reports exact-event signed-device or explicit unsigned attribution plus the post-attribution revision |
 | `save_active_policy_version` | version metadata | Saves the exact active semantic draft as a new immutable head under both document-revision and expected-head guards, then reports signed-device or explicit unsigned exact-envelope attribution and the post-attribution research revision; signing failure does not roll back the checkpoint |
 | `restore_active_policy_version` | document + version metadata | Restores one inspected immutable version into the live semantic draft and appends it as a new head under exact target, document-revision, and expected-head guards, then reports signed-device or explicit unsigned exact-envelope attribution and the post-attribution research revision; never rewrites history |
 | `replace_active_document` | yes | Replaces the document only when `expectedRevision` still matches |
@@ -229,9 +231,10 @@ MCP host
   inspection returns event/key/participant/hash metadata but omits public keys, signatures, display
   names, and vote bodies. A stale call fails before adding an event. Installation signatures improve
   attribution continuity but are self-issued device claims, so the tool is not an authenticated
-  election, person/organization identity, or Sybil-resistant consensus. Seven of ten named event
-  kinds now have production resolvers; suggestion, heuristic, and scenario-rerun remain unsigned
-  until their domain and product/MCP mutation paths adopt the same ledger.
+  election, person/organization identity, or Sybil-resistant consensus. Eight of ten named event
+  kinds now have production resolvers; heuristic and scenario-rerun remain unsigned
+  until their domain and product/MCP mutation paths adopt the same ledger. Suggestion proposal and
+  decision tools now follow the same commit-first exact-retained-event pattern.
 - Scenario-turn add, revise, and reconcile retain an exact immutable revision before best-effort
   registered-device signing. The canonical hash binds edit ID, role, body, participant, caller time,
   complete parent set, and create/edit/reconcile source; a length-prefixed locator binds the scenario

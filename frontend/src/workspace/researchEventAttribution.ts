@@ -54,6 +54,11 @@ import {
   type ScenarioVoteEvent,
   type ScenarioVoteSummary,
 } from './scenarioVoteModel'
+import {
+  readSuggestionEvent,
+  suggestionEventSha256,
+  type SuggestionEvent,
+} from './suggestionModel'
 
 export type ResearchEventAttributionResult = {
   status: 'signed-device'
@@ -158,6 +163,10 @@ export function adversarialReviewDecisionAttestationEventId(
   event: AdversarialReviewDecisionEvent,
 ): string {
   return `d:${event.runId.length}:${event.runId}${event.eventId}`
+}
+
+export function suggestionAttestationEventId(event: SuggestionEvent): string {
+  return `${event.suggestionId.length}:${event.suggestionId}${event.eventId}`
 }
 
 function parseLengthPrefixed(
@@ -269,11 +278,21 @@ export function researchEventAttestationResolver(
   return (eventKind, attestationEventId) => {
     if (eventKind !== 'scenario' && eventKind !== 'scenario-vote' && eventKind !== 'scenario-annotation' &&
       eventKind !== 'scenario-label' && eventKind !== 'policy-version' &&
-      eventKind !== 'scenario-turn' && eventKind !== 'adversarial-review') return null
+      eventKind !== 'scenario-turn' && eventKind !== 'adversarial-review' &&
+      eventKind !== 'suggestion') return null
     const cacheKey = `${eventKind}:${attestationEventId}`
     const cached = cache.get(cacheKey)
     if (cached) return cached
     const resolved = (async () => {
+      if (eventKind === 'suggestion') {
+        const identity = parseScenarioAttestationEventId(attestationEventId)
+        if (!identity) return null
+        const event = readSuggestionEvent(discussions, identity.scenarioId, identity.eventId)
+        return event ? {
+          eventSha256: await suggestionEventSha256(event),
+          participantId: event.kind === 'proposal' ? event.authorId : event.reviewerId,
+        } : null
+      }
       if (eventKind === 'adversarial-review') {
         const identity = parseAdversarialReviewAttestationEventId(attestationEventId)
         if (!identity) return null
@@ -361,7 +380,7 @@ async function attestResearchEvent(
   document: Y.Doc,
   projectId: string,
   eventKind: 'scenario' | 'scenario-vote' | 'scenario-annotation' | 'scenario-label' |
-    'policy-version' | 'scenario-turn' | 'adversarial-review',
+    'policy-version' | 'scenario-turn' | 'adversarial-review' | 'suggestion',
   eventId: string,
   participantId: string,
   eventHash: () => Promise<string>,
@@ -425,6 +444,24 @@ async function attestResearchEvent(
       authority: 'installation-device-not-human-identity',
     }
   }
+}
+
+/** Best-effort device attribution after an immutable suggestion proposal or decision commits. */
+export async function attestSuggestionEvent(
+  document: Y.Doc,
+  projectId: string,
+  event: SuggestionEvent,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<ResearchEventAttributionResult> {
+  return attestResearchEvent(
+    document,
+    projectId,
+    'suggestion',
+    suggestionAttestationEventId(event),
+    event.kind === 'proposal' ? event.authorId : event.reviewerId,
+    () => suggestionEventSha256(event),
+    dependencies,
+  )
 }
 
 /** Best-effort device attribution after an immutable adversarial archive has committed. */

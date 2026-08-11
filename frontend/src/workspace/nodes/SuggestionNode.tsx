@@ -9,6 +9,7 @@ import {
 } from 'lexical'
 import { useState, type ReactElement } from 'react'
 import { useSuggestionState } from '../SuggestionContext'
+import type { ResearchEventAttributionResult } from '../researchEventAttribution'
 import type { CollaborativeSuggestion, SuggestionDecisionKind } from '../suggestionModel'
 
 export type SerializedSuggestionNode = Spread<
@@ -29,11 +30,15 @@ export function SuggestionCard({
   suggestionId,
   onDecision,
   onApply,
+  attribution,
+  attributionPending,
 }: {
   suggestion: CollaborativeSuggestion | null
   suggestionId: string
   onDecision: (decision: SuggestionDecisionKind) => void
   onApply?: () => void
+  attribution?: ResearchEventAttributionResult | null
+  attributionPending?: boolean
 }) {
   const [error, setError] = useState<string | null>(null)
   const act = (operation: () => void) => {
@@ -74,6 +79,23 @@ export function SuggestionCard({
       <div className="suggestion-provenance mono">
         {source} · source revision {suggestion.sourceDocumentRevision}
       </div>
+      {attributionPending ? (
+        <p className="suggestion-attribution mono" role="status">Saving device signature…</p>
+      ) : null}
+      {!attributionPending && attribution?.status === 'signed-device' ? (
+        <p className="suggestion-attribution mono" role="status">
+          Signed by this installation · {attribution.keyId.replace('ed25519-sha256:', '').slice(0, 12)}…
+        </p>
+      ) : null}
+      {!attributionPending && attribution?.status === 'unsigned' ? (
+        <p className="suggestion-attribution" role="status">
+          Suggestion event saved without a device signature: {attribution.reason === 'device-directory-unhealthy'
+            ? 'the shared device directory needs repair.'
+            : attribution.reason === 'attestation-history-unhealthy'
+              ? 'the shared attestation history needs repair.'
+              : 'device signing or registration was unavailable.'}
+        </p>
+      ) : null}
       {suggestion.status === 'pending' ? (
         <div className="suggestion-actions" aria-label="Review suggestion">
           <button type="button" className="btn sm primary" onClick={() => decide('accepted')}>Accept</button>
@@ -105,12 +127,17 @@ export function SuggestionCard({
 }
 
 function ConnectedSuggestionCard({ suggestionId }: { suggestionId: string }) {
-  const { suggestions, decide, apply } = useSuggestionState()
+  const { suggestions, decide, apply, attribution, attributionPendingEventId } = useSuggestionState()
   const suggestion = suggestions.find(({ id }) => id === suggestionId) ?? null
+  const eventIds = suggestion
+    ? new Set([suggestion.proposal.eventId, ...suggestion.decisions.map(({ eventId }) => eventId)])
+    : new Set<string>()
   return (
     <SuggestionCard
       suggestion={suggestion}
       suggestionId={suggestionId}
+      attribution={attribution && eventIds.has(attribution.eventId) ? attribution.result : null}
+      attributionPending={Boolean(attributionPendingEventId && eventIds.has(attributionPendingEventId))}
       onDecision={(decision) => {
         if (!suggestion) throw new Error('Suggestion is unavailable')
         decide(suggestionId, suggestion.proposal.eventId, decision)

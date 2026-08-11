@@ -5,7 +5,9 @@ import {
   decideSuggestion,
   inspectSuggestions,
   listSuggestions,
+  readSuggestionEvent,
   readSuggestion,
+  suggestionEventSha256,
   type CreateSuggestionInput,
 } from './suggestionModel'
 
@@ -37,6 +39,24 @@ const decide = (
 })
 
 describe('collaborative suggestion decisions', () => {
+  it('hashes exact proposal and decision envelopes and reads only retained valid events', async () => {
+    const discussions = new Y.Doc().getMap('project:discussions')
+    const created = createSuggestion(discussions, proposal())
+    const proposalEvent = readSuggestionEvent(discussions, created.id, created.proposal.eventId)
+    expect(proposalEvent).toEqual(created.proposal)
+    const proposalHash = await suggestionEventSha256(created.proposal)
+    await expect(suggestionEventSha256({
+      ...created.proposal,
+      content: `${created.content} Tampered`,
+    })).resolves.not.toBe(proposalHash)
+
+    const accepted = decide(discussions, 'accepted', 'decision-hash')
+    const decisionEvent = readSuggestionEvent(discussions, accepted.id, 'decision-hash')
+    expect(decisionEvent).toEqual(accepted.decisions[0])
+    await expect(suggestionEventSha256(decisionEvent!)).resolves.not.toBe(proposalHash)
+    expect(readSuggestionEvent(discussions, accepted.id, 'missing-event')).toBeNull()
+  })
+
   it('previews model provenance and requires an attributed human decision without changing policy text', () => {
     const doc = new Y.Doc()
     const discussions = doc.getMap('project:discussions')

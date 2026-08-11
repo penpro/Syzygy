@@ -427,7 +427,10 @@ decision without changing the draft. An accepted, non-conflicted card separately
 draft**, with copy that it replaces only that card with a `review` policy block and only when the
 semantic policy content is unchanged. Stale policy content, stale editor revisions, missing/duplicate
 cards, and policy-identity collisions stay visible as errors and leave the draft untouched. Rejected
-or conflicted suggestions never expose Apply.
+or conflicted suggestions never expose Apply. After each proposal or decision commits, the card
+shows **Saving device signature…**, a shortened installation-key signature confirmation, or an
+explicit unsigned reason. This copy must say installation/device—not verified person or reviewer—and
+must never imply that signature failure discarded the already-saved suggestion event.
 
 ## MCP connection guide
 

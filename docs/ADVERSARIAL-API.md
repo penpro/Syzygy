@@ -181,7 +181,7 @@ full phase graph, route/budget/dependency/order forgery cases, exact upstream-by
 malformed/private-reasoning/usage-free output rejection, cancellation, and the resumable job
 lifecycle. Rust loopback tests exercise the same native executor used by the Tauri command and
 prove secret/content/authorization-token exclusion from run records, atomic duplicate refusal,
-and malformed-output fail-closed consumption. The MCP harness requires all 44 semantic tools and
+and malformed-output fail-closed consumption. The MCP harness requires all 46 semantic tools and
 clean stdio. Collaborative-history tests cover identical-peer convergence, same-run archive
 conflicts, stale zero-write refusal, provider-provenance tampering, hostile nested records,
 idempotent decision replay, concurrent decision branches, exact archive/decision hashes,

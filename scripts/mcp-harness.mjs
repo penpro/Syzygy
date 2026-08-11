@@ -82,7 +82,7 @@ async function proveStdioContract() {
   if (messages.length !== 6) throw new Error(`expected 6 MCP responses, received ${messages.length}`)
   if (byId.get(1)?.result?.protocolVersion !== '2025-11-25') throw new Error('MCP version negotiation failed')
   const tools = byId.get(2)?.result?.tools
-  if (!Array.isArray(tools) || tools.length < 44) throw new Error('MCP tool discovery is incomplete')
+  if (!Array.isArray(tools) || tools.length < 46) throw new Error('MCP tool discovery is incomplete')
   if (!tools.some((tool) => tool.name === 'workspace_walkthrough')) throw new Error('walkthrough tool is missing')
   if (!tools.some((tool) => tool.name === 'inspect_research_state')) throw new Error('research-state inspection tool is missing')
   if (!tools.some((tool) => tool.name === 'inspect_relay_approval_policy')) throw new Error('relay approval policy inspection tool is missing')
@@ -154,6 +154,18 @@ async function proveStdioContract() {
   if (!tools.some((tool) => tool.name === 'create_scenario_label')) throw new Error('scenario label creation tool is missing')
   if (!tools.some((tool) => tool.name === 'rename_scenario_label')) throw new Error('scenario label rename tool is missing')
   if (!tools.some((tool) => tool.name === 'set_scenario_label_assignment')) throw new Error('scenario label assignment tool is missing')
+  const createSuggestion = tools.find((tool) => tool.name === 'create_suggestion')
+  const decideSuggestion = tools.find((tool) => tool.name === 'decide_suggestion')
+  if (!createSuggestion || !decideSuggestion) throw new Error('suggestion lifecycle tools are incomplete')
+  for (const [tool, fields] of [
+    [createSuggestion, ['expectedResearchRevision', 'suggestionId', 'content', 'sourceDocumentRevision', 'participantId', 'displayName', 'sourceKind']],
+    [decideSuggestion, ['expectedResearchRevision', 'suggestionId', 'expectedProposalEventId', 'decision', 'participantId', 'displayName']],
+  ]) {
+    if (tool.inputSchema?.additionalProperties !== false) throw new Error('suggestion schema is not strict')
+    for (const field of fields) {
+      if (!tool.inputSchema?.required?.includes(field)) throw new Error(`suggestion schema omits ${field}`)
+    }
+  }
   if (!tools.some((tool) => tool.name === 'save_active_policy_version')) throw new Error('policy-version checkpoint tool is missing')
   if (!tools.some((tool) => tool.name === 'restore_active_policy_version')) throw new Error('policy-version restore tool is missing')
   const startAdversarial = tools.find((tool) => tool.name === 'start_adversarial_review')

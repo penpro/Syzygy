@@ -35,6 +35,49 @@ export interface SuggestionDecisionEvent {
 
 export type SuggestionEvent = SuggestionProposalEvent | SuggestionDecisionEvent
 
+const bytesToBase64Url = (bytes: Uint8Array) => {
+  let binary = ''
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte) })
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+/** Exact, versioned JSON envelope used for durable suggestion-event hashes. */
+export function canonicalSuggestionEvent(event: SuggestionEvent): string {
+  if (event.kind === 'proposal') {
+    return JSON.stringify({
+      schemaVersion: event.schemaVersion,
+      kind: event.kind,
+      eventId: event.eventId,
+      suggestionId: event.suggestionId,
+      content: event.content,
+      sourceDocumentRevision: event.sourceDocumentRevision,
+      authorId: event.authorId,
+      authorDisplayName: event.authorDisplayName,
+      timestamp: event.timestamp,
+      sourceKind: event.sourceKind,
+      providerId: event.providerId,
+      modelId: event.modelId,
+      runId: event.runId,
+    })
+  }
+  return JSON.stringify({
+    schemaVersion: event.schemaVersion,
+    kind: event.kind,
+    eventId: event.eventId,
+    suggestionId: event.suggestionId,
+    proposalEventId: event.proposalEventId,
+    decision: event.decision,
+    reviewerId: event.reviewerId,
+    reviewerDisplayName: event.reviewerDisplayName,
+    timestamp: event.timestamp,
+  })
+}
+
+export async function suggestionEventSha256(event: SuggestionEvent): Promise<string> {
+  const bytes = new TextEncoder().encode(canonicalSuggestionEvent(event))
+  return bytesToBase64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
+}
+
 export interface CollaborativeSuggestion {
   id: string
   content: string
@@ -245,6 +288,20 @@ export function readSuggestion(collection: Y.Map<unknown>, suggestionId: string)
   if (!stableId(suggestionId)) return null
   const events = eventsFor(collection, suggestionId)
   return events === null ? null : projectSuggestion(events)
+}
+
+/** Read one exact retained event only when the complete suggestion history remains valid. */
+export function readSuggestionEvent(
+  collection: Y.Map<unknown>,
+  suggestionId: string,
+  eventId: string,
+): SuggestionEvent | null {
+  if (!stableId(suggestionId) || !stableId(eventId)) return null
+  const suggestion = readSuggestion(collection, suggestionId)
+  if (!suggestion) return null
+  if (suggestion.proposal.eventId === eventId) return { ...suggestion.proposal }
+  const decision = suggestion.decisions.find((event) => event.eventId === eventId)
+  return decision ? { ...decision } : null
 }
 
 export function listSuggestions(collection: Y.Map<unknown>): CollaborativeSuggestion[] {

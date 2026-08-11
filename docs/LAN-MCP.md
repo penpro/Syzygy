@@ -167,7 +167,7 @@ deadline; individual polling waits heartbeat every 15 seconds and never exceed o
 ## Honest current limit
 
 The deterministic component gates pass, but the decisive packaged two-install run must be rerun and
-recorded after both profiles install a build exposing all 44 native tools. The physical harness fails
+recorded after both profiles install a build exposing all 46 native tools. The physical harness fails
 unless the exact two nodes connect, expose guarded catalog/share/join plus explicit scenario index and
 turn-revision readback, propagate guarded title changes both ways, reject a stale title guard,
 restore the original title, discover the same turn identity/head on both nodes, converge the document

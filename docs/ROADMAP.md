@@ -187,9 +187,10 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   explicitly enrolled installation key, rejects stale/replayed connection proofs, and permits only
   that device-bound admin role to execute one fresh action-bound exact-revision room-management
   request. A repeatable five-client binary soak covers 60 rapid writes, two-client partition/rejoin,
-  awareness cleanup/recovery, forced reauthentication, and remote issue/rotate/revoke. Human identity,
-  shared-directory approval, propagated identity revocation, key
-  rotation/recovery, signed durable research events beyond scenario votes, and physical two-install product proof remain
+  awareness cleanup/recovery, forced reauthentication, and remote issue/rotate/revoke. Seven of ten
+  named durable research-event domains now have exact retained-device attribution, including full
+  adversarial archives and decisions. Human identity, shared-directory approval, propagated identity
+  revocation, key rotation/recovery, the remaining suggestion/heuristic/scenario-rerun adoption, and physical two-install product proof remain
   open, so P-11 remains
   `implemented_unverified`. Evidence:
   `docs/audits/runs/PRESENCE-LIFECYCLE-2026-07-18.json` and
@@ -550,6 +551,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   immutable exact-parent accept/reject events and never edits policy text. Identical peer archives
   converge; conflicting archives or decision branches remain visible and fail closed; hostile
   records and stale writes add nothing; routine MCP inspection omits all research and note bodies.
+  Both archive and decision paths now commit first and then best-effort sign their exact retained
+  body under the stored participant's unconflicted registered installation key. Product and MCP
+  report signed-device or explicit unsigned attribution; signing failure never rolls back history,
+  cross-author claims and changed retained bodies fail verification, and MCP returns the
+  post-attribution research revision.
   The product now reuses that exact job and ledger: researchers select exact draft blocks, configure
   two to eight panel routes plus judge/baseline, see the deterministic total call count, cancel the
   bounded job, separately share full content, inspect frozen evidence/provenance/baselines, and append
@@ -558,8 +564,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   DOM until opened and advance in deterministic 50-item pages. Remaining gaps include authenticated
   identity, packaged two-install interaction, live-provider proof, near-32-MiB decode/memory and
   usability evidence, benchmark quality, and a separate revision-guarded proposal/apply workflow.
-  Evidence: `docs/audits/runs/ADVERSARIAL-PRODUCT-WORKFLOW-2026-07-30.json` and
-  `docs/audits/runs/ADVERSARIAL-EVIDENCE-PAGING-2026-07-31.json`.
+  Evidence: `docs/audits/runs/ADVERSARIAL-PRODUCT-WORKFLOW-2026-07-30.json`,
+  `docs/audits/runs/ADVERSARIAL-EVIDENCE-PAGING-2026-07-31.json`, and
+  `docs/audits/runs/SIGNED-ADVERSARIAL-REVIEW-EVENTS-2026-08-11.json`.
 
 - Scenario turn history now uses schema v2: every turn persists one selected head, every revision
   persists its parent set and source, and projection derives the complete acyclic tip set. Concurrent
@@ -655,12 +662,11 @@ collaborators are not required to download large project folders.
    authoritative, awareness-proof replay and participant-ID impersonation remain possible. A
    separate bounded exact-hash attestation ledger now signs MCP-created and product-created scenario
    create/edit/status records, turn create/edit/reconciliation, vote, annotation lifecycle, label
-   lifecycle/assignment, and
-   immutable policy save/restore events
+   lifecycle/assignment, immutable policy save/restore events, and adversarial archive/decision events
    when the installation is an unconflicted registered device for the participant claim; inspection
    re-resolves the live event hash and retained author, rejecting cross-author claims, and omits proof
    and research bodies or label names. Signing failure is explicitly unsigned and never rolls back
-   the mutation or checkpoint. Four other named research-event domains still lack production
+   the mutation or checkpoint. Three other named research-event domains still lack production
    resolvers/adoption. Device-bound admin credentials now expose a strict reserved
    control channel: the relay consumes the ordinary fresh proof, verifies a second action/revision
    signature, durably mutates/reloads membership, and evicts room peers. The product exposes those
@@ -679,7 +685,7 @@ collaborators are not required to download large project folders.
    policy state and applies an exact-revision install/remove transition using eligible registered
    key IDs. Next: run packaged physical two-install policy interaction, then
    recovery when no admin survives (which still requires the relay host), durable-event attestation
-   adoption beyond scenario votes/annotations/labels, device-key rotation/recovery, trusted time and replacement-invitation
+   adoption for suggestion/heuristic/scenario-rerun, device-key rotation/recovery, trusted time and replacement-invitation
    delivery, public WSS operations, compaction/export/backups
    and broader abuse controls, then run packaged physical two-install gates.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.

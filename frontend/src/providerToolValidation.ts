@@ -86,7 +86,7 @@ function inspectSafeSchema(schema: unknown, path: string, depth: number, state: 
     throw new Error(`${path}.additionalProperties must be true or false`)
   }
   if (schema.enum !== undefined && (!Array.isArray(schema.enum) || !schema.enum.length || schema.enum.length > 256)) {
-    throw new Error(`${path}.enum must contain 1â€“256 values`)
+    throw new Error(`${path}.enum must contain 1–256 values`)
   }
   if (schema.examples !== undefined && !Array.isArray(schema.examples)) throw new Error(`${path}.examples must be an array`)
   if (schema.title !== undefined && typeof schema.title !== 'string') throw new Error(`${path}.title must be a string`)

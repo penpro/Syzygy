@@ -496,10 +496,19 @@ with no selected winner. Evidence categories start closed so large bodies are no
 opening one renders at most 50 artifacts per list, including nested proposal claims, with an explicit
 bounded **Show next** control until every stored item is reachable. The synthesis and safety warning remain immediately visible.
 
+After a full archive or accept/reject decision commits, the surface reports registered-device
+attribution as pending, signed with a short key fingerprint, or explicitly unsigned. Copy names the
+exact retained archive or decision event, states that the research mutation remains committed when
+signing is unavailable, and says that the signature proves installation-key possession rather than
+a person or organization. Selecting another run or project suppresses a late result. Share and
+decision controls remain busy through this post-commit check so repeated clicks cannot disguise the
+state transition.
+
 Call the result "review" or "panel," never consensus or truth. **Record accepted** and **Record
 rejected** append exact-parent human judgment only. Neither action changes, replaces, proposes, or
 applies policy text. Any later apply workflow must be a separate revision-guarded proposal and diff.
-Installation researcher names and timestamps remain self-reported, not authenticated.
+Installation researcher names and timestamps remain self-reported, not authenticated; a signed
+decision is still a device-continuity claim rather than authenticated human or organizational consent.
 
 Plugin permission screens use plain verbs and concrete scope: "Read this project," "Propose a
 change," "Fetch from doi.org," or "Use the configured local model." Native MCP plugins carry a

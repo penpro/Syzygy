@@ -20,6 +20,8 @@ import {
 } from './workspace/editorAutomationRegistry'
 import { inspectResearchState } from './workspace/researchStateInspection'
 import {
+  attestAdversarialReviewArchiveEvent,
+  attestAdversarialReviewDecisionEvent,
   attestPolicyVersionEvent,
   attestScenarioAnnotationEvent,
   attestScenarioEditEvent,
@@ -809,7 +811,8 @@ export async function dispatchAutomationRequest(
       if (completed.projectId !== project.id) {
         throw new Error('Adversarial review job belongs to a different project')
       }
-      const saved = await saveAdversarialReviewArchive(getAutomationProjectDocument(project.id), {
+      const document = getAutomationProjectDocument(project.id)
+      const saved = await saveAdversarialReviewArchive(document, {
         expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
         projectId: project.id,
         sourceDocumentRevision: completed.documentRevision,
@@ -819,9 +822,13 @@ export async function dispatchAutomationRequest(
         displayName: requiredString(params, 'displayName'),
         createdAt: Date.now(),
       })
+      const attribution = await attestAdversarialReviewArchiveEvent(
+        document, project.id, saved.archive,
+      )
       return {
         archive: summarizeAdversarialReviewArchive(saved.archive),
-        researchRevision: saved.researchRevision,
+        attribution,
+        researchRevision: projectStateFingerprint(document),
       }
     }
     case 'research.decideAdversarialReview': {
@@ -830,7 +837,8 @@ export async function dispatchAutomationRequest(
         (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
       )
       if (!project) throw new Error('No research project is active; list or create a project first')
-      const changed = await decideAdversarialReview(getAutomationProjectDocument(project.id), {
+      const document = getAutomationProjectDocument(project.id)
+      const changed = await decideAdversarialReview(document, {
         expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
         projectId: project.id,
         runId: requiredString(params, 'runId'),
@@ -843,9 +851,13 @@ export async function dispatchAutomationRequest(
         notes: optionalString(params, 'notes') ?? '',
         timestamp: Date.now(),
       })
+      const attribution = await attestAdversarialReviewDecisionEvent(
+        document, project.id, changed.decision.current,
+      )
       return {
         decision: summarizeAdversarialReviewDecision(changed.decision),
-        researchRevision: changed.researchRevision,
+        attribution,
+        researchRevision: projectStateFingerprint(document),
       }
     }
     case 'workspace.walkthrough':

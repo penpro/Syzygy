@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type * as Y from 'yjs'
 import { desktopRuntimeAvailable, providerCredentialStatus, type RemoteProviderId } from '../tauri'
 import { useStore } from '../store'
@@ -28,6 +28,11 @@ import {
   type AutomationEditorSnapshot,
 } from './editorAutomationRegistry'
 import { getProjectSharedTypes, projectStateFingerprint } from './projectModel'
+import {
+  attestAdversarialReviewArchiveEvent,
+  attestAdversarialReviewDecisionEvent,
+  type ResearchEventAttributionResult,
+} from './researchEventAttribution'
 import { REMOTE_REVIEW_PROVIDERS } from './remoteResearchTask'
 import { AdversarialEvidenceView } from './AdversarialEvidenceView'
 import type { ResearchProjectManifest } from './schema'
@@ -50,6 +55,10 @@ export interface ProductAdversarialDraft {
 }
 
 type HistoryInspection = Awaited<ReturnType<typeof inspectAdversarialReviewHistory>>
+export type ReviewAttribution = {
+  recordType: 'archive' | 'decision'
+  result: ResearchEventAttributionResult
+}
 
 const EMPTY_HISTORY: HistoryInspection = {
   healthy: true,
@@ -187,6 +196,45 @@ function DecisionBadge({ decision }: { decision: AdversarialReviewSummary['decis
   return <span className={`adversarial-decision-badge ${decision}`}>{decision}</span>
 }
 
+export function AdversarialReviewAttributionStatus({
+  pending,
+  attribution,
+}: {
+  pending: boolean
+  attribution: ReviewAttribution | null
+}) {
+  if (pending) {
+    return (
+      <p className="scenario-identity-note" role="status">
+        Adversarial review record committed. Checking registered-device attribution…
+      </p>
+    )
+  }
+  if (attribution?.result.status === 'signed-device') {
+    return (
+      <p className="scenario-identity-note" role="status">
+        Exact retained {attribution.recordType} event signed by registered device key{' '}
+        <span className="mono">
+          {attribution.result.keyId.replace('ed25519-sha256:', '').slice(0, 12)}…
+        </span>. This proves installation-key possession, not a person or organization.
+      </p>
+    )
+  }
+  if (attribution?.result.status === 'unsigned') {
+    return (
+      <p className="scenario-identity-note" role="status">
+        Exact retained {attribution.recordType} event committed without a device signature: {
+          attribution.result.reason === 'device-directory-unhealthy'
+            ? 'the project device directory needs attention.'
+            : attribution.result.reason === 'attestation-history-unhealthy'
+              ? 'signed attribution history needs attention.'
+              : 'this installation is not registered here or signing is unavailable.'}
+      </p>
+    )
+  }
+  return null
+}
+
 export { AdversarialEvidenceView }
 
 export function AdversarialReviewWorkspace({ project }: { project: ResearchProjectManifest }) {
@@ -209,7 +257,19 @@ export function AdversarialReviewWorkspace({ project }: { project: ResearchProje
   const [selectedDecision, setSelectedDecision] = useState<AdversarialReviewDecisionSummary | null>(null)
   const [decisionNotes, setDecisionNotes] = useState('')
   const [decisionBusy, setDecisionBusy] = useState(false)
+  const [archiveBusy, setArchiveBusy] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [reviewAttribution, setReviewAttribution] = useState<ReviewAttribution | null>(null)
+  const [reviewAttributionPending, setReviewAttributionPending] = useState(false)
+  const attributionOperation = useRef(0)
+  const selectedRunIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    attributionOperation.current += 1
+    selectedRunIdRef.current = null
+    setReviewAttribution(null)
+    setReviewAttributionPending(false)
+  }, [project.id])
 
   useEffect(() => {
     let activeDiscussions: Y.Map<unknown> | null = null
@@ -255,6 +315,12 @@ export function AdversarialReviewWorkspace({ project }: { project: ResearchProje
   useEffect(() => {
     let cancelled = false
     if (!doc) {
+      if (selectedRunIdRef.current !== null) {
+        attributionOperation.current += 1
+        selectedRunIdRef.current = null
+        setReviewAttribution(null)
+        setReviewAttributionPending(false)
+      }
       setHistory(EMPTY_HISTORY)
       setSelectedArchive(null)
       setSelectedDecision(null)
@@ -271,6 +337,12 @@ export function AdversarialReviewWorkspace({ project }: { project: ResearchProje
       const archive = nextRunId ? await readAdversarialReviewArchive(discussions, nextRunId) : null
       const decision = nextRunId ? readAdversarialReviewDecision(discussions, nextRunId) : null
       if (cancelled) return
+      if (selectedRunIdRef.current !== nextRunId) {
+        attributionOperation.current += 1
+        selectedRunIdRef.current = nextRunId
+        setReviewAttribution(null)
+        setReviewAttributionPending(false)
+      }
       setHistory(inspection)
       setSelectedRunId(nextRunId)
       setSelectedArchive(archive)
@@ -419,7 +491,7 @@ export function AdversarialReviewWorkspace({ project }: { project: ResearchProje
   }
 
   const clearJob = () => {
-    if (job?.status === 'running') return
+    if (job?.status === 'running' || archiveBusy) return
     setJob(null)
     setSavedRunId(null)
     setDraft((current) => ({ ...current, seed: `seed-${uid()}` }))
@@ -427,8 +499,23 @@ export function AdversarialReviewWorkspace({ project }: { project: ResearchProje
     setError('')
   }
 
+  const selectHistoryRun = (runId: string) => {
+    if (runId !== selectedRunId) {
+      attributionOperation.current += 1
+      setReviewAttribution(null)
+      setReviewAttributionPending(false)
+    }
+    selectedRunIdRef.current = runId
+    setSelectedRunId(runId)
+  }
+
   const saveReview = async () => {
     if (!doc || !job) return
+    const operation = attributionOperation.current + 1
+    attributionOperation.current = operation
+    setArchiveBusy(true)
+    setReviewAttribution(null)
+    setReviewAttributionPending(false)
     setError('')
     try {
       if (!history.healthy) throw new Error('Shared adversarial history needs attention before another archive can be saved')
@@ -445,16 +532,34 @@ export function AdversarialReviewWorkspace({ project }: { project: ResearchProje
         createdAt: job.completedAt ?? job.startedAt,
       })
       setSavedRunId(saved.archive.runId)
+      selectedRunIdRef.current = saved.archive.runId
       setSelectedRunId(saved.archive.runId)
       setStatus('Full question, selected excerpts, outputs, baselines, and provenance were added to shared project history. The draft was not changed.')
+      if (attributionOperation.current === operation &&
+        selectedRunIdRef.current === saved.archive.runId) setReviewAttributionPending(true)
+      const attribution = await attestAdversarialReviewArchiveEvent(
+        doc, project.id, saved.archive,
+      )
+      if (attributionOperation.current === operation &&
+        selectedRunIdRef.current === saved.archive.runId) {
+        setReviewAttribution({ recordType: 'archive', result: attribution })
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save the adversarial review')
+    } finally {
+      setArchiveBusy(false)
+      if (attributionOperation.current === operation &&
+        selectedRunIdRef.current === job.runId) setReviewAttributionPending(false)
     }
   }
 
   const recordDecision = async (decision: AdversarialReviewDecision) => {
     if (!doc || !selectedArchive) return
+    const operation = attributionOperation.current + 1
+    attributionOperation.current = operation
     setDecisionBusy(true)
+    setReviewAttribution(null)
+    setReviewAttributionPending(false)
     setError('')
     try {
       if (!history.healthy) throw new Error('Shared adversarial history needs attention before recording a decision')
@@ -475,10 +580,21 @@ export function AdversarialReviewWorkspace({ project }: { project: ResearchProje
       setSelectedDecision(result.decision)
       setDecisionNotes('')
       setStatus(`${decision === 'accepted' ? 'Accepted' : 'Rejected'} was recorded as an immutable human decision. The policy draft was not changed.`)
+      if (attributionOperation.current === operation &&
+        selectedRunIdRef.current === selectedArchive.runId) setReviewAttributionPending(true)
+      const attribution = await attestAdversarialReviewDecisionEvent(
+        doc, project.id, result.decision.current,
+      )
+      if (attributionOperation.current === operation &&
+        selectedRunIdRef.current === selectedArchive.runId) {
+        setReviewAttribution({ recordType: 'decision', result: attribution })
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not record the adversarial review decision')
     } finally {
       setDecisionBusy(false)
+      if (attributionOperation.current === operation &&
+        selectedRunIdRef.current === selectedArchive.runId) setReviewAttributionPending(false)
     }
   }
 
@@ -603,9 +719,11 @@ export function AdversarialReviewWorkspace({ project }: { project: ResearchProje
         <div className="remote-review-actions">
           {job.status === 'running' && <button className="btn ghost danger" type="button" onClick={cancelReview}>Cancel batch</button>}
           {job.status === 'completed' && savedRunId !== job.runId && (
-            <button className="btn primary" type="button" disabled={!history.healthy} onClick={() => void saveReview()}>Share full review with project</button>
+            <button className="btn primary" type="button" disabled={!history.healthy || archiveBusy} onClick={() => void saveReview()}>
+              {archiveBusy ? 'Sharing and checking signature…' : 'Share full review with project'}
+            </button>
           )}
-          {job.status !== 'running' && <button className="btn" type="button" onClick={clearJob}>
+          {job.status !== 'running' && <button className="btn" type="button" disabled={archiveBusy} onClick={clearJob}>
             {savedRunId === job.runId ? 'Start another review' : 'Discard transient result'}
           </button>}
         </div>
@@ -627,6 +745,11 @@ export function AdversarialReviewWorkspace({ project }: { project: ResearchProje
       <div className={`remote-review-status ${error ? 'error' : ''}`} role={error ? 'alert' : 'status'}>
         {error || status}
       </div>
+
+      <AdversarialReviewAttributionStatus
+        pending={reviewAttributionPending}
+        attribution={reviewAttribution}
+      />
 
       <section className="adversarial-history" aria-label="Shared adversarial review history">
         <div className="adversarial-section-heading">
@@ -652,7 +775,7 @@ export function AdversarialReviewWorkspace({ project }: { project: ResearchProje
             type="button"
             className={item.runId === selectedRunId ? 'adversarial-history-item active' : 'adversarial-history-item'}
             aria-current={item.runId === selectedRunId ? 'true' : undefined}
-            onClick={() => setSelectedRunId(item.runId)}
+            onClick={() => selectHistoryRun(item.runId)}
           >
             <span>
               <strong>{formatTimestamp(item.createdAt)}</strong>

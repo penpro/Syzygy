@@ -1,7 +1,8 @@
 # Adversarial review API
 
 **Contract version:** 1. **Runtime status:** native multi-provider execution, resumable MCP
-jobs, explicit collaborative archival, immutable human accept/reject history, and the product
+jobs, explicit collaborative archival, immutable human accept/reject history, exact retained-event
+registered-device attribution with explicit unsigned fallback, and the product
 configuration/history/decision workflow are implemented and conformance-tested against loopback
 providers, in-memory Yjs peers, and headless React rendering. Results remain pending human review
 and never mutate the shared draft automatically. Packaged native-dialog interaction, live
@@ -95,9 +96,18 @@ and every strict provider provenance record before accepting the canonical hash.
 and current decision event (or null for the first decision), then appends one immutable
 accepted/rejected event. Exact retries are idempotent. Concurrent branches remain in Yjs and make
 the decision conflicted; no timestamp winner is selected. Up to 20,000 bounded events are retained.
-Neither saving nor deciding reads or changes the Lexical draft. Routine
+After either mutation commits, Syzygy best-effort signs the exact retained record with an
+unconflicted project-registered installation key for its stored participant. Archive attribution
+hashes the complete strict envelope; decision attribution hashes the run/archive identity, exact
+parent, judgment, participant/display name, notes, and timestamp. Distinct archive and
+length-prefixed decision locators make retained re-resolution unambiguous. Correctly signed
+cross-author claims and changed stored bodies fail verification. Signing failure leaves history
+committed and returns an explicit bounded unsigned reason; MCP returns the post-attribution
+research revision. Neither saving nor deciding reads or changes the Lexical draft. Routine
 `inspect_research_state` returns only IDs, hashes, counts, attribution metadata, decision state,
-and integrity issues; question, source, result, and decision-note bodies are omitted.
+and integrity issues; question, source, result, decision-note, proof, public-key, signature, and
+display-name bodies are omitted. Installation signatures prove device-key possession, not a person,
+organization, truth, consensus, or consent.
 
 ## Product workflow contract
 
@@ -115,14 +125,17 @@ proposals, critiques, claim audit, minority findings, baseline outputs, route pr
 and decision history. Invalid or branched state disables decisions and remains visibly conflicted.
 Evidence categories are lazy and opened lists, including nested proposal claims, render deterministic
 50-item pages, so hidden bodies do not enter the DOM merely because an archive was selected. Accept/reject appends history only;
-there is deliberately no Apply control or editor mutation path.
+there is deliberately no Apply control or editor mutation path. Archive and decision actions remain
+busy through their post-commit attribution check, render pending/signed-device/explicit-unsigned
+status, and suppress a late result after a project or selected-run change.
 
 Headless product tests cover exact source selection, panel/call bounds, disclosure copy, evidence
 classes, provenance separation, and absence of an apply action. Domain convergence, stale-write,
 tamper, branch, and no-editor-mutation tests remain authoritative for shared writes. The bounded
 run and honest limitations are recorded in
-`audits/runs/ADVERSARIAL-PRODUCT-WORKFLOW-2026-07-30.json` and
-+`audits/runs/ADVERSARIAL-EVIDENCE-PAGING-2026-07-31.json`.
+`audits/runs/ADVERSARIAL-PRODUCT-WORKFLOW-2026-07-30.json`,
+`audits/runs/ADVERSARIAL-EVIDENCE-PAGING-2026-07-31.json`, and
+`audits/runs/SIGNED-ADVERSARIAL-REVIEW-EVENTS-2026-08-11.json`.
 
 ## Validation pipeline
 
@@ -168,10 +181,12 @@ full phase graph, route/budget/dependency/order forgery cases, exact upstream-by
 malformed/private-reasoning/usage-free output rejection, cancellation, and the resumable job
 lifecycle. Rust loopback tests exercise the same native executor used by the Tauri command and
 prove secret/content/authorization-token exclusion from run records, atomic duplicate refusal,
-and malformed-output fail-closed consumption. The MCP harness requires all 34 semantic tools and
+and malformed-output fail-closed consumption. The MCP harness requires all 44 semantic tools and
 clean stdio. Collaborative-history tests cover identical-peer convergence, same-run archive
 conflicts, stale zero-write refusal, provider-provenance tampering, hostile nested records,
-idempotent decision replay, and concurrent decision branches.
+idempotent decision replay, concurrent decision branches, exact archive/decision hashes,
+cross-author rejection, changed-retained-body rejection, explicit unsigned preservation, and
+content-minimized attestation inspection.
 
 None of these checks calls a paid provider. They establish local conformance and security
 properties, not provider availability, policy compliance, output correctness, or superiority.

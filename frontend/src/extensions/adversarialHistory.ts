@@ -123,6 +123,17 @@ async function sha256(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
+function encodeBase64Url(value: Uint8Array): string {
+  let binary = ''
+  for (const byte of value) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+async function eventSha256(canonical: string): Promise<string> {
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', encoder.encode(canonical))
+  return encodeBase64Url(new Uint8Array(digest))
+}
+
 function strictRequest(value: unknown): value is AdversarialRunnerRequest {
   if (!value || typeof value !== 'object' || Array.isArray(value) ||
     !exactKeys(value, ['runId', 'input', 'sources'])) return false
@@ -360,6 +371,18 @@ export async function readAdversarialReviewArchive(
   return clone(matches[0])
 }
 
+/** Validate and hash the exact immutable archive envelope used by device attestations. */
+export async function adversarialReviewArchiveEventSha256(
+  archive: AdversarialReviewArchive,
+): Promise<string> {
+  const canonical = JSON.stringify(archive)
+  const decoded = await decodeArchive(canonical)
+  if (!decoded || JSON.stringify(decoded) !== canonical) {
+    throw new Error('Adversarial review archive event is invalid')
+  }
+  return eventSha256(canonical)
+}
+
 export async function listAdversarialReviewArchives(
   discussions: Y.Map<unknown>,
 ): Promise<AdversarialReviewArchive[]> {
@@ -428,6 +451,30 @@ function validDecisionEvent(value: unknown): value is AdversarialReviewDecisionE
     boundedText(event.notes, MAX_NOTES, true) && validTimestamp(event.timestamp)
 }
 
+export function canonicalAdversarialReviewDecisionEvent(
+  event: AdversarialReviewDecisionEvent,
+): string {
+  if (!validDecisionEvent(event)) throw new Error('Adversarial review decision event is invalid')
+  return JSON.stringify({
+    schemaVersion: event.schemaVersion,
+    eventId: event.eventId,
+    runId: event.runId,
+    recordSha256: event.recordSha256,
+    expectedCurrentDecisionId: event.expectedCurrentDecisionId,
+    decision: event.decision,
+    participantId: event.participantId,
+    displayName: event.displayName,
+    notes: event.notes,
+    timestamp: event.timestamp,
+  })
+}
+
+export async function adversarialReviewDecisionEventSha256(
+  event: AdversarialReviewDecisionEvent,
+): Promise<string> {
+  return eventSha256(canonicalAdversarialReviewDecisionEvent(event))
+}
+
 function decodeDecision(value: unknown): AdversarialReviewDecisionEvent | null {
   if (typeof value !== 'string' || value.length > MAX_NOTES + 2_000) return null
   try {
@@ -481,6 +528,17 @@ export function readAdversarialReviewDecision(
     current: clone(history[history.length - 1]),
     history: history.map(clone),
   }
+}
+
+/** Resolve one exact retained event only when its complete decision lineage is healthy. */
+export function readAdversarialReviewDecisionEvent(
+  discussions: Y.Map<unknown>,
+  runId: string,
+  eventId: string,
+): AdversarialReviewDecisionEvent | null {
+  if (!stableId(eventId)) return null
+  const summary = readAdversarialReviewDecision(discussions, runId)
+  return summary?.history.find((event) => event.eventId === eventId) ?? null
 }
 
 export async function decideAdversarialReview(

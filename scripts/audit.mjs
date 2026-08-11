@@ -439,7 +439,7 @@ record(
     scenarioAnnotationProductTest.includes('without claiming human identity') &&
     scenarioAnnotationAutomationSource.match(/Scenario annotation event was not retained/g)?.length === 3 &&
     scenarioAnnotationBridgeSource.match(/await attestScenarioAnnotationEvent/g)?.length === 3 &&
-    researchEventMcpSource.includes('exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, and immutable policy-version events') &&
+    researchEventMcpSource.includes('exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, immutable policy-version, and adversarial archive/decision events') &&
     scenarioAnnotationEvidence.includes('"productionAdoptedEventKind": "scenario-annotation"') &&
     scenarioAnnotationEvidence.includes('"mutatedRetainedBodyRejected": true') &&
     scenarioAnnotationEvidence.includes('"signingFailurePreservesCommittedMutation": true') &&
@@ -467,7 +467,7 @@ record(
     scenarioAnnotationAutomationSource.match(/Scenario label event was not retained/g)?.length === 2 &&
     scenarioAnnotationAutomationSource.includes('Scenario label assignment event was not retained') &&
     scenarioAnnotationBridgeSource.match(/await attestScenarioLabelEvent/g)?.length === 3 &&
-    scenarioAnnotationBridgeSource.match(/researchRevision: projectStateFingerprint\(document\)/g)?.length === 12 &&
+    scenarioAnnotationBridgeSource.match(/researchRevision: projectStateFingerprint\(document\)/g)?.length === 14 &&
     researchEventAttestationTest.includes('maximum-length label assignment locator') &&
     researchEventAttestationTest.includes('assignmentEvents.set(assignmentStorageKey') &&
     researchEventAttestationTest.includes('not.toBe(mutationOnlyRevision)') &&
@@ -2126,6 +2126,7 @@ const adversarialAutomationSource = text('frontend/src/extensions/adversarialAut
 const adversarialAutomationTestSource = text('frontend/src/extensions/adversarialAutomation.test.ts')
 const adversarialHistorySource = text('frontend/src/extensions/adversarialHistory.ts')
 const adversarialHistoryTestSource = text('frontend/src/extensions/adversarialHistory.test.ts')
+const adversarialAttributionEvidence = text('docs/audits/runs/SIGNED-ADVERSARIAL-REVIEW-EVENTS-2026-08-11.json')
 const adversarialWorkspaceSource = text('frontend/src/workspace/AdversarialReviewWorkspace.tsx')
 const adversarialEvidenceSource = text('frontend/src/workspace/AdversarialEvidenceView.tsx')
 const adversarialWorkspaceTestSource = text('frontend/src/workspace/AdversarialReviewWorkspace.ui.test.tsx')
@@ -2235,6 +2236,46 @@ record(
     mcpHarnessSource.includes('tools.length < 44') &&
     frontendPackage.scripts?.['test:adversarial']?.includes('adversarialHistory.test.ts'),
   'full archives persist only by explicit revision-guarded save; canonical hashes, provider provenance, peer convergence, exact-parent decision history, fail-closed conflicts, content-minimized inspection, and zero draft authority are enforced',
+)
+record(
+  'adversarial archive and decision events have exact retained-device attribution with explicit unsigned fallback',
+  adversarialHistorySource.includes('adversarialReviewArchiveEventSha256') &&
+    adversarialHistorySource.includes('canonicalAdversarialReviewDecisionEvent') &&
+    adversarialHistorySource.includes('adversarialReviewDecisionEventSha256') &&
+    adversarialHistorySource.includes('readAdversarialReviewDecisionEvent') &&
+    researchEventAttributionSource.includes('adversarialReviewArchiveAttestationEventId') &&
+    researchEventAttributionSource.includes('adversarialReviewDecisionAttestationEventId') &&
+    researchEventAttributionSource.includes("eventKind !== 'adversarial-review'") &&
+    researchEventAttributionSource.includes('attestAdversarialReviewArchiveEvent') &&
+    researchEventAttributionSource.includes('attestAdversarialReviewDecisionEvent') &&
+    adversarialHistoryTestSource.includes('signs exact retained archives and decisions while rejecting cross-author and changed records') &&
+    adversarialHistoryTestSource.includes("changedDecision.notes = 'Changed signed decision body'") &&
+    adversarialHistoryTestSource.includes("changedArchive.request.input.question = 'Changed signed archive body'") &&
+    adversarialHistoryTestSource.includes("eventId: 'unsigned-decision'") &&
+    adversarialWorkspaceSource.includes('attributionOperation.current === operation') &&
+    adversarialWorkspaceSource.includes('Exact retained {attribution.recordType} event signed by registered device key') &&
+    adversarialWorkspaceTestSource.includes('pending, signed-device, and explicit unsigned adversarial attribution states') &&
+    automationBridgeSource.match(/await attestAdversarialReviewArchiveEvent/g)?.length === 1 &&
+    automationBridgeSource.match(/await attestAdversarialReviewDecisionEvent/g)?.length === 1 &&
+    automationBridgeSource.includes('archive: summarizeAdversarialReviewArchive(saved.archive)') &&
+    automationBridgeSource.includes('decision: summarizeAdversarialReviewDecision(changed.decision)') &&
+    mcpSource.includes('best-effort exact-archive registered-device signature') &&
+    mcpSource.includes('best-effort signature over the exact retained decision') &&
+    adversarialAttributionEvidence.includes('"productionAdoptedEventKind": "adversarial-review"') &&
+    adversarialAttributionEvidence.includes('"crossAuthorArchiveClaimRejected": true') &&
+    adversarialAttributionEvidence.includes('"crossAuthorDecisionClaimRejected": true') &&
+    adversarialAttributionEvidence.includes('"mutatedRetainedArchiveRejected": true') &&
+    adversarialAttributionEvidence.includes('"mutatedRetainedDecisionRejected": true') &&
+    adversarialAttributionEvidence.includes('"mcpReturnsPostAttributionResearchRevision": true') &&
+    adversarialAttributionEvidence.includes('"humanOrOrganizationIdentityClaimed": false') &&
+    adversarialAttributionEvidence.includes('"supervisedRunId": "20260811-192826-19ac2f"') &&
+    adversarialAttributionEvidence.includes('"frontendTestFilesPassed": 128') &&
+    adversarialAttributionEvidence.includes('"frontendTestsPassed": 556') &&
+    adversarialAttributionEvidence.includes('"frontendModulesTransformed": 1267') &&
+    adversarialAttributionEvidence.includes('"rustAppRecompiled": true') &&
+    adversarialAttributionEvidence.includes('"repositoryAuditPassed": true') &&
+    adversarialAttributionEvidence.includes('"fullValidationPending": false'),
+  'full archive envelopes and exact-parent decision bodies are re-resolved against their retained participant, cross-author or changed records fail, product/MCP report post-commit signed or unsigned state, and inspection remains body-free',
 )
 record(
   'product adversarial review is explicit, inspectable, collaborative, bounded, and non-mutating',

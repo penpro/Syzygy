@@ -6,6 +6,7 @@ import type { AdversarialRunnerRequest } from '../extensions/adversarialRunner'
 import type { AutomationEditorSnapshot } from './editorAutomationRegistry'
 import {
   AdversarialEvidenceView,
+  AdversarialReviewAttributionStatus,
   AdversarialReviewWorkspace,
   adversarialRemoteCallCount,
   buildProductAdversarialJobParameters,
@@ -154,6 +155,46 @@ describe('adversarial product workflow', () => {
     expect(html).toContain('Review batch before sending')
     expect(html).toContain('Preparing shared project research data')
     expect(html).not.toContain('Apply to draft')
+  })
+
+  it('renders pending, signed-device, and explicit unsigned adversarial attribution states', () => {
+    const pending = renderToStaticMarkup(
+      <AdversarialReviewAttributionStatus pending attribution={null} />,
+    )
+    expect(pending).toContain('record committed')
+    expect(pending).toContain('Checking registered-device attribution')
+
+    const signed = renderToStaticMarkup(<AdversarialReviewAttributionStatus
+      pending={false}
+      attribution={{
+        recordType: 'archive',
+        result: {
+          status: 'signed-device',
+          keyId: 'ed25519-sha256:abcdefghijklmnopqrstuv0123456789ABCDEFG',
+          eventKind: 'adversarial-review',
+          eventId: 'a:run-1',
+          eventSha256: 'a'.repeat(43),
+          attestationCount: 1,
+          authority: 'installation-device-not-human-identity',
+        },
+      }}
+    />)
+    expect(signed).toContain('Exact retained archive event signed by registered device key')
+    expect(signed).toContain('installation-key possession, not a person or organization')
+
+    const unsigned = renderToStaticMarkup(<AdversarialReviewAttributionStatus
+      pending={false}
+      attribution={{
+        recordType: 'decision',
+        result: {
+          status: 'unsigned',
+          reason: 'attestation-history-unhealthy',
+          authority: 'installation-device-not-human-identity',
+        },
+      }}
+    />)
+    expect(unsigned).toContain('Exact retained decision event committed without a device signature')
+    expect(unsigned).toContain('signed attribution history needs attention')
   })
 
   it('renders frozen evidence, minority artifacts, baselines, provenance, and no automatic mutation claim', () => {

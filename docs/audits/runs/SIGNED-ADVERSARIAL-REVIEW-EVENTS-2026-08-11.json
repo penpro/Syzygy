@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "runId": "SIGNED-ADVERSARIAL-REVIEW-EVENTS-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "ee37af7",
+  "capabilities": ["P-11", "P-21", "S-05", "S-07"],
+  "status": "implemented_unverified",
+  "claim": "Syzygy now best-effort signs the exact retained full adversarial-review archive and each exact immutable accept/reject decision after the shared mutation commits, through both product and MCP paths. Verification re-resolves the retained event hash and stored participant, while signing failure remains explicit and never rolls back research history.",
+  "commands": [
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cmd.exe /d /s /c \"npm exec vitest -- run src/extensions/adversarialHistory.test.ts src/workspace/projectResearchEventAttestation.test.ts src/workspace/AdversarialReviewWorkspace.ui.test.tsx\"",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cmd.exe /d /s /c \"npm exec tsc -- -b --pretty false\"",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cmd.exe /d /s /c \"npm run check:supervised\""
+  ],
+  "result": {
+    "productionAdoptedEventKind": "adversarial-review",
+    "signedRecordTypes": ["archive", "decision"],
+    "archiveEnvelopeHashIncludesFullResearchBody": true,
+    "decisionHashIncludesNotesAndExactParent": true,
+    "lengthPrefixedDecisionLocator": true,
+    "storedEventParticipantRequired": true,
+    "crossAuthorArchiveClaimRejected": true,
+    "crossAuthorDecisionClaimRejected": true,
+    "mutatedRetainedArchiveRejected": true,
+    "mutatedRetainedDecisionRejected": true,
+    "signingFailurePreservesCommittedArchive": true,
+    "signingFailurePreservesCommittedDecision": true,
+    "productPendingSignedAndUnsignedStates": true,
+    "productSuppressesStaleAttributionResults": true,
+    "mcpReturnsPostAttributionResearchRevision": true,
+    "proofResearchAndDecisionNoteBodiesReturnedByInspection": false,
+    "humanOrOrganizationIdentityClaimed": false,
+    "focusedTestFilesPassed": 3,
+    "focusedTestsPassed": 24,
+    "typecheckPassed": true,
+    "supervisedRunId": "20260811-192826-19ac2f",
+    "frontendTestFilesPassed": 128,
+    "frontendTestFilesSkipped": 3,
+    "frontendTestsPassed": 556,
+    "frontendTestsSkipped": 3,
+    "frontendModulesTransformed": 1267,
+    "rustAppRecompiled": true,
+    "repositoryAuditPassed": true,
+    "fullValidationPending": false
+  },
+  "proved": [
+    "Archive attribution hashes the exact strict archive envelope, including its content-addressed record hash, full question, frozen sources, results, baselines, and provenance; changed stored content no longer verifies.",
+    "Decision attribution hashes the exact run/archive identity, decision ID, prior decision ID, decision, stored participant/display name, notes, and timestamp; changed notes or lineage no longer verify.",
+    "Publication requires the self-reported stored participant to match an unconflicted registered installation key. Correctly signed cross-author archive and decision claims are rejected.",
+    "Product and MCP save/decide paths commit immutable shared history before best-effort signing, expose signed-device or bounded unsigned attribution, and return the post-attribution revision where applicable.",
+    "Headless inspection returns bounded event/key/participant/hash metadata without archive bodies, decision notes, proof bodies, signatures, public keys, or display names."
+  ],
+  "notProved": [
+    "That a self-issued installation key authenticates a person or organization, establishes truth or consensus, prevents Sybil identities, or represents legal or organizational consent.",
+    "Append-only survival against a malicious Yjs writer, trusted time, identity-key rotation/recovery, live paid-provider quality, or physical packaged two-install interaction.",
+    "Signed production adoption for suggestion, heuristic, or scenario-rerun events; those three named research-event domains remain contract-only."
+  ],
+  "implementationAnchors": [
+    "frontend/src/extensions/adversarialHistory.ts",
+    "frontend/src/extensions/adversarialHistory.test.ts",
+    "frontend/src/workspace/researchEventAttribution.ts",
+    "frontend/src/workspace/AdversarialReviewWorkspace.tsx",
+    "frontend/src/workspace/AdversarialReviewWorkspace.ui.test.tsx",
+    "frontend/src/automationBridge.ts",
+    "frontend/src-tauri/src/mcp.rs"
+  ]
+}

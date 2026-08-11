@@ -318,7 +318,7 @@ and product-visible evidence, but the local app-data registry is a user preferen
 project record or access-control boundary. The managed relay separately supports explicit
 operator enrollment and signed installation-key-to-role authorization. This does not prove human
 identity, shared-directory approval, propagated identity revocation, presence-proof replay prevention, key
-rotation/recovery, durable event signatures beyond scenario votes, a physical two-install cursor run, or the Phase 5
+rotation/recovery, durable event signatures for suggestion/heuristic/scenario-rerun, a physical two-install cursor run, or the Phase 5
 five-client soak.
 
 `projectDeviceDirectory.test.ts` is the durable registration gate. It requires explicit strict

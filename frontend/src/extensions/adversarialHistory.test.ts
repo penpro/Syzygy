@@ -1,9 +1,27 @@
 import { describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
+import type { ProjectResearchEventClaim, ProjectResearchEventProof } from '../tauri'
+import type { ProjectDeviceDirectoryInspection } from '../workspace/projectDeviceDirectory'
 import { createProjectDocument, encodeProjectState, applyProjectUpdate, getProjectSharedTypes, projectStateFingerprint } from '../workspace/projectModel'
+import {
+  canonicalProjectResearchEventClaim,
+  createProjectResearchEventAttestation,
+  inspectProjectResearchEventAttestations,
+  publishProjectResearchEventAttestation,
+  type ProjectResearchEventAttestationDependencies,
+} from '../workspace/projectResearchEventAttestation'
+import {
+  adversarialReviewArchiveAttestationEventId,
+  adversarialReviewDecisionAttestationEventId,
+  attestAdversarialReviewArchiveEvent,
+  attestAdversarialReviewDecisionEvent,
+  researchEventAttestationResolver,
+} from '../workspace/researchEventAttribution'
 import { createProjectManifest } from '../workspace/schema'
 import { buildNativeAdversarialScope } from './adversarialNativePlan'
 import {
+  adversarialReviewArchiveEventSha256,
+  adversarialReviewDecisionEventSha256,
   decideAdversarialReview,
   inspectAdversarialReviewHistory,
   listAdversarialReviewArchives,
@@ -165,6 +183,88 @@ async function save(doc: Y.Doc, value?: NativeAdversarialPanelOutcome) {
   })
 }
 
+function encodeBase64Url(value: Uint8Array): string {
+  let binary = ''
+  for (const byte of value) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+function asArrayBuffer(value: Uint8Array): ArrayBuffer {
+  const copy = new ArrayBuffer(value.byteLength)
+  new Uint8Array(copy).set(value)
+  return copy
+}
+
+interface TestIdentity {
+  keys: CryptoKeyPair
+  keyId: string
+  publicKey: string
+  participantId: string
+}
+
+async function identity(participantId: string): Promise<TestIdentity> {
+  const keys = await crypto.subtle.generateKey(
+    { name: 'Ed25519' }, true, ['sign', 'verify'],
+  ) as CryptoKeyPair
+  const raw = new Uint8Array(await crypto.subtle.exportKey('raw', keys.publicKey))
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', asArrayBuffer(raw)))
+  return {
+    keys,
+    keyId: `ed25519-sha256:${encodeBase64Url(digest)}`,
+    publicKey: encodeBase64Url(raw),
+    participantId,
+  }
+}
+
+function directory(values: TestIdentity[]): ProjectDeviceDirectoryInspection {
+  return {
+    healthy: true,
+    registrationCount: values.length,
+    verifiedRegistrations: values.map((value) => ({
+      keyId: value.keyId,
+      publicKey: value.publicKey,
+      participantId: value.participantId,
+    })),
+    devices: values.map((value) => ({
+      keyId: value.keyId,
+      publicKey: value.publicKey,
+      fingerprint: value.keyId.replace('ed25519-sha256:', ''),
+      participantIds: [value.participantId],
+      registrationCount: 1,
+      status: 'registered-device' as const,
+    })),
+    conflictingDevices: 0,
+    invalidRecords: 0,
+    unavailableRecords: 0,
+    excessRecords: 0,
+  }
+}
+
+function proofDependencies(
+  value: TestIdentity,
+  nonceByte: number,
+): ProjectResearchEventAttestationDependencies {
+  return {
+    now: () => 1_750_000_000_000 + nonceByte,
+    nonce: () => encodeBase64Url(new Uint8Array(32).fill(nonceByte)),
+    sign: async (claim: ProjectResearchEventClaim): Promise<ProjectResearchEventProof> => {
+      const signature = new Uint8Array(await crypto.subtle.sign(
+        { name: 'Ed25519' },
+        value.keys.privateKey,
+        asArrayBuffer(canonicalProjectResearchEventClaim(claim)),
+      ))
+      return {
+        schemaVersion: 1,
+        algorithm: 'Ed25519',
+        keyId: value.keyId,
+        publicKey: value.publicKey,
+        claim,
+        signature: encodeBase64Url(signature),
+      }
+    },
+  }
+}
+
 describe('collaborative adversarial review history', () => {
   it('saves one immutable bounded archive and exposes content-minimized inspection', async () => {
     const doc = createProjectDocument(manifest)
@@ -196,6 +296,172 @@ describe('collaborative adversarial review history', () => {
     expect(JSON.stringify(inspection)).not.toContain(request.input.question)
     expect(JSON.stringify(inspection)).not.toContain(request.sources[0].excerpt)
     expect(JSON.stringify(inspection)).not.toContain('Conclusion A survives')
+  })
+
+  it('signs exact retained archives and decisions while rejecting cross-author and changed records', async () => {
+    const archiveSigner = await identity('researcher-a')
+    const decisionSigner = await identity('reviewer-a')
+    const otherSigner = await identity('other-reviewer')
+    const registered = directory([archiveSigner, decisionSigner, otherSigner])
+    const doc = createProjectDocument(manifest)
+    const saved = await save(doc)
+    const shared = getProjectSharedTypes(doc)
+    const archiveAttribution = await attestAdversarialReviewArchiveEvent(
+      doc, manifest.id, saved.archive,
+      {
+        inspectDirectory: async () => registered,
+        create: (projectId, participantId, eventKind, eventId, eventSha256) =>
+          createProjectResearchEventAttestation(
+            projectId, participantId, eventKind, eventId, eventSha256,
+            proofDependencies(archiveSigner, 31),
+          ),
+      },
+    )
+    expect(archiveAttribution).toEqual(expect.objectContaining({
+      status: 'signed-device',
+      eventKind: 'adversarial-review',
+      eventId: adversarialReviewArchiveAttestationEventId(saved.archive),
+      eventSha256: await adversarialReviewArchiveEventSha256(saved.archive),
+      attestationCount: 1,
+    }))
+
+    const decided = await decideAdversarialReview(doc, {
+      expectedResearchRevision: projectStateFingerprint(doc),
+      projectId: manifest.id,
+      runId: saved.archive.runId,
+      recordSha256: saved.archive.recordSha256,
+      expectedCurrentDecisionId: null,
+      decision: 'accepted',
+      eventId: 'signed-decision',
+      participantId: 'reviewer-a',
+      displayName: 'Decision reviewer canary',
+      notes: 'Decision note canary',
+      timestamp: 20,
+    })
+    const decisionEvent = decided.decision.current
+    const decisionAttribution = await attestAdversarialReviewDecisionEvent(
+      doc, manifest.id, decisionEvent,
+      {
+        inspectDirectory: async () => registered,
+        create: (projectId, participantId, eventKind, eventId, eventSha256) =>
+          createProjectResearchEventAttestation(
+            projectId, participantId, eventKind, eventId, eventSha256,
+            proofDependencies(decisionSigner, 32),
+          ),
+      },
+    )
+    expect(decisionAttribution).toEqual(expect.objectContaining({
+      status: 'signed-device',
+      eventKind: 'adversarial-review',
+      eventId: adversarialReviewDecisionAttestationEventId(decisionEvent),
+      eventSha256: await adversarialReviewDecisionEventSha256(decisionEvent),
+      attestationCount: 2,
+    }))
+    expect(adversarialReviewDecisionAttestationEventId(decisionEvent).length).toBeLessThanOrEqual(1024)
+
+    const resolver = researchEventAttestationResolver(
+      shared.discussions, shared.settings, shared.versions, shared.scenarios,
+    )
+    const inspection = await inspectProjectResearchEventAttestations(
+      shared.settings, manifest.id, registered, resolver,
+    )
+    expect(inspection).toEqual(expect.objectContaining({ healthy: true, attestationCount: 2 }))
+    expect(JSON.stringify(inspection)).not.toContain(request.input.question)
+    expect(JSON.stringify(inspection)).not.toContain(request.sources[0].excerpt)
+    expect(JSON.stringify(inspection)).not.toContain('Decision note canary')
+    expect(JSON.stringify(inspection)).not.toContain('Decision reviewer canary')
+
+    const crossArchive = await createProjectResearchEventAttestation(
+      manifest.id,
+      otherSigner.participantId,
+      'adversarial-review',
+      adversarialReviewArchiveAttestationEventId(saved.archive),
+      await adversarialReviewArchiveEventSha256(saved.archive),
+      proofDependencies(otherSigner, 33),
+    )
+    await expect(publishProjectResearchEventAttestation(
+      shared.settings, manifest.id, registered,
+      researchEventAttestationResolver(shared.discussions), crossArchive,
+    )).rejects.toThrow('proof is invalid')
+
+    const crossDecision = await createProjectResearchEventAttestation(
+      manifest.id,
+      otherSigner.participantId,
+      'adversarial-review',
+      adversarialReviewDecisionAttestationEventId(decisionEvent),
+      await adversarialReviewDecisionEventSha256(decisionEvent),
+      proofDependencies(otherSigner, 34),
+    )
+    await expect(publishProjectResearchEventAttestation(
+      shared.settings, manifest.id, registered,
+      researchEventAttestationResolver(shared.discussions), crossDecision,
+    )).rejects.toThrow('proof is invalid')
+
+    const decisionEntry = Array.from(shared.discussions.entries()).find(([key]) =>
+      key.startsWith('adversarial-review-decision:v1:'))!
+    const decisionCanonical = decisionEntry[1] as string
+    const changedDecision = JSON.parse(decisionCanonical)
+    changedDecision.notes = 'Changed signed decision body'
+    shared.discussions.set(decisionEntry[0], JSON.stringify(changedDecision))
+    await expect(inspectProjectResearchEventAttestations(
+      shared.settings, manifest.id, registered,
+      researchEventAttestationResolver(shared.discussions),
+    )).resolves.toEqual(expect.objectContaining({ healthy: false, invalidRecords: 1 }))
+    shared.discussions.set(decisionEntry[0], decisionCanonical)
+
+    const archiveEntry = Array.from(shared.discussions.entries()).find(([key]) =>
+      key.startsWith('adversarial-review:v1:'))!
+    const changedArchive = JSON.parse(archiveEntry[1] as string)
+    changedArchive.request.input.question = 'Changed signed archive body'
+    shared.discussions.set(archiveEntry[0], JSON.stringify(changedArchive))
+    await expect(inspectProjectResearchEventAttestations(
+      shared.settings, manifest.id, registered,
+      researchEventAttestationResolver(shared.discussions),
+    )).resolves.toEqual(expect.objectContaining({ healthy: false, invalidRecords: 1 }))
+
+    const unsignedDoc = createProjectDocument(manifest)
+    const unsignedSaved = await save(unsignedDoc)
+    const unsignedArchive = await attestAdversarialReviewArchiveEvent(
+      unsignedDoc, manifest.id, unsignedSaved.archive,
+      {
+        inspectDirectory: async () => { throw new Error('directory unavailable') },
+        create: async () => { throw new Error('must not sign') },
+      },
+    )
+    expect(unsignedArchive).toEqual({
+      status: 'unsigned', reason: 'device-directory-unhealthy',
+      authority: 'installation-device-not-human-identity',
+    })
+    expect(await readAdversarialReviewArchive(
+      getProjectSharedTypes(unsignedDoc).discussions, unsignedSaved.archive.runId,
+    )).not.toBeNull()
+    const unsignedDecision = await decideAdversarialReview(unsignedDoc, {
+      expectedResearchRevision: projectStateFingerprint(unsignedDoc),
+      projectId: manifest.id,
+      runId: unsignedSaved.archive.runId,
+      recordSha256: unsignedSaved.archive.recordSha256,
+      expectedCurrentDecisionId: null,
+      decision: 'rejected',
+      eventId: 'unsigned-decision',
+      participantId: 'reviewer-a',
+      displayName: 'Reviewer A',
+      notes: '',
+      timestamp: 21,
+    })
+    const unsignedDecisionAttribution = await attestAdversarialReviewDecisionEvent(
+      unsignedDoc, manifest.id, unsignedDecision.decision.current,
+      {
+        inspectDirectory: async () => registered,
+        create: async () => { throw new Error('signing unavailable') },
+      },
+    )
+    expect(unsignedDecisionAttribution).toEqual({
+      status: 'unsigned', reason: 'signing-or-registration-unavailable',
+      authority: 'installation-device-not-human-identity',
+    })
+    expect(readAdversarialReviewDecision(
+      getProjectSharedTypes(unsignedDoc).discussions, unsignedSaved.archive.runId,
+    )?.current.eventId).toBe('unsigned-decision')
   })
 
   it('rejects stale saves and tampered provider provenance before writing', async () => {

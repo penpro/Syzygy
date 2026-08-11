@@ -1,5 +1,13 @@
 import type * as Y from 'yjs'
 import type { ProjectResearchEventKind } from '../tauri'
+import {
+  adversarialReviewArchiveEventSha256,
+  adversarialReviewDecisionEventSha256,
+  readAdversarialReviewArchive,
+  readAdversarialReviewDecisionEvent,
+  type AdversarialReviewArchive,
+  type AdversarialReviewDecisionEvent,
+} from '../extensions/adversarialHistory'
 import { getProjectSharedTypes } from './projectModel'
 import {
   createProjectResearchEventAttestation,
@@ -140,6 +148,18 @@ export function scenarioEditAttestationEventId(scenarioId: string, edit: Scenari
   return `s:${scenarioId.length}:${scenarioId}${edit.editId}`
 }
 
+export function adversarialReviewArchiveAttestationEventId(
+  archive: AdversarialReviewArchive,
+): string {
+  return `a:${archive.runId}`
+}
+
+export function adversarialReviewDecisionAttestationEventId(
+  event: AdversarialReviewDecisionEvent,
+): string {
+  return `d:${event.runId.length}:${event.runId}${event.eventId}`
+}
+
 function parseLengthPrefixed(
   value: string,
   cursor: number,
@@ -216,6 +236,29 @@ function parseScenarioEditAttestationEventId(value: string): {
   return editId ? { scenarioId: scenario.segment, editId } : null
 }
 
+type AdversarialReviewAttestationIdentity = {
+  recordType: 'archive'
+  runId: string
+} | {
+  recordType: 'decision'
+  runId: string
+  eventId: string
+}
+
+function parseAdversarialReviewAttestationEventId(
+  value: string,
+): AdversarialReviewAttestationIdentity | null {
+  if (value.startsWith('a:')) {
+    const runId = value.slice(2)
+    return runId ? { recordType: 'archive', runId } : null
+  }
+  if (!value.startsWith('d:')) return null
+  const run = parseLengthPrefixed(value, 2)
+  if (!run) return null
+  const eventId = value.slice(run.cursor)
+  return eventId ? { recordType: 'decision', runId: run.segment, eventId } : null
+}
+
 export function researchEventAttestationResolver(
   discussions: Y.Map<unknown>,
   settings?: Y.Map<unknown>,
@@ -226,11 +269,29 @@ export function researchEventAttestationResolver(
   return (eventKind, attestationEventId) => {
     if (eventKind !== 'scenario' && eventKind !== 'scenario-vote' && eventKind !== 'scenario-annotation' &&
       eventKind !== 'scenario-label' && eventKind !== 'policy-version' &&
-      eventKind !== 'scenario-turn') return null
+      eventKind !== 'scenario-turn' && eventKind !== 'adversarial-review') return null
     const cacheKey = `${eventKind}:${attestationEventId}`
     const cached = cache.get(cacheKey)
     if (cached) return cached
     const resolved = (async () => {
+      if (eventKind === 'adversarial-review') {
+        const identity = parseAdversarialReviewAttestationEventId(attestationEventId)
+        if (!identity) return null
+        if (identity.recordType === 'archive') {
+          const archive = await readAdversarialReviewArchive(discussions, identity.runId)
+          return archive ? {
+            eventSha256: await adversarialReviewArchiveEventSha256(archive),
+            participantId: archive.createdBy.participantId,
+          } : null
+        }
+        const event = readAdversarialReviewDecisionEvent(
+          discussions, identity.runId, identity.eventId,
+        )
+        return event ? {
+          eventSha256: await adversarialReviewDecisionEventSha256(event),
+          participantId: event.participantId,
+        } : null
+      }
       if (eventKind === 'scenario') {
         if (!scenarios) return null
         const identity = parseScenarioEditAttestationEventId(attestationEventId)
@@ -299,7 +360,8 @@ export function researchEventAttestationResolver(
 async function attestResearchEvent(
   document: Y.Doc,
   projectId: string,
-  eventKind: 'scenario' | 'scenario-vote' | 'scenario-annotation' | 'scenario-label' | 'policy-version' | 'scenario-turn',
+  eventKind: 'scenario' | 'scenario-vote' | 'scenario-annotation' | 'scenario-label' |
+    'policy-version' | 'scenario-turn' | 'adversarial-review',
   eventId: string,
   participantId: string,
   eventHash: () => Promise<string>,
@@ -363,6 +425,42 @@ async function attestResearchEvent(
       authority: 'installation-device-not-human-identity',
     }
   }
+}
+
+/** Best-effort device attribution after an immutable adversarial archive has committed. */
+export async function attestAdversarialReviewArchiveEvent(
+  document: Y.Doc,
+  projectId: string,
+  archive: AdversarialReviewArchive,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<ResearchEventAttributionResult> {
+  return attestResearchEvent(
+    document,
+    projectId,
+    'adversarial-review',
+    adversarialReviewArchiveAttestationEventId(archive),
+    archive.createdBy.participantId,
+    () => adversarialReviewArchiveEventSha256(archive),
+    dependencies,
+  )
+}
+
+/** Best-effort device attribution after one immutable adversarial decision has committed. */
+export async function attestAdversarialReviewDecisionEvent(
+  document: Y.Doc,
+  projectId: string,
+  event: AdversarialReviewDecisionEvent,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<ResearchEventAttributionResult> {
+  return attestResearchEvent(
+    document,
+    projectId,
+    'adversarial-review',
+    adversarialReviewDecisionAttestationEventId(event),
+    event.participantId,
+    () => adversarialReviewDecisionEventSha256(event),
+    dependencies,
+  )
 }
 
 /**

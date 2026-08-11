@@ -154,14 +154,21 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   immutable human decision events. Archives are canonical SHA-256 envelopes and every read
   reconstructs the native plan and revalidates public/provenance records. Save/decide require the
   exact live Yjs revision; conflicts fail closed; routine inspection omits question/source/result/
-  note bodies; neither path touches the editor root. Because this reuses an existing reserved Yjs
-  collection and adds no persisted Zustand field, no save-shape migration is required.
+  note bodies; neither path touches the editor root. After commit, archive and decision adapters
+  best-effort publish parallel registered-device attestations. Archive hashes bind the complete
+  strict envelope; decision hashes bind run/archive identity, exact parent, judgment, participant,
+  display name, notes, and timestamp. Distinct archive and length-prefixed decision locators let
+  verification re-resolve the exact retained body and stored participant. Signing failure is
+  explicit and does not roll back history. Because this reuses existing reserved Yjs collections
+  and adds no persisted Zustand field, no save-shape migration is required.
   `AdversarialReviewWorkspace.tsx` is the product adapter over the same automation registry and
   shared domain. It reads exact live semantic blocks through the registered editor controller,
   preflights only credential presence, starts/cancels the bounded native job, and requires a separate
   full-content share action. History observes only the discussions map, decodes fail-closed archives,
-  exposes every evidence class and conflict, and appends exact-parent decisions. It has no editor
-  mutation import or apply control. `AdversarialEvidenceView.tsx` keeps artifact categories lazy
+  exposes every evidence class and conflict, and appends exact-parent decisions. Archive and
+  decision actions surface pending, signed-device, or explicit unsigned attribution and suppress
+  late results after a project/run switch. It has no editor mutation import or apply control.
+  `AdversarialEvidenceView.tsx` keeps artifact categories lazy
   and pages opened categories and nested proposal claims in deterministic 50-item increments; closed
   categories materialize no body markup. `adversarial-workspace.css` contains only theme-token styling.
   `PolicyVersionRail.tsx` subscribes to that same live document, saves the exact semantic editor
@@ -293,8 +300,12 @@ and exposes a stable cross-project-correlatable public fingerprint only after ex
 is no project-shared device approval, trusted clock, key rotation/recovery, or binding from a
 fingerprint to a person or organization. A holder can claim any
 participant ID, a rotated key appears unapproved, and an exact captured proof can still be replayed
-for the same project/document/client/nonce context. Durable Yjs research events are not signed. The
-local fingerprint decisions do not issue or revoke relay access. Separately, an explicit public
+for the same project/document/client/nonce context. A parallel bounded ledger can sign exact retained
+scenario lifecycle, turn, vote, annotation, label, policy-version, and adversarial archive/decision
+events after commit, but it covers only seven of ten named domains, can be deleted by a bearer Yjs
+writer, and proves only that one self-issued registered installation key signed the re-resolved
+event—not that its participant claim is a person or organization. Signing failure leaves the event
+committed and explicit unsigned. The local fingerprint decisions do not issue or revoke relay access. Separately, an explicit public
 enrollment request lets the relay operator bind one managed member to an installation key. That is
 relay-host authorization of a self-issued device key, not acceptance of the shared Yjs directory or
 authentication of its participant claim.

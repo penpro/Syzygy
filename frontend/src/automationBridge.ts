@@ -21,6 +21,7 @@ import {
 import { inspectResearchState } from './workspace/researchStateInspection'
 import {
   attestScenarioAnnotationEvent,
+  attestScenarioLabelEvent,
   attestScenarioVoteEvent,
 } from './workspace/researchEventAttribution'
 import {
@@ -594,7 +595,7 @@ export async function dispatchAutomationRequest(
           eventCount: voted.summary.history.length,
         },
         attribution,
-        researchRevision: voted.researchRevision,
+        researchRevision: projectStateFingerprint(document),
       }
     }
     case 'project.createScenarioAnnotation': {
@@ -621,7 +622,7 @@ export async function dispatchAutomationRequest(
         project: summarizeProject(project, latest.activeProjectId),
         annotation: summarizeScenarioAnnotation(created.annotation),
         attribution,
-        researchRevision: created.researchRevision,
+        researchRevision: projectStateFingerprint(document),
       }
     }
     case 'project.updateScenarioAnnotation': {
@@ -647,7 +648,7 @@ export async function dispatchAutomationRequest(
         project: summarizeProject(project, latest.activeProjectId),
         annotation: summarizeScenarioAnnotation(updated.annotation),
         attribution,
-        researchRevision: updated.researchRevision,
+        researchRevision: projectStateFingerprint(document),
       }
     }
     case 'project.setScenarioAnnotationResolution': {
@@ -673,7 +674,7 @@ export async function dispatchAutomationRequest(
         project: summarizeProject(project, latest.activeProjectId),
         annotation: summarizeScenarioAnnotation(changed.annotation),
         attribution,
-        researchRevision: changed.researchRevision,
+        researchRevision: projectStateFingerprint(document),
       }
     }
     case 'project.createScenarioLabel': {
@@ -682,7 +683,8 @@ export async function dispatchAutomationRequest(
         (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
       )
       if (!project) throw new Error('No research project is active; list or create a project first')
-      const created = createAutomationScenarioLabel(getAutomationProjectDocument(project.id), project.id, {
+      const document = getAutomationProjectDocument(project.id)
+      const created = createAutomationScenarioLabel(document, project.id, {
         expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
         labelId: requiredString(params, 'labelId'),
         name: requiredString(params, 'name'),
@@ -690,10 +692,12 @@ export async function dispatchAutomationRequest(
         timestamp: Date.now(),
         eventId: `mcp-${crypto.randomUUID()}`,
       })
+      const attribution = await attestScenarioLabelEvent(document, project.id, created.event)
       return {
         project: summarizeProject(project, latest.activeProjectId),
         label: summarizeScenarioLabel(created.label),
-        researchRevision: created.researchRevision,
+        attribution,
+        researchRevision: projectStateFingerprint(document),
       }
     }
     case 'project.renameScenarioLabel': {
@@ -702,7 +706,8 @@ export async function dispatchAutomationRequest(
         (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
       )
       if (!project) throw new Error('No research project is active; list or create a project first')
-      const renamed = renameAutomationScenarioLabel(getAutomationProjectDocument(project.id), project.id, {
+      const document = getAutomationProjectDocument(project.id)
+      const renamed = renameAutomationScenarioLabel(document, project.id, {
         expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
         labelId: requiredString(params, 'labelId'),
         name: requiredString(params, 'name'),
@@ -711,10 +716,12 @@ export async function dispatchAutomationRequest(
         timestamp: Date.now(),
         eventId: `mcp-${crypto.randomUUID()}`,
       })
+      const attribution = await attestScenarioLabelEvent(document, project.id, renamed.event)
       return {
         project: summarizeProject(project, latest.activeProjectId),
         label: summarizeScenarioLabel(renamed.label),
-        researchRevision: renamed.researchRevision,
+        attribution,
+        researchRevision: projectStateFingerprint(document),
       }
     }
     case 'project.setScenarioLabelAssignment': {
@@ -723,7 +730,8 @@ export async function dispatchAutomationRequest(
         (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
       )
       if (!project) throw new Error('No research project is active; list or create a project first')
-      const changed = setAutomationScenarioLabelAssignment(getAutomationProjectDocument(project.id), project.id, {
+      const document = getAutomationProjectDocument(project.id)
+      const changed = setAutomationScenarioLabelAssignment(document, project.id, {
         expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
         scenarioId: requiredString(params, 'scenarioId'),
         labelId: requiredString(params, 'labelId'),
@@ -733,10 +741,12 @@ export async function dispatchAutomationRequest(
         timestamp: Date.now(),
         eventId: `mcp-${crypto.randomUUID()}`,
       })
+      const attribution = await attestScenarioLabelEvent(document, project.id, changed.event)
       return {
         project: summarizeProject(project, latest.activeProjectId),
         assignment: summarizeScenarioLabelAssignment(changed.assignment),
-        researchRevision: changed.researchRevision,
+        attribution,
+        researchRevision: projectStateFingerprint(document),
       }
     }
     case 'document.replace': {

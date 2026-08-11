@@ -345,9 +345,16 @@ The same gate covers annotation create, edit, resolve, and reopen hashes. Produc
 retain each exact event before best-effort signing, expose explicit signed/unsigned results, omit
 annotation bodies from attribution inspection, and reject a wrong project before the product
 mutation closure runs.
+Scenario-label create/rename and scenario assignment/removal use the same post-commit gate. Their
+canonical hashes distinguish label lifecycle from assignment records and bind every strict field;
+length-prefixed locators retain scenario, label, and event identity without collision. Product and
+MCP paths return the exact retained event before signing, label names remain absent from attribution
+inspection, and signing/directory failure leaves the committed label mutation visible as unsigned.
+Every signed MCP vote, annotation, or label response recomputes `researchRevision` after attribution
+publication; returning the mutation-only revision would make the caller's next guarded write stale.
 `npm run test:collaboration:identity` independently verifies the Rust-produced signature and
-rejects seven signed-field mutations. Product and MCP scenario votes and annotations currently have
-production resolvers; the other eight allowed kinds remain a closed native vocabulary awaiting
+rejects seven signed-field mutations. Product and MCP scenario votes, annotations, and labels
+currently have production resolvers; the other seven allowed kinds remain a closed native vocabulary awaiting
 domain adoption.
 
 `projectRelayAdminDecision.test.ts` is the shared remote-administration decision gate. It creates

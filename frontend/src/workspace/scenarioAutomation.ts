@@ -304,7 +304,9 @@ export function createAutomationScenarioLabel(doc: Y.Doc, expectedProjectId: str
     labelId: input.labelId, eventId: input.eventId, name: input.name,
     authorId: input.participantId, timestamp: input.timestamp,
   })
-  return { label, researchRevision: projectStateFingerprint(doc) }
+  const event = label.events.find((candidate) => candidate.eventId === input.eventId)
+  if (!event) throw new Error('Scenario label event was not retained')
+  return { label, event, researchRevision: projectStateFingerprint(doc) }
 }
 
 export function renameAutomationScenarioLabel(doc: Y.Doc, expectedProjectId: string, input: RenameAutomationScenarioLabelInput) {
@@ -314,7 +316,9 @@ export function renameAutomationScenarioLabel(doc: Y.Doc, expectedProjectId: str
     labelId: input.labelId, eventId: input.eventId, expectedCurrentEventId: input.expectedCurrentEventId,
     name: input.name, authorId: input.participantId, timestamp: input.timestamp,
   })
-  return { label, researchRevision: projectStateFingerprint(doc) }
+  const event = label.events.find((candidate) => candidate.eventId === input.eventId)
+  if (!event) throw new Error('Scenario label event was not retained')
+  return { label, event, researchRevision: projectStateFingerprint(doc) }
 }
 
 export function setAutomationScenarioLabelAssignment(doc: Y.Doc, expectedProjectId: string, input: SetAutomationScenarioLabelAssignmentInput) {
@@ -325,5 +329,7 @@ export function setAutomationScenarioLabelAssignment(doc: Y.Doc, expectedProject
     expectedCurrentEventId: input.expectedCurrentEventId, assigned: input.assigned,
     authorId: input.participantId, timestamp: input.timestamp,
   })
-  return { assignment, researchRevision: projectStateFingerprint(doc) }
+  const event = assignment.events.find((candidate) => candidate.eventId === input.eventId)
+  if (!event) throw new Error('Scenario label assignment event was not retained')
+  return { assignment, event, researchRevision: projectStateFingerprint(doc) }
 }

@@ -238,7 +238,13 @@ MCP host
 - Label create uses the research revision guard. Rename additionally requires the exact label
   `currentEventId`; an assignment's first event requires no event parent and every follow-up add/
   remove requires its exact assignment `currentEventId`. Stale research or event parents add no
-  event. Responses return label/assignment metadata only; caller identity/time are unauthenticated.
+  event. Each operation retains the exact event first, then best-effort signs a strict label- or
+  assignment-event hash with the registered installation key. Responses include signed-device or
+  explicit unsigned attribution; signing failure never rolls back the mutation. Inspection returns
+  only bounded key/event/hash metadata and omits label names, proof bodies, and signatures. Caller
+  identity/time remain unauthenticated and a device signature does not authenticate a person. The
+  returned `researchRevision` is recomputed after any attestation publication, so it is the guard
+  for the next MCP mutation rather than the pre-signature project revision.
 - `save_active_policy_version` requires `expectedDocumentRevision` from `read_active_project` and,
   when non-null, `expectedHeadVersionId` from `inspect_research_state`. The live editor revision is
   checked once before hashing and again inside the final Yjs head transaction; the existing head

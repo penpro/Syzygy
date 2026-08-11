@@ -221,7 +221,9 @@ P-21 now has a Penumbra-original context-label ledger. Immutable create/rename a
 add/remove events use exact-parent guards; disconnected assignments merge, concurrent rename
 branches remain auditable, filtering is deterministic, and colliding roots or orphan targets fail
 closed. Visible create, rename, assign, and remove controls now use exact event parents and bounded
-lists. Authentication, moderation, trusted clocks, and packaged remote interaction remain open.
+lists. Product and MCP mutations now retain and best-effort sign each exact label or assignment event
+after commit, report explicit unsigned fallback, and omit label names from attribution inspection.
+Authentication, moderation, trusted clocks, and packaged remote interaction remain open.
 
 P-28/P-29 now have exact-head commit, restore-as-new-child, and deterministic engine-free diff
 services. A stale head fails before creating an orphan; two concurrent restores preserve both
@@ -444,7 +446,7 @@ project/room/revision/action-bound quorum, while no-policy rooms remain compatib
 retains emergency local authority. Product controls publish partial approvals and submit a completed
 bundle automatically. A parallel bounded attestation ledger now binds exact event hashes to the
 same installation key and registered participant claim without changing every event schema; the
-first production adopters are scenario voting and annotation lifecycle through both product and MCP,
+first production adopters are scenario voting, annotation lifecycle, and label lifecycle/assignment through both product and MCP,
 with explicit unsigned fallback and body-free inspection. The next identity increments are adoption across the remaining
 research-event domains,
 device-key rotation/recovery, authenticated human/organizational enrollment, trusted time, and

@@ -6,7 +6,7 @@ import type {
   ProjectResearchEventProof,
 } from '../tauri'
 import type { ProjectDeviceDirectoryInspection } from './projectDeviceDirectory'
-import { createProjectDocument, getProjectSharedTypes } from './projectModel'
+import { createProjectDocument, getProjectSharedTypes, projectStateFingerprint } from './projectModel'
 import {
   canonicalProjectResearchEventClaim,
   createProjectResearchEventAttestation,
@@ -21,9 +21,12 @@ import {
 } from './projectResearchEventAttestation'
 import {
   attestScenarioAnnotationEvent,
+  attestScenarioLabelEvent,
   castScenarioVoteWithAttribution,
   commitScenarioAnnotationWithAttribution,
+  commitScenarioLabelWithAttribution,
   researchEventAttestationResolver,
+  scenarioLabelAttestationEventId,
 } from './researchEventAttribution'
 import {
   createScenarioAnnotation,
@@ -33,6 +36,16 @@ import {
   type ScenarioAnnotationEvent,
 } from './scenarioAnnotationModel'
 import { createScenario } from './scenarioModel'
+import {
+  createScenarioLabel,
+  readScenarioLabel,
+  readScenarioLabelAssignment,
+  renameScenarioLabel,
+  scenarioLabelAssignmentEventSha256,
+  setScenarioLabelAssignment,
+  type ScenarioLabelAssignmentEvent,
+  type ScenarioLabelEvent,
+} from './scenarioLabelModel'
 import { readScenarioVotes } from './scenarioVoteModel'
 import type { ResearchProjectManifest } from './schema'
 
@@ -285,7 +298,7 @@ describe('project research event attestations', () => {
       authority: 'installation-device-not-human-identity',
     }))
     await expect(inspectProjectResearchEventAttestations(
-      settings, projectId, directory([signer]), researchEventAttestationResolver(discussions),
+      settings, projectId, directory([signer]), researchEventAttestationResolver(discussions, settings),
     )).resolves.toEqual(expect.objectContaining({ healthy: true, attestationCount: 1 }))
 
     const unsigned = await castScenarioVoteWithAttribution(document, projectId, {
@@ -390,7 +403,7 @@ describe('project research event attestations', () => {
       }))
     }
     const inspection = await inspectProjectResearchEventAttestations(
-      settings, projectId, directory([signer]), researchEventAttestationResolver(discussions),
+      settings, projectId, directory([signer]), researchEventAttestationResolver(discussions, settings),
     )
     expect(inspection).toEqual(expect.objectContaining({ healthy: true, attestationCount: 4 }))
     expect(JSON.stringify(inspection)).not.toContain('Body canary')
@@ -428,7 +441,135 @@ describe('project research event attestations', () => {
       .find(([, event]) => event.eventId === 'annotation-create-1')![0]
     annotationEvents.set(createStorageKey, { ...created.event, body: 'Mutated retained body' })
     await expect(inspectProjectResearchEventAttestations(
-      settings, projectId, directory([signer]), researchEventAttestationResolver(discussions),
+      settings, projectId, directory([signer]), researchEventAttestationResolver(discussions, settings),
     )).resolves.toEqual(expect.objectContaining({ healthy: false, invalidRecords: 1 }))
+  })
+
+  it('signs exact label create, rename, assignment, and removal events without returning names', async () => {
+    const signer = await identity(participantA)
+    const document = createProjectDocument(manifest)
+    const { discussions, scenarios, settings } = getProjectSharedTypes(document)
+    createScenario(scenarios, {
+      id: 'scenario-label-1', title: 'Scenario', background: '', authorId: participantA,
+      timestamp: 1, editId: 'create-scenario-label-1',
+    })
+    await expect(commitScenarioLabelWithAttribution(document, 'wrong-project', () => {
+      const label = createScenarioLabel(settings, {
+        labelId: 'label-wrong', eventId: 'label-wrong-create', name: 'Must not commit',
+        authorId: participantA, timestamp: 2,
+      })
+      return label.events[0]
+    })).rejects.toThrow('Project identity does not match')
+    expect(readScenarioLabel(settings, 'label-wrong')).toBeNull()
+
+    let mutationOnlyRevision = ''
+    const created = await commitScenarioLabelWithAttribution(document, projectId, () => {
+      const label = createScenarioLabel(settings, {
+        labelId: 'label-1', eventId: 'label-create-1', name: 'Label name canary',
+        authorId: participantA, timestamp: 2,
+      })
+      mutationOnlyRevision = projectStateFingerprint(document)
+      return label.events.find(({ eventId }) => eventId === 'label-create-1')!
+    }, {
+      inspectDirectory: async () => directory([signer]),
+      create: (id, participantId, kind, eventId, hash) => createProjectResearchEventAttestation(
+        id, participantId, kind, eventId, hash, dependencies(signer, nonceA),
+      ),
+    })
+    expect(created.attribution).toEqual(expect.objectContaining({
+      status: 'signed-device', eventKind: 'scenario-label', attestationCount: 1,
+      eventId: 'l:7:label-1label-create-1',
+    }))
+    expect(projectStateFingerprint(document)).not.toBe(mutationOnlyRevision)
+
+    const events: Array<ScenarioLabelEvent | ScenarioLabelAssignmentEvent> = []
+    let label = renameScenarioLabel(settings, {
+      labelId: 'label-1', eventId: 'label-rename-1', expectedCurrentEventId: 'label-create-1',
+      name: 'Renamed label canary', authorId: participantA, timestamp: 3,
+    })
+    events.push(label.events.find(({ eventId }) => eventId === 'label-rename-1')!)
+    let assignment = setScenarioLabelAssignment(settings, scenarios, {
+      scenarioId: 'scenario-label-1', labelId: 'label-1', eventId: 'label-add-1',
+      expectedCurrentEventId: null, assigned: true, authorId: participantA, timestamp: 4,
+    })
+    events.push(assignment.events.find(({ eventId }) => eventId === 'label-add-1')!)
+    assignment = setScenarioLabelAssignment(settings, scenarios, {
+      scenarioId: 'scenario-label-1', labelId: 'label-1', eventId: 'label-remove-1',
+      expectedCurrentEventId: assignment.currentEventId, assigned: false,
+      authorId: participantA, timestamp: 5,
+    })
+    events.push(assignment.events.find(({ eventId }) => eventId === 'label-remove-1')!)
+
+    for (let index = 0; index < events.length; index += 1) {
+      await expect(attestScenarioLabelEvent(document, projectId, events[index], {
+        inspectDirectory: async () => directory([signer]),
+        create: (id, participantId, kind, eventId, hash) => createProjectResearchEventAttestation(
+          id, participantId, kind, eventId, hash,
+          dependencies(signer, encodeBase64Url(new Uint8Array(32).fill(40 + index))),
+        ),
+      })).resolves.toEqual(expect.objectContaining({
+        status: 'signed-device', eventKind: 'scenario-label', attestationCount: index + 2,
+      }))
+    }
+    const inspection = await inspectProjectResearchEventAttestations(
+      settings, projectId, directory([signer]), researchEventAttestationResolver(discussions, settings),
+    )
+    expect(inspection).toEqual(expect.objectContaining({ healthy: true, attestationCount: 4 }))
+    expect(JSON.stringify(inspection)).not.toContain('Label name canary')
+    expect(JSON.stringify(inspection)).not.toContain('Renamed label canary')
+
+    const unsigned = await commitScenarioLabelWithAttribution(document, projectId, () => {
+      const added = createScenarioLabel(settings, {
+        labelId: 'label-unsigned', eventId: 'label-create-unsigned', name: 'Unsigned remains',
+        authorId: participantA, timestamp: 6,
+      })
+      return added.events[0]
+    }, {
+      inspectDirectory: async () => { throw new Error('directory unavailable') },
+      create: async () => { throw new Error('must not sign') },
+    })
+    expect(unsigned.attribution).toEqual({
+      status: 'unsigned', reason: 'device-directory-unhealthy',
+      authority: 'installation-device-not-human-identity',
+    })
+    expect(readScenarioLabel(settings, 'label-unsigned')).not.toBeNull()
+
+    const assignmentBucket = Array.from(settings.values()).find((value) => value instanceof Y.Map &&
+      value.get('scenarioId') === 'scenario-label-1' && value.get('labelId') === 'label-1') as Y.Map<unknown>
+    const assignmentEvents = assignmentBucket.get('events') as Y.Map<ScenarioLabelAssignmentEvent>
+    const assignmentStorageKey = Array.from(assignmentEvents.entries())
+      .find(([, event]) => event.eventId === 'label-add-1')![0]
+    const retained = readScenarioLabelAssignment(settings, 'scenario-label-1', 'label-1')!
+      .events.find(({ eventId }) => eventId === 'label-add-1')!
+    assignmentEvents.set(assignmentStorageKey, { ...retained, authorId: participantB })
+    await expect(inspectProjectResearchEventAttestations(
+      settings, projectId, directory([signer]), researchEventAttestationResolver(discussions, settings),
+    )).resolves.toEqual(expect.objectContaining({ healthy: false, invalidRecords: 1 }))
+  })
+
+  it('resolves a maximum-length label assignment locator without truncating identity', async () => {
+    const document = createProjectDocument(manifest)
+    const { discussions, scenarios, settings } = getProjectSharedTypes(document)
+    const scenarioId = `s${'x'.repeat(199)}`
+    const labelId = `l${'y'.repeat(199)}`
+    const eventId = `e${'z'.repeat(199)}`
+    createScenario(scenarios, {
+      id: scenarioId, title: 'Maximum locator', background: '', authorId: participantA,
+      timestamp: 1, editId: 'create-maximum-locator',
+    })
+    createScenarioLabel(settings, {
+      labelId, eventId: 'create-maximum-label', name: 'Maximum label',
+      authorId: participantA, timestamp: 2,
+    })
+    const assignment = setScenarioLabelAssignment(settings, scenarios, {
+      scenarioId, labelId, eventId, expectedCurrentEventId: null, assigned: true,
+      authorId: participantA, timestamp: 3,
+    })
+    const retained = assignment.events[0]
+    const locator = scenarioLabelAttestationEventId(retained)
+    expect(locator.length).toBeLessThanOrEqual(1024)
+    await expect(researchEventAttestationResolver(discussions, settings)(
+      'scenario-label', locator,
+    )).resolves.toBe(await scenarioLabelAssignmentEventSha256(retained))
   })
 })

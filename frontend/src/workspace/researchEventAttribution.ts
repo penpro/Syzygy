@@ -17,6 +17,14 @@ import {
   type ScenarioAnnotationEvent,
 } from './scenarioAnnotationModel'
 import {
+  readScenarioLabelAssignmentEvent,
+  readScenarioLabelEvent,
+  scenarioLabelAssignmentEventSha256,
+  scenarioLabelEventSha256,
+  type ScenarioLabelAssignmentEvent,
+  type ScenarioLabelEvent,
+} from './scenarioLabelModel'
+import {
   castScenarioVote,
   readScenarioVoteEvent,
   scenarioVoteEventSha256,
@@ -64,6 +72,13 @@ export interface AttributedScenarioAnnotation {
   attribution: ResearchEventAttributionResult
 }
 
+export type ScenarioLabelResearchEvent = ScenarioLabelEvent | ScenarioLabelAssignmentEvent
+
+export interface AttributedScenarioLabelEvent {
+  event: ScenarioLabelResearchEvent
+  attribution: ResearchEventAttributionResult
+}
+
 const DEFAULT_DEPENDENCIES: ResearchEventAttributionDependencies = {
   inspectDirectory: (document, projectId) => inspectProjectDeviceDirectory(
     getProjectSharedTypes(document).settings,
@@ -80,30 +95,90 @@ export function scenarioAnnotationAttestationEventId(event: ScenarioAnnotationEv
   return `${event.scenarioId.length}:${event.scenarioId}${event.eventId}`
 }
 
-function parseAttestationEventId(value: string): { scenarioId: string; eventId: string } | null {
-  const separator = value.indexOf(':')
+export function scenarioLabelAttestationEventId(event: ScenarioLabelResearchEvent): string {
+  if ('scenarioId' in event) {
+    return `a:${event.scenarioId.length}:${event.scenarioId}${event.labelId.length}:${event.labelId}${event.eventId}`
+  }
+  return `l:${event.labelId.length}:${event.labelId}${event.eventId}`
+}
+
+function parseLengthPrefixed(
+  value: string,
+  cursor: number,
+): { segment: string; cursor: number } | null {
+  const separator = value.indexOf(':', cursor)
   if (separator < 1) return null
-  const lengthText = value.slice(0, separator)
+  const lengthText = value.slice(cursor, separator)
   if (!/^\d{1,3}$/.test(lengthText)) return null
-  const scenarioLength = Number(lengthText)
+  const length = Number(lengthText)
   const start = separator + 1
-  const scenarioId = value.slice(start, start + scenarioLength)
-  const eventId = value.slice(start + scenarioLength)
-  if (scenarioId.length !== scenarioLength || !scenarioId || !eventId) return null
-  return { scenarioId, eventId }
+  const segment = value.slice(start, start + length)
+  if (segment.length !== length || !segment) return null
+  return { segment, cursor: start + length }
+}
+
+function parseScenarioAttestationEventId(value: string): { scenarioId: string; eventId: string } | null {
+  const scenario = parseLengthPrefixed(value, 0)
+  if (!scenario) return null
+  const eventId = value.slice(scenario.cursor)
+  return eventId ? { scenarioId: scenario.segment, eventId } : null
+}
+
+type ScenarioLabelAttestationIdentity = {
+  recordType: 'label'
+  labelId: string
+  eventId: string
+} | {
+  recordType: 'assignment'
+  scenarioId: string
+  labelId: string
+  eventId: string
+}
+
+function parseScenarioLabelAttestationEventId(value: string): ScenarioLabelAttestationIdentity | null {
+  if (value.startsWith('l:')) {
+    const label = parseLengthPrefixed(value, 2)
+    if (!label) return null
+    const eventId = value.slice(label.cursor)
+    return eventId ? { recordType: 'label', labelId: label.segment, eventId } : null
+  }
+  if (!value.startsWith('a:')) return null
+  const scenario = parseLengthPrefixed(value, 2)
+  if (!scenario) return null
+  const label = parseLengthPrefixed(value, scenario.cursor)
+  if (!label) return null
+  const eventId = value.slice(label.cursor)
+  return eventId ? {
+    recordType: 'assignment', scenarioId: scenario.segment, labelId: label.segment, eventId,
+  } : null
 }
 
 export function researchEventAttestationResolver(
   discussions: Y.Map<unknown>,
+  settings?: Y.Map<unknown>,
 ): ProjectResearchEventHashResolver {
   const cache = new Map<string, Promise<string | null>>()
   return (eventKind, attestationEventId) => {
-    if (eventKind !== 'scenario-vote' && eventKind !== 'scenario-annotation') return null
+    if (eventKind !== 'scenario-vote' && eventKind !== 'scenario-annotation' &&
+      eventKind !== 'scenario-label') return null
     const cacheKey = `${eventKind}:${attestationEventId}`
     const cached = cache.get(cacheKey)
     if (cached) return cached
     const resolved = (async () => {
-      const identity = parseAttestationEventId(attestationEventId)
+      if (eventKind === 'scenario-label') {
+        if (!settings) return null
+        const identity = parseScenarioLabelAttestationEventId(attestationEventId)
+        if (!identity) return null
+        if (identity.recordType === 'label') {
+          const event = readScenarioLabelEvent(settings, identity.labelId, identity.eventId)
+          return event ? scenarioLabelEventSha256(event) : null
+        }
+        const event = readScenarioLabelAssignmentEvent(
+          settings, identity.scenarioId, identity.labelId, identity.eventId,
+        )
+        return event ? scenarioLabelAssignmentEventSha256(event) : null
+      }
+      const identity = parseScenarioAttestationEventId(attestationEventId)
       if (!identity) return null
       if (eventKind === 'scenario-vote') {
         const event = readScenarioVoteEvent(discussions, identity.scenarioId, identity.eventId)
@@ -120,7 +195,7 @@ export function researchEventAttestationResolver(
 async function attestResearchEvent(
   document: Y.Doc,
   projectId: string,
-  eventKind: 'scenario-vote' | 'scenario-annotation',
+  eventKind: 'scenario-vote' | 'scenario-annotation' | 'scenario-label',
   eventId: string,
   participantId: string,
   eventHash: () => Promise<string>,
@@ -163,7 +238,7 @@ async function attestResearchEvent(
       settings,
       projectId,
       directory,
-      researchEventAttestationResolver(discussions),
+      researchEventAttestationResolver(discussions, settings),
       record,
     )
     return {
@@ -225,6 +300,26 @@ export async function attestScenarioAnnotationEvent(
   )
 }
 
+/** Best-effort device attribution after a label create/rename/add/remove event has committed. */
+export async function attestScenarioLabelEvent(
+  document: Y.Doc,
+  projectId: string,
+  event: ScenarioLabelResearchEvent,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<ResearchEventAttributionResult> {
+  return attestResearchEvent(
+    document,
+    projectId,
+    'scenario-label',
+    scenarioLabelAttestationEventId(event),
+    event.authorId,
+    () => 'scenarioId' in event
+      ? scenarioLabelAssignmentEventSha256(event)
+      : scenarioLabelEventSha256(event),
+    dependencies,
+  )
+}
+
 /** Product annotation path: validate project identity, commit once, then attest best-effort. */
 export async function commitScenarioAnnotationWithAttribution(
   document: Y.Doc,
@@ -239,6 +334,23 @@ export async function commitScenarioAnnotationWithAttribution(
   return {
     event,
     attribution: await attestScenarioAnnotationEvent(document, projectId, event, dependencies),
+  }
+}
+
+/** Product label path: validate project identity, commit once, then attest best-effort. */
+export async function commitScenarioLabelWithAttribution(
+  document: Y.Doc,
+  projectId: string,
+  commit: () => ScenarioLabelResearchEvent,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<AttributedScenarioLabelEvent> {
+  if (getProjectSharedTypes(document).metadata.get('projectId') !== projectId) {
+    throw new Error('Project identity does not match the label document')
+  }
+  const event = commit()
+  return {
+    event,
+    attribution: await attestScenarioLabelEvent(document, projectId, event, dependencies),
   }
 }
 

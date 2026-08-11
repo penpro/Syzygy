@@ -14,6 +14,7 @@ import {
 } from './scenarioAnnotationModel'
 import {
   commitScenarioAnnotationWithAttribution,
+  commitScenarioLabelWithAttribution,
   type ResearchEventAttributionResult,
 } from './researchEventAttribution'
 import {
@@ -45,6 +46,8 @@ interface ScenarioCollaborationPanelContentProps {
   canWrite: boolean
   annotationAttribution: ResearchEventAttributionResult | null
   annotationPending: boolean
+  labelAttribution: ResearchEventAttributionResult | null
+  labelPending: boolean
   integrityIssues: string[]
   error: string
   annotationKind: ScenarioAnnotationKind
@@ -88,6 +91,8 @@ export function ScenarioCollaborationPanelContent({
   canWrite,
   annotationAttribution,
   annotationPending,
+  labelAttribution,
+  labelPending,
   integrityIssues,
   error,
   annotationKind,
@@ -120,6 +125,7 @@ export function ScenarioCollaborationPanelContent({
   const annotationRemaining = annotationTotal - annotations.length
   const labelRemaining = labelTotal - labels.length
   const annotationCanWrite = canWrite && !annotationPending
+  const labelCanWrite = canWrite && !labelPending
   return (
     <section className="scenario-collaboration" aria-label="Scenario notes and labels">
       <div className="scenario-section-heading">
@@ -233,12 +239,35 @@ export function ScenarioCollaborationPanelContent({
         <h3>Context labels</h3>
         <span className="mono">{labelTotal}</span>
       </div>
+      {labelPending && (
+        <p className="scenario-identity-note" role="status">
+          Shared label change saved. Checking registered-device attribution…
+        </p>
+      )}
+      {!labelPending && labelAttribution?.status === 'signed-device' && (
+        <p className="scenario-identity-note" role="status">
+          Shared label event signed by registered device{' '}
+          <span className="mono">
+            {labelAttribution.keyId.replace('ed25519-sha256:', '').slice(0, 12)}…
+          </span>. This proves installation-key possession, not a person or organization.
+        </p>
+      )}
+      {!labelPending && labelAttribution?.status === 'unsigned' && (
+        <p className="scenario-identity-note" role="status">
+          Shared label change saved without a device signature: {
+            labelAttribution.reason === 'device-directory-unhealthy'
+              ? 'the project device directory needs attention.'
+              : labelAttribution.reason === 'attestation-history-unhealthy'
+                ? 'signed attribution history needs attention.'
+                : 'this installation is not registered here or signing is unavailable.'}
+        </p>
+      )}
       <form className="scenario-form compact" aria-label="Create shared scenario label" onSubmit={onCreateLabel}>
         <label>
           New label
-          <input value={labelName} maxLength={200} required disabled={!canWrite} onChange={(event) => onLabelName(event.target.value)} />
+          <input value={labelName} maxLength={200} required disabled={!labelCanWrite} onChange={(event) => onLabelName(event.target.value)} />
         </label>
-        <button className="btn sm" type="submit" disabled={!canWrite}>Create label</button>
+        <button className="btn sm" type="submit" disabled={!labelCanWrite}>Create label</button>
       </form>
       {labelTotal === 0 && <p className="scenario-state">No project labels yet.</p>}
       <ul className="scenario-label-list" aria-label="Project scenario labels">
@@ -251,7 +280,7 @@ export function ScenarioCollaborationPanelContent({
                   <input value={labelRenameName} maxLength={200} required onChange={(event) => onLabelRenameName(event.target.value)} />
                 </label>
                 <div className="scenario-actions">
-                  <button className="btn primary sm" type="submit" disabled={!canWrite}>Save name</button>
+                  <button className="btn primary sm" type="submit" disabled={!labelCanWrite}>Save name</button>
                   <button className="btn sm" type="button" onClick={onCancelLabelRename}>Cancel</button>
                 </div>
               </form>
@@ -261,12 +290,12 @@ export function ScenarioCollaborationPanelContent({
                   <input
                     type="checkbox"
                     checked={row.assignment?.assigned === true}
-                    disabled={!canWrite}
+                    disabled={!labelCanWrite}
                     onChange={() => onToggleLabel(row)}
                   />
                   <span>{row.label.name}</span>
                 </label>
-                <button className="btn sm" type="button" disabled={!canWrite} onClick={() => onStartLabelRename(row.label)}>Rename</button>
+                <button className="btn sm" type="button" disabled={!labelCanWrite} onClick={() => onStartLabelRename(row.label)}>Rename</button>
               </>
             )}
           </li>
@@ -309,7 +338,10 @@ export function ScenarioCollaborationPanel({
   const [error, setError] = useState('')
   const [annotationAttribution, setAnnotationAttribution] = useState<ResearchEventAttributionResult | null>(null)
   const [annotationPending, setAnnotationPending] = useState(false)
+  const [labelAttribution, setLabelAttribution] = useState<ResearchEventAttributionResult | null>(null)
+  const [labelPending, setLabelPending] = useState(false)
   const annotationOperation = useRef(0)
+  const labelOperation = useRef(0)
 
   useEffect(() => {
     annotationOperation.current += 1
@@ -321,8 +353,13 @@ export function ScenarioCollaborationPanel({
     setLabelLimit(SCENARIO_COLLABORATION_PAGE_SIZE)
     setAnnotationAttribution(null)
     setAnnotationPending(false)
+    setLabelAttribution(null)
+    setLabelPending(false)
     setError('')
-    return () => { annotationOperation.current += 1 }
+    return () => {
+      annotationOperation.current += 1
+      labelOperation.current += 1
+    }
   }, [projectId, scenario.id])
 
   const shared = getProjectSharedTypes(doc)
@@ -346,16 +383,6 @@ export function ScenarioCollaborationPanel({
       throw new Error('Shared scenario collaboration data failed integrity checks; writes are disabled')
     }
   }
-  const mutate = (operation: () => void) => {
-    setError('')
-    try {
-      assertWritable()
-      operation()
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Scenario collaboration update failed')
-    }
-  }
-
   const runAnnotationMutation = async (operation: () => ScenarioAnnotationEvent) => {
     const operationId = annotationOperation.current + 1
     annotationOperation.current = operationId
@@ -372,6 +399,27 @@ export function ScenarioCollaborationPanel({
       }
     } finally {
       if (annotationOperation.current === operationId) setAnnotationPending(false)
+    }
+  }
+
+  const runLabelMutation = async (
+    operation: Parameters<typeof commitScenarioLabelWithAttribution>[2],
+  ) => {
+    const operationId = labelOperation.current + 1
+    labelOperation.current = operationId
+    setError('')
+    setLabelAttribution(null)
+    setLabelPending(true)
+    try {
+      assertWritable()
+      const result = await commitScenarioLabelWithAttribution(doc, projectId, operation)
+      if (labelOperation.current === operationId) setLabelAttribution(result.attribution)
+    } catch (caught) {
+      if (labelOperation.current === operationId) {
+        setError(caught instanceof Error ? caught.message : 'Scenario label update failed')
+      }
+    } finally {
+      if (labelOperation.current === operationId) setLabelPending(false)
     }
   }
 
@@ -437,21 +485,29 @@ export function ScenarioCollaborationPanel({
 
   const createLabel = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    mutate(() => {
+    void runLabelMutation(() => {
       const author = identity()
-      createScenarioLabel(shared.settings, {
-        labelId: uid(), eventId: uid(), name: labelName.trim(), authorId: author.authorId, timestamp: now(),
+      const eventId = uid()
+      const label = createScenarioLabel(shared.settings, {
+        labelId: uid(), eventId, name: labelName.trim(), authorId: author.authorId, timestamp: now(),
       })
       setLabelName('')
+      const retainedEvent = label.events.find((candidate) => candidate.eventId === eventId)
+      if (!retainedEvent) throw new Error('Scenario label event was not retained')
+      return retainedEvent
     })
   }
-  const toggleLabel = (row: ScenarioLabelRow) => mutate(() => {
+  const toggleLabel = (row: ScenarioLabelRow) => void runLabelMutation(() => {
     const author = identity()
-    setScenarioLabelAssignment(shared.settings, shared.scenarios, {
-      scenarioId: scenario.id, labelId: row.label.id, eventId: uid(),
+    const eventId = uid()
+    const assignment = setScenarioLabelAssignment(shared.settings, shared.scenarios, {
+      scenarioId: scenario.id, labelId: row.label.id, eventId,
       expectedCurrentEventId: row.assignment?.currentEventId ?? null,
       assigned: row.assignment?.assigned !== true, authorId: author.authorId, timestamp: now(),
     })
+    const retainedEvent = assignment.events.find((candidate) => candidate.eventId === eventId)
+    if (!retainedEvent) throw new Error('Scenario label assignment event was not retained')
+    return retainedEvent
   })
   const startLabelRename = (label: ScenarioLabel) => {
     setRenamingLabelId(label.id)
@@ -466,14 +522,18 @@ export function ScenarioCollaborationPanel({
   }
   const saveLabelRename = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    mutate(() => {
+    void runLabelMutation(() => {
       if (!renamingLabelId || !labelRenameHead) throw new Error('Select a label to rename')
       const author = identity()
-      renameScenarioLabel(shared.settings, {
-        labelId: renamingLabelId, eventId: uid(), expectedCurrentEventId: labelRenameHead,
+      const eventId = uid()
+      const label = renameScenarioLabel(shared.settings, {
+        labelId: renamingLabelId, eventId, expectedCurrentEventId: labelRenameHead,
         name: labelRenameName.trim(), authorId: author.authorId, timestamp: now(),
       })
       cancelLabelRename()
+      const retainedEvent = label.events.find((candidate) => candidate.eventId === eventId)
+      if (!retainedEvent) throw new Error('Scenario label event was not retained')
+      return retainedEvent
     })
   }
 
@@ -486,7 +546,8 @@ export function ScenarioCollaborationPanel({
         assignment: readScenarioLabelAssignment(shared.settings, scenario.id, label.id),
       }))} labelTotal={allLabels.length}
       canWrite={canWrite} annotationAttribution={annotationAttribution}
-      annotationPending={annotationPending} integrityIssues={integrityIssues} error={error}
+      annotationPending={annotationPending} labelAttribution={labelAttribution}
+      labelPending={labelPending} integrityIssues={integrityIssues} error={error}
       annotationKind={annotationKind} annotationTurnId={annotationTurnId} annotationBody={annotationBody}
       editingAnnotationId={editingAnnotationId} annotationEditBody={annotationEditBody}
       labelName={labelName} renamingLabelId={renamingLabelId} labelRenameName={labelRenameName}

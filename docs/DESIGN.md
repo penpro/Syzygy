@@ -306,11 +306,14 @@ scenario/turn notes and flags with edit, resolve, and reopen history, plus proje
 creation, assignment, removal, and rename. A stale detail, turn, annotation, label, or assignment
 write must fail instead of overwriting newer shared history. When scenario, turn, annotation, or
 label integrity fails, the affected mutation controls are disabled. Copy states that installation
-researcher identity and local time are not authenticated. After a product vote or annotation
-create/edit/resolve/reopen action commits, the app best-effort signs its exact retained event only
+researcher identity and local time are not authenticated. After a product vote, annotation
+create/edit/resolve/reopen, or label create/rename/assignment/removal action commits, the app
+best-effort signs its exact retained event only
 when this installation has an unconflicted project registration for the participant claim. The
 status says signed or explicitly unsigned; signing failure never hides or rolls back the mutation,
-and the copy never upgrades a device-key signature into person or organization identity.
+and the copy never upgrades a device-key signature into person or organization identity. Annotation
+and label signing have independent pending states, so one collaboration surface remains usable while
+the other checks attribution.
 
 **Portable scenario packs** sit inside the scenario workspace and remain usable without AI. New
 exports use the strict v2 format with durable turn heads and revision-parent sets; checksummed v1

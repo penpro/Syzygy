@@ -76,7 +76,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
     settings,
     expectedProjectId,
     projectDevices,
-    researchEventAttestationResolver(discussions),
+    researchEventAttestationResolver(discussions, settings),
   )
   const adversarialReviewInspection = await inspectAdversarialReviewHistory(discussions)
   const allVersions = await listPolicyVersions(versionMap)

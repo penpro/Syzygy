@@ -118,6 +118,8 @@ const props: Parameters<typeof ScenarioCollaborationPanelContent>[0] = {
   canWrite: true,
   annotationAttribution: null,
   annotationPending: false,
+  labelAttribution: null,
+  labelPending: false,
   integrityIssues: [],
   error: '',
   annotationKind: 'note',
@@ -197,6 +199,37 @@ describe('scenario collaboration product controls', () => {
     const pending = render({ annotationPending: true })
     expect(pending).toContain('Shared annotation saved. Checking registered-device attribution')
     expect(pending).toContain('<button class="btn sm" type="submit">Create label</button>')
+  })
+
+  it('shows signed, unsigned, and pending label attribution without blocking annotation controls', () => {
+    const signed = render({
+      labelAttribution: {
+        status: 'signed-device',
+        keyId: 'ed25519-sha256:abcdefghijklmnopqrstuv0123456789ABCDEFG',
+        eventKind: 'scenario-label',
+        eventId: 'l:10:label-ui-1label-event-ui-1',
+        eventSha256: 'abcdefghijklmnopqrstuv0123456789ABCDEFG',
+        attestationCount: 2,
+        authority: 'installation-device-not-human-identity',
+      },
+    })
+    expect(signed).toContain('Shared label event signed by registered device')
+    expect(signed).toContain('not a person or organization')
+
+    const unsigned = render({
+      labelAttribution: {
+        status: 'unsigned',
+        reason: 'device-directory-unhealthy',
+        authority: 'installation-device-not-human-identity',
+      },
+    })
+    expect(unsigned).toContain('Shared label change saved without a device signature')
+    expect(unsigned).toContain('project device directory needs attention')
+
+    const pending = render({ labelPending: true })
+    expect(pending).toContain('Shared label change saved. Checking registered-device attribution')
+    expect(pending).toContain('<button class="btn sm" type="submit" disabled="">Create label</button>')
+    expect(pending).toContain('<button class="btn sm" type="submit">Add shared note</button>')
   })
 
   it('shows edit and reopen workflows while preserving explicit shared-history language', () => {

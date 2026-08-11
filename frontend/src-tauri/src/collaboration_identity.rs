@@ -537,7 +537,7 @@ fn research_event_kind(value: &str) -> bool {
 fn research_event_id(value: &str) -> bool {
     let bytes = value.as_bytes();
     !bytes.is_empty()
-        && bytes.len() <= 512
+        && bytes.len() <= 1024
         && bytes[0].is_ascii_alphanumeric()
         && bytes.iter().all(|byte| {
             byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'@' | b'-')
@@ -1408,6 +1408,15 @@ mod tests {
         unsupported.event_kind = "arbitrary".into();
         assert_eq!(
             validate_research_event_claim(&unsupported),
+            Err(IdentityError::InvalidClaim)
+        );
+
+        let mut maximum_locator = research_event_claim();
+        maximum_locator.event_id = "x".repeat(1024);
+        assert_eq!(validate_research_event_claim(&maximum_locator), Ok(()));
+        maximum_locator.event_id.push('x');
+        assert_eq!(
+            validate_research_event_claim(&maximum_locator),
             Err(IdentityError::InvalidClaim)
         );
     }

@@ -74,6 +74,16 @@ const LABEL_PREFIX = 'scenario-labels:v1:'
 const ASSIGNMENT_PREFIX = 'scenario-label-assignments:v1:'
 const MAX_BUCKETS = 20_000
 const MAX_EVENTS = 100_000
+const asArrayBuffer = (value: Uint8Array): ArrayBuffer => {
+  const copy = new ArrayBuffer(value.byteLength)
+  new Uint8Array(copy).set(value)
+  return copy
+}
+const encodeBase64Url = (value: Uint8Array): string => {
+  let binary = ''
+  for (const byte of value) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
 const stableId = (value: unknown, max = 200): value is string =>
   typeof value === 'string' && value.length <= max && /^[A-Za-z0-9][A-Za-z0-9._:@-]*$/.test(value)
 const validTimestamp = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0
@@ -115,6 +125,54 @@ function validAssignmentEvent(value: unknown): value is ScenarioLabelAssignmentE
     stableId(event.authorId) && validTimestamp(event.timestamp) &&
     (event.parentEventId === null || stableId(event.parentEventId)) &&
     (event.action === 'add' || event.parentEventId !== null)
+}
+
+export function canonicalScenarioLabelEvent(event: ScenarioLabelEvent): Uint8Array {
+  if (!validLabelEvent(event)) throw new Error('Scenario label event is invalid')
+  return new TextEncoder().encode(JSON.stringify({
+    recordType: 'label',
+    schemaVersion: event.schemaVersion,
+    eventId: event.eventId,
+    labelId: event.labelId,
+    action: event.action,
+    name: event.name,
+    authorId: event.authorId,
+    timestamp: event.timestamp,
+    parentEventId: event.parentEventId,
+  }))
+}
+
+export function canonicalScenarioLabelAssignmentEvent(
+  event: ScenarioLabelAssignmentEvent,
+): Uint8Array {
+  if (!validAssignmentEvent(event)) throw new Error('Scenario label assignment event is invalid')
+  return new TextEncoder().encode(JSON.stringify({
+    recordType: 'assignment',
+    schemaVersion: event.schemaVersion,
+    eventId: event.eventId,
+    scenarioId: event.scenarioId,
+    labelId: event.labelId,
+    action: event.action,
+    authorId: event.authorId,
+    timestamp: event.timestamp,
+    parentEventId: event.parentEventId,
+  }))
+}
+
+export async function scenarioLabelEventSha256(event: ScenarioLabelEvent): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest(
+    'SHA-256', asArrayBuffer(canonicalScenarioLabelEvent(event)),
+  ))
+  return encodeBase64Url(digest)
+}
+
+export async function scenarioLabelAssignmentEventSha256(
+  event: ScenarioLabelAssignmentEvent,
+): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest(
+    'SHA-256', asArrayBuffer(canonicalScenarioLabelAssignmentEvent(event)),
+  ))
+  return encodeBase64Url(digest)
 }
 
 function groupedEvents<T>(
@@ -217,6 +275,18 @@ export function readScenarioLabel(settings: Y.Map<unknown>, labelId: string): Sc
   }
 }
 
+export function readScenarioLabelEvent(
+  settings: Y.Map<unknown>,
+  labelId: string,
+  eventId: string,
+): ScenarioLabelEvent | null {
+  if (!stableId(eventId)) return null
+  const event = readScenarioLabel(settings, labelId)?.events.find(
+    (candidate) => candidate.eventId === eventId,
+  )
+  return event ? { ...event } : null
+}
+
 export function listScenarioLabels(settings: Y.Map<unknown>): ScenarioLabel[] {
   const ids = Array.from(new Set(prefixedEntries(settings, LABEL_PREFIX).flatMap(([, value]) =>
     value instanceof Y.Map && stableId(value.get('labelId')) ? [value.get('labelId') as string] : [],
@@ -275,6 +345,19 @@ export function readScenarioLabelAssignment(settings: Y.Map<unknown>, scenarioId
     lastActionBy: lineage.current.authorId, lastActionAt: lineage.current.timestamp,
     events: [...events].sort(eventOrder).map((event) => ({ ...event })),
   }
+}
+
+export function readScenarioLabelAssignmentEvent(
+  settings: Y.Map<unknown>,
+  scenarioId: string,
+  labelId: string,
+  eventId: string,
+): ScenarioLabelAssignmentEvent | null {
+  if (!stableId(eventId)) return null
+  const event = readScenarioLabelAssignment(settings, scenarioId, labelId)?.events.find(
+    (candidate) => candidate.eventId === eventId,
+  )
+  return event ? { ...event } : null
 }
 
 export function setScenarioLabelAssignment(

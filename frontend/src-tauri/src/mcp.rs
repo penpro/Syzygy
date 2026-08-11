@@ -323,7 +323,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "inspect_research_state",
-            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, exact-hash installation attestations for scenario vote and annotation events, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and immutable policy-version history. Device/attestation entries expose stable key IDs plus self-reported participant IDs but no proof bodies and grant no human identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
+            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, exact-hash installation attestations for scenario vote, annotation, and label events, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and immutable policy-version history. Device/attestation entries expose stable key IDs plus self-reported participant IDs but no proof bodies and grant no human identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
             object_schema(&[], &[]),
         ),
         tool(
@@ -521,7 +521,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "create_scenario_label",
-            "Create one shared context label against the exact current research revision. Label event history is retained but omitted from bounded inspection and this tool response.",
+            "Create one shared context label against the exact current research revision, retain its immutable event, then attempt a best-effort exact-event registered-device signature. The response reports signed or explicitly unsigned attribution; signing failure never rolls back the label, and a device signature is not human identity. Label names and event history remain omitted from bounded attribution inspection.",
             object_schema(
                 &[
                     ("expectedResearchRevision", string_schema("Exact research revision from inspection or the prior mutation.")),
@@ -534,7 +534,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "rename_scenario_label",
-            "Rename one shared context label by appending an attributed immutable event. Requires the exact current research revision and label event.",
+            "Rename one shared context label by appending an immutable event, then attempt a best-effort exact-event registered-device signature. Requires the exact current research revision and label event; signing failure returns explicit unsigned attribution without rollback and does not authenticate a person.",
             object_schema(
                 &[
                     ("expectedResearchRevision", string_schema("Exact research revision from inspection or the prior mutation.")),
@@ -548,7 +548,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "set_scenario_label_assignment",
-            "Assign or remove one shared label on a scenario by appending an attributed immutable event. Requires the exact research revision; omit expectedCurrentEventId only for the first assignment event, then provide the exact assignment current event.",
+            "Assign or remove one shared label on a scenario by appending an immutable event, then attempt a best-effort exact-event registered-device signature. Requires the exact research revision; omit expectedCurrentEventId only for the first assignment event, then provide the exact assignment current event. Signing failure is explicit unsigned without rollback and does not authenticate a person.",
             object_schema(
                 &[
                     ("expectedResearchRevision", string_schema("Exact research revision from inspection or the prior mutation.")),

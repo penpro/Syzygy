@@ -654,9 +654,9 @@ collaborators are not required to download large project folders.
    offline and exposes participant-claim conflicts, but local decisions are neither shared nor
    authoritative, awareness-proof replay and participant-ID impersonation remain possible. A
    separate bounded exact-hash attestation ledger now signs MCP-created and product-created scenario
-   vote and annotation lifecycle events when the installation is an unconflicted registered device
+   vote, annotation lifecycle, and label lifecycle/assignment events when the installation is an unconflicted registered device
    for the participant claim; inspection re-resolves the live event hash and omits proof and research
-   bodies. Signing failure is explicitly unsigned and never rolls back the mutation. Eight other named research-event domains still lack production
+   bodies or label names. Signing failure is explicitly unsigned and never rolls back the mutation. Seven other named research-event domains still lack production
    resolvers/adoption. Device-bound admin credentials now expose a strict reserved
    control channel: the relay consumes the ordinary fresh proof, verifies a second action/revision
    signature, durably mutates/reloads membership, and evicts room peers. The product exposes those
@@ -675,7 +675,7 @@ collaborators are not required to download large project folders.
    policy state and applies an exact-revision install/remove transition using eligible registered
    key IDs. Next: run packaged physical two-install policy interaction, then
    recovery when no admin survives (which still requires the relay host), durable-event attestation
-   adoption beyond scenario votes, device-key rotation/recovery, trusted time and replacement-invitation
+   adoption beyond scenario votes/annotations/labels, device-key rotation/recovery, trusted time and replacement-invitation
    delivery, public WSS operations, compaction/export/backups
    and broader abuse controls, then run packaged physical two-install gates.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.

@@ -180,6 +180,8 @@ const scenarioAnnotationProductTest = text('frontend/src/workspace/ScenarioColla
 const scenarioAnnotationAutomationSource = text('frontend/src/workspace/scenarioAutomation.ts')
 const scenarioAnnotationBridgeSource = text('frontend/src/automationBridge.ts')
 const scenarioAnnotationEvidence = text('docs/audits/runs/SIGNED-SCENARIO-ANNOTATION-EVENTS-2026-08-11.json')
+const scenarioLabelAttributionSource = text('frontend/src/workspace/scenarioLabelModel.ts')
+const scenarioLabelEvidence = text('docs/audits/runs/SIGNED-SCENARIO-LABEL-EVENTS-2026-08-11.json')
 record(
   'app-managed collaboration relay remains private, bounded, durable, reaped, and identity-honest',
   collaborationRelayCargo.includes('tungstenite = "=0.21.0"') &&
@@ -412,18 +414,18 @@ record(
     scenarioAnnotationAttributionSource.includes('canonicalScenarioAnnotationEvent') &&
     scenarioAnnotationAttributionSource.includes('scenarioAnnotationEventSha256') &&
     scenarioAnnotationAttributionSource.includes('readScenarioAnnotationEvent') &&
-    researchEventAttributionSource.includes("eventKind !== 'scenario-vote' && eventKind !== 'scenario-annotation'") &&
+    researchEventAttributionSource.includes("eventKind !== 'scenario-label'") &&
     researchEventAttributionSource.includes('commitScenarioAnnotationWithAttribution') &&
     researchEventAttributionSource.indexOf("const event = commit()") <
       researchEventAttributionSource.indexOf('attribution: await attestScenarioAnnotationEvent') &&
     scenarioAnnotationProductSource.includes('commitScenarioAnnotationWithAttribution(doc, projectId, operation)') &&
-    scenarioAnnotationProductSource.includes('return () => { annotationOperation.current += 1 }') &&
+    scenarioAnnotationProductSource.includes('annotationOperation.current += 1') &&
     scenarioAnnotationProductSource.includes('Shared annotation saved without a device signature') &&
     scenarioAnnotationProductSource.includes('not a person or organization') &&
     scenarioAnnotationProductTest.includes('without claiming human identity') &&
     scenarioAnnotationAutomationSource.match(/Scenario annotation event was not retained/g)?.length === 3 &&
     scenarioAnnotationBridgeSource.match(/await attestScenarioAnnotationEvent/g)?.length === 3 &&
-    researchEventMcpSource.includes('exact-hash installation attestations for scenario vote and annotation events') &&
+    researchEventMcpSource.includes('exact-hash installation attestations for scenario vote, annotation, and label events') &&
     scenarioAnnotationEvidence.includes('"productionAdoptedEventKind": "scenario-annotation"') &&
     scenarioAnnotationEvidence.includes('"mutatedRetainedBodyRejected": true') &&
     scenarioAnnotationEvidence.includes('"signingFailurePreservesCommittedMutation": true') &&
@@ -434,6 +436,41 @@ record(
     scenarioAnnotationEvidence.includes('"repositoryAuditPassed": true') &&
     scenarioAnnotationEvidence.includes('"fullValidationPending": false') &&
     scenarioAnnotationEvidence.includes('"status": "implemented_unverified"') &&
+    scenarioLabelAttributionSource.includes('canonicalScenarioLabelEvent') &&
+    scenarioLabelAttributionSource.includes('canonicalScenarioLabelAssignmentEvent') &&
+    scenarioLabelAttributionSource.includes('scenarioLabelEventSha256') &&
+    scenarioLabelAttributionSource.includes('scenarioLabelAssignmentEventSha256') &&
+    scenarioLabelAttributionSource.includes('readScenarioLabelEvent') &&
+    scenarioLabelAttributionSource.includes('readScenarioLabelAssignmentEvent') &&
+    researchEventAttributionSource.includes('scenarioLabelAttestationEventId') &&
+    researchEventAttributionSource.includes('commitScenarioLabelWithAttribution') &&
+    researchEventAttributionSource.indexOf('const event = commit()', researchEventAttributionSource.indexOf('commitScenarioLabelWithAttribution')) <
+      researchEventAttributionSource.indexOf('attribution: await attestScenarioLabelEvent') &&
+    scenarioAnnotationProductSource.includes('commitScenarioLabelWithAttribution(doc, projectId, operation)') &&
+    scenarioAnnotationProductSource.includes('labelOperation.current += 1') &&
+    scenarioAnnotationProductSource.includes('Shared label change saved without a device signature') &&
+    scenarioAnnotationProductTest.includes('without blocking annotation controls') &&
+    scenarioAnnotationAutomationSource.match(/Scenario label event was not retained/g)?.length === 2 &&
+    scenarioAnnotationAutomationSource.includes('Scenario label assignment event was not retained') &&
+    scenarioAnnotationBridgeSource.match(/await attestScenarioLabelEvent/g)?.length === 3 &&
+    scenarioAnnotationBridgeSource.match(/researchRevision: projectStateFingerprint\(document\)/g)?.length === 7 &&
+    researchEventAttestationTest.includes('maximum-length label assignment locator') &&
+    researchEventAttestationTest.includes('assignmentEvents.set(assignmentStorageKey') &&
+    researchEventAttestationTest.includes('not.toBe(mutationOnlyRevision)') &&
+    researchEventMcpSource.includes('best-effort exact-event registered-device signature') &&
+    scenarioLabelEvidence.includes('"productionAdoptedEventKind": "scenario-label"') &&
+    scenarioLabelEvidence.includes('"mutatedRetainedAssignmentRejected": true') &&
+    scenarioLabelEvidence.includes('"maximumValidLocatorIdentityPreserved": true') &&
+    scenarioLabelEvidence.includes('"mcpReturnsPostAttributionResearchRevision": true') &&
+    scenarioLabelEvidence.includes('"signingFailurePreservesCommittedMutation": true') &&
+    scenarioLabelEvidence.includes('"proofAndLabelNamesReturnedByInspection": false') &&
+    scenarioLabelEvidence.includes('"humanOrOrganizationIdentityClaimed": false') &&
+    scenarioLabelEvidence.includes('"supervisedRunId": "20260811-181220-76dceb"') &&
+    scenarioLabelEvidence.includes('"frontendTestsPassed": 548') &&
+    scenarioLabelEvidence.includes('"rustAppRecompiled": true') &&
+    scenarioLabelEvidence.includes('"repositoryAuditPassed": true') &&
+    scenarioLabelEvidence.includes('"fullValidationPending": false') &&
+    scenarioLabelEvidence.includes('"status": "implemented_unverified"') &&
     researchEventEvidence.includes('"status": "implemented_unverified"'),
   'closed typed native signing, exact project/participant/kind/event/hash/time/nonce binding, live-event resolution, registered-device matching, bounded merge/replay/poison gates, explicit unsigned fallback, body-free inspection, and human-identity nonclaims are present',
 )

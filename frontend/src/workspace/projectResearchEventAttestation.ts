@@ -14,7 +14,7 @@ export const MAX_RESEARCH_EVENT_ATTESTATION_SETTINGS_SCAN = 5_000
 export const MAX_RESEARCH_EVENT_ATTESTATION_VERIFICATION_CONCURRENCY = 8
 
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:@-]{0,199}$/
-const EVENT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:@-]{0,511}$/
+const EVENT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:@-]{0,1023}$/
 const KEY_ID_PATTERN = /^ed25519-sha256:[A-Za-z0-9_-]{43}$/
 const BASE64URL_32 = /^[A-Za-z0-9_-]{43}$/
 const BASE64URL_64 = /^[A-Za-z0-9_-]{86}$/

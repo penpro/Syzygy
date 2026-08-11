@@ -729,8 +729,9 @@ package certifier have landed. The runner proves bounded schema/path/fixture/aut
 deliberately labels results `contract-certified`, not runtime-safe. The first no-authority
 WebAssembly Component host has now landed for the zero-import WIT world. Explicit user-selected
 session loading, project-only grant composition, shared proposal review, and MCP inspect/run have
-also landed. Next add the
-implemented authority broker, declarative contribution rendering, local install/disable/upgrade,
+also landed. Exact retained proposal and decision events now receive best-effort registered-device
+attribution with explicit unsigned fallback. Next add the implemented authority broker,
+declarative contribution rendering, local install/disable/upgrade,
 and the advanced native MCP trust tier. Marketplace control is optional;
 local packages and open documentation are required.
 

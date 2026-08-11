@@ -3,6 +3,10 @@ import { now, uid } from '../util'
 import { getAutomationEditorController } from '../workspace/editorAutomationRegistry'
 import { getProjectSharedTypes, projectStateFingerprint } from '../workspace/projectModel'
 import {
+  attestPluginReviewEvent,
+  type ResearchEventAttributionResult,
+} from '../workspace/researchEventAttribution'
+import {
   pluginPackageRegistry,
   type LoadedPluginPackageSummary,
   type PluginPackageRegistry,
@@ -44,6 +48,7 @@ export interface DecidePluginReviewAutomationInput extends PluginRunnerIdentity 
 export interface PluginRunPublication {
   outcome: PluginExecutionOutcome
   reviews: CollaborativePluginReview[]
+  attributions: ResearchEventAttributionResult[]
   researchRevision: string
 }
 
@@ -62,6 +67,7 @@ export async function runLoadedPluginForProject(
   dependencies: {
     packages?: PluginPackageRegistry
     executor?: ZeroAuthorityPluginExecutor
+    attest?: typeof attestPluginReviewEvent
     clock?: () => number
     id?: () => string
   } = {},
@@ -91,7 +97,7 @@ export async function runLoadedPluginForProject(
     },
   })
   if (outcome.status === 'no-change') {
-    return { outcome, reviews: [], researchRevision: projectStateFingerprint(doc) }
+    return { outcome, reviews: [], attributions: [], researchRevision: projectStateFingerprint(doc) }
   }
   const shared = getProjectSharedTypes(doc)
   const reviews = createPluginReviews(shared.discussions, outcome.receipts.map(({ proposal }) => ({
@@ -105,7 +111,12 @@ export async function runLoadedPluginForProject(
     runnerDisplayName: runner.displayName,
     timestamp: clock(),
   })))
-  return { outcome, reviews, researchRevision: projectStateFingerprint(doc) }
+  const attest = dependencies.attest ?? attestPluginReviewEvent
+  const attributions: ResearchEventAttributionResult[] = []
+  for (const review of reviews) {
+    attributions.push(await attest(doc, projectId, review.proposal))
+  }
+  return { outcome, reviews, attributions, researchRevision: projectStateFingerprint(doc) }
 }
 
 export function inspectPluginWorkspace(
@@ -141,11 +152,15 @@ export function inspectPluginWorkspace(
   }
 }
 
-export function decidePluginReviewForProject(
+export async function decidePluginReviewForProject(
   doc: Y.Doc,
   projectId: string,
   input: DecidePluginReviewAutomationInput,
-  dependencies: { clock?: () => number; id?: () => string } = {},
+  dependencies: {
+    clock?: () => number
+    id?: () => string
+    attest?: typeof attestPluginReviewEvent
+  } = {},
 ) {
   const reviewer = identity(input)
   if (projectStateFingerprint(doc) !== input.expectedResearchRevision) {
@@ -156,16 +171,26 @@ export function decidePluginReviewForProject(
   if (!pendingReview || pendingReview.proposal.projectId !== projectId) {
     throw new Error('Plugin review project identity mismatch')
   }
+  const decisionEventId = (dependencies.id ?? uid)()
+  const decisionTimestamp = (dependencies.clock ?? now)()
   const review = decidePluginReview(shared.discussions, {
     reviewId: input.reviewId,
-    eventId: (dependencies.id ?? uid)(),
+    eventId: decisionEventId,
     expectedProposalEventId: input.expectedProposalEventId,
     decision: input.decision,
     reviewerId: reviewer.participantId,
     reviewerDisplayName: reviewer.displayName,
-    timestamp: (dependencies.clock ?? now)(),
+    timestamp: decisionTimestamp,
   })
-  return { review, researchRevision: projectStateFingerprint(doc), automaticDraftMutation: false }
+  const decisionEvent = review.decisions.find((candidate) => candidate.eventId === decisionEventId)
+  if (!decisionEvent) throw new Error('Plugin review decision was not retained')
+  const attribution = await (dependencies.attest ?? attestPluginReviewEvent)(doc, projectId, decisionEvent)
+  return {
+    review,
+    attribution,
+    researchRevision: projectStateFingerprint(doc),
+    automaticDraftMutation: false,
+  }
 }
 
 export type { LoadedPluginPackageSummary }

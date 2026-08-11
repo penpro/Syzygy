@@ -29,7 +29,7 @@ beforeEach(() => {
 })
 afterEach(() => unregister())
 
-async function fixture() {
+async function fixture(proposalCount = 1) {
   const packages = new PluginPackageRegistry()
   const plugin = await loadZeroAuthorityPluginPackage({
     schemaVersion: 1,
@@ -42,11 +42,12 @@ async function fixture() {
   const executor = new ZeroAuthorityPluginExecutor(async (_bytes, invocation) => ({
     runtimeVersion: 1,
     world: 'syzygy:research/plugin@1.0.0',
-    output: { kind: 'proposals', proposals: [{
-      proposalVersion: 1, proposalId: 'proposal-1', pluginId: invocation.pluginId,
+    output: { kind: 'proposals', proposals: Array.from({ length: proposalCount }, (_, index) => ({
+      proposalVersion: 1 as const, proposalId: `proposal-${index + 1}`, pluginId: invocation.pluginId,
       projectId: invocation.project!.projectId, expectedRevision: invocation.project!.revision,
-      summary: 'Review secret', content: 'Proposed secret content', operation: 'append',
-    }] },
+      summary: `Review secret ${index + 1}`, content: `Proposed secret content ${index + 1}`,
+      operation: 'append' as const,
+    })) },
     limits,
   }))
   return { packages, plugin, executor }
@@ -59,9 +60,20 @@ describe('plugin workspace automation', () => {
     const publication = await runLoadedPluginForProject(doc, 'project-1', {
       packageId: plugin.packageId, contributionId: 'review', expectedDocumentRevision: 'revision-1',
       participantId: 'runner-1', displayName: 'Runner',
-    }, { packages, executor, id: (() => { let value = 0; return () => `id-${++value}` })(), clock: () => 10 })
+    }, {
+      packages, executor, id: (() => { let value = 0; return () => `id-${++value}` })(), clock: () => 10,
+      attest: async (_doc, _projectId, event) => ({
+        status: 'signed-device', keyId: 'ed25519-sha256:test', eventKind: 'plugin-review',
+        eventId: `${event.reviewId.length}:${event.reviewId}${event.eventId}`,
+        eventSha256: 'hash', attestationCount: 1,
+        authority: 'installation-device-not-human-identity',
+      }),
+    })
     expect(publication.reviews).toHaveLength(1)
-    expect(publication.reviews[0]).toMatchObject({ status: 'pending', proposal: { content: 'Proposed secret content' } })
+    expect(publication.reviews[0]).toMatchObject({ status: 'pending', proposal: { content: 'Proposed secret content 1' } })
+    expect(publication.attributions).toEqual([
+      expect.objectContaining({ status: 'signed-device', eventKind: 'plugin-review' }),
+    ])
     expect(inspectPluginWorkspace(doc, packages)).toMatchObject({
       contentOmitted: true, automaticDraftMutation: false,
       inspection: { healthy: true, pendingCount: 1 },
@@ -82,30 +94,71 @@ describe('plugin workspace automation', () => {
     expect(inspectPluginWorkspace(doc, packages).inspection.reviewCount).toBe(0)
   })
 
+  it('serializes proposal attribution so concurrent publication cannot bypass history bounds', async () => {
+    const doc = new Y.Doc({ guid: 'project-1' })
+    const { packages, plugin, executor } = await fixture(3)
+    let active = 0
+    let maximumActive = 0
+    const publication = await runLoadedPluginForProject(doc, 'project-1', {
+      packageId: plugin.packageId, contributionId: 'review', expectedDocumentRevision: 'revision-1',
+      participantId: 'runner-1', displayName: 'Runner',
+    }, {
+      packages, executor, id: (() => { let value = 0; return () => `serial-${++value}` })(),
+      attest: async () => {
+        active += 1
+        maximumActive = Math.max(maximumActive, active)
+        await Promise.resolve()
+        active -= 1
+        return {
+          status: 'unsigned', reason: 'signing-or-registration-unavailable',
+          authority: 'installation-device-not-human-identity',
+        }
+      },
+    })
+    expect(publication.reviews).toHaveLength(3)
+    expect(publication.attributions).toHaveLength(3)
+    expect(maximumActive).toBe(1)
+  })
+
   it('records an exact shared decision while keeping draft mutation unavailable', async () => {
     const doc = new Y.Doc({ guid: 'project-1' })
     const { packages, plugin, executor } = await fixture()
     const publication = await runLoadedPluginForProject(doc, 'project-1', {
       packageId: plugin.packageId, contributionId: 'review', expectedDocumentRevision: 'revision-1',
       participantId: 'runner-1', displayName: 'Runner',
-    }, { packages, executor, id: (() => { let value = 0; return () => `id-${++value}` })() })
+    }, {
+      packages, executor, id: (() => { let value = 0; return () => `id-${++value}` })(),
+      attest: async () => ({
+        status: 'unsigned', reason: 'signing-or-registration-unavailable',
+        authority: 'installation-device-not-human-identity',
+      }),
+    })
     const inspection = inspectPluginWorkspace(doc, packages)
-    const decided = decidePluginReviewForProject(doc, 'project-1', {
+    const decided = await decidePluginReviewForProject(doc, 'project-1', {
       reviewId: publication.reviews[0].id,
       expectedProposalEventId: publication.reviews[0].proposal.eventId,
       expectedResearchRevision: inspection.researchRevision,
       decision: 'accepted', participantId: 'reviewer-1', displayName: 'Reviewer',
-    }, { id: () => 'decision-1', clock: () => 20 })
-    expect(decided).toMatchObject({ review: { status: 'accepted' }, automaticDraftMutation: false })
-    expect(() => decidePluginReviewForProject(doc, 'project-1', {
+    }, {
+      id: () => 'decision-1', clock: () => 20,
+      attest: async () => ({
+        status: 'unsigned', reason: 'signing-or-registration-unavailable',
+        authority: 'installation-device-not-human-identity',
+      }),
+    })
+    expect(decided).toMatchObject({
+      review: { status: 'accepted' }, automaticDraftMutation: false,
+      attribution: { status: 'unsigned' },
+    })
+    await expect(decidePluginReviewForProject(doc, 'project-1', {
       reviewId: publication.reviews[0].id,
       expectedProposalEventId: publication.reviews[0].proposal.eventId,
       expectedResearchRevision: inspection.researchRevision,
       decision: 'rejected', participantId: 'reviewer-1', displayName: 'Reviewer',
-    })).toThrow('Research revision conflict')
+    })).rejects.toThrow('Research revision conflict')
   })
 
-  it('rejects a cross-project review before writing any shared decision event', () => {
+  it('rejects a cross-project review before writing any shared decision event', async () => {
     const doc = new Y.Doc({ guid: 'project-1' })
     const shared = getProjectSharedTypes(doc)
     const review = createPluginReview(shared.discussions, {
@@ -120,11 +173,11 @@ describe('plugin workspace automation', () => {
     })
     const expectedResearchRevision = projectStateFingerprint(doc)
     const before = Y.encodeStateAsUpdate(doc)
-    expect(() => decidePluginReviewForProject(doc, 'project-1', {
+    await expect(decidePluginReviewForProject(doc, 'project-1', {
       reviewId: review.id, expectedProposalEventId: review.proposal.eventId,
       expectedResearchRevision, decision: 'accepted', participantId: 'reviewer-1',
       displayName: 'Reviewer',
-    }, { id: () => 'must-not-be-written', clock: () => 20 })).toThrow('project identity mismatch')
+    }, { id: () => 'must-not-be-written', clock: () => 20 })).rejects.toThrow('project identity mismatch')
     expect(Y.encodeStateAsUpdate(doc)).toEqual(before)
   })
 })

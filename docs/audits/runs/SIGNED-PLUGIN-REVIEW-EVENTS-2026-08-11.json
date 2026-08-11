@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "runId": "SIGNED-PLUGIN-REVIEW-EVENTS-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "31d153e",
+  "status": "implemented_unverified",
+  "implementation": {
+    "eventKind": "plugin-review",
+    "eventSchemaVersion": 1,
+    "proposalAndDecisionBodiesHashed": true,
+    "commitBeforeAttribution": true,
+    "signingFailureRollsBackReview": false,
+    "authority": "installation-device-not-human-identity",
+    "mcpRunReportsAttribution": true,
+    "researchStateInspectionReturnsProofBodies": false
+  },
+  "commands": [
+    "npm run test:plugin-composition",
+    "cargo test --manifest-path src-tauri/Cargo.toml durable_research_event_binds_project_participant_kind_identity_hash_time_and_nonce",
+    "npm run build",
+    "npm run audit",
+    "npm run check:supervised",
+    "git diff --check"
+  ],
+  "focusedValidation": {
+    "pluginCompositionTestFilesPassed": 6,
+    "pluginCompositionTestsPassed": 38,
+    "researchAttestationTestsPassed": 15,
+    "nativeResearchEventKindTestPassed": true,
+    "exactProposalHashProved": true,
+    "exactDecisionHashProved": true,
+    "crossAuthorClaimRejected": true,
+    "mutatedRetainedProposalRejected": true,
+    "explicitUnsignedFallbackProved": true,
+    "proposalAttributionSerialized": true,
+    "draftMutationMethodsCalled": false
+  },
+  "fullValidation": {
+    "pending": false,
+    "supervisedRunId": "20260811-220014-a641cc",
+    "frontendTestFilesPassed": 134,
+    "frontendTestsPassed": 594,
+    "frontendModulesTransformed": 1276,
+    "frontendBuildPassed": true,
+    "repositoryAuditPassed": true,
+    "rustCheckPassed": true
+  },
+  "proved": [
+    "Plugin proposal and decision events have explicit canonical versioned JSON envelopes and base64url SHA-256 digests.",
+    "Attestation locators bind the review ID and exact proposal or decision event ID without returning event bodies.",
+    "The shared resolver re-reads the retained event, recomputes its digest, and resolves the runner or reviewer participant before accepting a proof.",
+    "Cross-author claims and a changed retained proposal body fail registered-device attestation verification.",
+    "Proposal batches and human decisions commit before best-effort signing; missing keys, registrations, or healthy history produce an explicit unsigned result without rollback.",
+    "The product reports signed-device or unsigned attribution while stating that installation keys do not authenticate people.",
+    "The run_loaded_plugin MCP response includes attribution for each newly retained proposal, while inspect_research_state can verify content-minimized proof metadata."
+  ],
+  "notProved": [
+    "A registered installation key authenticates a human, organization, employment relationship, role, or legal authority.",
+    "A collaborator has approved the runner's installation or participant claim merely because its key is present in the project directory.",
+    "Package publisher identity, package signatures, reproducible builds, persistent installation, upgrade, rollback, or marketplace trust.",
+    "Accepted plugin proposals can be applied to policy text; no plugin Apply route exists in this checkpoint.",
+    "Physical two-install Drive or WebSocket synchronization and product rendering of plugin-review attestations.",
+    "Protection against an already-compromised signing device, stolen local OS account, malicious component, or vulnerabilities in the pinned runtime."
+  ],
+  "sources": [
+    "frontend/src/extensions/pluginReviewModel.ts",
+    "frontend/src/extensions/pluginWorkspaceAutomation.ts",
+    "frontend/src/workspace/researchEventAttribution.ts",
+    "frontend/src/workspace/projectResearchEventAttestation.ts",
+    "frontend/src/workspace/PluginWorkspace.tsx",
+    "frontend/src/tauri.ts",
+    "frontend/src-tauri/src/collaboration_identity.rs"
+  ]
+}

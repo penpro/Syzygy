@@ -99,10 +99,14 @@ The product composition now requires a user-selected manifest and exact named co
 and rechecks its SHA-256, and keeps it only in a bounded current-session registry. Only requested
 project read/propose authority reaches the zero-import run. Returned proposals are published as one
 preflighted batch into a shared Yjs ledger with exact component provenance; disconnected decisions
-converge and opposite decisions become visible conflicts. MCP can inspect content-minimized state and
+converge and opposite decisions become visible conflicts. Each retained proposal and decision is
+then exact-body hashed and best-effort signed by the participant's unconflicted registered
+installation; cross-author claims or later body changes fail verification, while unavailable
+signing remains explicit and never rolls back history. MCP can inspect content-minimized state and
 run only an already-loaded package against exact document/research revisions. It cannot load a
 component, decide a review, or apply draft text. Evidence and falsifiers are in
-`docs/audits/runs/PLUGIN-SHARED-REVIEW-2026-08-11.json`.
+`docs/audits/runs/PLUGIN-SHARED-REVIEW-2026-08-11.json` and
+`docs/audits/runs/SIGNED-PLUGIN-REVIEW-EVENTS-2026-08-11.json`.
 
 ## Benchmark before product claims
 

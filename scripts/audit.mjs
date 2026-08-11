@@ -2157,6 +2157,7 @@ record(
     pluginCertificationSchema.additionalProperties === false &&
     platformContractsSource.includes('"pluginLoader": "user-selected-in-memory-session-no-install-upgrade"') &&
     platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-no-apply"') &&
+    platformContractsSource.includes('"pluginReviewAttribution": "exact-retained-event-registered-device-or-explicit-unsigned"') &&
     platformContractsSource.includes('"pluginCertifier": "contract-certified-runner"') &&
     platformContractsSource.includes('"automaticSharedMutation": false'),
   'strict v1 schemas, honest runtime status, and proposal-only shared mutation',
@@ -2274,6 +2275,9 @@ const pluginWorkspaceTestSource = text('frontend/src/workspace/PluginWorkspace.u
 const pluginCompositionEvidence = JSON.parse(
   text('docs/audits/runs/PLUGIN-SHARED-REVIEW-2026-08-11.json'),
 )
+const pluginReviewAttributionEvidence = JSON.parse(
+  text('docs/audits/runs/SIGNED-PLUGIN-REVIEW-EVENTS-2026-08-11.json'),
+)
 record(
   'user-selected zero-authority plugins compose into shared human review without draft authority',
   pluginExecutionSource.includes('verifyLoadedPlugin(plugin)') &&
@@ -2285,7 +2289,8 @@ record(
     pluginReviewSource.includes("PLUGIN_REVIEW_SCHEMA_VERSION = 1") &&
     pluginReviewSource.includes('createPluginReviews') &&
     pluginReviewSource.includes("'syzygy-plugin-review-batch'") &&
-    !/getAutomationEditorController|\.append\(|\.replace\(/.test(pluginReviewSource) &&
+    !pluginReviewSource.includes('getAutomationEditorController') &&
+    !pluginReviewSource.includes('editorAutomationRegistry') &&
     pluginWorkspaceAutomationSource.includes('expectedDocumentRevision') &&
     pluginWorkspaceAutomationSource.includes('expectedResearchRevision') &&
     pluginWorkspaceAutomationSource.includes('contentOmitted: true') &&
@@ -2323,6 +2328,44 @@ record(
     pluginCompositionEvidence.fullValidation?.repositoryAuditPassed === true &&
     pluginCompositionEvidence.fullValidation?.rustCheckPassed === true,
   'exact user-selected manifest/component digest, 32-MiB/eight-package session cap, project-only grant subset, serialized bounded execution, atomic shared proposal batch, conflict-visible human decisions, exact MCP revisions, content-minimized inspection, and no apply route',
+)
+record(
+  'plugin proposal and decision events have exact retained-device attribution with explicit unsigned fallback',
+  pluginReviewSource.includes('canonicalPluginReviewEvent') &&
+    pluginReviewSource.includes('pluginReviewEventSha256') &&
+    pluginReviewSource.includes('readPluginReviewEvent') &&
+    researchEventAttributionSource.includes('pluginReviewAttestationEventId') &&
+    researchEventAttributionSource.includes("eventKind === 'plugin-review'") &&
+    researchEventAttributionSource.includes('attestPluginReviewEvent') &&
+    researchEventAttestationSource.includes("'plugin-review'") &&
+    collaborationIdentitySource.includes('| "plugin-review"') &&
+    text('frontend/src/tauri.ts').includes("| 'plugin-review'") &&
+    pluginWorkspaceAutomationSource.indexOf('const reviews = createPluginReviews') <
+      pluginWorkspaceAutomationSource.indexOf('for (const review of reviews)') &&
+    pluginWorkspaceAutomationSource.indexOf('decidePluginReview(shared.discussions') <
+      pluginWorkspaceAutomationSource.indexOf('const attribution = await') &&
+    pluginWorkspaceAutomationTestSource.includes("eventKind: 'plugin-review'") &&
+    pluginWorkspaceAutomationTestSource.includes("attribution: { status: 'unsigned' }") &&
+    researchEventAttestationTest.includes('signs exact plugin proposal and decision events') &&
+    researchEventAttestationTest.includes("reviewer, 'plugin-review'") &&
+    researchEventAttestationTest.includes('Changed retained plugin proposal body') &&
+    pluginWorkspaceSource.includes('registered-device attribution') &&
+    pluginWorkspaceSource.includes('Device attribution does not verify a human identity') &&
+    frontendPackage.scripts?.['test:plugin-composition']?.includes('projectResearchEventAttestation.test.ts') &&
+    pluginReviewAttributionEvidence.implementation?.eventKind === 'plugin-review' &&
+    pluginReviewAttributionEvidence.implementation?.commitBeforeAttribution === true &&
+    pluginReviewAttributionEvidence.focusedValidation?.pluginCompositionTestsPassed === 38 &&
+    pluginReviewAttributionEvidence.focusedValidation?.crossAuthorClaimRejected === true &&
+    pluginReviewAttributionEvidence.focusedValidation?.mutatedRetainedProposalRejected === true &&
+    pluginReviewAttributionEvidence.focusedValidation?.proposalAttributionSerialized === true &&
+    pluginReviewAttributionEvidence.fullValidation?.pending === false &&
+    pluginReviewAttributionEvidence.fullValidation?.supervisedRunId === '20260811-220014-a641cc' &&
+    pluginReviewAttributionEvidence.fullValidation?.frontendTestFilesPassed === 134 &&
+    pluginReviewAttributionEvidence.fullValidation?.frontendTestsPassed === 594 &&
+    pluginReviewAttributionEvidence.fullValidation?.frontendModulesTransformed === 1276 &&
+    pluginReviewAttributionEvidence.fullValidation?.repositoryAuditPassed === true &&
+    pluginReviewAttributionEvidence.fullValidation?.rustCheckPassed === true,
+  'exact proposal/decision envelopes, retained hash/author resolution, commit-first best-effort device signing, cross-author/tamper rejection, explicit unsigned fallback, and no draft authority are present',
 )
 const adversarialRecordSource = text('frontend/src/extensions/adversarialRunRecord.ts')
 const adversarialRunnerSource = text('frontend/src/extensions/adversarialRunner.ts')

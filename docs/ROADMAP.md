@@ -640,9 +640,10 @@ collaborators are not required to download large project folders.
    opt-in live/provider-policy evidence and explicit domain/authority design before any tool-result loop.
    Build the adversarial benchmark before claiming panel quality. The no-authority component host
    now composes user-selected session packages with project-only grants and shared human proposal
-   review. Next add persistent signed package install/upgrade/rollback, a useful independently built
-   third-party artifact, registered-device review attribution, and a separate revision-guarded Apply
-   workflow before introducing any capability-bearing world.
+   review. Exact retained proposal and decision events now receive best-effort registered-device
+   attribution with explicit unsigned fallback and cross-author/tamper rejection. Next add persistent
+   signed package install/upgrade/rollback, a useful independently built third-party artifact, and a
+   separate revision-guarded Apply workflow before introducing any capability-bearing world.
 4. **Harden collaboration beyond the first Drive transport** — append-only Yjs Drive sharing,
    share/join UI, deterministic partition convergence, a real Drive canary, persistent outbound LAN
    agents, guarded MCP catalog/share/join tooling, and exact scenario sibling reconciliation have

@@ -3,8 +3,9 @@
 **Manifest version:** 1. **Runtime status:** strict schemas/validators, a non-executing package
 certifier, a non-executing host authority broker, and a versioned zero-import WIT world now have a
 bounded in-memory WebAssembly Component executor, explicit session loader/runner, shared review UI,
-and MCP inspect/run tools. Discovery, persistent installation/upgrade/signing, capability-bearing
-host interfaces, native-MCP execution, and proposal Apply are not yet implemented.
+and MCP inspect/run tools. Shared proposal/decision events now receive best-effort exact-body
+registered-device attribution. Discovery, persistent package installation/upgrade/publisher signing,
+capability-bearing host interfaces, native-MCP execution, and proposal Apply are not yet implemented.
 
 The API is deliberately contribution-open and authority-closed. Researchers can add tools,
 evaluators, importers, and exporters without receiving ambient project, Drive, network, model, or
@@ -174,10 +175,17 @@ execution nor decision changes the policy draft. MCP exposes `inspect_plugin_wor
 package already loaded by the person in that running GUI, with exact document and research
 revisions. MCP cannot load a component, decide a plugin review, or apply text.
 
+After each immutable proposal or decision commits, Syzygy hashes the exact versioned retained event
+and best-effort signs it with the participant's unconflicted registered installation key. The shared
+attestation resolver re-reads the event body and author before accepting the proof, so cross-author
+claims and changed retained bodies fail. Product/MCP run results report signed-device or explicit
+unsigned attribution; failure to access a key, registration, or healthy attestation history never
+rolls back the review. These proofs identify an installation key, not a human or organization.
+
 This is truthful status `user-selected-in-memory-session-no-install-upgrade` plus
 `shared-proposal-ledger-human-decision-no-apply`. Discovery, persistent install/upgrade/rollback,
 signer/publisher trust, a useful executable third-party example, capability-bearing WIT worlds,
-review-event device signatures, and revision-guarded Apply remain open.
+and revision-guarded Apply remain open.
 
 Design basis: the upstream Component Model describes WIT worlds as the strict import/export
 boundary and explicitly notes that a component without a relevant import cannot access that host
@@ -194,6 +202,7 @@ executor:
 - `docs/audits/runs/PLUGIN-WIT-CONTRACT-2026-07-15.json`
 - `docs/audits/runs/PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11.json`
 - `docs/audits/runs/PLUGIN-SHARED-REVIEW-2026-08-11.json`
+- `docs/audits/runs/SIGNED-PLUGIN-REVIEW-EVENTS-2026-08-11.json`
 
 ## Mutation protocol
 

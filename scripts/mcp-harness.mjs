@@ -200,6 +200,7 @@ async function proveStdioContract() {
   if (contracts?.contractVersion !== 1) throw new Error('platform contract version is missing')
   if (contracts?.implementationStatus?.pluginLoader !== 'user-selected-in-memory-session-no-install-upgrade') throw new Error('plugin loader status is inaccurate')
   if (contracts?.implementationStatus?.pluginReview !== 'shared-proposal-ledger-human-decision-no-apply') throw new Error('plugin review status is inaccurate')
+  if (contracts?.implementationStatus?.pluginReviewAttribution !== 'exact-retained-event-registered-device-or-explicit-unsigned') throw new Error('plugin review attribution status is inaccurate')
   if (contracts?.implementationStatus?.pluginAuthorityBroker !== 'implemented-non-executing') throw new Error('plugin authority broker status is inaccurate')
   if (contracts?.implementationStatus?.pluginWitContract !== 'zero-import-subprocess-runtime-bounded') throw new Error('plugin WIT contract status is inaccurate')
   if (contracts?.implementationStatus?.pluginRuntimeIsolation !== 'one-shot-child-process-fuel-epoch-store-and-parent-deadline') throw new Error('plugin runtime isolation status is inaccurate')

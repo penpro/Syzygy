@@ -5,6 +5,11 @@ import type {
   ProjectResearchEventKind,
   ProjectResearchEventProof,
 } from '../tauri'
+import {
+  createPluginReview,
+  decidePluginReview,
+  pluginReviewEventSha256,
+} from '../extensions/pluginReviewModel'
 import type { ProjectDeviceDirectoryInspection } from './projectDeviceDirectory'
 import { createProjectDocument, getProjectSharedTypes, projectStateFingerprint } from './projectModel'
 import {
@@ -21,6 +26,7 @@ import {
 } from './projectResearchEventAttestation'
 import {
   attestPolicyVersionEvent,
+  attestPluginReviewEvent,
   attestSuggestionEvent,
   attestHeuristicCheckResultEvent,
   attestHeuristicEditEvent,
@@ -42,6 +48,7 @@ import {
   scenarioTurnAttestationEventId,
   suggestionAttestationEventId,
   heuristicEditAttestationEventId,
+  pluginReviewAttestationEventId,
 } from './researchEventAttribution'
 import {
   createScenarioAnnotation,
@@ -1168,6 +1175,75 @@ describe('project research event attestations', () => {
     await expect(inspectProjectResearchEventAttestations(
       settings, projectId, directory([signer, otherSigner]),
       researchEventAttestationResolver(discussions, settings, versions, scenarios),
+    )).resolves.toEqual(expect.objectContaining({ healthy: false, invalidRecords: 1 }))
+  })
+
+  it('signs exact plugin proposal and decision events and detects cross-author or changed bodies', async () => {
+    const runner = await identity(participantA)
+    const reviewer = await identity(participantB)
+    const document = createProjectDocument(manifest)
+    const { discussions, heuristics, scenarios, settings, versions } = getProjectSharedTypes(document)
+    const review = createPluginReview(discussions, {
+      reviewId: 'plugin-review-signed', eventId: 'plugin-proposal-signed',
+      pluginVersion: '1.0.0', componentSha256: 'a'.repeat(64), contributionId: 'review',
+      proposal: {
+        proposalVersion: 1, proposalId: 'plugin-output-signed', pluginId: 'org.example.signed',
+        projectId, expectedRevision: 'document-revision-1', summary: 'Signed proposal',
+        content: 'Exact plugin proposal body canary', operation: 'append',
+      },
+      runnerId: participantA, runnerDisplayName: 'Alice', timestamp: 1,
+    })
+    const dependenciesFor = (value: TestIdentity, nonce: string) => ({
+      inspectDirectory: async () => directory([runner, reviewer]),
+      create: (id: string, participantId: string, kind: ProjectResearchEventKind, eventId: string, hash: string) =>
+        createProjectResearchEventAttestation(
+          id, participantId, kind, eventId, hash, dependencies(value, nonce),
+        ),
+    })
+    const proposalAttribution = await attestPluginReviewEvent(
+      document, projectId, review.proposal, dependenciesFor(runner, nonceA),
+    )
+    expect(proposalAttribution).toEqual(expect.objectContaining({
+      status: 'signed-device', eventKind: 'plugin-review',
+      eventId: pluginReviewAttestationEventId(review.proposal),
+      eventSha256: await pluginReviewEventSha256(review.proposal),
+    }))
+
+    const decided = decidePluginReview(discussions, {
+      reviewId: review.id, eventId: 'plugin-decision-signed',
+      expectedProposalEventId: review.proposal.eventId, decision: 'accepted',
+      reviewerId: participantB, reviewerDisplayName: 'Bob', timestamp: 2,
+    })
+    const decision = decided.decisions[0]
+    await expect(attestPluginReviewEvent(
+      document, projectId, decision, dependenciesFor(reviewer, nonceB),
+    )).resolves.toEqual(expect.objectContaining({
+      status: 'signed-device', eventKind: 'plugin-review', attestationCount: 2,
+    }))
+    const eventId = pluginReviewAttestationEventId(review.proposal)
+    const forged = await make(
+      reviewer, 'plugin-review', eventId, await pluginReviewEventSha256(review.proposal), nonceC,
+    )
+    await expect(publishProjectResearchEventAttestation(
+      settings, projectId, directory([runner, reviewer]),
+      researchEventAttestationResolver(discussions, settings, versions, scenarios, heuristics), forged,
+    )).rejects.toThrow('proof is invalid')
+
+    const bucket = Array.from(discussions.entries()).find(([key]) =>
+      key.startsWith('plugin-reviews:v1:'),
+    )?.[1]
+    if (!(bucket instanceof Y.Map)) throw new Error('Plugin review bucket fixture missing')
+    const events = bucket.get('events')
+    if (!(events instanceof Y.Map)) throw new Error('Plugin review event fixture missing')
+    const proposalEntry = Array.from(events.entries()).find(([, value]) =>
+      typeof value === 'object' && value !== null &&
+      (value as { eventId?: unknown }).eventId === review.proposal.eventId,
+    )
+    if (!proposalEntry) throw new Error('Plugin proposal fixture missing')
+    events.set(proposalEntry[0], { ...review.proposal, content: 'Changed retained plugin proposal body' })
+    await expect(inspectProjectResearchEventAttestations(
+      settings, projectId, directory([runner, reviewer]),
+      researchEventAttestationResolver(discussions, settings, versions, scenarios, heuristics),
     )).resolves.toEqual(expect.objectContaining({ healthy: false, invalidRecords: 1 }))
   })
 })

@@ -6,7 +6,9 @@ import {
   decidePluginReview,
   inspectPluginReviews,
   listPluginReviews,
+  pluginReviewEventSha256,
   readPluginReview,
+  readPluginReviewEvent,
 } from './pluginReviewModel'
 
 const proposal = {
@@ -63,6 +65,25 @@ describe('collaborative plugin review ledger', () => {
       reviewId: 'review-1', eventId: 'decision-2', expectedProposalEventId: 'stale',
       decision: 'rejected', reviewerId: 'reviewer-1', reviewerDisplayName: 'Reviewer', timestamp: 3,
     })).toThrow('proposal revision conflict')
+  })
+
+  it('reads and hashes the exact retained proposal and decision bodies', async () => {
+    const doc = new Y.Doc()
+    const discussions = doc.getMap('project:discussions')
+    const created = createPluginReview(discussions, createInput)
+    const decided = decidePluginReview(discussions, {
+      reviewId: created.id, eventId: 'decision-hash', expectedProposalEventId: created.proposal.eventId,
+      decision: 'accepted', reviewerId: 'reviewer-1', reviewerDisplayName: 'Reviewer', timestamp: 2,
+    })
+    const proposalEvent = readPluginReviewEvent(discussions, created.id, created.proposal.eventId)
+    const decisionEvent = readPluginReviewEvent(discussions, created.id, 'decision-hash')
+    expect(proposalEvent).toEqual(created.proposal)
+    expect(decisionEvent).toEqual(decided.decisions[0])
+    const proposalHash = await pluginReviewEventSha256(proposalEvent!)
+    const decisionHash = await pluginReviewEventSha256(decisionEvent!)
+    expect(proposalHash).toMatch(/^[A-Za-z0-9_-]{43}$/)
+    expect(decisionHash).toMatch(/^[A-Za-z0-9_-]{43}$/)
+    expect(await pluginReviewEventSha256({ ...created.proposal, content: 'Changed body' })).not.toBe(proposalHash)
   })
 
   it('preflights a proposal batch so a retained collision writes nothing', () => {

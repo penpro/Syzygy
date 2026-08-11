@@ -26,7 +26,7 @@
     "test:plugin-sdk": "node --test ../scripts/plugin-certifier.test.mjs",
     "test:plugin-host": "vitest run src/extensions/pluginAuthorityBroker.test.ts --reporter=verbose",
     "test:plugin-runtime": "cargo test --manifest-path src-tauri/Cargo.toml plugin_runtime -- --nocapture",
-    "test:plugin-composition": "vitest run src/extensions/pluginExecution.test.ts src/extensions/pluginPackageRegistry.test.ts src/extensions/pluginReviewModel.test.ts src/extensions/pluginWorkspaceAutomation.test.ts src/workspace/PluginWorkspace.ui.test.tsx --reporter=verbose",
+    "test:plugin-composition": "vitest run src/extensions/pluginExecution.test.ts src/extensions/pluginPackageRegistry.test.ts src/extensions/pluginReviewModel.test.ts src/extensions/pluginWorkspaceAutomation.test.ts src/workspace/PluginWorkspace.ui.test.tsx src/workspace/projectResearchEventAttestation.test.ts --reporter=verbose",
     "certify:plugin": "node ../scripts/plugin-certifier.mjs",
     "test:model-adapter-sdk": "node --test ../scripts/model-adapter-certifier.test.mjs",
     "certify:model-adapter": "node ../scripts/model-adapter-certifier.mjs",

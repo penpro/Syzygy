@@ -303,25 +303,26 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
       if (result.outcome.status === 'no-change') setStatus(`Plugin completed with no proposal: ${result.outcome.reason}`)
       else {
         setSelectedReviewId(result.reviews[result.reviews.length - 1]?.id ?? '')
-        setStatus(`${result.reviews.length} proposal${result.reviews.length === 1 ? '' : 's'} added to shared review. The draft was not changed.`)
+        const signed = result.attributions.filter((value) => value.status === 'signed-device').length
+        setStatus(`${result.reviews.length} proposal${result.reviews.length === 1 ? '' : 's'} added to shared review. ${signed} received registered-device attribution; ${result.attributions.length - signed} remain explicitly unsigned. The draft was not changed.`)
       }
     } catch (value) { setError(explain(value)) } finally { setBusy(false) }
   }
-  const decide = (decision: PluginReviewDecision) => {
+  const decide = async (decision: PluginReviewDecision) => {
     setError(null); setStatus(null)
     if (!doc) return
     const review = reviews.find((candidate) => candidate.id === effectiveReviewId)
     if (!review) return
     setBusy(true)
     try {
-      decidePluginReviewForProject(doc, project.id, {
+      const result = await decidePluginReviewForProject(doc, project.id, {
         reviewId: review.id,
         expectedProposalEventId: review.proposal.eventId,
         expectedResearchRevision: projectStateFingerprint(doc),
         decision,
         ...identity(),
       })
-      setStatus(`Review decision recorded as ${decision}. The draft was not changed.`)
+      setStatus(`Review decision recorded as ${decision} with ${result.attribution.status === 'signed-device' ? 'registered-device attribution' : 'explicit unsigned attribution'}. Device attribution does not verify a human identity. The draft was not changed.`)
     } catch (value) { setError(explain(value)) } finally { setBusy(false) }
   }
 
@@ -346,6 +347,6 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
     onRemovePackage={(packageId) => { pluginPackageRegistry.remove(packageId); setSelectedPackageId(''); setStatus('Plugin unloaded from this app session.') }}
     onRun={() => { void run() }}
     onSelectReview={setSelectedReviewId}
-    onDecision={decide}
+    onDecision={(decision) => { void decide(decision) }}
   />
 }

@@ -870,7 +870,9 @@ model, Drive, project mutation, or plugin execution.
 exact user-selected manifest/component filename and recomputed SHA-256, eight-package/32-MiB
 session caps, project-only grant filtering, one active run, stale identity/revision refusal,
 preflighted 1–32 proposal publication, disconnected decision convergence/conflict visibility,
-content-minimized MCP inspection, and copy that decisions never apply the draft. The production UI
+exact retained proposal/decision hashes, registered-device signer resolution, cross-author and
+post-signature tamper rejection, explicit unsigned fallback, content-minimized MCP inspection, and
+copy that decisions never apply the draft. The production UI
 loads `syzygy-plugin.json` and its exact component through browser file inputs; bytes remain only in
 the current app process. This command uses a fake executor for composition. Actual component
 execution and hostile worker containment remain the separate `test:plugin-runtime` gate.

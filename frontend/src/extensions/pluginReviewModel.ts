@@ -39,6 +39,53 @@ export interface PluginReviewDecisionEvent {
 
 export type PluginReviewEvent = PluginReviewProposalEvent | PluginReviewDecisionEvent
 
+const bytesToBase64Url = (bytes: Uint8Array) => {
+  let binary = ''
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte) })
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+/** Exact, versioned JSON envelope used for durable plugin-review event hashes. */
+export function canonicalPluginReviewEvent(event: PluginReviewEvent): string {
+  if (event.kind === 'proposal') {
+    return JSON.stringify({
+      schemaVersion: event.schemaVersion,
+      kind: event.kind,
+      eventId: event.eventId,
+      reviewId: event.reviewId,
+      pluginProposalId: event.pluginProposalId,
+      pluginId: event.pluginId,
+      pluginVersion: event.pluginVersion,
+      componentSha256: event.componentSha256,
+      contributionId: event.contributionId,
+      projectId: event.projectId,
+      expectedRevision: event.expectedRevision,
+      summary: event.summary,
+      content: event.content,
+      operation: event.operation,
+      runnerId: event.runnerId,
+      runnerDisplayName: event.runnerDisplayName,
+      timestamp: event.timestamp,
+    })
+  }
+  return JSON.stringify({
+    schemaVersion: event.schemaVersion,
+    kind: event.kind,
+    eventId: event.eventId,
+    reviewId: event.reviewId,
+    proposalEventId: event.proposalEventId,
+    decision: event.decision,
+    reviewerId: event.reviewerId,
+    reviewerDisplayName: event.reviewerDisplayName,
+    timestamp: event.timestamp,
+  })
+}
+
+export async function pluginReviewEventSha256(event: PluginReviewEvent): Promise<string> {
+  const bytes = new TextEncoder().encode(canonicalPluginReviewEvent(event))
+  return bytesToBase64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
+}
+
 export interface CollaborativePluginReview {
   id: string
   proposal: PluginReviewProposalEvent
@@ -201,6 +248,16 @@ export function readPluginReview(collection: Y.Map<unknown>, reviewId: string): 
   if (!stableId(reviewId)) return null
   const events = eventsFor(collection, reviewId)
   return events === null ? null : project(events)
+}
+
+export function readPluginReviewEvent(
+  collection: Y.Map<unknown>,
+  reviewId: string,
+  eventId: string,
+): PluginReviewEvent | null {
+  if (!stableId(reviewId) || !stableId(eventId)) return null
+  const events = eventsFor(collection, reviewId)
+  return events?.find((event) => event.eventId === eventId) ?? null
 }
 
 export function listPluginReviews(collection: Y.Map<unknown>): CollaborativePluginReview[] {

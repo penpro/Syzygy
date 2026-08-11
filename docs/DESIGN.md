@@ -535,8 +535,11 @@ Never imply that contract certification, a structural match, or successful execu
 publisher trust, semantic safety, or useful research quality. Returned proposal bodies enter
 **Shared plugin review** with plugin/version/component/contribution/runner provenance. Collaborators
 may record accept/reject decisions; stale revisions and disconnected conflicting decisions remain
-visible. Copy must say that a decision does not apply, append, or replace policy text. Persistent
-install/update/signing, capability-bearing worlds, and any Apply action remain unavailable.
+visible. After commit, the product reports whether each local proposal/decision received exact-body
+registered-device attribution or remains explicitly unsigned, and must state that a device key does
+not authenticate a person. Copy must say that a decision does not apply, append, or replace policy
+text. Persistent package install/update/publisher signing, capability-bearing worlds, and any Apply
+action remain unavailable.
 
 ## Network-boundary copy
 

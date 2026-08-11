@@ -665,11 +665,16 @@ provider call, Drive call, or mutation implementation.
 `pluginExecution.ts` recomputes the exact component digest at execution, serializes runs, activates
 only the baseline project grant subset, and converts native output into authority-broker receipts.
 `pluginReviewModel.ts` then appends one preflighted batch of immutable proposal events to the shared
-Yjs discussions map. Accept/reject decisions converge and expose conflicts; neither the model nor
-the current product/MCP surface has an apply route. `PluginWorkspace.tsx` is the explicit loader,
+Yjs discussions map. Accept/reject decisions converge and expose conflicts. After each proposal or
+decision commits, `researchEventAttribution.ts` hashes its exact retained body and best-effort signs
+it with the participant's unconflicted registered installation key. Signing failure is retained as
+explicit unsigned attribution and never rolls back the review event. Neither the model nor the
+current product/MCP surface has an apply route. `PluginWorkspace.tsx` is the explicit loader,
 runner, authority disclosure, and full-content review surface. MCP may inspect content-minimized
 package/review metadata and run one already-user-loaded contribution against exact document and
-research revisions; it cannot load component bytes, decide a review, or mutate draft text.
+research revisions; run results report signed-device or unsigned proposal attribution. MCP cannot
+load component bytes, decide a review, or mutate draft text. The general research-state inspector
+revalidates shared plugin-review proofs without returning proposal, decision, or signature bodies.
 
 The first plugin WIT world is a separate public contract with zero imports. It accepts only a
 bounded typed invocation and exports only no-change or proposal output; TypeScript validates the

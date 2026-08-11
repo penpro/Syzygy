@@ -300,6 +300,7 @@ export type ProjectResearchEventKind =
   | 'suggestion'
   | 'policy-version'
   | 'adversarial-review'
+  | 'plugin-review'
   | 'heuristic'
   | 'scenario-rerun'
 

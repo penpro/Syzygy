@@ -8,6 +8,11 @@ import {
   type AdversarialReviewArchive,
   type AdversarialReviewDecisionEvent,
 } from '../extensions/adversarialHistory'
+import {
+  pluginReviewEventSha256,
+  readPluginReviewEvent,
+  type PluginReviewEvent,
+} from '../extensions/pluginReviewModel'
 import { getProjectSharedTypes } from './projectModel'
 import {
   createProjectResearchEventAttestation,
@@ -194,6 +199,10 @@ export function adversarialReviewDecisionAttestationEventId(
 
 export function suggestionAttestationEventId(event: SuggestionEvent): string {
   return `${event.suggestionId.length}:${event.suggestionId}${event.eventId}`
+}
+
+export function pluginReviewAttestationEventId(event: PluginReviewEvent): string {
+  return `${event.reviewId.length}:${event.reviewId}${event.eventId}`
 }
 
 export function heuristicEditAttestationEventId(heuristicId: string, edit: HeuristicEdit): string {
@@ -404,6 +413,7 @@ export function researchEventAttestationResolver(
     if (eventKind !== 'scenario' && eventKind !== 'scenario-vote' && eventKind !== 'scenario-annotation' &&
       eventKind !== 'scenario-label' && eventKind !== 'policy-version' &&
       eventKind !== 'scenario-turn' && eventKind !== 'adversarial-review' &&
+      eventKind !== 'plugin-review' &&
       eventKind !== 'suggestion' && eventKind !== 'heuristic' && eventKind !== 'scenario-rerun') return null
     const cacheKey = `${eventKind}:${attestationEventId}`
     const cached = cache.get(cacheKey)
@@ -469,6 +479,15 @@ export function researchEventAttestationResolver(
         return event ? {
           eventSha256: await suggestionEventSha256(event),
           participantId: event.kind === 'proposal' ? event.authorId : event.reviewerId,
+        } : null
+      }
+      if (eventKind === 'plugin-review') {
+        const identity = parseScenarioAttestationEventId(attestationEventId)
+        if (!identity) return null
+        const event = readPluginReviewEvent(discussions, identity.scenarioId, identity.eventId)
+        return event ? {
+          eventSha256: await pluginReviewEventSha256(event),
+          participantId: event.kind === 'proposal' ? event.runnerId : event.reviewerId,
         } : null
       }
       if (eventKind === 'adversarial-review') {
@@ -558,7 +577,7 @@ async function attestResearchEvent(
   document: Y.Doc,
   projectId: string,
   eventKind: 'scenario' | 'scenario-vote' | 'scenario-annotation' | 'scenario-label' |
-    'policy-version' | 'scenario-turn' | 'adversarial-review' | 'suggestion' | 'heuristic' | 'scenario-rerun',
+    'policy-version' | 'scenario-turn' | 'adversarial-review' | 'plugin-review' | 'suggestion' | 'heuristic' | 'scenario-rerun',
   eventId: string,
   participantId: string,
   eventHash: () => Promise<string>,
@@ -692,6 +711,24 @@ export async function attestSuggestionEvent(
     suggestionAttestationEventId(event),
     event.kind === 'proposal' ? event.authorId : event.reviewerId,
     () => suggestionEventSha256(event),
+    dependencies,
+  )
+}
+
+/** Best-effort device attribution after an immutable plugin proposal or decision commits. */
+export async function attestPluginReviewEvent(
+  document: Y.Doc,
+  projectId: string,
+  event: PluginReviewEvent,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<ResearchEventAttributionResult> {
+  return attestResearchEvent(
+    document,
+    projectId,
+    'plugin-review',
+    pluginReviewAttestationEventId(event),
+    event.kind === 'proposal' ? event.runnerId : event.reviewerId,
+    () => pluginReviewEventSha256(event),
     dependencies,
   )
 }

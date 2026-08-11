@@ -4,11 +4,11 @@ import { applyProviderStreamEvent, initialProviderStreamState } from '../provide
 import { providerUsesNativeStreaming, RemoteResearchReviewResult } from './RemoteResearchReview'
 
 describe('remote research streaming result', () => {
-  it('routes OpenAI, Anthropic, and Gemini through the native streaming channel only', () => {
+  it('routes every built-in remote provider through the native streaming channel', () => {
     expect(providerUsesNativeStreaming('openai')).toBe(true)
     expect(providerUsesNativeStreaming('anthropic')).toBe(true)
     expect(providerUsesNativeStreaming('gemini')).toBe(true)
-    expect(providerUsesNativeStreaming('xai')).toBe(false)
+    expect(providerUsesNativeStreaming('xai')).toBe(true)
   })
 
   it('renders incremental text as a transient review without implying a shared-draft mutation', () => {

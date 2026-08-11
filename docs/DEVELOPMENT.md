@@ -564,11 +564,14 @@ through the product accumulator and excludes secret, prompt, category, and thoug
 serialized outcomes. Tool assembly/execution, thought-signature continuation, a live credential,
 and packaged native-dialog interaction remain open.
 
-The xAI Responses one-shot boundary uses the Responses shape without assuming OpenAI's privacy
-semantics. The fake server checks bearer auth, `store:false`, no previous-response/cache identifier,
-bounded normalization, timeout/cancellation, and a mandatory boolean `x-zero-data-retention`
-response header. The result preserves that ZDR attestation for later disclosure. xAI streaming,
-tools/reasoning continuation, streamed product delivery, and live proof remain open.
+The xAI Responses one-shot and SSE boundaries use the Responses shape without assuming OpenAI's
+privacy semantics. Fake servers check bearer auth, `store:false`, no previous-response/cache
+identifier, bounded normalization, timeout/cancellation, `stream:true` plus event-stream media
+negotiation, and a mandatory boolean `x-zero-data-retention` response header. The stream rejects a
+missing or non-boolean header before dispatching any event and preserves the attestation in the
+authoritative content-free run record. Unsupported tool-argument events become body-free warning
+types. Tool assembly/execution, encrypted reasoning continuation, WebSocket mode, live policy/rate/
+cost behavior, packaged native-dialog interaction, and live proof remain open.
 
 `npm run test:provider-runtime` proves the next internal boundary: a typed task retrieves a key
 from an injected vault, executes through the existing provider transport, normalizes the result,
@@ -630,9 +633,10 @@ cannot overspend per-route or total ceilings, call IDs cannot be reused across r
 run/source/route identity consumes nothing, and expired capability is removed. Reservation has no
 public command, credential read, network access, or prompt/content binding.
 
-`npm run test:provider-streams` separately feeds the OpenAI, Anthropic, and Gemini decoders fragmented,
-multiline, unknown, malformed, mismatched, oversized, and truncated SSE fixtures. It proves parser
-normalization, indexed Gemini step validation, and private-body omission in isolation. `test:providers` separately proves each
+`npm run test:provider-streams` separately feeds the OpenAI, Anthropic, Gemini, and xAI decoders
+fragmented, multiline, unknown, malformed, mismatched, oversized, and truncated SSE fixtures. It
+proves parser normalization, provider identity, indexed Gemini step validation, and private-body
+omission in isolation. `test:providers` separately proves each
 parser is fed through fake HTTP streaming and that the same controls wrap both one-shot and streamed
 transport.
 

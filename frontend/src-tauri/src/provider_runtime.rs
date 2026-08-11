@@ -2,18 +2,18 @@
 //!
 //! This is intentionally narrower than the transport module: built-in endpoints only, one default
 //! OS-vault credential per provider, explicit disclosure approval, one-shot execution plus scoped
-//! OpenAI, Anthropic, and Gemini event channels, caller cancellation, sanitized output, and a content-free
-//! provenance record authored in Rust.
+//! OpenAI, Anthropic, Gemini, and xAI event channels, caller cancellation, sanitized output, and a
+//! content-free provenance record authored in Rust.
 
 use crate::credential_vault::{CredentialId, CredentialVault, OsCredentialVault};
 use crate::model_provider::{
     execute_anthropic_response_controlled, execute_anthropic_stream_controlled,
     execute_gemini_response_controlled, execute_gemini_stream_controlled,
     execute_openai_response_controlled, execute_openai_stream_controlled,
-    execute_xai_response_controlled, provider_execution, GenerationRequest, InputRole,
-    NormalizedResponse, NormalizedUsage, ProviderCancellation, ProviderError, ProviderInput,
-    RemoteProviderId, TransmissionApproval, ANTHROPIC_ADAPTER_STATUS, GEMINI_ADAPTER_STATUS,
-    OPENAI_ADAPTER_STATUS, XAI_ADAPTER_STATUS,
+    execute_xai_response_controlled, execute_xai_stream_controlled, provider_execution,
+    GenerationRequest, InputRole, NormalizedResponse, NormalizedUsage, ProviderCancellation,
+    ProviderError, ProviderInput, RemoteProviderId, TransmissionApproval, ANTHROPIC_ADAPTER_STATUS,
+    GEMINI_ADAPTER_STATUS, OPENAI_ADAPTER_STATUS, XAI_ADAPTER_STATUS,
 };
 use crate::provider_stream::NormalizedStreamEvent;
 use chrono::{SecondsFormat, Utc};
@@ -257,7 +257,7 @@ fn profile(provider: RemoteProviderId) -> ProviderProfile {
             transport: "xai-responses",
             adapter_status: XAI_ADAPTER_STATUS,
             policy_url: "https://docs.x.ai/developers/faq/security",
-            policy_checked_at: "2026-07-15T00:00:00.000Z",
+            policy_checked_at: "2026-08-11T00:00:00.000Z",
             storage_request: "disabled",
             zero_retention: "requested",
         },
@@ -1412,6 +1412,7 @@ fn stream_run_record(
     started_at: &str,
     completed_at: &str,
     response: Option<&NormalizedResponse>,
+    zero_data_retention: Option<bool>,
     error: Option<&ProviderError>,
 ) -> Value {
     let mut record = run_record(
@@ -1421,7 +1422,7 @@ fn stream_run_record(
         started_at,
         completed_at,
         response,
-        None,
+        zero_data_retention,
         error,
     );
     record["request"]["stream"] = Value::Bool(true);
@@ -1443,15 +1444,6 @@ where
     F: FnMut(NormalizedStreamEvent) -> Result<(), ProviderError>,
 {
     validate_task(&request)?;
-    if !matches!(
-        request.provider,
-        RemoteProviderId::OpenAi | RemoteProviderId::Anthropic | RemoteProviderId::Gemini
-    ) {
-        return Err(
-            "Native streaming is currently available only for OpenAI, Anthropic, and Gemini"
-                .to_owned(),
-        );
-    }
     let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     if !disclosure_accepted {
         let error = ProviderError::DisclosureRequired;
@@ -1463,6 +1455,7 @@ where
                 false,
                 &started_at,
                 &completed_at,
+                None,
                 None,
                 Some(&error),
             ),
@@ -1495,60 +1488,74 @@ where
     };
     let mut accumulator = ProviderStreamAccumulator::default();
     let result = match request.provider {
-        RemoteProviderId::OpenAi => {
-            execute_openai_stream_controlled(
-                client,
-                &endpoint,
-                &secret,
-                &request.generation,
-                &approval,
-                execution,
-                |event| {
-                    accumulator.apply(&event)?;
-                    on_event(event)
-                },
-            )
-            .await
-        }
-        RemoteProviderId::Anthropic => {
-            execute_anthropic_stream_controlled(
-                client,
-                &endpoint,
-                &secret,
-                &request.generation,
-                &approval,
-                execution,
-                |event| {
-                    accumulator.apply(&event)?;
-                    on_event(event)
-                },
-            )
-            .await
-        }
-        RemoteProviderId::Gemini => {
-            execute_gemini_stream_controlled(
-                client,
-                &endpoint,
-                &secret,
-                &request.generation,
-                &approval,
-                execution,
-                |event| {
-                    accumulator.apply(&event)?;
-                    on_event(event)
-                },
-            )
-            .await
-        }
-        RemoteProviderId::Xai => Err(ProviderError::InvalidRequest),
+        RemoteProviderId::OpenAi => execute_openai_stream_controlled(
+            client,
+            &endpoint,
+            &secret,
+            &request.generation,
+            &approval,
+            execution,
+            |event| {
+                accumulator.apply(&event)?;
+                on_event(event)
+            },
+        )
+        .await
+        .map(|()| None),
+        RemoteProviderId::Anthropic => execute_anthropic_stream_controlled(
+            client,
+            &endpoint,
+            &secret,
+            &request.generation,
+            &approval,
+            execution,
+            |event| {
+                accumulator.apply(&event)?;
+                on_event(event)
+            },
+        )
+        .await
+        .map(|()| None),
+        RemoteProviderId::Gemini => execute_gemini_stream_controlled(
+            client,
+            &endpoint,
+            &secret,
+            &request.generation,
+            &approval,
+            execution,
+            |event| {
+                accumulator.apply(&event)?;
+                on_event(event)
+            },
+        )
+        .await
+        .map(|()| None),
+        RemoteProviderId::Xai => execute_xai_stream_controlled(
+            client,
+            &endpoint,
+            &secret,
+            &request.generation,
+            &approval,
+            execution,
+            |event| {
+                accumulator.apply(&event)?;
+                on_event(event)
+            },
+        )
+        .await
+        .map(Some),
     }
-    .and_then(|()| accumulator.into_response(&request));
+    .and_then(|zero_data_retention| {
+        accumulator
+            .into_response(&request)
+            .map(|response| (response, zero_data_retention))
+    });
     if let Ok(mut calls) = state.calls.lock() {
         calls.remove(&request.call_id);
     }
     let completed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     match result {
-        Ok(response) => Ok(ProviderTaskOutcome {
+        Ok((response, zero_data_retention)) => Ok(ProviderTaskOutcome {
             run_record: stream_run_record(
                 &request,
                 &endpoint,
@@ -1556,10 +1563,11 @@ where
                 &started_at,
                 &completed_at,
                 Some(&response),
+                zero_data_retention,
                 None,
             ),
             response: Some(response),
-            zero_data_retention: None,
+            zero_data_retention,
             error_code: None,
         }),
         Err(error) => Ok(ProviderTaskOutcome {
@@ -1569,6 +1577,7 @@ where
                 true,
                 &started_at,
                 &completed_at,
+                None,
                 None,
                 Some(&error),
             ),
@@ -1751,15 +1760,6 @@ pub async fn provider_generate_stream(
     request: ProviderResearchTaskRequest,
     on_event: tauri::ipc::Channel<NormalizedStreamEvent>,
 ) -> Result<ProviderTaskOutcome, String> {
-    if !matches!(
-        request.provider,
-        RemoteProviderId::OpenAi | RemoteProviderId::Anthropic | RemoteProviderId::Gemini
-    ) {
-        return Err(
-            "Native streaming is currently available only for OpenAI, Anthropic, and Gemini"
-                .to_owned(),
-        );
-    }
     let endpoint = Url::parse(profile(request.provider).endpoint)
         .map_err(|_| "Built-in provider endpoint is invalid".to_owned())?;
     let request = build_research_task(request)?;
@@ -2538,6 +2538,97 @@ mod tests {
         let serialized = serde_json::to_string(&outcome).unwrap();
         assert!(!serialized.contains("runtime-gemini-stream-secret-canary"));
         assert!(!serialized.contains("runtime-private-gemini-thought-canary"));
+        assert!(!serialized.contains("fixture question"));
+        assert!(!serialized.contains("selected research excerpts"));
+        assert!(state.calls.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn runtime_streams_xai_preserves_zdr_and_omits_tool_secrets_and_research() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener");
+        let endpoint = Url::parse(&format!(
+            "http://{}/v1/responses",
+            listener.local_addr().unwrap()
+        ))
+        .unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = vec![0_u8; 16 * 1024];
+            let read = stream.read(&mut request).unwrap();
+            let request = String::from_utf8_lossy(&request[..read]);
+            let lower = request.to_ascii_lowercase();
+            assert!(lower.contains("authorization: bearer runtime-xai-stream-secret-canary"));
+            assert!(lower.contains("accept: text/event-stream"));
+            assert!(request.contains("\"stream\":true"));
+            assert!(request.contains("\"store\":false"));
+            assert!(!request.contains("previous_response_id"));
+            assert!(!request.contains("prompt_cache_key"));
+            let body = concat!(
+                "data: {\"type\":\"response.created\",\"response\":{\"id\":\"runtime-xai-response\"}}\n\n",
+                "data: {\"type\":\"response.function_call_arguments.delta\",\"delta\":\"runtime-private-xai-tool-canary\"}\n\n",
+                "data: {\"type\":\"response.output_text.delta\",\"delta\":\"bounded xAI answer\"}\n\n",
+                "data: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\",\"usage\":{\"input_tokens\":7,\"output_tokens\":4,\"total_tokens\":11}}}\n\n",
+                "data: [DONE]\n\n"
+            );
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nX-Zero-Data-Retention: true\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+            .unwrap();
+        });
+        let vault = MemoryVault::default();
+        let id = CredentialId::new(RemoteProviderId::Xai, DEFAULT_PROFILE.to_owned()).unwrap();
+        vault
+            .set(
+                &id,
+                &ProviderSecret::new("runtime-xai-stream-secret-canary".to_owned()).unwrap(),
+            )
+            .unwrap();
+        let mut request = task();
+        request.provider = RemoteProviderId::Xai;
+        request.generation.model = "grok-fixture".to_owned();
+        let mut events = Vec::new();
+        let state = ProviderRuntimeState::default();
+        let outcome = tauri::async_runtime::block_on(execute_stream_with(
+            &vault,
+            &state,
+            &Client::new(),
+            endpoint,
+            request,
+            true,
+            |event| {
+                events.push(event);
+                Ok(())
+            },
+        ))
+        .expect("xAI stream runtime outcome");
+        server.join().unwrap();
+        let response = outcome.response.as_ref().expect("normalized response");
+        assert_eq!(response.provider, RemoteProviderId::Xai);
+        assert_eq!(response.text, "bounded xAI answer");
+        assert_eq!(response.status, "completed");
+        assert_eq!(response.usage.as_ref().unwrap().total_tokens, 11);
+        assert_eq!(
+            response.unknown_output_types,
+            ["response.function_call_arguments.delta".to_owned()]
+        );
+        assert_eq!(outcome.zero_data_retention, Some(true));
+        assert_eq!(outcome.run_record["request"]["stream"], true);
+        assert_eq!(outcome.run_record["provider"]["id"], "xai");
+        assert_eq!(
+            outcome.run_record["dataHandling"]["zeroRetention"],
+            "attested"
+        );
+        assert_eq!(
+            outcome.run_record["dataHandling"]["attestation"]["value"],
+            true
+        );
+        assert_eq!(events.len(), 6);
+        let serialized = serde_json::to_string(&outcome).unwrap();
+        assert!(!serialized.contains("runtime-xai-stream-secret-canary"));
+        assert!(!serialized.contains("runtime-private-xai-tool-canary"));
         assert!(!serialized.contains("fixture question"));
         assert!(!serialized.contains("selected research excerpts"));
         assert!(state.calls.lock().unwrap().is_empty());

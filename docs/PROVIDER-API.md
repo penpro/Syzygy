@@ -1,9 +1,8 @@
 # Model provider API
 
 **Contract version:** 1. **Runtime status:** local inference remains available; OpenAI Responses,
-Anthropic Messages, and Gemini Interactions request and stream controls are at
-`request-and-stream-control-conformance`; xAI Responses one-shot requests are at
-`request-control-conformance`. Ordinary remote review and content-bound adversarial execution
+Anthropic Messages, Gemini Interactions, and xAI Responses request and stream controls are at
+`request-and-stream-control-conformance`. Ordinary remote review and content-bound adversarial execution
 use registered Rust commands, OS-vault credentials, fixed built-in endpoints, native disclosure,
 bounded timeout/cancellation, normalized results, and content-free run records. Tests use
 loopback providers only; no live-provider compatibility or quality claim is made. Custom remote
@@ -119,10 +118,10 @@ events, distinguishes sanitized provider failure, and cancels between events. Th
 runtime now routes that stream through one ordered per-call Tauri channel, accumulates the same
 bounded normalized response in Rust, removes the cancellation registration on every terminal path,
 and marks the authoritative content-free run record as streamed. The workspace renders OpenAI,
-Anthropic, or Gemini text, usage, and warnings incrementally as a transient review; it never applies
-the response to the shared draft automatically. xAI still uses the one-shot path. No live service
-has been contacted, and streamed tools are not handled. `syzygy_platform_contracts` reports
-aggregate status as `native-disclosure-openai-anthropic-gemini-stream-review-ui-no-live-proof`.
+Anthropic, Gemini, or xAI text, usage, and warnings incrementally as a transient review; it never
+applies the response to the shared draft automatically. No live service has been contacted, and
+streamed tools are not handled. `syzygy_platform_contracts` reports aggregate status as
+`native-disclosure-openai-anthropic-gemini-xai-stream-review-ui-no-live-proof`.
 
 The incremental OpenAI SSE decoder accepts arbitrary byte fragmentation, including split Unicode;
 joins multiline `data:` fields; ignores keepalives; validates optional SSE event labels against
@@ -176,14 +175,23 @@ redaction, timeout, and cancellation gates match the other remote slices. Tool a
 thought-signature continuation, structured output, stored state, live terms validation, packaged
 dialog interaction, and opt-in live proof remain open.
 
-The xAI slice deliberately reuses only the compatible Responses wire shape, not OpenAI privacy
-assumptions. It sends bearer auth to `/v1/responses`, forces `store:false`, and omits
-`previous_response_id`, `prompt_cache_key`, and conversation-routing headers. Every successful
-response must include xAI's boolean `x-zero-data-retention` header; the typed result exposes whether
-enterprise ZDR was actually active instead of treating `store:false` as ZDR. Output and usage use
-the provider-neutral Responses normalizer and the common disclosure, endpoint, size, redaction,
-timeout, and cancellation gates. Streaming/WebSocket mode, tools, encrypted reasoning continuity,
-cost ticks, UI, and opt-in live proof remain open.
+The xAI slice deliberately reuses only the compatible Responses event grammar, not OpenAI privacy
+assumptions. One-shot and SSE requests send bearer auth to `/v1/responses`, force `store:false`, and
+omit `previous_response_id`, `prompt_cache_key`, and conversation-routing headers. SSE additionally
+sends `stream:true` plus `Accept:text/event-stream`, shares the 32 MiB aggregate ceiling and complete
+timeout/cancellation future, and reports xAI as the normalized provider. Every successful response
+must include xAI's boolean `x-zero-data-retention` header; streaming validates it before dispatching
+the first event, and the typed outcome/content-free run record expose whether enterprise ZDR was
+actually active instead of treating `store:false` as ZDR. Text, usage, terminal status, sanitized
+errors, and `[DONE]` use the provider-neutral Responses normalizer. Unsupported tool/reasoning events
+surface only their event type as a warning; argument/reasoning bodies are omitted. xAI's primary
+streaming and security documentation was rechecked on 2026-08-11. Tool assembly/execution,
+encrypted reasoning continuation, WebSocket mode, slow-consumer/retry semantics, cost ticks,
+packaged dialog interaction, and opt-in live proof remain open.
+
+Primary xAI sources: <https://docs.x.ai/developers/model-capabilities/text/streaming>,
+<https://docs.x.ai/developers/tools/overview>, and
+<https://docs.x.ai/developers/faq/security>.
 
 The review UI defaults are editable convenience values, not capability guarantees: `gpt-5.2`,
 `claude-sonnet-5`, `gemini-3.5-flash`, and `grok-4.5`. They were checked against each provider's

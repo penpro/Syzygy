@@ -616,7 +616,8 @@ export const providerGenerate = (request: ProviderResearchTaskRequest): Promise<
 /**
  * Run one supported provider request over a scoped, ordered IPC channel. The native command owns
  * disclosure, credential access, transport validation, cancellation, and the final content-free
- * run record. OpenAI Responses, Anthropic Messages, and Gemini Interactions implement this stream contract.
+ * run record. OpenAI Responses, Anthropic Messages, Gemini Interactions, and xAI Responses implement
+ * this stream contract.
  */
 export const providerGenerateStream = (
   request: ProviderResearchTaskRequest,

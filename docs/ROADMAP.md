@@ -299,9 +299,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   output bounds, text-only retention, consistent aggregate usage, sanitized failure, timeout,
   cancellation, indexed SSE step lifecycle, and product review routing. Tool assembly/execution,
   thought-signature continuation, packaged-dialog interaction, and live proof remain open.
-- xAI Responses now has an unwired one-shot `request-control-conformance` slice. Its fake server
-  proves storage-off/no-threading request shape, bearer auth, bounded normalization, controls, and
-  mandatory boolean ZDR attestation without confusing standard retention with enterprise ZDR.
+- xAI Responses now has `request-and-stream-control-conformance`. Fake servers prove storage-off/
+  no-threading request shape, bearer auth, event-stream negotiation, bounded fragmented delivery,
+  terminal ordering, controls, product review routing, unsupported tool-body omission, and mandatory
+  boolean ZDR attestation before dispatch without confusing standard retention with enterprise ZDR.
+  Tool execution, encrypted reasoning/WebSocket continuation, packaged-dialog interaction, and live
+  policy/rate/cost proof remain open.
 - A strict public provider-run record now captures content-free call provenance, disclosure,
   destination, dated policy, storage/ZDR state, terminal outcome, usage, and cost. Its semantic
   validator and MCP embedding are implemented; the Rust task command now emits authoritative
@@ -314,9 +317,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   provenance. Generation always asks through a Rust-owned native **Send once** dialog; approval is
   absent from the request, and denial is proven to avoid both vault reads and network. The public
   request carries a structured question plus labeled source snapshots; Rust derives disclosure
-  categories and unique provenance IDs from those same bytes. OpenAI now uses a scoped ordered Tauri
-  channel, bounded Rust accumulator, shared timeout/cancellation registry, and incremental transient
-  workspace result; other providers remain one-shot. No result automatically mutates shared work.
+  categories and unique provenance IDs from those same bytes. All four built-in remote providers use
+  a scoped ordered Tauri channel, bounded Rust accumulator, shared timeout/cancellation registry, and
+  incremental transient workspace result. No result automatically mutates shared work.
   Fake-network, reducer, UI, and non-claim evidence is in
   `docs/audits/runs/REMOTE-PROVIDER-STREAMING-2026-07-20.json`; native disclosure and envelope
   evidence remain in `NATIVE-PROVIDER-DISCLOSURE-2026-07-15.json` and
@@ -544,9 +547,8 @@ collaborators are not required to download large project folders.
      evaluation panel, mono metadata stamps).
 3. **Certify the open research platform boundary** — the first OpenAI fake-server/key-canary
    request/stream/control gates, Windows credential-vault canary, native disclosure, provider
-   settings/task workflow, and scoped OpenAI/Anthropic/Gemini streaming event bridge have landed;
-   next add xAI provider-native streaming, provider tool normalization, and opt-in
-   live/provider-policy evidence.
+   settings/task workflow, and scoped OpenAI/Anthropic/Gemini/xAI streaming event bridge have landed;
+   next add provider tool normalization and opt-in live/provider-policy evidence.
    Build the adversarial benchmark before
    claiming panel quality; implement a no-authority WASI host before loading third-party code.
 4. **Harden collaboration beyond the first Drive transport** — append-only Yjs Drive sharing,

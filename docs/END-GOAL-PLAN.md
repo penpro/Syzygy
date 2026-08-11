@@ -647,11 +647,12 @@ live-provider certification separate from local conformance and report:
 Progress: OpenAI Responses one-shot request construction, bounded whole-operation timeout,
 idempotent in-flight/inter-event cancellation, and fake-network incremental SSE dispatch now pass
 unwired Rust conformance suites and are reported as `request-and-stream-control-conformance`.
-Aggregate remote execution is now `native-disclosure-openai-anthropic-gemini-stream-review-ui-no-live-proof`: the registered task bridge
+Aggregate remote execution is now `native-disclosure-openai-anthropic-gemini-xai-stream-review-ui-no-live-proof`: the registered task bridge
 retrieves an OS-vault credential, applies native one-use disclosure/timeout/cancellation controls,
-normalizes the response, and authors content-free provenance. OpenAI, Anthropic, and Gemini use an ordered per-call Tauri
+normalizes the response, and authors content-free provenance. All four built-in providers use an ordered per-call Tauri
 channel and bounded Rust/TypeScript accumulators so one workspace component can render the exact-draft
-review incrementally without mutating shared state; xAI remains one-shot.
+review incrementally without mutating shared state. xAI also binds its mandatory boolean ZDR response
+header into the typed outcome and content-free run record before any stream event is dispatched.
 Streamed tools, slow-consumer/backpressure proof, packaged adversarial UI interaction, and
 opt-in live-provider evidence remain open; the durable product workflow and shared history are implemented.
 The cross-language record gate now passes: the Rust loopback execution record is explicitly marked
@@ -665,15 +666,17 @@ Gemini Interactions stable-v1 request/stream/control conformance now passes with
 background execution, and thought summaries forced off. Its indexed SSE step path is routed through
 the exact-draft review while omitting thought/signature/tool bodies. Tool assembly/execution and
 live-provider evidence remain open, so no live compatibility claim is made.
-xAI Responses one-shot request/control conformance now passes with storage off and explicit ZDR
-response attestation; its stream/tool paths remain open, so it is not product-available.
+xAI Responses request/stream/control conformance now passes with storage off, no thread/cache
+identifier, explicit pre-dispatch ZDR response attestation, bounded Responses SSE normalization,
+unsupported tool-body omission, and exact-draft product routing. Tool execution, encrypted-reasoning/
+WebSocket continuation, and live-provider evidence remain open, so no live compatibility claim is made.
 
 Credential progress: the cross-platform OS-vault abstraction, zeroizing secret wrapper, memory
 contract tests, and an opt-in Windows Credential Manager create/read/delete/absence canary pass.
 Typed credential and generation/cancellation Tauri commands and wrappers now exist. A collapsed
 Settings surface calls status/set/delete for OpenAI, Anthropic, Gemini, and xAI and keeps keys out of
-React/store persistence. The exact-draft remote review calls one-shot generation for xAI and the
-scoped stream command for OpenAI, Anthropic, and Gemini. The
+React/store persistence. The exact-draft remote review calls the scoped stream command for OpenAI,
+Anthropic, Gemini, and xAI. The
 generation request carries no approval boolean; a
 Rust-owned native dialog creates one-use approval, and denial is headlessly proven not to read the
 vault or contact the network. macOS/Linux live canaries, transient-entry and end-to-end leak scans,

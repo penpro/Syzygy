@@ -1,22 +1,22 @@
 //! Rust-owned remote model transport and normalization boundary.
 //!
 //! The webview must never construct provider HTTP requests or receive provider credentials.
-//! Executable slices certify OpenAI Responses, Anthropic Messages, and Gemini Interactions
-//! request/stream contracts plus xAI Responses one-shot contracts against fake loopback servers. The
-//! native task command owns credentials, disclosure, cancellation, and bounded event delivery;
+//! Executable slices certify OpenAI Responses, Anthropic Messages, Gemini Interactions, and xAI
+//! Responses request/stream contracts against fake loopback servers. The native task command owns
+//! credentials, disclosure, cancellation, retention attestation, and bounded event delivery;
 //! live-provider certification remains a separate gate.
 
 #![allow(dead_code)] // Conformance-only helpers remain alongside the product task boundary.
 
 use crate::provider_stream::{
-    AnthropicSseDecoder, GeminiSseDecoder, NormalizedStreamEvent, OpenAiSseDecoder,
+    AnthropicSseDecoder, GeminiSseDecoder, NormalizedStreamEvent, OpenAiSseDecoder, XaiSseDecoder,
 };
 use futures_util::{
     future::{AbortHandle, AbortRegistration, Abortable},
     StreamExt,
 };
 use reqwest::{
-    header::{ACCEPT, CONTENT_TYPE},
+    header::{HeaderMap, ACCEPT, CONTENT_TYPE},
     Client, Url,
 };
 use serde::{Deserialize, Serialize};
@@ -27,7 +27,7 @@ use zeroize::Zeroize;
 pub const OPENAI_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
 pub const ANTHROPIC_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
 pub const GEMINI_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
-pub const XAI_ADAPTER_STATUS: &str = "request-control-conformance";
+pub const XAI_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
 pub const DEFAULT_PROVIDER_TIMEOUT: Duration = Duration::from_secs(60);
 const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_STREAM_BYTES: usize = 32 * 1024 * 1024;
@@ -272,6 +272,17 @@ fn checked_stream_total(received_bytes: usize, chunk_bytes: usize) -> Result<usi
         .checked_add(chunk_bytes)
         .filter(|total| *total <= MAX_STREAM_BYTES)
         .ok_or(ProviderError::ResponseTooLarge)
+}
+
+fn xai_zero_data_retention(headers: &HeaderMap) -> Result<bool, ProviderError> {
+    match headers
+        .get("x-zero-data-retention")
+        .and_then(|value| value.to_str().ok())
+    {
+        Some("true") => Ok(true),
+        Some("false") => Ok(false),
+        _ => Err(ProviderError::MalformedResponse),
+    }
 }
 
 #[derive(Default)]
@@ -1038,21 +1049,74 @@ pub async fn execute_xai_response_controlled(
         if !response.status().is_success() {
             return Err(ProviderError::HttpStatus(response.status().as_u16()));
         }
-        let zero_data_retention = match response
-            .headers()
-            .get("x-zero-data-retention")
-            .and_then(|value| value.to_str().ok())
-        {
-            Some("true") => true,
-            Some("false") => false,
-            _ => return Err(ProviderError::MalformedResponse),
-        };
+        let zero_data_retention = xai_zero_data_retention(response.headers())?;
         let body = bounded_body(response).await?;
         let value = serde_json::from_slice(&body).map_err(|_| ProviderError::MalformedResponse)?;
         Ok(XaiNormalizedResponse {
             response: normalize_responses_api(value, RemoteProviderId::Xai)?,
             zero_data_retention,
         })
+    };
+    Abortable::new(operation, execution.cancellation)
+        .await
+        .map_err(|_| ProviderError::Cancelled)?
+}
+
+pub async fn execute_xai_stream_controlled<F>(
+    client: &Client,
+    endpoint: &Url,
+    secret: &ProviderSecret,
+    request: &GenerationRequest,
+    approval: &TransmissionApproval,
+    execution: ProviderExecution,
+    mut on_event: F,
+) -> Result<bool, ProviderError>
+where
+    F: FnMut(NormalizedStreamEvent) -> Result<(), ProviderError>,
+{
+    validate_endpoint(endpoint, "/v1/responses")?;
+    request.validate()?;
+    approval.validate_for(RemoteProviderId::Xai)?;
+    let operation = async {
+        let response = client
+            .post(endpoint.clone())
+            .timeout(execution.timeout)
+            .bearer_auth(secret.expose())
+            .header("content-type", "application/json")
+            .header(ACCEPT, "text/event-stream")
+            .json(&openai_body(request, true))
+            .send()
+            .await
+            .map_err(|error| classify_transport_error(&error))?;
+        if !response.status().is_success() {
+            return Err(ProviderError::HttpStatus(response.status().as_u16()));
+        }
+        let zero_data_retention = xai_zero_data_retention(response.headers())?;
+        let is_event_stream = response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.split(';').next())
+            .is_some_and(|value| value.trim().eq_ignore_ascii_case("text/event-stream"));
+        if !is_event_stream {
+            return Err(ProviderError::MalformedResponse);
+        }
+
+        let mut decoder = XaiSseDecoder::new();
+        let mut stream = response.bytes_stream();
+        let mut received_bytes = 0_usize;
+        let mut sequence = StreamSequence::default();
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|error| classify_transport_error(&error))?;
+            received_bytes = checked_stream_total(received_bytes, chunk.len())?;
+            for event in decoder.push(&chunk)? {
+                sequence.observe(&event)?;
+                on_event(event)?;
+            }
+        }
+        decoder.finish()?;
+        sequence.finish()?;
+        Ok(zero_data_retention)
     };
     Abortable::new(operation, execution.cancellation)
         .await
@@ -1286,6 +1350,47 @@ mod tests {
         });
         (
             Url::parse(&format!("http://{address}/v1/responses")).expect("xAI fake URL"),
+            receiver,
+        )
+    }
+
+    fn fake_xai_stream_server(
+        zdr_header: Option<&str>,
+        content_type: &str,
+        chunks: Vec<(Duration, Vec<u8>)>,
+    ) -> (Url, mpsc::Receiver<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback xAI stream");
+        let address = listener.local_addr().expect("xAI stream address");
+        let (sender, receiver) = mpsc::channel();
+        let content_type = content_type.to_owned();
+        let zdr_header = zdr_header.map(str::to_owned);
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept xAI stream request");
+            sender
+                .send(read_http_request(&mut stream))
+                .expect("send captured xAI stream request");
+            let content_length = chunks.iter().map(|(_, chunk)| chunk.len()).sum::<usize>();
+            let zdr = zdr_header
+                .map(|value| format!("X-Zero-Data-Retention: {value}\r\n"))
+                .unwrap_or_default();
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\n{zdr}Content-Length: {content_length}\r\nConnection: close\r\n\r\n"
+            )
+            .expect("write xAI stream response headers");
+            stream.flush().expect("flush xAI stream response headers");
+            for (delay, chunk) in chunks {
+                thread::sleep(delay);
+                if stream.write_all(&chunk).is_err() {
+                    break;
+                }
+                if stream.flush().is_err() {
+                    break;
+                }
+            }
+        });
+        (
+            Url::parse(&format!("http://{address}/v1/responses")).expect("xAI stream URL"),
             receiver,
         )
     }
@@ -2346,6 +2451,125 @@ mod tests {
         assert_eq!(body["stream"], false);
         assert!(body.get("previous_response_id").is_none());
         assert!(body.get("prompt_cache_key").is_none());
+    }
+
+    #[test]
+    fn xai_fake_stream_proves_zdr_attestation_wire_lifecycle_and_private_body_omission() {
+        let tool_canary = "xai-private-tool-arguments-canary";
+        let fixture = format!(
+            concat!(
+                "data: {{\"type\":\"response.created\",\"response\":{{\"id\":\"resp_xai_stream\"}}}}\n\n",
+                "data: {{\"type\":\"response.function_call_arguments.delta\",\"delta\":\"{tool_canary}\"}}\n\n",
+                "data: {{\"type\":\"response.output_text.delta\",\"delta\":\"Supported finding.\"}}\n\n",
+                "data: {{\"type\":\"response.completed\",\"response\":{{\"status\":\"completed\",",
+                "\"usage\":{{\"input_tokens\":10,\"output_tokens\":3,\"total_tokens\":13}}}}}}\n\n",
+                "data: [DONE]\n\n"
+            ),
+            tool_canary = tool_canary
+        )
+        .into_bytes();
+        let split = fixture.len() / 2;
+        let (endpoint, captured) = fake_xai_stream_server(
+            Some("true"),
+            "text/event-stream; charset=utf-8",
+            vec![
+                (Duration::ZERO, fixture[..split].to_vec()),
+                (Duration::from_millis(5), fixture[split..].to_vec()),
+            ],
+        );
+        let (execution, _cancellation) =
+            provider_execution(Duration::from_secs(2)).expect("execution controls");
+        let secret_canary = "xai-stream-secret-canary";
+        let mut events = Vec::new();
+        let zero_data_retention = tauri::async_runtime::block_on(execute_xai_stream_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new(secret_canary.to_owned()).expect("secret"),
+            &request(),
+            &xai_approval(),
+            execution,
+            |event| {
+                events.push(event);
+                Ok(())
+            },
+        ))
+        .expect("normalized xAI stream");
+        assert!(zero_data_retention);
+        assert_eq!(
+            events,
+            vec![
+                NormalizedStreamEvent::MessageStart {
+                    provider: RemoteProviderId::Xai,
+                    response_id: "resp_xai_stream".to_owned(),
+                },
+                NormalizedStreamEvent::ProviderWarning {
+                    event_type: "response.function_call_arguments.delta".to_owned(),
+                },
+                NormalizedStreamEvent::TextDelta {
+                    text: "Supported finding.".to_owned(),
+                },
+                NormalizedStreamEvent::Usage {
+                    usage: NormalizedUsage {
+                        input_tokens: 10,
+                        output_tokens: 3,
+                        total_tokens: 13,
+                    },
+                },
+                NormalizedStreamEvent::Finish {
+                    status: "completed".to_owned(),
+                },
+                NormalizedStreamEvent::StreamEnd,
+            ]
+        );
+        let rendered = format!("{events:?}");
+        assert!(!rendered.contains(tool_canary));
+        assert!(!rendered.contains(secret_canary));
+
+        let raw = captured.recv().expect("captured xAI stream request");
+        let (headers, body) = raw.split_once("\r\n\r\n").expect("xAI stream HTTP request");
+        let headers = headers.to_ascii_lowercase();
+        assert!(headers.contains("authorization: bearer xai-stream-secret-canary"));
+        assert!(headers.contains("accept: text/event-stream"));
+        let body: Value = serde_json::from_str(body).expect("xAI stream request JSON");
+        assert_eq!(body["stream"], true);
+        assert_eq!(body["store"], false);
+        assert!(body.get("previous_response_id").is_none());
+        assert!(body.get("prompt_cache_key").is_none());
+    }
+
+    #[test]
+    fn xai_stream_requires_boolean_zdr_header_before_event_dispatch() {
+        let fixture = concat!(
+            "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_xai\"}}\n\n",
+            "data: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\"}}\n\n",
+            "data: [DONE]\n\n"
+        )
+        .as_bytes()
+        .to_vec();
+        for header in [None, Some("unknown")] {
+            let (endpoint, _captured) = fake_xai_stream_server(
+                header,
+                "text/event-stream",
+                vec![(Duration::ZERO, fixture.clone())],
+            );
+            let (execution, _cancellation) =
+                provider_execution(Duration::from_secs(2)).expect("execution controls");
+            let mut events = Vec::new();
+            let result = tauri::async_runtime::block_on(execute_xai_stream_controlled(
+                &Client::new(),
+                &endpoint,
+                &ProviderSecret::new("fixture-key".to_owned()).expect("secret"),
+                &request(),
+                &xai_approval(),
+                execution,
+                |event| {
+                    events.push(event);
+                    Ok(())
+                },
+            ));
+            assert_eq!(result, Err(ProviderError::MalformedResponse));
+            assert!(events.is_empty());
+        }
     }
 
     #[test]

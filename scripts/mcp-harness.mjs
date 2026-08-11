@@ -169,7 +169,7 @@ async function proveStdioContract() {
   if (contracts?.implementationStatus?.providerBatchReservation !== 'native-atomic-dependency-bound-executor') throw new Error('provider batch reservation status is inaccurate')
   if (contracts?.implementationStatus?.adversarialRunner !== 'native-multi-provider-executor-resumable-mcp-pending-human-review') throw new Error('adversarial runner status is inaccurate')
   if (contracts?.providerRunRecordSchema?.properties?.executionMode?.enum?.includes('loopback-conformance') !== true) throw new Error('provider run schema omits honest conformance mode')
-  if (contracts?.implementationStatus?.remoteProviderAdapters !== 'native-disclosure-openai-anthropic-gemini-stream-review-ui-no-live-proof') throw new Error('aggregate provider status is inaccurate')
+  if (contracts?.implementationStatus?.remoteProviderAdapters !== 'native-disclosure-openai-anthropic-gemini-xai-stream-review-ui-no-live-proof') throw new Error('aggregate provider status is inaccurate')
   if (contracts?.implementationStatus?.credentialVault !== 'settings-vault-ui') throw new Error('credential vault status is inaccurate')
 
   return {

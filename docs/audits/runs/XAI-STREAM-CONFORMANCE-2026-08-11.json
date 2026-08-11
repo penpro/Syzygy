@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "runId": "XAI-STREAM-CONFORMANCE-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "d80c25d",
+  "capabilities": ["P-25"],
+  "status": "implemented_unverified",
+  "claim": "xAI Responses has a bounded native SSE request/decoder/runtime path that requires provider ZDR attestation before event dispatch and the exact-draft remote-review product selects it without retaining credential, research, tool-argument, or provider-error bodies in normalized events and run records.",
+  "primarySources": [
+    "https://docs.x.ai/developers/model-capabilities/text/streaming",
+    "https://docs.x.ai/developers/tools/overview",
+    "https://docs.x.ai/developers/faq/security",
+    "https://docs.x.ai/developers/rest-api-reference/inference/chat"
+  ],
+  "commands": [
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend/src-tauri/Cargo.toml model_provider::tests::",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend/src-tauri/Cargo.toml provider_stream::tests::",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend/src-tauri/Cargo.toml provider_runtime::tests::",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend test -- --run src/workspace/RemoteResearchReview.ui.test.tsx",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend/src-tauri/Cargo.toml --locked",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/audit.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/mcp-harness.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend run check:supervised"
+  ],
+  "result": {
+    "focusedXaiNetworkStreamTestsPassed": 2,
+    "focusedXaiRuntimeStreamTestPassed": true,
+    "focusedRemoteReviewUiTestsPassed": 2,
+    "modelProviderTestsPassed": 32,
+    "providerStreamTestsPassed": 10,
+    "providerRuntimeTestsPassed": 18,
+    "fullRustTestsPassed": 119,
+    "fullFrontendTestFilesPassed": 109,
+    "fullFrontendTestFilesSkipped": 1,
+    "fullFrontendTestsPassed": 456,
+    "fullFrontendTestsSkipped": 1,
+    "frontendProductionBuildPassed": true,
+    "structuralAuditPassed": true,
+    "compiledMcpToolCount": 38,
+    "compiledMcpHarnessPassed": true,
+    "fullSupervisedValidationPassed": true,
+    "supervisedRunId": "20260811-071626-597a87",
+    "loopbackFakeNetworkUsed": true,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "paidProviderCalls": 0
+  },
+  "proved": [
+    "The Rust-owned request targets exactly /v1/responses, uses bearer authentication, sends stream:true plus Accept:text/event-stream, forces store:false, and omits previous_response_id and prompt_cache_key.",
+    "The transport requires text/event-stream, enforces the shared 32 MiB aggregate ceiling, and remains inside the existing absolute request timeout and caller cancellation future.",
+    "A successful xAI response must carry x-zero-data-retention with the exact boolean text true or false; missing or malformed attestation fails before any event callback runs.",
+    "The incremental Responses decoder reports xAI provider identity and normalizes response.created, text deltas, final usage/status, sanitized errors/warnings, and [DONE].",
+    "Unsupported function/tool and reasoning event bodies are represented only by content-free event-type warnings; argument, secret, error-message, and research canaries never enter normalized events or the content-free run record.",
+    "The native task runtime accumulates a bounded xAI response, removes the cancellation registration, marks the record as streamed, and preserves true/false ZDR response-header attestation in the typed outcome and authoritative record.",
+    "The workspace remote-review routing selects native streaming for every built-in remote provider and never applies the returned review to the shared draft automatically."
+  ],
+  "notProved": [
+    "A live xAI credential, endpoint response, model ID, rate limit, billing behavior, or provider-policy behavior.",
+    "Function/tool argument assembly, schema validation, execution, server-side tool behavior, or citation normalization.",
+    "Encrypted reasoning continuity, previous-response chaining, stateful storage, or WebSocket mode.",
+    "Retry, reconnect, duplicate-event, slow-consumer, or backpressure behavior.",
+    "Packaged native Send once dialog interaction or a shipped updater artifact containing this checkpoint.",
+    "Any model-quality, truth, consensus, or superiority property."
+  ]
+}

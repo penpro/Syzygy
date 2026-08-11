@@ -1,8 +1,8 @@
 //! Incremental normalization for provider server-sent event streams.
 //!
-//! Input can be split at any byte boundary. Unknown future OpenAI, Anthropic, or Gemini event types are
-//! surfaced as warnings instead of crashing or disappearing; malformed JSON, mismatched SSE event
-//! labels, unbounded frames, and incomplete terminal sequences fail closed.
+//! Input can be split at any byte boundary. Unknown future OpenAI, Anthropic, Gemini, or xAI event
+//! types are surfaced as warnings instead of crashing or disappearing; malformed JSON, mismatched
+//! SSE event labels, unbounded frames, and incomplete terminal sequences fail closed.
 
 use crate::model_provider::{normalized_usage, NormalizedUsage, ProviderError, RemoteProviderId};
 use serde::{Deserialize, Serialize};
@@ -47,6 +47,11 @@ pub struct OpenAiSseDecoder {
 }
 
 #[derive(Default)]
+pub struct XaiSseDecoder {
+    frames: SseFrameDecoder,
+}
+
+#[derive(Default)]
 pub struct AnthropicSseDecoder {
     frames: SseFrameDecoder,
     input_tokens: Option<u64>,
@@ -74,7 +79,25 @@ impl OpenAiSseDecoder {
     pub fn push(&mut self, bytes: &[u8]) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
         let mut events = Vec::new();
         for event in self.frames.push(bytes)? {
-            events.extend(normalize_openai_event(event)?);
+            events.extend(normalize_responses_event(RemoteProviderId::OpenAi, event)?);
+        }
+        Ok(events)
+    }
+
+    pub fn finish(self) -> Result<(), ProviderError> {
+        self.frames.finish()
+    }
+}
+
+impl XaiSseDecoder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn push(&mut self, bytes: &[u8]) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
+        let mut events = Vec::new();
+        for event in self.frames.push(bytes)? {
+            events.extend(normalize_responses_event(RemoteProviderId::Xai, event)?);
         }
         Ok(events)
     }
@@ -203,7 +226,10 @@ fn parse_sse_frame(frame: &[u8]) -> Result<Option<SseEvent>, ProviderError> {
     }))
 }
 
-fn normalize_openai_event(event: SseEvent) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
+fn normalize_responses_event(
+    provider: RemoteProviderId,
+    event: SseEvent,
+) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
     if event.data == "[DONE]" {
         return Ok(vec![NormalizedStreamEvent::StreamEnd]);
     }
@@ -230,7 +256,7 @@ fn normalize_openai_event(event: SseEvent) -> Result<Vec<NormalizedStreamEvent>,
                 .filter(|id| !id.is_empty())
                 .ok_or(ProviderError::MalformedResponse)?;
             Ok(vec![NormalizedStreamEvent::MessageStart {
-                provider: RemoteProviderId::OpenAi,
+                provider,
                 response_id: response_id.to_owned(),
             }])
         }
@@ -721,6 +747,40 @@ mod tests {
             }]
         );
         assert!(!format!("{events:?}").contains(canary));
+    }
+
+    #[test]
+    fn xai_responses_decoder_preserves_provider_identity_and_omits_error_body() {
+        let canary = "xai-private-error-canary";
+        let error = format!(
+            "data: {{\"type\":\"error\",\"code\":\"rate_limit\",\"message\":\"{canary}\"}}\n\n"
+        );
+        let fixture = format!(
+            "{}{error}",
+            concat!(
+                "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp-xai\"}}\n\n",
+                "data: {\"type\":\"response.output_text.delta\",\"delta\":\"bounded answer\"}\n\n"
+            )
+        );
+        let mut decoder = XaiSseDecoder::new();
+        let events = decoder.push(fixture.as_bytes()).expect("xAI events");
+        assert_eq!(
+            events,
+            vec![
+                NormalizedStreamEvent::MessageStart {
+                    provider: RemoteProviderId::Xai,
+                    response_id: "resp-xai".to_owned(),
+                },
+                NormalizedStreamEvent::TextDelta {
+                    text: "bounded answer".to_owned(),
+                },
+                NormalizedStreamEvent::ProviderError {
+                    code: Some("rate_limit".to_owned()),
+                },
+            ]
+        );
+        assert!(!format!("{events:?}").contains(canary));
+        decoder.finish().expect("complete xAI stream");
     }
 
     #[test]

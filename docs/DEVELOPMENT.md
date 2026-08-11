@@ -24,6 +24,7 @@ npm run test:provider-streams # fragmented/multiline/unknown/malformed SSE confo
 npm run test:credentials   # memory-backed credential-vault contract; no OS store mutation
 npm run test:plugin-sdk    # non-executing package/schema/path/authority certification
 npm run test:plugin-runtime # zero-import component execution + hostile worker containment
+npm run test:plugin-composition # selected package → bounded runtime → shared review; no draft apply
 npm run test:model-adapter-sdk # non-executing custom adapter profile/endpoint certification
 cargo fmt --all -- --check # Rust formatting
 ```
@@ -823,6 +824,7 @@ cd D:\PolicyPad\syzygy\frontend
 npm run test:plugin-sdk
 npm run test:plugin-host
 npm run test:plugin-runtime
+npm run test:plugin-composition
 npm run certify:plugin -- ..\examples\plugins\citation-auditor
 ```
 
@@ -863,6 +865,15 @@ The host test exercises the separate in-process authority broker: explicit grant
 detached bounded snapshots, revision/identity-guarded pending proposals, HTTPS/domain decisions,
 model/Drive target decisions, expiry, revocation, and content-free errors. It performs no network,
 model, Drive, project mutation, or plugin execution.
+
+`npm run test:plugin-composition` covers the product layer above those separate gates. It proves an
+exact user-selected manifest/component filename and recomputed SHA-256, eight-package/32-MiB
+session caps, project-only grant filtering, one active run, stale identity/revision refusal,
+preflighted 1–32 proposal publication, disconnected decision convergence/conflict visibility,
+content-minimized MCP inspection, and copy that decisions never apply the draft. The production UI
+loads `syzygy-plugin.json` and its exact component through browser file inputs; bytes remain only in
+the current app process. This command uses a fake executor for composition. Actual component
+execution and hostile worker containment remain the separate `test:plugin-runtime` gate.
 
 ## Headless custom model-adapter contract proof
 

@@ -527,6 +527,17 @@ change," "Fetch from doi.org," or "Use the configured local model." Native MCP p
 stronger trust warning than capability-sandboxed WASI plugins. Advanced controls may be tucked
 away, but requested authority and remote transmission are never hidden there.
 
+The first **Research plugins** product surface sits below adversarial review. Loading is an explicit
+two-file action for `syzygy-plugin.json` plus the exact component named by it; both remain in memory
+only for the current app session. Show the component SHA-256/size, every requested capability, the
+active baseline subset, and every inactive capability before **Run in no-authority sandbox**.
+Never imply that contract certification, a structural match, or successful execution establishes
+publisher trust, semantic safety, or useful research quality. Returned proposal bodies enter
+**Shared plugin review** with plugin/version/component/contribution/runner provenance. Collaborators
+may record accept/reject decisions; stale revisions and disconnected conflicting decisions remain
+visible. Copy must say that a decision does not apply, append, or replace policy text. Persistent
+install/update/signing, capability-bearing worlds, and any Apply action remain unavailable.
+
 ## Network-boundary copy
 
 Settings must expose one expandable **What can use the network** summary. It distinguishes the bundled loopback model, one-use remote-provider sends, selected-workspace Google access, manual model/update downloads, off-by-default crash reporting, and local/private-LAN automation. Each item names when it activates, where it connects, and the data class involved.

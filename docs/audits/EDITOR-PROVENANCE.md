@@ -120,6 +120,7 @@
 | `frontend/src/workspace/AdversarialReviewWorkspace.tsx` | Penumbra original | Exact-block and route configuration over the bounded native job registry, explicit full-content collaborative archive action, complete evidence/conflict history, and immutable no-draft-mutation human decisions |
 | `frontend/src/workspace/AdversarialEvidenceView.tsx` | Penumbra original | Lazy evidence categories and deterministic 50-artifact progressive pages that avoid eager DOM materialization while retaining explicit access to every stored artifact |
 | `frontend/src/workspace/AdversarialReviewWorkspace.ui.test.tsx` | Penumbra original | Headless product contract for source/call bounds, safety disclosure, evidence/provenance rendering, and absence of implicit Apply authority |
+| `frontend/src/workspace/PluginWorkspace.tsx` | Penumbra original | User-selected, session-only zero-authority component loading and execution UI with exact digest/authority disclosure, shared proposal review, stale-state warnings, and no automatic draft mutation or Apply authority |
 | `frontend/src/workspace/remoteResearchTask.ts` | Penumbra original | Exact-draft content-addressed remote review envelope with editable current provider model defaults |
 | `frontend/src/workspace/editorAutomation.ts` | Penumbra original | Semantic live-editor controller, deterministic text-block adapter, and optimistic revision guard |
 | `frontend/src/workspace/editorAutomationRegistry.ts` | Penumbra original | Lightweight active-editor capability registry that preserves lazy workspace loading |

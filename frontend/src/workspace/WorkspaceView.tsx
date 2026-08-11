@@ -10,6 +10,7 @@ import { ScenarioWorkspace } from './ScenarioWorkspace'
 import type { ResearchProjectManifest } from './schema'
 import { SharedProjectTitleControl } from './SharedProjectTitleControl'
 import { SelfHostedProjectControls } from './SelfHostedProjectControls'
+import { PluginWorkspace } from './PluginWorkspace'
 
 export function LocalProjectSharingPanel({ project }: { project: ResearchProjectManifest }) {
   return (
@@ -126,6 +127,7 @@ export function WorkspaceView() {
           <ScenarioWorkspace project={project} />
           <RemoteResearchReview project={project} />
           <AdversarialReviewWorkspace project={project} />
+          <PluginWorkspace project={project} />
         </aside>
       </div>
     </section>

@@ -2,8 +2,9 @@
 
 **Status:** native content-bound adversarial execution, resumable MCP orchestration, explicit
 collaborative archival, and immutable human decision history are implemented with loopback/Yjs
-conformance evidence; bounded zero-import component execution is implemented, while plugin package
-discovery/install/UI and capability-bearing hosts remain unimplemented.
+conformance evidence; bounded zero-import component execution plus explicit session loading and
+shared proposal review are implemented, while persistent package lifecycle, Apply, and
+capability-bearing hosts remain unimplemented.
 **Research date:** 2026-07-14; implementation evidence updated 2026-08-11. This document records
 the evidence and falsifiers so another person or model can challenge both the design and claims.
 
@@ -88,12 +89,20 @@ that exact world with an empty Wasmtime linker, bounded binary/envelope/linear-m
 resources, exact output revalidation, and no WASI dependency. Each run lives in a fresh hidden
 child process under a five-second kill-and-reap parent deadline. The Windows hostile-fuel fixture
 terminates only that worker and a clean successor still succeeds. This establishes the portable
-no-authority execution baseline; package discovery/install/upgrade, signed publisher trust,
-authority-broker product composition, contribution UI, capability-bearing interfaces, and useful
-third-party behavior remain open.
+no-authority execution baseline; package discovery/persistent install/upgrade, signed publisher
+trust, capability-bearing interfaces, proposal Apply, and useful third-party behavior remain open.
 
 Machine-readable runtime limits, commands, results, proved claims, and explicit non-claims are in
 `docs/audits/runs/PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11.json`.
+
+The product composition now requires a user-selected manifest and exact named component, computes
+and rechecks its SHA-256, and keeps it only in a bounded current-session registry. Only requested
+project read/propose authority reaches the zero-import run. Returned proposals are published as one
+preflighted batch into a shared Yjs ledger with exact component provenance; disconnected decisions
+converge and opposite decisions become visible conflicts. MCP can inspect content-minimized state and
+run only an already-loaded package against exact document/research revisions. It cannot load a
+component, decide a review, or apply draft text. Evidence and falsifiers are in
+`docs/audits/runs/PLUGIN-SHARED-REVIEW-2026-08-11.json`.
 
 ## Benchmark before product claims
 

@@ -77,8 +77,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   strict plugin/proposal schemas, the public adversarial record, native content-bound
   multi-provider execution, and three resumable MCP job tools. The execution path is loopback
   conformance-tested and remains non-mutating/pending-human-review; live-provider compatibility,
-  durable run UI/history, benchmark quality, plugin package lifecycle, and capability-bearing
-  plugin hosts remain open. The zero-import in-memory component runtime is now implemented.
+  durable run UI/history, benchmark quality, persistent plugin package lifecycle, and capability-
+  bearing plugin hosts remain open. The zero-import runtime now has explicit session loading,
+  product/MCP execution, and shared non-applying review.
   Evidence and
   falsifiers are in `RESEARCH-EXTENSIONS.md`; APIs are in `ADVERSARIAL-API.md`,
   `PROVIDER-API.md`, and `PLUGIN-API.md`.
@@ -307,7 +308,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   invalid proposal fixtures, plugin identity, documentation/license/runtime-file presence, and
   seven explicit authority allow/deny probes run headlessly. The report says
   `contract-certified`, never runtime-safe; plugin discovery, install, permission-broker product
-  composition, UI, lifecycle, and capability-bearing interfaces remain open.
+  persistent lifecycle and capability-bearing interfaces remain open. The zero-authority product
+  composition and review surface are described below.
 - The non-executing plugin authority broker now enforces explicit grant subsets in 15-minute
   sessions, detached bounded project snapshots, pending revision-guarded proposals, selected-Drive
   identity, granted HTTPS host patterns, and configured model providers. It returns decisions only:
@@ -329,6 +331,14 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   remain open.
   Evidence: `docs/audits/runs/PLUGIN-WIT-CONTRACT-2026-07-15.json` and
   `docs/audits/runs/PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11.json`.
+- Researchers can now explicitly select one exact manifest/component pair into a bounded in-memory
+  session registry, inspect requested versus active baseline authority, and run a contribution from
+  the product or MCP. SHA-256 is recomputed before execution; only project read/propose can activate.
+  Valid output becomes one preflighted shared Yjs proposal batch. Human accept/reject decisions
+  converge, expose conflicts, and never apply the draft. MCP can inspect metadata and run only an
+  already-user-loaded package with exact document/research revisions. Persistent install/upgrade/
+  signing, a useful executable example, capability-bearing worlds, decision signatures, and Apply
+  remain open. Evidence: `docs/audits/runs/PLUGIN-SHARED-REVIEW-2026-08-11.json`.
 - The adversarial protocol now has an executable run-record validator and synthetic benchmark
   fixture. Eight tests enforce blinded artifacts, complete candidates/critiques, claim-level source
   audits, planned reversed judge order, equal actual call budgets, supported-minority retention,
@@ -629,8 +639,10 @@ collaborators are not required to download large project folders.
    proposal-only tool normalization and safe-subset schema-validation proof have landed; next add
    opt-in live/provider-policy evidence and explicit domain/authority design before any tool-result loop.
    Build the adversarial benchmark before claiming panel quality. The no-authority component host
-   has landed; next compose it with explicit grants, package lifecycle, human proposal review, and
-   third-party certification before loading user-selected plugin code.
+   now composes user-selected session packages with project-only grants and shared human proposal
+   review. Next add persistent signed package install/upgrade/rollback, a useful independently built
+   third-party artifact, registered-device review attribution, and a separate revision-guarded Apply
+   workflow before introducing any capability-bearing world.
 4. **Harden collaboration beyond the first Drive transport** — append-only Yjs Drive sharing,
    share/join UI, deterministic partition convergence, a real Drive canary, persistent outbound LAN
    agents, guarded MCP catalog/share/join tooling, and exact scenario sibling reconciliation have

@@ -1798,6 +1798,8 @@ const advertisedMcpTools = [
   'restore_active_policy_version',
   'replace_active_document',
   'append_active_document',
+  'inspect_plugin_workspace',
+  'run_loaded_plugin',
   'syzygy_installation',
   'syzygy_platform_contracts',
 ]
@@ -2123,7 +2125,7 @@ record(
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioAnnotationRejected: true') &&
     text('scripts/mcp-live-harness.mjs').includes('scenarioLabelLifecycleGuarded: true') &&
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioLabelRejected: true'),
-  'stable inspection revision, exact-head/tip sibling reconciliation, zero-write stale rejection, live Y.Doc scenario/turn/vote/annotation/label/suggestion routes, 46-tool MCP surface, and packaged-live assertions are present',
+  'stable inspection revision, exact-head/tip sibling reconciliation, zero-write stale rejection, live Y.Doc scenario/turn/vote/annotation/label/suggestion routes, 48-tool MCP surface, and packaged-live assertions are present',
 )
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))
@@ -2153,7 +2155,8 @@ record(
     pluginManifestSchema.additionalProperties === false &&
     pluginProposalSchema.additionalProperties === false &&
     pluginCertificationSchema.additionalProperties === false &&
-    platformContractsSource.includes('"pluginLoader": "in-memory-runtime-no-discovery-install-ui"') &&
+    platformContractsSource.includes('"pluginLoader": "user-selected-in-memory-session-no-install-upgrade"') &&
+    platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-no-apply"') &&
     platformContractsSource.includes('"pluginCertifier": "contract-certified-runner"') &&
     platformContractsSource.includes('"automaticSharedMutation": false'),
   'strict v1 schemas, honest runtime status, and proposal-only shared mutation',
@@ -2192,7 +2195,7 @@ record(
     pluginAuthorityBrokerTestSource.includes('permission-denied') &&
     frontendPackage.scripts?.['test:plugin-host']?.includes('pluginAuthorityBroker.test.ts') &&
     platformContractsSource.includes('"pluginAuthorityBroker": "implemented-non-executing"') &&
-    platformContractsSource.includes('"pluginLoader": "in-memory-runtime-no-discovery-install-ui"'),
+    platformContractsSource.includes('"pluginLoader": "user-selected-in-memory-session-no-install-upgrade"'),
   'short-lived explicit grants, detached snapshots, pending revision-guarded proposals, target-only decisions, sanitized denial, and no runtime/network/model execution',
 )
 record(
@@ -2259,6 +2262,68 @@ record(
     pluginRuntimeEvidence.notProved?.some((claim) => claim.includes('useful third-party plugin artifact')),
   'empty linker, explicit top-level import denial, 8-MiB component/1-MiB envelope/32-MiB memory bounds, fuel plus epoch interruption, five-second kill-and-reap parent deadline, sanitized stderr, exact post-worker validation, and crash-recovery harness',
 )
+const pluginExecutionSource = text('frontend/src/extensions/pluginExecution.ts')
+const pluginExecutionTestSource = text('frontend/src/extensions/pluginExecution.test.ts')
+const pluginPackageRegistrySource = text('frontend/src/extensions/pluginPackageRegistry.ts')
+const pluginReviewSource = text('frontend/src/extensions/pluginReviewModel.ts')
+const pluginReviewTestSource = text('frontend/src/extensions/pluginReviewModel.test.ts')
+const pluginWorkspaceAutomationSource = text('frontend/src/extensions/pluginWorkspaceAutomation.ts')
+const pluginWorkspaceAutomationTestSource = text('frontend/src/extensions/pluginWorkspaceAutomation.test.ts')
+const pluginWorkspaceSource = text('frontend/src/workspace/PluginWorkspace.tsx')
+const pluginWorkspaceTestSource = text('frontend/src/workspace/PluginWorkspace.ui.test.tsx')
+const pluginCompositionEvidence = JSON.parse(
+  text('docs/audits/runs/PLUGIN-SHARED-REVIEW-2026-08-11.json'),
+)
+record(
+  'user-selected zero-authority plugins compose into shared human review without draft authority',
+  pluginExecutionSource.includes('verifyLoadedPlugin(plugin)') &&
+    pluginExecutionSource.includes("capability === 'project.read' || capability === 'project.propose'") &&
+    pluginExecutionSource.includes('broker.submitProjectProposal') &&
+    pluginExecutionSource.includes("throw new PluginExecutionError('run-in-progress')") &&
+    pluginPackageRegistrySource.includes('MAX_LOADED_PACKAGES = 8') &&
+    pluginPackageRegistrySource.includes('MAX_TOTAL_COMPONENT_BYTES = 32 * 1024 * 1024') &&
+    pluginReviewSource.includes("PLUGIN_REVIEW_SCHEMA_VERSION = 1") &&
+    pluginReviewSource.includes('createPluginReviews') &&
+    pluginReviewSource.includes("'syzygy-plugin-review-batch'") &&
+    !/getAutomationEditorController|\.append\(|\.replace\(/.test(pluginReviewSource) &&
+    pluginWorkspaceAutomationSource.includes('expectedDocumentRevision') &&
+    pluginWorkspaceAutomationSource.includes('expectedResearchRevision') &&
+    pluginWorkspaceAutomationSource.includes('contentOmitted: true') &&
+    pluginWorkspaceAutomationSource.includes('automaticDraftMutation: false') &&
+    pluginWorkspaceAutomationSource.includes('createPluginReviews') &&
+    pluginWorkspaceAutomationSource.includes('readPluginReview(shared.discussions, input.reviewId)') &&
+    pluginWorkspaceSource.includes("manifestFile.name !== 'syzygy-plugin.json'") &&
+    pluginWorkspaceSource.includes('Run in no-authority sandbox') &&
+    pluginWorkspaceSource.includes('never edit the draft automatically') &&
+    pluginWorkspaceSource.includes('does not apply, append, or replace policy text') &&
+    text('frontend/src/workspace/WorkspaceView.tsx').includes('<PluginWorkspace project={project} />') &&
+    text('frontend/src/automationBridge.ts').includes("case 'plugin.inspectWorkspace'") &&
+    text('frontend/src/automationBridge.ts').includes("case 'plugin.runLoaded'") &&
+    mcpSource.includes('"inspect_plugin_workspace" => live("plugin.inspectWorkspace"') &&
+    mcpSource.includes('"run_loaded_plugin" => live("plugin.runLoaded"') &&
+    frontendPackage.scripts?.['test:plugin-composition']?.includes('pluginWorkspaceAutomation.test.ts') &&
+    platformContractsSource.includes('"pluginLoader": "user-selected-in-memory-session-no-install-upgrade"') &&
+    platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-no-apply"') &&
+    pluginExecutionTestSource.includes('recomputes component provenance') &&
+    pluginReviewTestSource.includes('converges disconnected reviews') &&
+    pluginReviewTestSource.includes('preflights a proposal batch') &&
+    pluginWorkspaceAutomationTestSource.includes('without editing the draft') &&
+    pluginWorkspaceAutomationTestSource.includes('rejects a cross-project review before writing any shared decision event') &&
+    pluginWorkspaceTestSource.includes('Inactive in this world: network.fetch') &&
+    pluginCompositionEvidence.implementation?.loaderStatus === 'user-selected-in-memory-session-no-install-upgrade' &&
+    pluginCompositionEvidence.implementation?.reviewStatus === 'shared-proposal-ledger-human-decision-no-apply' &&
+    pluginCompositionEvidence.focusedValidation?.testsPassed === 21 &&
+    pluginCompositionEvidence.focusedValidation?.crossProjectDecisionRejectedBeforeWrite === true &&
+    pluginCompositionEvidence.mcpValidation?.toolCount === 48 &&
+    pluginCompositionEvidence.fullValidation?.pending === false &&
+    pluginCompositionEvidence.fullValidation?.supervisedRunId === '20260811-213852-73257d' &&
+    pluginCompositionEvidence.fullValidation?.frontendTestFilesPassed === 134 &&
+    pluginCompositionEvidence.fullValidation?.frontendTestsPassed === 591 &&
+    pluginCompositionEvidence.fullValidation?.frontendModulesTransformed === 1276 &&
+    pluginCompositionEvidence.fullValidation?.repositoryAuditPassed === true &&
+    pluginCompositionEvidence.fullValidation?.rustCheckPassed === true,
+  'exact user-selected manifest/component digest, 32-MiB/eight-package session cap, project-only grant subset, serialized bounded execution, atomic shared proposal batch, conflict-visible human decisions, exact MCP revisions, content-minimized inspection, and no apply route',
+)
 const adversarialRecordSource = text('frontend/src/extensions/adversarialRunRecord.ts')
 const adversarialRunnerSource = text('frontend/src/extensions/adversarialRunner.ts')
 const adversarialRunnerTestSource = text('frontend/src/extensions/adversarialRunner.test.ts')
@@ -2297,7 +2362,7 @@ record(
     automationBridgeSource.includes("case 'project.configureRelayPolicy'") &&
     mcpSource.includes('"inspect_relay_approval_policy"') &&
     mcpSource.includes('"configure_relay_approval_policy"') &&
-    mcpSource.includes('assert_eq!(names.len(), 46)') &&
+    mcpSource.includes('assert_eq!(names.len(), 48)') &&
     mcpHarnessSource.includes("tool.name === 'inspect_relay_approval_policy'") &&
     mcpHarnessSource.includes("tool.name === 'configure_relay_approval_policy'") &&
     relayPolicyAutomationEvidence.includes('"supervisedRunId": "20260811-165714-c11043"') &&
@@ -2306,7 +2371,7 @@ record(
     relayPolicyAutomationEvidence.includes('"repositoryAuditPassed": true') &&
     relayPolicyAutomationEvidence.includes('"fullValidationPending": false') &&
     relayPolicyAutomationEvidence.includes('"status": "implemented_unverified"'),
-  'fresh exact local relay identity, aggregate-only inspection, eligible key-ID mapping, stale and malformed zero-write guards, exact returned transition, 46-tool routing, and human-identity nonclaims are present',
+  'fresh exact local relay identity, aggregate-only inspection, eligible key-ID mapping, stale and malformed zero-write guards, exact returned transition, 48-tool routing, and human-identity nonclaims are present',
 )
 record(
   'adversarial records remain evidence-gated',
@@ -2377,7 +2442,7 @@ record(
     researchStateInspectionSource.includes('adversarial-review question/source/result/decision-note bodies') &&
     mcpSource.includes('"save_adversarial_review"') &&
     mcpSource.includes('"decide_adversarial_review"') &&
-    mcpHarnessSource.includes('tools.length < 46') &&
+    mcpHarnessSource.includes('tools.length < 48') &&
     frontendPackage.scripts?.['test:adversarial']?.includes('adversarialHistory.test.ts'),
   'full archives persist only by explicit revision-guarded save; canonical hashes, provider provenance, peer convergence, exact-parent decision history, fail-closed conflicts, content-minimized inspection, and zero draft authority are enforced',
 )
@@ -2826,7 +2891,7 @@ record(
     existsSync(join(root, 'docs/audits/runs/LAN-COLLABORATION-SUPERVISION-2026-07-17.json')) &&
     existsSync(join(root, 'docs/audits/runs/LAN-DEV-MODE-LIFECYCLE-2026-07-18.json')) &&
     existsSync(join(root, 'docs/audits/runs/MCP-SCENARIO-TURN-READBACK-2026-08-02.json')),
-  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, 46-tool discovery, explicit scenario-index and sibling-body readback, deterministic current convergence, exact sibling reconciliation, title-history retention/repair, and stale-write gates are present',
+  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, 48-tool discovery, explicit scenario-index and sibling-body readback, deterministic current convergence, exact sibling reconciliation, title-history retention/repair, and stale-write gates are present',
 )
 const ledger = JSON.parse(text('docs/audits/CAPABILITIES.json'))
 const expectedIds = [

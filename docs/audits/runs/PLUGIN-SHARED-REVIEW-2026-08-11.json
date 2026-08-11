@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "runId": "PLUGIN-SHARED-REVIEW-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "eee92a6",
+  "status": "implemented_unverified",
+  "implementation": {
+    "loaderStatus": "user-selected-in-memory-session-no-install-upgrade",
+    "reviewStatus": "shared-proposal-ledger-human-decision-no-apply",
+    "runtimeIsolation": "one-shot-child-process-fuel-epoch-store-and-parent-deadline",
+    "loadedPackageLimit": 8,
+    "loadedComponentBytesTotal": 33554432,
+    "proposalBatchLimit": 32,
+    "mcpTools": ["inspect_plugin_workspace", "run_loaded_plugin"],
+    "mcpCanLoadComponent": false,
+    "mcpCanDecideReview": false,
+    "automaticDraftMutation": false
+  },
+  "commands": [
+    "npm run test:plugin-composition",
+    "npm run test:plugin-runtime",
+    "npm run test:mcp",
+    "npm run build",
+    "npm run audit",
+    "npm run check:supervised",
+    "git diff --check"
+  ],
+  "focusedValidation": {
+    "testFilesPassed": 5,
+    "testsPassed": 21,
+    "loaderDigestRecomputedBeforeExecution": true,
+    "staleDocumentRejected": true,
+    "staleResearchStateRejected": true,
+    "crossProjectDecisionRejectedBeforeWrite": true,
+    "inactiveNetworkAuthorityProved": true,
+    "proposalBatchPreflighted": true,
+    "disconnectedDecisionConvergenceProved": true,
+    "conflictingDecisionsVisible": true,
+    "draftMutationMethodsCalled": false
+  },
+  "mcpValidation": {
+    "passed": true,
+    "toolCount": 48,
+    "rustRoutingTestsPassed": 22,
+    "protocolClean": true,
+    "componentBodiesReturnedByInspection": false,
+    "proposalBodiesReturnedByInspection": false
+  },
+  "fullValidation": {
+    "pending": false,
+    "supervisedRunId": "20260811-213852-73257d",
+    "frontendTestFilesPassed": 134,
+    "frontendTestsPassed": 591,
+    "frontendModulesTransformed": 1276,
+    "frontendBuildPassed": true,
+    "repositoryAuditPassed": true,
+    "rustCheckPassed": true
+  },
+  "proved": [
+    "The product accepts only a file named syzygy-plugin.json plus the exact component filename declared by its strict manifest.",
+    "Selected components remain in a bounded current-session registry; package metadata inspection omits component bytes.",
+    "Component SHA-256 is computed at load and recomputed from the exact base64 bytes immediately before every execution.",
+    "Composition activates only requested project.read and project.propose capabilities; network, Drive, model, filesystem, and native-process authority are unavailable in the baseline world.",
+    "Only one component run is active and native execution remains in the separately tested one-shot kill-and-reap child runtime.",
+    "One to 32 valid output proposals are preflighted before a single shared Yjs transaction publishes the batch.",
+    "Shared proposal events bind plugin, version, component SHA-256, contribution, project, document revision, operation, runner, and content.",
+    "Accept and reject decisions are immutable, converge across disconnected Yjs peers, and expose opposite decisions as conflicted.",
+    "The product and MCP plugin paths have no append, replace, Apply, Drive, network, model, or filesystem operation.",
+    "MCP can inspect content-minimized metadata and run only a package already loaded through the GUI against exact document and research revisions."
+  ],
+  "notProved": [
+    "A useful independently built third-party component runs through the packaged product; runtime execution uses the separate synthetic Component fixtures.",
+    "Browser file-picker interaction works in a packaged installer; the loader and rendered states are headlessly tested below the OS dialog boundary.",
+    "Plugin discovery, persistent installation, disable/remove across restarts, upgrade, rollback, dependency resolution, signing, publisher identity, or marketplace behavior.",
+    "Any capability-bearing WIT world or safe network, Drive, provider, model, filesystem, clock, random, or native-process grant.",
+    "Accepted plugin proposals can be applied to the policy draft; there is intentionally no Apply route in this checkpoint.",
+    "Plugin review events carry registered-device signatures or authenticate a human or organization.",
+    "Physical two-install Drive/WebSocket proposal synchronization or product interaction.",
+    "Semantic safety, usefulness, research quality, deterministic guest behavior, or protection from vulnerabilities in the selected component or pinned runtime.",
+    "An operating-system-level cap on total worker memory outside the Wasmtime guest store."
+  ],
+  "sources": [
+    "frontend/src/extensions/pluginExecution.ts",
+    "frontend/src/extensions/pluginPackageRegistry.ts",
+    "frontend/src/extensions/pluginReviewModel.ts",
+    "frontend/src/extensions/pluginWorkspaceAutomation.ts",
+    "frontend/src/workspace/PluginWorkspace.tsx",
+    "frontend/src/automationBridge.ts",
+    "frontend/src-tauri/src/mcp.rs",
+    "frontend/src-tauri/src/platform_contracts.rs",
+    "scripts/mcp-harness.mjs",
+    "scripts/audit.mjs"
+  ]
+}

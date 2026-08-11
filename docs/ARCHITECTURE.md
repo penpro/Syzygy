@@ -649,15 +649,27 @@ declarative custom model-adapter profiles, public Draft 2020-12 schemas, and hea
 tests. The adversarial runner keeps route identity outside judge-visible artifacts, forwards only
 exact completed upstream bytes, and can return only a pending non-mutating result. The job registry
 limits concurrency, heartbeats every 30 seconds, aborts at 15 minutes, and retains terminal results
-for one hour. Plugin and adapter certifiers still inspect packages without executing them; the
-separate component runtime accepts only an already-selected in-memory binary and invocation.
-Package discovery/install/upgrade, contribution UI, authority-broker product wiring, and
-custom-adapter execution remain unavailable.
+for one hour. Plugin and adapter certifiers still inspect packages without executing them. The
+separate plugin composition layer verifies the selected manifest/component name, size, SHA-256, and
+exact public world; keeps at most eight packages/32 MiB in process memory; grants only requested
+`project.read`/`project.propose` baseline authority; and invokes the native child runtime. Package
+discovery/install/upgrade/signing, capability-bearing worlds, and custom-adapter execution remain
+unavailable.
 
 The non-executing plugin authority broker turns a validated manifest plus explicit grant into a
 short-lived in-memory session. It returns detached project snapshots, pending revision-guarded
 proposals, and narrow Drive/network/model authorization decisions, but contains no loader, fetch,
 provider call, Drive call, or mutation implementation.
+
+`pluginPackageRegistry.ts` stores user-selected component bytes only for the running app session.
+`pluginExecution.ts` recomputes the exact component digest at execution, serializes runs, activates
+only the baseline project grant subset, and converts native output into authority-broker receipts.
+`pluginReviewModel.ts` then appends one preflighted batch of immutable proposal events to the shared
+Yjs discussions map. Accept/reject decisions converge and expose conflicts; neither the model nor
+the current product/MCP surface has an apply route. `PluginWorkspace.tsx` is the explicit loader,
+runner, authority disclosure, and full-content review surface. MCP may inspect content-minimized
+package/review metadata and run one already-user-loaded contribution against exact document and
+research revisions; it cannot load component bytes, decide a review, or mutate draft text.
 
 The first plugin WIT world is a separate public contract with zero imports. It accepts only a
 bounded typed invocation and exports only no-change or proposal output; TypeScript validates the
@@ -747,9 +759,11 @@ installation, permission-grant UI, capability-bearing WIT, or direct mutation au
   output is an inspectable transient proposal with no MCP, Drive, filesystem, plugin, editor, network,
   or shared-project mutation authority. Safe-subset schema validation is structural only: domain state
   remains explicitly unreviewed and execution remains false even when arguments match.
-  Plugins declare capabilities and submit revision-guarded proposals. Baseline component code
-  executes only in the zero-import child runtime; no plugin code executes in the webview and no
-  package/install/capability feature may report itself as available. See
+  Plugins declare capabilities and submit revision-guarded proposals. A user may select one exact
+  manifest/component pair into session memory and run a contribution in the zero-import child;
+  no guest code executes in the webview. Valid output enters shared human review with component
+  provenance and no apply route. Persistent package install/upgrade/signing and capability-bearing
+  host interfaces may not report themselves as available. See
   `PROVIDER-API.md`, `PLUGIN-API.md`, and ADR-0002/0003.
 
 ## Network-boundary evidence gate

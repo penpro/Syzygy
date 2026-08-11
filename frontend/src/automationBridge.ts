@@ -66,6 +66,10 @@ import {
   createAutomationSuggestion,
   decideAutomationSuggestion,
 } from './workspace/suggestionAutomation'
+import {
+  inspectPluginWorkspace,
+  runLoadedPluginForProject,
+} from './extensions/pluginWorkspaceAutomation'
 
 interface AutomationRequest {
   id: string
@@ -339,6 +343,44 @@ export async function dispatchAutomationRequest(
         getAutomationProjectDocument(project.id),
         project.id,
       ) }
+    }
+    case 'plugin.inspectWorkspace': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        pluginWorkspace: inspectPluginWorkspace(getAutomationProjectDocument(project.id)),
+      }
+    }
+    case 'plugin.runLoaded': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      if (!latest.settings.researcherId || !latest.settings.researcherName.trim()) {
+        throw new Error('Set a researcher name in Settings before running a plugin')
+      }
+      const publication = await runLoadedPluginForProject(
+        getAutomationProjectDocument(project.id),
+        project.id,
+        {
+          packageId: requiredString(params, 'packageId'),
+          contributionId: requiredString(params, 'contributionId'),
+          expectedDocumentRevision: requiredString(params, 'expectedDocumentRevision'),
+          expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
+          participantId: latest.settings.researcherId,
+          displayName: latest.settings.researcherName.trim(),
+        },
+      )
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        pluginRun: publication,
+        automaticDraftMutation: false,
+      }
     }
     case 'project.inspectRelayPolicy': {
       const latest = useStore.getState()

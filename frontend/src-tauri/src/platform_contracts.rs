@@ -60,7 +60,8 @@ pub fn current() -> Result<Value, String> {
             "pluginAuthorityBroker": "implemented-non-executing",
             "pluginWitContract": "zero-import-subprocess-runtime-bounded",
             "pluginRuntimeIsolation": "one-shot-child-process-fuel-epoch-store-and-parent-deadline",
-            "pluginLoader": "in-memory-runtime-no-discovery-install-ui",
+            "pluginLoader": "user-selected-in-memory-session-no-install-upgrade",
+            "pluginReview": "shared-proposal-ledger-human-decision-no-apply",
             "scenarioPackCodec": "product-import-export-checksummed-atomic",
             "networkBoundaryTrace": "source-copy-origin-harness-no-os-packet-capture"
         },
@@ -125,6 +126,7 @@ pub fn current() -> Result<Value, String> {
             "pluginCertifierCommand": "npm run test:plugin-sdk",
             "pluginAuthorityBrokerCommand": "npm run test:plugin-host",
             "pluginRuntimeCommand": "npm run test:plugin-runtime",
+            "pluginCompositionCommand": "npm run test:plugin-composition",
             "modelAdapterCertifierCommand": "npm run test:model-adapter-sdk",
             "adversarialCommand": "npm run test:adversarial",
             "mcpCommand": "npm run test:mcp",
@@ -198,7 +200,11 @@ mod tests {
         );
         assert_eq!(
             contracts["implementationStatus"]["pluginLoader"],
-            "in-memory-runtime-no-discovery-install-ui"
+            "user-selected-in-memory-session-no-install-upgrade"
+        );
+        assert_eq!(
+            contracts["implementationStatus"]["pluginReview"],
+            "shared-proposal-ledger-human-decision-no-apply"
         );
         assert_eq!(contracts["pluginWitWorld"], "syzygy:research/plugin@1.0.0");
         assert!(contracts["pluginWitContract"]

@@ -2,9 +2,9 @@
 
 **Manifest version:** 1. **Runtime status:** strict schemas/validators, a non-executing package
 certifier, a non-executing host authority broker, and a versioned zero-import WIT world now have a
-bounded in-memory WebAssembly Component executor. Discovery, installation, contribution UI,
-capability-bearing host interfaces, native-MCP execution, and broker-to-runtime product wiring are
-not yet implemented.
+bounded in-memory WebAssembly Component executor, explicit session loader/runner, shared review UI,
+and MCP inspect/run tools. Discovery, persistent installation/upgrade/signing, capability-bearing
+host interfaces, native-MCP execution, and proposal Apply are not yet implemented.
 
 The API is deliberately contribution-open and authority-closed. Researchers can add tools,
 evaluators, importers, and exporters without receiving ambient project, Drive, network, model, or
@@ -23,6 +23,11 @@ filesystem access.
 - WIT invocation/output validator: `frontend/src/extensions/pluginWasiContract.ts`
 - Zero-authority component runtime: `frontend/src-tauri/src/plugin_runtime.rs`
 - Hostile-worker containment gate: `frontend/src-tauri/tests/plugin_runtime_worker.rs`
+- User-selected composition: `frontend/src/extensions/pluginExecution.ts`
+- Session package registry: `frontend/src/extensions/pluginPackageRegistry.ts`
+- Collaborative review ledger: `frontend/src/extensions/pluginReviewModel.ts`
+- Product and MCP composition: `frontend/src/workspace/PluginWorkspace.tsx`,
+  `frontend/src/extensions/pluginWorkspaceAutomation.ts`
 - Headless package certifier: `scripts/plugin-certifier.mjs`
 - Complete interface-only example: `examples/plugins/citation-auditor`
 - Machine-readable inspection: MCP tool `syzygy_platform_contracts`
@@ -153,6 +158,27 @@ baseline executor. It does not prove package discovery/install/upgrade, signer t
 composition, capability-bearing worlds, useful plugin behavior, or a third-party runtime artifact;
 the citation-auditor example intentionally remains an interface-only non-executable marker.
 
+Run `npm run test:plugin-composition` for the layer above the raw executor. In the installed product,
+the researcher explicitly selects `syzygy-plugin.json` and the exact component named by it. Syzygy
+validates the manifest/world/filename/size, computes SHA-256, keeps no more than eight packages and
+32 MiB of components in current-session memory, then recomputes the digest immediately before every
+run. Only requested `project.read` and `project.propose` capabilities can become active in this
+zero-import world; requested network, Drive, model, filesystem, and native-process capabilities are
+shown as inactive. One component runs at a time through the kill-and-reap child boundary.
+
+Valid proposal output is preflighted as one 1–32-item batch and appended to the shared Yjs review
+ledger with plugin/version/component/contribution/runner provenance. Accept/reject decisions are
+immutable, converge across disconnected peers, and expose opposite decisions as a conflict. Neither
+execution nor decision changes the policy draft. MCP exposes `inspect_plugin_workspace` and
+`run_loaded_plugin`; inspection omits component/proposal bodies, and execution can address only a
+package already loaded by the person in that running GUI, with exact document and research
+revisions. MCP cannot load a component, decide a plugin review, or apply text.
+
+This is truthful status `user-selected-in-memory-session-no-install-upgrade` plus
+`shared-proposal-ledger-human-decision-no-apply`. Discovery, persistent install/upgrade/rollback,
+signer/publisher trust, a useful executable third-party example, capability-bearing WIT worlds,
+review-event device signatures, and revision-guarded Apply remain open.
+
 Design basis: the upstream Component Model describes WIT worlds as the strict import/export
 boundary and explicitly notes that a component without a relevant import cannot access that host
 capability. WIT itself specifies contracts rather than behavior. Reviewers should compare this
@@ -167,6 +193,7 @@ executor:
 
 - `docs/audits/runs/PLUGIN-WIT-CONTRACT-2026-07-15.json`
 - `docs/audits/runs/PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11.json`
+- `docs/audits/runs/PLUGIN-SHARED-REVIEW-2026-08-11.json`
 
 ## Mutation protocol
 

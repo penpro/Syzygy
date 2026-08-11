@@ -82,9 +82,11 @@ async function proveStdioContract() {
   if (messages.length !== 6) throw new Error(`expected 6 MCP responses, received ${messages.length}`)
   if (byId.get(1)?.result?.protocolVersion !== '2025-11-25') throw new Error('MCP version negotiation failed')
   const tools = byId.get(2)?.result?.tools
-  if (!Array.isArray(tools) || tools.length < 46) throw new Error('MCP tool discovery is incomplete')
+  if (!Array.isArray(tools) || tools.length < 48) throw new Error('MCP tool discovery is incomplete')
   if (!tools.some((tool) => tool.name === 'workspace_walkthrough')) throw new Error('walkthrough tool is missing')
   if (!tools.some((tool) => tool.name === 'inspect_research_state')) throw new Error('research-state inspection tool is missing')
+  if (!tools.some((tool) => tool.name === 'inspect_plugin_workspace')) throw new Error('plugin workspace inspection tool is missing')
+  if (!tools.some((tool) => tool.name === 'run_loaded_plugin')) throw new Error('loaded plugin execution tool is missing')
   if (!tools.some((tool) => tool.name === 'inspect_relay_approval_policy')) throw new Error('relay approval policy inspection tool is missing')
   if (!tools.some((tool) => tool.name === 'configure_relay_approval_policy')) throw new Error('relay approval policy configuration tool is missing')
   if (!tools.some((tool) => tool.name === 'inspect_drive_project_discovery')) throw new Error('Drive project discovery diagnostic is missing')
@@ -196,7 +198,8 @@ async function proveStdioContract() {
   const contracts = byId.get(6)?.result?.structuredContent
   if (byId.get(6)?.result?.isError !== false) throw new Error('platform contracts tool failed without a live GUI')
   if (contracts?.contractVersion !== 1) throw new Error('platform contract version is missing')
-  if (contracts?.implementationStatus?.pluginLoader !== 'in-memory-runtime-no-discovery-install-ui') throw new Error('plugin loader status is inaccurate')
+  if (contracts?.implementationStatus?.pluginLoader !== 'user-selected-in-memory-session-no-install-upgrade') throw new Error('plugin loader status is inaccurate')
+  if (contracts?.implementationStatus?.pluginReview !== 'shared-proposal-ledger-human-decision-no-apply') throw new Error('plugin review status is inaccurate')
   if (contracts?.implementationStatus?.pluginAuthorityBroker !== 'implemented-non-executing') throw new Error('plugin authority broker status is inaccurate')
   if (contracts?.implementationStatus?.pluginWitContract !== 'zero-import-subprocess-runtime-bounded') throw new Error('plugin WIT contract status is inaccurate')
   if (contracts?.implementationStatus?.pluginRuntimeIsolation !== 'one-shot-child-process-fuel-epoch-store-and-parent-deadline') throw new Error('plugin runtime isolation status is inaccurate')

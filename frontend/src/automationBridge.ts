@@ -19,7 +19,10 @@ import {
   getAutomationEditorController,
 } from './workspace/editorAutomationRegistry'
 import { inspectResearchState } from './workspace/researchStateInspection'
-import { attestScenarioVoteEvent } from './workspace/researchEventAttribution'
+import {
+  attestScenarioAnnotationEvent,
+  attestScenarioVoteEvent,
+} from './workspace/researchEventAttribution'
 import {
   configureHostedRelayPolicy,
   inspectHostedRelayPolicy,
@@ -600,7 +603,8 @@ export async function dispatchAutomationRequest(
         (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
       )
       if (!project) throw new Error('No research project is active; list or create a project first')
-      const created = createAutomationScenarioAnnotation(getAutomationProjectDocument(project.id), project.id, {
+      const document = getAutomationProjectDocument(project.id)
+      const created = createAutomationScenarioAnnotation(document, project.id, {
         expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
         annotationId: requiredString(params, 'annotationId'),
         scenarioId: requiredString(params, 'scenarioId'),
@@ -612,9 +616,11 @@ export async function dispatchAutomationRequest(
         timestamp: Date.now(),
         eventId: `mcp-${crypto.randomUUID()}`,
       })
+      const attribution = await attestScenarioAnnotationEvent(document, project.id, created.event)
       return {
         project: summarizeProject(project, latest.activeProjectId),
         annotation: summarizeScenarioAnnotation(created.annotation),
+        attribution,
         researchRevision: created.researchRevision,
       }
     }
@@ -624,7 +630,8 @@ export async function dispatchAutomationRequest(
         (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
       )
       if (!project) throw new Error('No research project is active; list or create a project first')
-      const updated = updateAutomationScenarioAnnotation(getAutomationProjectDocument(project.id), project.id, {
+      const document = getAutomationProjectDocument(project.id)
+      const updated = updateAutomationScenarioAnnotation(document, project.id, {
         expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
         annotationId: requiredString(params, 'annotationId'),
         scenarioId: requiredString(params, 'scenarioId'),
@@ -635,9 +642,11 @@ export async function dispatchAutomationRequest(
         timestamp: Date.now(),
         eventId: `mcp-${crypto.randomUUID()}`,
       })
+      const attribution = await attestScenarioAnnotationEvent(document, project.id, updated.event)
       return {
         project: summarizeProject(project, latest.activeProjectId),
         annotation: summarizeScenarioAnnotation(updated.annotation),
+        attribution,
         researchRevision: updated.researchRevision,
       }
     }
@@ -647,7 +656,8 @@ export async function dispatchAutomationRequest(
         (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
       )
       if (!project) throw new Error('No research project is active; list or create a project first')
-      const changed = resolveAutomationScenarioAnnotation(getAutomationProjectDocument(project.id), project.id, {
+      const document = getAutomationProjectDocument(project.id)
+      const changed = resolveAutomationScenarioAnnotation(document, project.id, {
         expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
         annotationId: requiredString(params, 'annotationId'),
         scenarioId: requiredString(params, 'scenarioId'),
@@ -658,9 +668,11 @@ export async function dispatchAutomationRequest(
         timestamp: Date.now(),
         eventId: `mcp-${crypto.randomUUID()}`,
       })
+      const attribution = await attestScenarioAnnotationEvent(document, project.id, changed.event)
       return {
         project: summarizeProject(project, latest.activeProjectId),
         annotation: summarizeScenarioAnnotation(changed.annotation),
+        attribution,
         researchRevision: changed.researchRevision,
       }
     }

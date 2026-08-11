@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "runId": "SIGNED-SCENARIO-ANNOTATION-EVENTS-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "a674d1c",
+  "capabilities": ["P-20"],
+  "status": "implemented_unverified",
+  "claim": "Scenario annotation create, edit, resolve, and reopen events now receive the same post-commit exact-hash registered-installation attribution in product and MCP paths as scenario votes. Bodies remain in collaborative lifecycle history but are omitted from attestation inspection and mutation responses.",
+  "commands": [
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm test -- --run src/workspace/projectResearchEventAttestation.test.ts src/workspace/scenarioAnnotationModel.test.ts src/workspace/ScenarioCollaborationPanel.ui.test.tsx src/workspace/scenarioAutomation.test.ts src/workspace/researchStateInspection.test.ts",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run check:supervised",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/audit.mjs"
+  ],
+  "result": {
+    "productionAdoptedEventKind": "scenario-annotation",
+    "lifecycleActionsCovered": ["create", "edit", "resolve", "reopen"],
+    "productMutationCommittedBeforeAttribution": true,
+    "mcpMutationCommittedBeforeAttribution": true,
+    "projectIdentityMismatchRejectedBeforeMutation": true,
+    "exactLiveEventHashRequired": true,
+    "mutatedRetainedBodyRejected": true,
+    "registeredKeyAndParticipantMatchRequired": true,
+    "signingFailurePreservesCommittedMutation": true,
+    "proofAndAnnotationBodiesReturnedByInspection": false,
+    "signedUnsignedAndPendingUiStates": true,
+    "staleAsyncResultSuppressed": true,
+    "humanOrOrganizationIdentityClaimed": false,
+    "focusedFrontendTestFilesPassed": 5,
+    "focusedFrontendTestsPassed": 33,
+    "physicalPackagedTwoInstallUsed": false,
+    "supervisedRunId": "20260811-175534-b84ec8",
+    "frontendTestFilesPassed": 128,
+    "frontendTestFilesSkipped": 3,
+    "frontendTestsPassed": 545,
+    "frontendTestsSkipped": 3,
+    "frontendModulesTransformed": 1267,
+    "rustAppRecompiled": true,
+    "repositoryAuditPassed": true,
+    "fullValidationPending": false
+  },
+  "proved": [
+    "Canonical SHA-256 includes every strict annotation event field, including lifecycle action, nullable body, parent, scenario/turn/annotation/event identities, author/display-name snapshot, and timestamp.",
+    "The shared resolver re-reads the exact retained annotation event, recomputes its hash, rejects a mutated retained body, and validates the registered installation/participant claim before accepting the attestation.",
+    "Product mutation checks document/project identity before invoking its commit closure; MCP retains and returns the exact event from each revision-guarded mutation before best-effort signing.",
+    "Directory, signing, registration, or ledger failure returns explicit unsigned state after commit and never disguises or rolls back the annotation event.",
+    "Headless UI contracts expose pending, signed-device, and unsigned states while denying person or organization identity; labels remain independently usable while annotation signing is pending.",
+    "Inspection returns bounded event/key/participant/hash/time metadata and omits annotation bodies, display names, public keys, and signatures."
+  ],
+  "notProved": [
+    "That a self-issued installation key authenticates a person or organization, prevents Sybil claims, supplies legal consent, or provides trusted time.",
+    "Durable attribution for the eight remaining named research-event domains, identity-key rotation/recovery, or append-only survival against a malicious Yjs writer.",
+    "Physical packaged two-install product/MCP interaction; current proof is deterministic headless domain, product-copy, mutation-path, and resolver coverage."
+  ],
+  "implementationAnchors": [
+    "frontend/src/workspace/scenarioAnnotationModel.ts",
+    "frontend/src/workspace/researchEventAttribution.ts",
+    "frontend/src/workspace/ScenarioCollaborationPanel.tsx",
+    "frontend/src/workspace/scenarioAutomation.ts",
+    "frontend/src/automationBridge.ts",
+    "frontend/src/workspace/researchStateInspection.ts",
+    "frontend/src-tauri/src/mcp.rs"
+  ]
+}

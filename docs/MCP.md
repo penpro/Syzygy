@@ -231,7 +231,10 @@ MCP host
   exact `currentEventId` returned by the preceding mutation or inspection. Both stale-research and
   stale-lifecycle conflicts fail before an event is added. Bodies are accepted for create/edit and
   retained locally in immutable history, but mutation responses and inspection return only IDs,
-  kind/status, target, timestamps, and event counts. Identity/time remain caller/process supplied.
+  kind/status, target, timestamps, and event counts. After commit, all four lifecycle operations
+  best-effort sign the exact retained event under the same registered-device rules as votes; the
+  response says `signed-device` or `unsigned`, and inspection omits proof, display-name, and body
+  fields. Identity/time remain caller/process supplied and a signature does not authenticate them.
 - Label create uses the research revision guard. Rename additionally requires the exact label
   `currentEventId`; an assignment's first event requires no event parent and every follow-up add/
   remove requires its exact assignment `currentEventId`. Stale research or event parents add no

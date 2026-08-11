@@ -116,6 +116,8 @@ const props: Parameters<typeof ScenarioCollaborationPanelContent>[0] = {
   labels: [labelRow],
   labelTotal: 1,
   canWrite: true,
+  annotationAttribution: null,
+  annotationPending: false,
   integrityIssues: [],
   error: '',
   annotationKind: 'note',
@@ -163,8 +165,38 @@ describe('scenario collaboration product controls', () => {
     expect(html).toContain('Needs legal review')
     expect(html).toContain('type="checkbox" checked=""')
     expect(html).toContain('>Rename</button>')
-    expect(html).toContain('identity is not authenticated')
+    expect(html).toContain('Researcher names and local time are self-reported')
     expect(html).not.toContain('Run model')
+  })
+
+  it('shows signed, unsigned, and pending annotation attribution without claiming human identity', () => {
+    const signed = render({
+      annotationAttribution: {
+        status: 'signed-device',
+        keyId: 'ed25519-sha256:abcdefghijklmnopqrstuv0123456789ABCDEFG',
+        eventKind: 'scenario-annotation',
+        eventId: '33:scenario-collaboration-uievent-1',
+        eventSha256: 'abcdefghijklmnopqrstuv0123456789ABCDEFG',
+        attestationCount: 1,
+        authority: 'installation-device-not-human-identity',
+      },
+    })
+    expect(signed).toContain('Shared annotation event signed by registered device')
+    expect(signed).toContain('not a person or organization')
+
+    const unsigned = render({
+      annotationAttribution: {
+        status: 'unsigned',
+        reason: 'attestation-history-unhealthy',
+        authority: 'installation-device-not-human-identity',
+      },
+    })
+    expect(unsigned).toContain('Shared annotation saved without a device signature')
+    expect(unsigned).toContain('signed attribution history needs attention')
+
+    const pending = render({ annotationPending: true })
+    expect(pending).toContain('Shared annotation saved. Checking registered-device attribution')
+    expect(pending).toContain('<button class="btn sm" type="submit">Create label</button>')
   })
 
   it('shows edit and reopen workflows while preserving explicit shared-history language', () => {

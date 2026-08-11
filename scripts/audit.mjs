@@ -174,6 +174,12 @@ const researchEventEvidence = text('docs/audits/runs/SIGNED-PROJECT-RESEARCH-EVE
 const productVoteAttributionSource = text('frontend/src/workspace/ScenarioWorkspace.tsx')
 const productVoteAttributionTest = text('frontend/src/workspace/ScenarioWorkspace.ui.test.ts')
 const productVoteAttributionEvidence = text('docs/audits/runs/PRODUCT-SCENARIO-VOTE-ATTESTATION-2026-08-11.json')
+const scenarioAnnotationAttributionSource = text('frontend/src/workspace/scenarioAnnotationModel.ts')
+const scenarioAnnotationProductSource = text('frontend/src/workspace/ScenarioCollaborationPanel.tsx')
+const scenarioAnnotationProductTest = text('frontend/src/workspace/ScenarioCollaborationPanel.ui.test.tsx')
+const scenarioAnnotationAutomationSource = text('frontend/src/workspace/scenarioAutomation.ts')
+const scenarioAnnotationBridgeSource = text('frontend/src/automationBridge.ts')
+const scenarioAnnotationEvidence = text('docs/audits/runs/SIGNED-SCENARIO-ANNOTATION-EVENTS-2026-08-11.json')
 record(
   'app-managed collaboration relay remains private, bounded, durable, reaped, and identity-honest',
   collaborationRelayCargo.includes('tungstenite = "=0.21.0"') &&
@@ -403,6 +409,31 @@ record(
     productVoteAttributionEvidence.includes('"repositoryAuditPassed": true') &&
     productVoteAttributionEvidence.includes('"fullValidationPending": false') &&
     productVoteAttributionEvidence.includes('"status": "implemented_unverified"') &&
+    scenarioAnnotationAttributionSource.includes('canonicalScenarioAnnotationEvent') &&
+    scenarioAnnotationAttributionSource.includes('scenarioAnnotationEventSha256') &&
+    scenarioAnnotationAttributionSource.includes('readScenarioAnnotationEvent') &&
+    researchEventAttributionSource.includes("eventKind !== 'scenario-vote' && eventKind !== 'scenario-annotation'") &&
+    researchEventAttributionSource.includes('commitScenarioAnnotationWithAttribution') &&
+    researchEventAttributionSource.indexOf("const event = commit()") <
+      researchEventAttributionSource.indexOf('attribution: await attestScenarioAnnotationEvent') &&
+    scenarioAnnotationProductSource.includes('commitScenarioAnnotationWithAttribution(doc, projectId, operation)') &&
+    scenarioAnnotationProductSource.includes('return () => { annotationOperation.current += 1 }') &&
+    scenarioAnnotationProductSource.includes('Shared annotation saved without a device signature') &&
+    scenarioAnnotationProductSource.includes('not a person or organization') &&
+    scenarioAnnotationProductTest.includes('without claiming human identity') &&
+    scenarioAnnotationAutomationSource.match(/Scenario annotation event was not retained/g)?.length === 3 &&
+    scenarioAnnotationBridgeSource.match(/await attestScenarioAnnotationEvent/g)?.length === 3 &&
+    researchEventMcpSource.includes('exact-hash installation attestations for scenario vote and annotation events') &&
+    scenarioAnnotationEvidence.includes('"productionAdoptedEventKind": "scenario-annotation"') &&
+    scenarioAnnotationEvidence.includes('"mutatedRetainedBodyRejected": true') &&
+    scenarioAnnotationEvidence.includes('"signingFailurePreservesCommittedMutation": true') &&
+    scenarioAnnotationEvidence.includes('"proofAndAnnotationBodiesReturnedByInspection": false') &&
+    scenarioAnnotationEvidence.includes('"supervisedRunId": "20260811-175534-b84ec8"') &&
+    scenarioAnnotationEvidence.includes('"frontendTestsPassed": 545') &&
+    scenarioAnnotationEvidence.includes('"rustAppRecompiled": true') &&
+    scenarioAnnotationEvidence.includes('"repositoryAuditPassed": true') &&
+    scenarioAnnotationEvidence.includes('"fullValidationPending": false') &&
+    scenarioAnnotationEvidence.includes('"status": "implemented_unverified"') &&
     researchEventEvidence.includes('"status": "implemented_unverified"'),
   'closed typed native signing, exact project/participant/kind/event/hash/time/nonce binding, live-event resolution, registered-device matching, bounded merge/replay/poison gates, explicit unsigned fallback, body-free inspection, and human-identity nonclaims are present',
 )
@@ -1355,9 +1386,12 @@ record(
     scenarioCollaborationSource.includes('renameScenarioLabel(shared.settings') &&
     scenarioCollaborationSource.includes('setScenarioLabelAssignment(shared.settings, shared.scenarios') &&
     scenarioCollaborationSource.includes('assertWritable()') &&
-    scenarioCollaborationSource.includes('identity is not authenticated') &&
+    scenarioCollaborationSource.includes('Researcher names and local time are self-reported') &&
+    scenarioCollaborationSource.includes('commitScenarioAnnotationWithAttribution(doc, projectId, operation)') &&
+    scenarioCollaborationSource.includes('Shared annotation event signed by registered device') &&
     scenarioCollaborationTestSource.includes('renders shared annotation lifecycle and exact label assignment controls without an AI dependency') &&
     scenarioCollaborationTestSource.includes('shows edit and reopen workflows while preserving explicit shared-history language') &&
+    scenarioCollaborationTestSource.includes('shows signed, unsigned, and pending annotation attribution') &&
     scenarioCollaborationTestSource.includes('fails visibly closed on invalid collaboration history') &&
     scenarioCollaborationTestSource.includes('discloses deterministic paging for hostile large histories') &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-20", "phase": 6, "status": "implemented_unverified"') &&

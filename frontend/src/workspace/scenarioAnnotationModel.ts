@@ -98,6 +98,18 @@ const transact = (collection: Y.Map<unknown>, operation: () => void) => {
 const annotationBucketEntries = (collection: Y.Map<unknown>) =>
   Array.from(collection.entries()).filter(([key]) => key.startsWith(ANNOTATION_BUCKET_PREFIX))
 
+function asArrayBuffer(value: Uint8Array): ArrayBuffer {
+  const copy = new ArrayBuffer(value.byteLength)
+  new Uint8Array(copy).set(value)
+  return copy
+}
+
+function encodeBase64Url(value: Uint8Array): string {
+  let binary = ''
+  for (const byte of value) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
 function validEvent(value: unknown): value is ScenarioAnnotationEvent {
   if (!value || typeof value !== 'object' || Array.isArray(value) || !exactKeys(value, [
     'schemaVersion', 'eventId', 'annotationId', 'scenarioId', 'turnId', 'kind', 'action', 'body',
@@ -114,6 +126,31 @@ function validEvent(value: unknown): value is ScenarioAnnotationEvent {
   if (event.action === 'create') return event.parentEventId === null && validText(event.body, 50_000)
   if (event.parentEventId === null) return false
   return event.action === 'edit' ? validText(event.body, 50_000) : event.body === null
+}
+
+export function canonicalScenarioAnnotationEvent(event: ScenarioAnnotationEvent): Uint8Array {
+  if (!validEvent(event)) throw new Error('Scenario annotation event is invalid')
+  return new TextEncoder().encode(JSON.stringify({
+    schemaVersion: event.schemaVersion,
+    eventId: event.eventId,
+    annotationId: event.annotationId,
+    scenarioId: event.scenarioId,
+    turnId: event.turnId,
+    kind: event.kind,
+    action: event.action,
+    body: event.body,
+    authorId: event.authorId,
+    displayName: event.displayName,
+    timestamp: event.timestamp,
+    parentEventId: event.parentEventId,
+  }))
+}
+
+export async function scenarioAnnotationEventSha256(event: ScenarioAnnotationEvent): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest(
+    'SHA-256', asArrayBuffer(canonicalScenarioAnnotationEvent(event)),
+  ))
+  return encodeBase64Url(digest)
 }
 
 function eventsFor(collection: Y.Map<unknown>, scenarioId: string): ScenarioAnnotationEvent[] | null {
@@ -199,6 +236,15 @@ export function readScenarioAnnotations(collection: Y.Map<unknown>, scenarioId: 
   const annotationIds = Array.from(new Set(events.map((event) => event.annotationId))).sort()
   const projected = annotationIds.map((id) => projectAnnotation(events.filter((event) => event.annotationId === id)))
   return projected.some((value) => value === null) ? null : projected as ScenarioAnnotation[]
+}
+
+export function readScenarioAnnotationEvent(
+  collection: Y.Map<unknown>,
+  scenarioId: string,
+  eventId: string,
+): ScenarioAnnotationEvent | null {
+  if (!stableId(scenarioId) || !stableId(eventId)) return null
+  return eventsFor(collection, scenarioId)?.find((event) => event.eventId === eventId) ?? null
 }
 
 function requireTarget(scenarios: Y.Map<unknown>, scenarioId: string, turnId: string | null) {

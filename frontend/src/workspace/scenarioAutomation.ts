@@ -266,7 +266,9 @@ export function createAutomationScenarioAnnotation(doc: Y.Doc, expectedProjectId
     turnId: input.turnId, kind: input.kind, body: input.body, authorId: input.participantId,
     displayName: input.displayName, timestamp: input.timestamp,
   })
-  return { annotation, researchRevision: projectStateFingerprint(doc) }
+  const event = annotation.events.find((candidate) => candidate.eventId === input.eventId)
+  if (!event) throw new Error('Scenario annotation event was not retained')
+  return { annotation, event, researchRevision: projectStateFingerprint(doc) }
 }
 
 export function updateAutomationScenarioAnnotation(doc: Y.Doc, expectedProjectId: string, input: UpdateAutomationScenarioAnnotationInput) {
@@ -277,7 +279,9 @@ export function updateAutomationScenarioAnnotation(doc: Y.Doc, expectedProjectId
     expectedCurrentEventId: input.expectedCurrentEventId, body: input.body, authorId: input.participantId,
     displayName: input.displayName, timestamp: input.timestamp,
   })
-  return { annotation, researchRevision: projectStateFingerprint(doc) }
+  const event = annotation.events.find((candidate) => candidate.eventId === input.eventId)
+  if (!event) throw new Error('Scenario annotation event was not retained')
+  return { annotation, event, researchRevision: projectStateFingerprint(doc) }
 }
 
 export function resolveAutomationScenarioAnnotation(doc: Y.Doc, expectedProjectId: string, input: ResolveAutomationScenarioAnnotationInput) {
@@ -288,7 +292,9 @@ export function resolveAutomationScenarioAnnotation(doc: Y.Doc, expectedProjectI
     expectedCurrentEventId: input.expectedCurrentEventId, resolved: input.resolved,
     authorId: input.participantId, displayName: input.displayName, timestamp: input.timestamp,
   })
-  return { annotation, researchRevision: projectStateFingerprint(doc) }
+  const event = annotation.events.find((candidate) => candidate.eventId === input.eventId)
+  if (!event) throw new Error('Scenario annotation event was not retained')
+  return { annotation, event, researchRevision: projectStateFingerprint(doc) }
 }
 
 export function createAutomationScenarioLabel(doc: Y.Doc, expectedProjectId: string, input: CreateAutomationScenarioLabelInput) {

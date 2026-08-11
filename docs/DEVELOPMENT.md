@@ -341,9 +341,14 @@ content-minimized inspection. The real MCP and product vote paths commit the imm
 then best-effort publish the attestation; vault/registration failure returns an explicit unsigned
 result without hiding or rolling back the vote. The product UI additionally preserves unsaved
 selection changes across the asynchronous check and labels the device-only authority.
+The same gate covers annotation create, edit, resolve, and reopen hashes. Product and MCP paths
+retain each exact event before best-effort signing, expose explicit signed/unsigned results, omit
+annotation bodies from attribution inspection, and reject a wrong project before the product
+mutation closure runs.
 `npm run test:collaboration:identity` independently verifies the Rust-produced signature and
-rejects seven signed-field mutations. Only MCP scenario votes currently have a production resolver;
-the other nine allowed kinds are a closed native vocabulary awaiting domain adoption.
+rejects seven signed-field mutations. Product and MCP scenario votes and annotations currently have
+production resolvers; the other eight allowed kinds remain a closed native vocabulary awaiting
+domain adoption.
 
 `projectRelayAdminDecision.test.ts` is the shared remote-administration decision gate. It creates
 real WebCrypto Ed25519 keys and requires an exact native-compatible decision domain, canonical
@@ -574,7 +579,8 @@ conflict classes add no lifecycle event. MCP output and inspection omit every an
 label gate chains create, rename, assign, and remove; rename/follow-up assignment require both
 research and exact-current-event guards, and both stale conflict classes add no event. This grants
 one explicit bounded scenario-content read plus direct scenario editing, attributed voting,
-annotation lifecycle, and shared-label mutation—not model generation or authenticated identity.
+annotation lifecycle with post-commit exact-event device attribution, and shared-label mutation—not
+model generation or authenticated identity.
 
 `versionAutomation.test.ts` adds the MCP checkpoint mutation gate. It proves semantic editor blocks
 become one immutable head, a stale document revision fails before hashing, a document revision that

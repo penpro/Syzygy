@@ -444,8 +444,8 @@ project/room/revision/action-bound quorum, while no-policy rooms remain compatib
 retains emergency local authority. Product controls publish partial approvals and submit a completed
 bundle automatically. A parallel bounded attestation ledger now binds exact event hashes to the
 same installation key and registered participant claim without changing every event schema; the
-first production adopter is scenario voting through both product and MCP, with explicit unsigned
-fallback and body-free inspection. The next identity increments are adoption across the remaining
+first production adopters are scenario voting and annotation lifecycle through both product and MCP,
+with explicit unsigned fallback and body-free inspection. The next identity increments are adoption across the remaining
 research-event domains,
 device-key rotation/recovery, authenticated human/organizational enrollment, trusted time, and
 policy/approval withdrawal or relay attestation before the product may say authenticated consent.

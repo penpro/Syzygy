@@ -323,7 +323,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "inspect_research_state",
-            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, exact-hash installation attestations for MCP vote events, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and immutable policy-version history. Device/attestation entries expose stable key IDs plus self-reported participant IDs but no proof bodies and grant no human identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
+            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, exact-hash installation attestations for scenario vote and annotation events, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and immutable policy-version history. Device/attestation entries expose stable key IDs plus self-reported participant IDs but no proof bodies and grant no human identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
             object_schema(&[], &[]),
         ),
         tool(
@@ -472,7 +472,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "create_scenario_annotation",
-            "Create one flag or note on an existing scenario or turn against the exact current research revision. The body is stored in collaborative history but omitted from bounded inspection and the tool response.",
+            "Create one flag or note on an existing scenario or turn against the exact current research revision. The body is stored in collaborative history but omitted from bounded inspection and the tool response. After commit, Syzygy best-effort signs the exact event with this installation when its participant claim is registered; the response is explicitly signed-device or unsigned, never human identity.",
             object_schema(
                 &[
                     ("expectedResearchRevision", string_schema("Exact research revision from inspect_research_state or the prior scenario mutation.")),
@@ -489,7 +489,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "update_scenario_annotation",
-            "Append an attributed body revision to an open flag or note. Requires both the exact current research revision and annotation event; prior bodies remain in immutable lifecycle history and are omitted from MCP readback.",
+            "Append an attributed body revision to an open flag or note. Requires both the exact current research revision and annotation event; prior bodies remain in immutable lifecycle history and are omitted from MCP readback. After commit, exact-event device attribution is best-effort and explicitly signed-device or unsigned.",
             object_schema(
                 &[
                     ("expectedResearchRevision", string_schema("Exact research revision from inspection or the prior mutation.")),
@@ -505,7 +505,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "set_scenario_annotation_resolution",
-            "Resolve or reopen one flag/note by appending an attributed lifecycle event. Requires both the exact current research revision and current annotation event.",
+            "Resolve or reopen one flag/note by appending an attributed lifecycle event. Requires both the exact current research revision and current annotation event. After commit, exact-event device attribution is best-effort and explicitly signed-device or unsigned, not person or organization identity.",
             object_schema(
                 &[
                     ("expectedResearchRevision", string_schema("Exact research revision from inspection or the prior mutation.")),

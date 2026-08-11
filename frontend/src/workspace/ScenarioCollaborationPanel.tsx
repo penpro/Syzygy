@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type * as Y from 'yjs'
 import { useStore } from '../store'
 import { now, uid } from '../util'
@@ -9,8 +9,13 @@ import {
   setScenarioAnnotationResolution,
   updateScenarioAnnotation,
   type ScenarioAnnotation,
+  type ScenarioAnnotationEvent,
   type ScenarioAnnotationKind,
 } from './scenarioAnnotationModel'
+import {
+  commitScenarioAnnotationWithAttribution,
+  type ResearchEventAttributionResult,
+} from './researchEventAttribution'
 import {
   createScenarioLabel,
   inspectScenarioLabels,
@@ -38,6 +43,8 @@ interface ScenarioCollaborationPanelContentProps {
   labels: ScenarioLabelRow[]
   labelTotal: number
   canWrite: boolean
+  annotationAttribution: ResearchEventAttributionResult | null
+  annotationPending: boolean
   integrityIssues: string[]
   error: string
   annotationKind: ScenarioAnnotationKind
@@ -79,6 +86,8 @@ export function ScenarioCollaborationPanelContent({
   labels,
   labelTotal,
   canWrite,
+  annotationAttribution,
+  annotationPending,
   integrityIssues,
   error,
   annotationKind,
@@ -110,6 +119,7 @@ export function ScenarioCollaborationPanelContent({
 }: ScenarioCollaborationPanelContentProps) {
   const annotationRemaining = annotationTotal - annotations.length
   const labelRemaining = labelTotal - labels.length
+  const annotationCanWrite = canWrite && !annotationPending
   return (
     <section className="scenario-collaboration" aria-label="Scenario notes and labels">
       <div className="scenario-section-heading">
@@ -117,8 +127,31 @@ export function ScenarioCollaborationPanelContent({
         <span className="mono">{annotationTotal}</span>
       </div>
       <p className="scenario-identity-note">
-        Notes, flags, labels, and their history are shared project data. Researcher identity is not authenticated.
+        Notes, flags, labels, and their history are shared project data. Researcher names and local time are self-reported.
       </p>
+      {annotationPending && (
+        <p className="scenario-identity-note" role="status">
+          Shared annotation saved. Checking registered-device attribution…
+        </p>
+      )}
+      {!annotationPending && annotationAttribution?.status === 'signed-device' && (
+        <p className="scenario-identity-note" role="status">
+          Shared annotation event signed by registered device{' '}
+          <span className="mono">
+            {annotationAttribution.keyId.replace('ed25519-sha256:', '').slice(0, 12)}…
+          </span>. This proves installation-key possession, not a person or organization.
+        </p>
+      )}
+      {!annotationPending && annotationAttribution?.status === 'unsigned' && (
+        <p className="scenario-identity-note" role="status">
+          Shared annotation saved without a device signature: {
+            annotationAttribution.reason === 'device-directory-unhealthy'
+              ? 'the project device directory needs attention.'
+              : annotationAttribution.reason === 'attestation-history-unhealthy'
+                ? 'signed attribution history needs attention.'
+                : 'this installation is not registered here or signing is unavailable.'}
+        </p>
+      )}
       {integrityIssues.length > 0 && (
         <div className="scenario-state error" role="alert">
           Collaboration history needs attention: {integrityIssues.join('; ')}
@@ -129,14 +162,14 @@ export function ScenarioCollaborationPanelContent({
       <form className="scenario-form compact" aria-label="Add shared scenario annotation" onSubmit={onCreateAnnotation}>
         <label>
           Type
-          <select value={annotationKind} disabled={!canWrite} onChange={(event) => onAnnotationKind(event.target.value as ScenarioAnnotationKind)}>
+          <select value={annotationKind} disabled={!annotationCanWrite} onChange={(event) => onAnnotationKind(event.target.value as ScenarioAnnotationKind)}>
             <option value="note">Note</option>
             <option value="flag">Flag</option>
           </select>
         </label>
         <label>
           Attach to
-          <select value={annotationTurnId} disabled={!canWrite} onChange={(event) => onAnnotationTurn(event.target.value)}>
+          <select value={annotationTurnId} disabled={!annotationCanWrite} onChange={(event) => onAnnotationTurn(event.target.value)}>
             <option value="">Whole scenario</option>
             {scenario.turns.map((turn, index) => (
               <option key={turn.id} value={turn.id}>Turn {index + 1} · {turn.role}</option>
@@ -145,9 +178,9 @@ export function ScenarioCollaborationPanelContent({
         </label>
         <label>
           Shared text
-          <textarea value={annotationBody} maxLength={50_000} required disabled={!canWrite} onChange={(event) => onAnnotationBody(event.target.value)} />
+          <textarea value={annotationBody} maxLength={50_000} required disabled={!annotationCanWrite} onChange={(event) => onAnnotationBody(event.target.value)} />
         </label>
-        <button className="btn sm" type="submit" disabled={!canWrite}>Add shared {annotationKind}</button>
+        <button className="btn sm" type="submit" disabled={!annotationCanWrite}>Add shared {annotationKind}</button>
       </form>
 
       {annotationTotal === 0 && <p className="scenario-state">No shared notes or flags yet.</p>}
@@ -165,22 +198,22 @@ export function ScenarioCollaborationPanelContent({
               <form className="scenario-form compact" aria-label={`Edit ${annotation.kind}`} onSubmit={onSaveAnnotationEdit}>
                 <label>
                   Revised shared text
-                  <textarea value={annotationEditBody} maxLength={50_000} required onChange={(event) => onAnnotationEditBody(event.target.value)} />
+                  <textarea value={annotationEditBody} maxLength={50_000} required disabled={!annotationCanWrite} onChange={(event) => onAnnotationEditBody(event.target.value)} />
                 </label>
                 <div className="scenario-actions">
-                  <button className="btn primary sm" type="submit" disabled={!canWrite}>Save edit</button>
+                  <button className="btn primary sm" type="submit" disabled={!annotationCanWrite}>Save edit</button>
                   <button className="btn sm" type="button" onClick={onCancelAnnotationEdit}>Cancel</button>
                 </div>
               </form>
             ) : (
               <div className="scenario-actions">
                 {annotation.status === 'open' && (
-                  <button className="btn sm" type="button" disabled={!canWrite} onClick={() => onStartAnnotationEdit(annotation)}>Edit</button>
+                  <button className="btn sm" type="button" disabled={!annotationCanWrite} onClick={() => onStartAnnotationEdit(annotation)}>Edit</button>
                 )}
                 <button
                   className="btn sm"
                   type="button"
-                  disabled={!canWrite}
+                  disabled={!annotationCanWrite}
                   onClick={() => onSetAnnotationResolved(annotation, annotation.status === 'open')}
                 >
                   {annotation.status === 'open' ? 'Resolve' : 'Reopen'}
@@ -250,10 +283,12 @@ export function ScenarioCollaborationPanelContent({
 
 export function ScenarioCollaborationPanel({
   doc,
+  projectId,
   scenario,
   writesDisabled,
 }: {
   doc: Y.Doc
+  projectId: string
   scenario: ResearchScenario
   writesDisabled: boolean
 }) {
@@ -272,16 +307,23 @@ export function ScenarioCollaborationPanel({
   const [annotationLimit, setAnnotationLimit] = useState(SCENARIO_COLLABORATION_PAGE_SIZE)
   const [labelLimit, setLabelLimit] = useState(SCENARIO_COLLABORATION_PAGE_SIZE)
   const [error, setError] = useState('')
+  const [annotationAttribution, setAnnotationAttribution] = useState<ResearchEventAttributionResult | null>(null)
+  const [annotationPending, setAnnotationPending] = useState(false)
+  const annotationOperation = useRef(0)
 
   useEffect(() => {
+    annotationOperation.current += 1
     setAnnotationTurnId('')
     setAnnotationBody('')
     setEditingAnnotationId(null)
     setRenamingLabelId(null)
     setAnnotationLimit(SCENARIO_COLLABORATION_PAGE_SIZE)
     setLabelLimit(SCENARIO_COLLABORATION_PAGE_SIZE)
+    setAnnotationAttribution(null)
+    setAnnotationPending(false)
     setError('')
-  }, [scenario.id])
+    return () => { annotationOperation.current += 1 }
+  }, [projectId, scenario.id])
 
   const shared = getProjectSharedTypes(doc)
   const annotationInspection = inspectScenarioAnnotations(shared.discussions, shared.scenarios)
@@ -314,16 +356,39 @@ export function ScenarioCollaborationPanel({
     }
   }
 
+  const runAnnotationMutation = async (operation: () => ScenarioAnnotationEvent) => {
+    const operationId = annotationOperation.current + 1
+    annotationOperation.current = operationId
+    setError('')
+    setAnnotationAttribution(null)
+    setAnnotationPending(true)
+    try {
+      assertWritable()
+      const result = await commitScenarioAnnotationWithAttribution(doc, projectId, operation)
+      if (annotationOperation.current === operationId) setAnnotationAttribution(result.attribution)
+    } catch (caught) {
+      if (annotationOperation.current === operationId) {
+        setError(caught instanceof Error ? caught.message : 'Scenario annotation update failed')
+      }
+    } finally {
+      if (annotationOperation.current === operationId) setAnnotationPending(false)
+    }
+  }
+
   const createAnnotation = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    mutate(() => {
+    void runAnnotationMutation(() => {
       const author = identity()
-      createScenarioAnnotation(shared.discussions, shared.scenarios, {
-        annotationId: uid(), eventId: uid(), scenarioId: scenario.id,
+      const eventId = uid()
+      const annotation = createScenarioAnnotation(shared.discussions, shared.scenarios, {
+        annotationId: uid(), eventId, scenarioId: scenario.id,
         turnId: annotationTurnId || null, kind: annotationKind, body: annotationBody,
         authorId: author.authorId, displayName: author.displayName, timestamp: now(),
       })
       setAnnotationBody('')
+      const retainedEvent = annotation.events.find((candidate) => candidate.eventId === eventId)
+      if (!retainedEvent) throw new Error('Scenario annotation event was not retained')
+      return retainedEvent
     })
   }
 
@@ -340,25 +405,35 @@ export function ScenarioCollaborationPanel({
   }
   const saveAnnotationEdit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    mutate(() => {
+    void runAnnotationMutation(() => {
       if (!editingAnnotationId || !annotationEditHead) throw new Error('Select a shared note or flag to edit')
       const author = identity()
-      updateScenarioAnnotation(shared.discussions, shared.scenarios, {
-        annotationId: editingAnnotationId, eventId: uid(), scenarioId: scenario.id,
+      const eventId = uid()
+      const annotation = updateScenarioAnnotation(shared.discussions, shared.scenarios, {
+        annotationId: editingAnnotationId, eventId, scenarioId: scenario.id,
         expectedCurrentEventId: annotationEditHead, body: annotationEditBody,
         authorId: author.authorId, displayName: author.displayName, timestamp: now(),
       })
       cancelAnnotationEdit()
+      const retainedEvent = annotation.events.find((candidate) => candidate.eventId === eventId)
+      if (!retainedEvent) throw new Error('Scenario annotation event was not retained')
+      return retainedEvent
     })
   }
-  const setAnnotationResolved = (annotation: ScenarioAnnotation, resolved: boolean) => mutate(() => {
-    const author = identity()
-    setScenarioAnnotationResolution(shared.discussions, shared.scenarios, {
-      annotationId: annotation.id, eventId: uid(), scenarioId: scenario.id,
-      expectedCurrentEventId: annotation.currentEventId, resolved,
-      authorId: author.authorId, displayName: author.displayName, timestamp: now(),
+  const setAnnotationResolved = (annotation: ScenarioAnnotation, resolved: boolean) => {
+    void runAnnotationMutation(() => {
+      const author = identity()
+      const eventId = uid()
+      const changed = setScenarioAnnotationResolution(shared.discussions, shared.scenarios, {
+        annotationId: annotation.id, eventId, scenarioId: scenario.id,
+        expectedCurrentEventId: annotation.currentEventId, resolved,
+        authorId: author.authorId, displayName: author.displayName, timestamp: now(),
+      })
+      const retainedEvent = changed.events.find((candidate) => candidate.eventId === eventId)
+      if (!retainedEvent) throw new Error('Scenario annotation event was not retained')
+      return retainedEvent
     })
-  })
+  }
 
   const createLabel = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -410,7 +485,8 @@ export function ScenarioCollaborationPanel({
         label,
         assignment: readScenarioLabelAssignment(shared.settings, scenario.id, label.id),
       }))} labelTotal={allLabels.length}
-      canWrite={canWrite} integrityIssues={integrityIssues} error={error}
+      canWrite={canWrite} annotationAttribution={annotationAttribution}
+      annotationPending={annotationPending} integrityIssues={integrityIssues} error={error}
       annotationKind={annotationKind} annotationTurnId={annotationTurnId} annotationBody={annotationBody}
       editingAnnotationId={editingAnnotationId} annotationEditBody={annotationEditBody}
       labelName={labelName} renamingLabelId={renamingLabelId} labelRenameName={labelRenameName}

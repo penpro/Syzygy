@@ -313,6 +313,7 @@ export function ScenarioWorkspace({ project }: { project: ResearchProjectManifes
     voteOperation.current += 1
     setVoteAttribution(null)
     setVotePending(false)
+    return () => { voteOperation.current += 1 }
   }, [project.id, selected?.id])
 
   const shared = () => {
@@ -419,7 +420,8 @@ export function ScenarioWorkspace({ project }: { project: ResearchProjectManifes
       voteAttribution={voteAttribution} votePending={votePending}
       generation={doc && selected ? <ScenarioGenerator key={selected.id} project={project} doc={doc} scenario={selected} /> : undefined}
       collaboration={doc && selected ? <ScenarioCollaborationPanel
-        key={selected.id} doc={doc} scenario={selected} writesDisabled={snapshot.issues.length > 0}
+        key={selected.id} doc={doc} projectId={project.id} scenario={selected}
+        writesDisabled={snapshot.issues.length > 0}
       /> : undefined}
       heuristics={doc ? <HeuristicWorkspace project={project} doc={doc} /> : undefined}
       reruns={doc ? <ScenarioRerunQueuePanel project={project} doc={doc} /> : undefined}

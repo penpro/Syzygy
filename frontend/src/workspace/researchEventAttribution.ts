@@ -12,6 +12,11 @@ import {
   type ProjectDeviceDirectoryInspection,
 } from './projectDeviceDirectory'
 import {
+  readScenarioAnnotationEvent,
+  scenarioAnnotationEventSha256,
+  type ScenarioAnnotationEvent,
+} from './scenarioAnnotationModel'
+import {
   castScenarioVote,
   readScenarioVoteEvent,
   scenarioVoteEventSha256,
@@ -54,6 +59,11 @@ export interface AttributedScenarioVote {
   attribution: ResearchEventAttributionResult
 }
 
+export interface AttributedScenarioAnnotation {
+  event: ScenarioAnnotationEvent
+  attribution: ResearchEventAttributionResult
+}
+
 const DEFAULT_DEPENDENCIES: ResearchEventAttributionDependencies = {
   inspectDirectory: (document, projectId) => inspectProjectDeviceDirectory(
     getProjectSharedTypes(document).settings,
@@ -66,7 +76,11 @@ export function scenarioVoteAttestationEventId(event: ScenarioVoteEvent): string
   return `${event.scenarioId.length}:${event.scenarioId}${event.eventId}`
 }
 
-function parseScenarioVoteAttestationEventId(value: string): { scenarioId: string; eventId: string } | null {
+export function scenarioAnnotationAttestationEventId(event: ScenarioAnnotationEvent): string {
+  return `${event.scenarioId.length}:${event.scenarioId}${event.eventId}`
+}
+
+function parseAttestationEventId(value: string): { scenarioId: string; eventId: string } | null {
   const separator = value.indexOf(':')
   if (separator < 1) return null
   const lengthText = value.slice(0, separator)
@@ -79,33 +93,37 @@ function parseScenarioVoteAttestationEventId(value: string): { scenarioId: strin
   return { scenarioId, eventId }
 }
 
-export function scenarioVoteAttestationResolver(
+export function researchEventAttestationResolver(
   discussions: Y.Map<unknown>,
 ): ProjectResearchEventHashResolver {
   const cache = new Map<string, Promise<string | null>>()
   return (eventKind, attestationEventId) => {
-    if (eventKind !== 'scenario-vote') return null
-    const cached = cache.get(attestationEventId)
+    if (eventKind !== 'scenario-vote' && eventKind !== 'scenario-annotation') return null
+    const cacheKey = `${eventKind}:${attestationEventId}`
+    const cached = cache.get(cacheKey)
     if (cached) return cached
     const resolved = (async () => {
-      const identity = parseScenarioVoteAttestationEventId(attestationEventId)
+      const identity = parseAttestationEventId(attestationEventId)
       if (!identity) return null
-      const event = readScenarioVoteEvent(discussions, identity.scenarioId, identity.eventId)
-      return event ? scenarioVoteEventSha256(event) : null
+      if (eventKind === 'scenario-vote') {
+        const event = readScenarioVoteEvent(discussions, identity.scenarioId, identity.eventId)
+        return event ? scenarioVoteEventSha256(event) : null
+      }
+      const event = readScenarioAnnotationEvent(discussions, identity.scenarioId, identity.eventId)
+      return event ? scenarioAnnotationEventSha256(event) : null
     })()
-    cache.set(attestationEventId, resolved)
+    cache.set(cacheKey, resolved)
     return resolved
   }
 }
 
-/**
- * Best-effort durable device attribution after a vote event has committed. Failure never rolls back
- * or disguises the research mutation; callers receive an explicit unsigned result.
- */
-export async function attestScenarioVoteEvent(
+async function attestResearchEvent(
   document: Y.Doc,
   projectId: string,
-  event: ScenarioVoteEvent,
+  eventKind: 'scenario-vote' | 'scenario-annotation',
+  eventId: string,
+  participantId: string,
+  eventHash: () => Promise<string>,
   dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
 ): Promise<ResearchEventAttributionResult> {
   let directory: ProjectDeviceDirectoryInspection
@@ -126,13 +144,12 @@ export async function attestScenarioVoteEvent(
     }
   }
   const { discussions, settings } = getProjectSharedTypes(document)
-  const eventId = scenarioVoteAttestationEventId(event)
   let eventSha256: string
   let record: ProjectResearchEventAttestationRecord
   try {
-    eventSha256 = await scenarioVoteEventSha256(event)
+    eventSha256 = await eventHash()
     record = await dependencies.create(
-      projectId, event.participantId, 'scenario-vote', eventId, eventSha256,
+      projectId, participantId, eventKind, eventId, eventSha256,
     )
   } catch {
     return {
@@ -146,13 +163,13 @@ export async function attestScenarioVoteEvent(
       settings,
       projectId,
       directory,
-      scenarioVoteAttestationResolver(discussions),
+      researchEventAttestationResolver(discussions),
       record,
     )
     return {
       status: 'signed-device',
       keyId: record.proof.keyId,
-      eventKind: 'scenario-vote',
+      eventKind,
       eventId,
       eventSha256,
       attestationCount: inspection.attestationCount,
@@ -166,6 +183,62 @@ export async function attestScenarioVoteEvent(
         : 'signing-or-registration-unavailable',
       authority: 'installation-device-not-human-identity',
     }
+  }
+}
+
+/**
+ * Best-effort durable device attribution after a vote event has committed. Failure never rolls back
+ * or disguises the research mutation; callers receive an explicit unsigned result.
+ */
+export async function attestScenarioVoteEvent(
+  document: Y.Doc,
+  projectId: string,
+  event: ScenarioVoteEvent,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<ResearchEventAttributionResult> {
+  return attestResearchEvent(
+    document,
+    projectId,
+    'scenario-vote',
+    scenarioVoteAttestationEventId(event),
+    event.participantId,
+    () => scenarioVoteEventSha256(event),
+    dependencies,
+  )
+}
+
+/** Best-effort device attribution after a create/edit/resolve/reopen event has committed. */
+export async function attestScenarioAnnotationEvent(
+  document: Y.Doc,
+  projectId: string,
+  event: ScenarioAnnotationEvent,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<ResearchEventAttributionResult> {
+  return attestResearchEvent(
+    document,
+    projectId,
+    'scenario-annotation',
+    scenarioAnnotationAttestationEventId(event),
+    event.authorId,
+    () => scenarioAnnotationEventSha256(event),
+    dependencies,
+  )
+}
+
+/** Product annotation path: validate project identity, commit once, then attest best-effort. */
+export async function commitScenarioAnnotationWithAttribution(
+  document: Y.Doc,
+  projectId: string,
+  commit: () => ScenarioAnnotationEvent,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<AttributedScenarioAnnotation> {
+  if (getProjectSharedTypes(document).metadata.get('projectId') !== projectId) {
+    throw new Error('Project identity does not match the annotation document')
+  }
+  const event = commit()
+  return {
+    event,
+    attribution: await attestScenarioAnnotationEvent(document, projectId, event, dependencies),
   }
 }
 

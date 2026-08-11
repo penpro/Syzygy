@@ -20,9 +20,18 @@ import {
   type ProjectResearchEventHashResolver,
 } from './projectResearchEventAttestation'
 import {
+  attestScenarioAnnotationEvent,
   castScenarioVoteWithAttribution,
-  scenarioVoteAttestationResolver,
+  commitScenarioAnnotationWithAttribution,
+  researchEventAttestationResolver,
 } from './researchEventAttribution'
+import {
+  createScenarioAnnotation,
+  readScenarioAnnotations,
+  setScenarioAnnotationResolution,
+  updateScenarioAnnotation,
+  type ScenarioAnnotationEvent,
+} from './scenarioAnnotationModel'
 import { createScenario } from './scenarioModel'
 import { readScenarioVotes } from './scenarioVoteModel'
 import type { ResearchProjectManifest } from './schema'
@@ -276,7 +285,7 @@ describe('project research event attestations', () => {
       authority: 'installation-device-not-human-identity',
     }))
     await expect(inspectProjectResearchEventAttestations(
-      settings, projectId, directory([signer]), scenarioVoteAttestationResolver(discussions),
+      settings, projectId, directory([signer]), researchEventAttestationResolver(discussions),
     )).resolves.toEqual(expect.objectContaining({ healthy: true, attestationCount: 1 }))
 
     const unsigned = await castScenarioVoteWithAttribution(document, projectId, {
@@ -309,5 +318,117 @@ describe('project research event attestations', () => {
       authority: 'installation-device-not-human-identity',
     })
     expect(unavailableDirectory.summary.history).toHaveLength(3)
+  })
+
+  it('signs exact create, edit, resolve, and reopen annotation events without returning bodies', async () => {
+    const signer = await identity(participantA)
+    const document = createProjectDocument(manifest)
+    const { discussions, scenarios, settings } = getProjectSharedTypes(document)
+    createScenario(scenarios, {
+      id: 'scenario-annotation-1', title: 'Scenario', background: '', authorId: participantA,
+      timestamp: 1, editId: 'create-scenario-annotation-1',
+    })
+    const createInput = {
+      annotationId: 'annotation-1', eventId: 'annotation-create-1', scenarioId: 'scenario-annotation-1',
+      kind: 'note' as const, body: 'Body canary that inspection must omit', authorId: participantA,
+      displayName: 'Alice', timestamp: 2,
+    }
+    await expect(commitScenarioAnnotationWithAttribution(
+      document, 'wrong-project', () => {
+        const created = createScenarioAnnotation(discussions, scenarios, createInput)
+        return created.events.find(({ eventId }) => eventId === createInput.eventId)!
+      },
+    )).rejects.toThrow('Project identity does not match')
+    expect(readScenarioAnnotations(discussions, 'scenario-annotation-1')).toEqual([])
+    const created = await commitScenarioAnnotationWithAttribution(
+      document,
+      projectId,
+      () => {
+        const annotation = createScenarioAnnotation(discussions, scenarios, createInput)
+        return annotation.events.find(({ eventId }) => eventId === createInput.eventId)!
+      },
+      {
+        inspectDirectory: async () => directory([signer]),
+        create: (id, participantId, kind, eventId, hash) => createProjectResearchEventAttestation(
+          id, participantId, kind, eventId, hash, dependencies(signer, nonceA),
+        ),
+      },
+    )
+    expect(created.attribution).toEqual(expect.objectContaining({
+      status: 'signed-device', eventKind: 'scenario-annotation', attestationCount: 1,
+    }))
+    const records: ScenarioAnnotationEvent[] = []
+    let annotation = readScenarioAnnotations(discussions, 'scenario-annotation-1')![0]
+    annotation = updateScenarioAnnotation(discussions, scenarios, {
+      annotationId: annotation.id, eventId: 'annotation-edit-1', scenarioId: annotation.scenarioId,
+      expectedCurrentEventId: annotation.currentEventId, body: 'Revised body canary',
+      authorId: participantA, displayName: 'Alice', timestamp: 3,
+    })
+    records.push(annotation.events.find(({ eventId }) => eventId === 'annotation-edit-1')!)
+    annotation = setScenarioAnnotationResolution(discussions, scenarios, {
+      annotationId: annotation.id, eventId: 'annotation-resolve-1', scenarioId: annotation.scenarioId,
+      expectedCurrentEventId: annotation.currentEventId, resolved: true,
+      authorId: participantA, displayName: 'Alice', timestamp: 4,
+    })
+    records.push(annotation.events.find(({ eventId }) => eventId === 'annotation-resolve-1')!)
+    annotation = setScenarioAnnotationResolution(discussions, scenarios, {
+      annotationId: annotation.id, eventId: 'annotation-reopen-1', scenarioId: annotation.scenarioId,
+      expectedCurrentEventId: annotation.currentEventId, resolved: false,
+      authorId: participantA, displayName: 'Alice', timestamp: 5,
+    })
+    records.push(annotation.events.find(({ eventId }) => eventId === 'annotation-reopen-1')!)
+
+    for (let index = 0; index < records.length; index += 1) {
+      await expect(attestScenarioAnnotationEvent(document, projectId, records[index], {
+        inspectDirectory: async () => directory([signer]),
+        create: (id, participantId, kind, eventId, hash) => createProjectResearchEventAttestation(
+          id, participantId, kind, eventId, hash,
+          dependencies(signer, encodeBase64Url(new Uint8Array(32).fill(30 + index))),
+        ),
+      })).resolves.toEqual(expect.objectContaining({
+        status: 'signed-device', eventKind: 'scenario-annotation', attestationCount: index + 2,
+      }))
+    }
+    const inspection = await inspectProjectResearchEventAttestations(
+      settings, projectId, directory([signer]), researchEventAttestationResolver(discussions),
+    )
+    expect(inspection).toEqual(expect.objectContaining({ healthy: true, attestationCount: 4 }))
+    expect(JSON.stringify(inspection)).not.toContain('Body canary')
+    expect(JSON.stringify(inspection)).not.toContain('Revised body canary')
+
+    const unsigned = await commitScenarioAnnotationWithAttribution(
+      document,
+      projectId,
+      () => {
+        const added = createScenarioAnnotation(discussions, scenarios, {
+          ...createInput,
+          annotationId: 'annotation-unsigned',
+          eventId: 'annotation-create-unsigned',
+          body: 'Unsigned body remains committed',
+          timestamp: 6,
+        })
+        return added.events.find(({ eventId }) => eventId === 'annotation-create-unsigned')!
+      },
+      {
+        inspectDirectory: async () => { throw new Error('directory unavailable') },
+        create: async () => { throw new Error('must not sign') },
+      },
+    )
+    expect(unsigned.attribution).toEqual({
+      status: 'unsigned',
+      reason: 'device-directory-unhealthy',
+      authority: 'installation-device-not-human-identity',
+    })
+    expect(readScenarioAnnotations(discussions, 'scenario-annotation-1')).toHaveLength(2)
+
+    const annotationBucket = Array.from(discussions.values()).find((value) =>
+      value instanceof Y.Map && value.get('scenarioId') === 'scenario-annotation-1') as Y.Map<unknown>
+    const annotationEvents = annotationBucket.get('events') as Y.Map<ScenarioAnnotationEvent>
+    const createStorageKey = Array.from(annotationEvents.entries())
+      .find(([, event]) => event.eventId === 'annotation-create-1')![0]
+    annotationEvents.set(createStorageKey, { ...created.event, body: 'Mutated retained body' })
+    await expect(inspectProjectResearchEventAttestations(
+      settings, projectId, directory([signer]), researchEventAttestationResolver(discussions),
+    )).resolves.toEqual(expect.objectContaining({ healthy: false, invalidRecords: 1 }))
   })
 })

@@ -17,7 +17,7 @@ import { inspectRegisteredProjectPresence } from './presenceRegistry'
 import { inspectProjectDeviceDirectory } from './projectDeviceDirectory'
 import { inspectProjectRelayAdminApprovals } from './projectRelayAdminApproval'
 import { inspectProjectResearchEventAttestations } from './projectResearchEventAttestation'
-import { scenarioVoteAttestationResolver } from './researchEventAttribution'
+import { researchEventAttestationResolver } from './researchEventAttribution'
 
 const MAX_RETURNED_ITEMS = 200
 
@@ -76,7 +76,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
     settings,
     expectedProjectId,
     projectDevices,
-    scenarioVoteAttestationResolver(discussions),
+    researchEventAttestationResolver(discussions),
   )
   const adversarialReviewInspection = await inspectAdversarialReviewHistory(discussions)
   const allVersions = await listPolicyVersions(versionMap)

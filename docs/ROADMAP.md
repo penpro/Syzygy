@@ -190,11 +190,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   explicitly enrolled installation key, rejects stale/replayed connection proofs, and permits only
   that device-bound admin role to execute one fresh action-bound exact-revision room-management
   request. A repeatable five-client binary soak covers 60 rapid writes, two-client partition/rejoin,
-  awareness cleanup/recovery, forced reauthentication, and remote issue/rotate/revoke. Eight of ten
+  awareness cleanup/recovery, forced reauthentication, and remote issue/rotate/revoke. Nine of ten
   named durable research-event domains now have exact retained-device attribution, including full
-  adversarial archives and decisions plus suggestion proposals/decisions. Human identity,
+  adversarial archives and decisions, suggestion proposals/decisions, and heuristic definition,
+  example, and check-result events. Human identity,
   shared-directory approval, propagated identity revocation, key rotation/recovery, the remaining
-  heuristic/scenario-rerun adoption, and physical two-install product proof remain
+  scenario-rerun adoption, and physical two-install product proof remain
   open, so P-11 remains
   `implemented_unverified`. Evidence:
   `docs/audits/runs/PRESENCE-LIFECYCLE-2026-07-18.json` and
@@ -203,6 +204,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   `docs/audits/runs/SIGNED-PROJECT-DEVICE-DIRECTORY-2026-08-11.json`.
   Signed suggestion-event adoption is recorded in
   `docs/audits/runs/SIGNED-SUGGESTION-EVENTS-2026-08-11.json`.
+  Signed heuristic definition/example/check-result adoption is recorded in
+  `docs/audits/runs/SIGNED-HEURISTIC-EVENTS-2026-08-11.json`.
 - P-16 now connects selected scenarios to one bounded provider-neutral response contract. Local
   generation uses the optional loopback model; OpenAI, Anthropic, Gemini, and xAI reuse the native
   Send once boundary. Output enters the existing collaborative response lineage only when the exact
@@ -691,7 +694,7 @@ collaborators are not required to download large project folders.
    policy state and applies an exact-revision install/remove transition using eligible registered
    key IDs. Next: run packaged physical two-install policy interaction, then
    recovery when no admin survives (which still requires the relay host), durable-event attestation
-   adoption for heuristic/scenario-rerun, device-key rotation/recovery, trusted time and replacement-invitation
+   adoption for scenario-rerun, device-key rotation/recovery, trusted time and replacement-invitation
    delivery, public WSS operations, compaction/export/backups
    and broader abuse controls, then run packaged physical two-install gates.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.

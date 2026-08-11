@@ -59,6 +59,21 @@ import {
   suggestionEventSha256,
   type SuggestionEvent,
 } from './suggestionModel'
+import {
+  heuristicEditSha256,
+  readHeuristicEdit,
+  type HeuristicEdit,
+} from './heuristicsModel'
+import {
+  heuristicExampleEventSha256,
+  readHeuristicExampleEvent,
+  type HeuristicExampleEvent,
+} from './heuristicExampleModel'
+import {
+  heuristicCheckResultSha256,
+  readHeuristicCheckResult,
+  type HeuristicCheckResult,
+} from './heuristicCheckResultModel'
 
 export type ResearchEventAttributionResult = {
   status: 'signed-device'
@@ -169,6 +184,18 @@ export function suggestionAttestationEventId(event: SuggestionEvent): string {
   return `${event.suggestionId.length}:${event.suggestionId}${event.eventId}`
 }
 
+export function heuristicEditAttestationEventId(heuristicId: string, edit: HeuristicEdit): string {
+  return `h:${heuristicId.length}:${heuristicId}${edit.editId}`
+}
+
+export function heuristicExampleAttestationEventId(event: HeuristicExampleEvent): string {
+  return `e:${event.heuristicId.length}:${event.heuristicId}${event.exampleId.length}:${event.exampleId}${event.eventId}`
+}
+
+export function heuristicCheckResultAttestationEventId(result: HeuristicCheckResult): string {
+  return `r:${result.heuristicId.length}:${result.heuristicId}${result.resultId}`
+}
+
 function parseLengthPrefixed(
   value: string,
   cursor: number,
@@ -268,22 +295,75 @@ function parseAdversarialReviewAttestationEventId(
   return eventId ? { recordType: 'decision', runId: run.segment, eventId } : null
 }
 
+type HeuristicAttestationIdentity = {
+  recordType: 'edit' | 'result'
+  heuristicId: string
+  eventId: string
+} | {
+  recordType: 'example'
+  heuristicId: string
+  exampleId: string
+  eventId: string
+}
+
+function parseHeuristicAttestationEventId(value: string): HeuristicAttestationIdentity | null {
+  if (!/^[her]:/.test(value)) return null
+  const recordType = value[0] === 'h' ? 'edit' : value[0] === 'e' ? 'example' : 'result'
+  const heuristic = parseLengthPrefixed(value, 2)
+  if (!heuristic) return null
+  if (recordType !== 'example') {
+    const eventId = value.slice(heuristic.cursor)
+    return eventId ? { recordType, heuristicId: heuristic.segment, eventId } : null
+  }
+  const example = parseLengthPrefixed(value, heuristic.cursor)
+  if (!example) return null
+  const eventId = value.slice(example.cursor)
+  return eventId ? {
+    recordType, heuristicId: heuristic.segment, exampleId: example.segment, eventId,
+  } : null
+}
+
 export function researchEventAttestationResolver(
   discussions: Y.Map<unknown>,
   settings?: Y.Map<unknown>,
   versions?: Y.Map<unknown>,
   scenarios?: Y.Map<unknown>,
+  heuristics?: Y.Map<unknown>,
 ): ProjectResearchEventResolver {
   const cache = new Map<string, Promise<{ eventSha256: string; participantId: string } | null>>()
   return (eventKind, attestationEventId) => {
     if (eventKind !== 'scenario' && eventKind !== 'scenario-vote' && eventKind !== 'scenario-annotation' &&
       eventKind !== 'scenario-label' && eventKind !== 'policy-version' &&
       eventKind !== 'scenario-turn' && eventKind !== 'adversarial-review' &&
-      eventKind !== 'suggestion') return null
+      eventKind !== 'suggestion' && eventKind !== 'heuristic') return null
     const cacheKey = `${eventKind}:${attestationEventId}`
     const cached = cache.get(cacheKey)
     if (cached) return cached
     const resolved = (async () => {
+      if (eventKind === 'heuristic') {
+        const identity = parseHeuristicAttestationEventId(attestationEventId)
+        if (!identity) return null
+        if (identity.recordType === 'edit') {
+          if (!heuristics) return null
+          const edit = readHeuristicEdit(heuristics, identity.heuristicId, identity.eventId)
+          return edit ? {
+            eventSha256: await heuristicEditSha256(identity.heuristicId, edit),
+            participantId: edit.authorId,
+          } : null
+        }
+        if (identity.recordType === 'example') {
+          const event = readHeuristicExampleEvent(
+            discussions, identity.heuristicId, identity.exampleId, identity.eventId,
+          )
+          return event ? {
+            eventSha256: await heuristicExampleEventSha256(event), participantId: event.participantId,
+          } : null
+        }
+        const result = readHeuristicCheckResult(discussions, identity.heuristicId, identity.eventId)
+        return result ? {
+          eventSha256: await heuristicCheckResultSha256(result), participantId: result.authorId,
+        } : null
+      }
       if (eventKind === 'suggestion') {
         const identity = parseScenarioAttestationEventId(attestationEventId)
         if (!identity) return null
@@ -380,7 +460,7 @@ async function attestResearchEvent(
   document: Y.Doc,
   projectId: string,
   eventKind: 'scenario' | 'scenario-vote' | 'scenario-annotation' | 'scenario-label' |
-    'policy-version' | 'scenario-turn' | 'adversarial-review' | 'suggestion',
+    'policy-version' | 'scenario-turn' | 'adversarial-review' | 'suggestion' | 'heuristic',
   eventId: string,
   participantId: string,
   eventHash: () => Promise<string>,
@@ -418,12 +498,12 @@ async function attestResearchEvent(
     }
   }
   try {
-    const { discussions, settings, versions, scenarios } = getProjectSharedTypes(document)
+    const { discussions, settings, versions, scenarios, heuristics } = getProjectSharedTypes(document)
     const inspection = await publishProjectResearchEventAttestation(
       settings,
       projectId,
       directory,
-      researchEventAttestationResolver(discussions, settings, versions, scenarios),
+      researchEventAttestationResolver(discussions, settings, versions, scenarios, heuristics),
       record,
     )
     return {
@@ -444,6 +524,33 @@ async function attestResearchEvent(
       authority: 'installation-device-not-human-identity',
     }
   }
+}
+
+export async function attestHeuristicEditEvent(
+  document: Y.Doc, projectId: string, heuristicId: string, edit: HeuristicEdit,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<ResearchEventAttributionResult> {
+  return attestResearchEvent(document, projectId, 'heuristic',
+    heuristicEditAttestationEventId(heuristicId, edit), edit.authorId,
+    () => heuristicEditSha256(heuristicId, edit), dependencies)
+}
+
+export async function attestHeuristicExampleEvent(
+  document: Y.Doc, projectId: string, event: HeuristicExampleEvent,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<ResearchEventAttributionResult> {
+  return attestResearchEvent(document, projectId, 'heuristic',
+    heuristicExampleAttestationEventId(event), event.participantId,
+    () => heuristicExampleEventSha256(event), dependencies)
+}
+
+export async function attestHeuristicCheckResultEvent(
+  document: Y.Doc, projectId: string, result: HeuristicCheckResult,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<ResearchEventAttributionResult> {
+  return attestResearchEvent(document, projectId, 'heuristic',
+    heuristicCheckResultAttestationEventId(result), result.authorId,
+    () => heuristicCheckResultSha256(result), dependencies)
 }
 
 /** Best-effort device attribution after an immutable suggestion proposal or decision commits. */

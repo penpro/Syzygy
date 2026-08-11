@@ -301,8 +301,9 @@ is no project-shared device approval, trusted clock, key rotation/recovery, or b
 fingerprint to a person or organization. A holder can claim any
 participant ID, a rotated key appears unapproved, and an exact captured proof can still be replayed
 for the same project/document/client/nonce context. A parallel bounded ledger can sign exact retained
-scenario lifecycle, turn, vote, annotation, label, suggestion proposal/decision, policy-version, and
-adversarial archive/decision events after commit, but it covers only eight of ten named domains, can be deleted by a bearer Yjs
+scenario lifecycle, turn, vote, annotation, label, suggestion proposal/decision, heuristic
+definition/example/check-result, policy-version, and adversarial archive/decision events after
+commit, but it covers only nine of ten named domains, can be deleted by a bearer Yjs
 writer, and proves only that one self-issued registered installation key signed the re-resolved
 event—not that its participant claim is a person or organization. Signing failure leaves the event
 committed and explicit unsigned. The local fingerprint decisions do not issue or revoke relay access. Separately, an explicit public
@@ -495,6 +496,11 @@ nested Y.Map so concurrent edits to different fields merge instead of replacing 
 a nested edit map retains unique author/time/changed-field/value events. Reads validate and
 project bounded records, duplicate/reused edit identity fails closed locally and after peer merge,
 and top-level deletion wins over a concurrent nested edit in the committed convergence fixture.
+Definition edits, example add/remove events, and committed check results each have a strict
+versioned canonical hash plus a type-tagged length-prefixed locator under the single `heuristic`
+research-event kind. Product mutations commit first and then best-effort publish registered-device
+attribution; stale async results are suppressed, signing failure is explicit and does not roll back
+research state, and the signature remains installation continuity rather than human identity.
 `heuristicExampleModel.ts` adds immutable positive/negative example and exact-parent removal
 events in peer-namespaced buckets inside the existing discussions map, avoiding a save-shape
 migration. `heuristicCheck.ts` freezes a bounded exact policy/heuristic/example snapshot and owns

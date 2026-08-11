@@ -439,7 +439,7 @@ record(
     scenarioAnnotationProductTest.includes('without claiming human identity') &&
     scenarioAnnotationAutomationSource.match(/Scenario annotation event was not retained/g)?.length === 3 &&
     scenarioAnnotationBridgeSource.match(/await attestScenarioAnnotationEvent/g)?.length === 3 &&
-    researchEventMcpSource.includes('exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, suggestion, immutable policy-version, and adversarial archive/decision events') &&
+    researchEventMcpSource.includes('exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, suggestion, heuristic, immutable policy-version, and adversarial archive/decision events') &&
     scenarioAnnotationEvidence.includes('"productionAdoptedEventKind": "scenario-annotation"') &&
     scenarioAnnotationEvidence.includes('"mutatedRetainedBodyRejected": true') &&
     scenarioAnnotationEvidence.includes('"signingFailurePreservesCommittedMutation": true') &&
@@ -962,6 +962,7 @@ const scenarioGeneratorTestSource = text('frontend/src/workspace/ScenarioGenerat
 const scenarioWorkspaceGenerationSource = text('frontend/src/workspace/ScenarioWorkspace.tsx')
 const heuristicExampleSource = text('frontend/src/workspace/heuristicExampleModel.ts')
 const heuristicExampleTestSource = text('frontend/src/workspace/heuristicExampleModel.test.ts')
+const heuristicDefinitionSource = text('frontend/src/workspace/heuristicsModel.ts')
 const heuristicWorkspaceSource = text('frontend/src/workspace/HeuristicWorkspace.tsx')
 const heuristicWorkspaceTestSource = text('frontend/src/workspace/HeuristicWorkspace.ui.test.tsx')
 const heuristicExampleInspectionTestSource = text('frontend/src/workspace/heuristicExampleInspection.test.ts')
@@ -973,6 +974,7 @@ const heuristicCheckResultSource = text('frontend/src/workspace/heuristicCheckRe
 const heuristicCheckResultTestSource = text('frontend/src/workspace/heuristicCheckResultModel.test.ts')
 const heuristicCheckerSource = text('frontend/src/workspace/HeuristicChecker.tsx')
 const heuristicCheckerTestSource = text('frontend/src/workspace/HeuristicChecker.test.tsx')
+const heuristicAttributionEvidence = text('docs/audits/runs/SIGNED-HEURISTIC-EVENTS-2026-08-11.json')
 const researchInspectionTestSource = text('frontend/src/workspace/researchStateInspection.test.ts')
 const scenarioEvaluationSource = text('frontend/src/workspace/scenarioEvaluation.ts')
 const scenarioEvaluationTestSource = text('frontend/src/workspace/scenarioEvaluation.test.ts')
@@ -1146,6 +1148,35 @@ record(
     editorLedgerSource.includes('"id": "P-24", "phase": 7, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/SUGGESTION-APPLICATION-2026-07-19.json')),
   'deterministic marker-excluding source revision, exact accepted decision/current editor guards, zero-write stale/collision/race tests, real Lexical linked policy replacement, explicit product action, and truthful P-24 status are present',
+)
+record(
+  'heuristic definitions, examples, and check results have exact retained-device attribution',
+  heuristicDefinitionSource.includes('canonicalHeuristicEdit') &&
+    heuristicDefinitionSource.includes('heuristicEditSha256') &&
+    heuristicDefinitionSource.includes('readHeuristicEdit') &&
+    heuristicExampleSource.includes('canonicalHeuristicExampleEvent') &&
+    heuristicExampleSource.includes('heuristicExampleEventSha256') &&
+    heuristicExampleSource.includes('readHeuristicExampleEvent') &&
+    heuristicCheckResultSource.includes('canonicalHeuristicCheckResult') &&
+    heuristicCheckResultSource.includes('heuristicCheckResultSha256') &&
+    heuristicCheckResultSource.includes('readHeuristicCheckResult') &&
+    researchEventAttributionSource.includes('parseHeuristicAttestationEventId') &&
+    researchEventAttributionSource.includes('attestHeuristicEditEvent') &&
+    researchEventAttributionSource.includes('attestHeuristicExampleEvent') &&
+    researchEventAttributionSource.includes('attestHeuristicCheckResultEvent') &&
+    researchEventAttestationTest.includes('signs retained heuristic edits, examples, and check results') &&
+    heuristicWorkspaceSource.includes('Saving device signature') &&
+    heuristicWorkspaceSource.includes('attributionOperation.current !== operation') &&
+    heuristicCheckerSource.includes('Shared result saved. Saving device signature') &&
+    heuristicCheckerSource.includes('active.current?.runId !== runId') &&
+    heuristicAttributionEvidence.includes('"signedEventDomains": 9') &&
+    heuristicAttributionEvidence.includes('"newMcpMutationAuthority": false') &&
+    heuristicAttributionEvidence.includes('"testsPassed": 37') &&
+    heuristicAttributionEvidence.includes('"supervisedRunId": "20260811-200332-9f81a4"') &&
+    heuristicAttributionEvidence.includes('"frontendTestsPassed": 566') &&
+    heuristicAttributionEvidence.includes('"repositoryAuditPassed": true') &&
+    heuristicAttributionEvidence.includes('"pending": false'),
+  'three exact event families, type-tagged locators, retained-author resolution, commit-first product status, cross-author rejection, no widened MCP authority, and evidence are present',
 )
 record(
   'presence remains bounded, ephemeral, disconnect-safe, and transport-honest',

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
 import { applyProjectUpdate, createProjectDocument, encodeProjectState, getProjectSharedTypes, projectStateFingerprint } from './projectModel'
 import { createProjectManifest } from './schema'
-import { createHeuristic, deleteHeuristic, listHeuristics, readHeuristic, updateHeuristic } from './heuristicsModel'
+import { createHeuristic, deleteHeuristic, heuristicEditSha256, listHeuristics, readHeuristic, readHeuristicEdit, updateHeuristic } from './heuristicsModel'
 
 const manifest = createProjectManifest({ id: 'heuristic-project', documentId: 'heuristic-document', timestamp: 1 })
 const replica = (source: Y.Doc) => {
@@ -26,6 +26,17 @@ const shuffled = <T,>(values: T[], seed: number): T[] => {
 }
 
 describe('collaborative heuristics model', () => {
+  it('hashes and re-reads exact retained heuristic edits', async () => {
+    const doc = createProjectDocument(manifest)
+    const heuristic = seedHeuristic(doc)
+    const edit = readHeuristicEdit(getProjectSharedTypes(doc).heuristics, heuristic.id, 'create-evidence-quality')!
+    expect(edit).toEqual(heuristic.edits[0])
+    const hash = await heuristicEditSha256(heuristic.id, edit)
+    await expect(heuristicEditSha256(heuristic.id, {
+      ...edit, changes: { ...edit.changes, guidance: 'Changed retained guidance.' },
+    })).resolves.not.toBe(hash)
+  })
+
   it('merges concurrent field edits and retains both edit attributions across seeded update orders', () => {
     const origin = createProjectDocument(manifest)
     seedHeuristic(origin)

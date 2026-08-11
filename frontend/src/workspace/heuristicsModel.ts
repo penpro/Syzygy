@@ -42,6 +42,29 @@ export interface UpdateHeuristicInput {
   changes: Partial<Pick<ResearchHeuristic, 'title' | 'guidance' | 'priority' | 'enabled'>>
 }
 
+const bytesToBase64Url = (bytes: Uint8Array) => {
+  let binary = ''
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte) })
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+export function canonicalHeuristicEdit(heuristicId: string, edit: HeuristicEdit): string {
+  return JSON.stringify({
+    schemaVersion: HEURISTIC_SCHEMA_VERSION,
+    heuristicId,
+    editId: edit.editId,
+    authorId: edit.authorId,
+    timestamp: edit.timestamp,
+    fields: [...edit.fields],
+    changes: Object.fromEntries(edit.fields.map((field) => [field, edit.changes[field]])),
+  })
+}
+
+export async function heuristicEditSha256(heuristicId: string, edit: HeuristicEdit): Promise<string> {
+  const bytes = new TextEncoder().encode(canonicalHeuristicEdit(heuristicId, edit))
+  return bytesToBase64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
+}
+
 const priorities = new Set<HeuristicPriority>(['required', 'recommended', 'watch'])
 const MAX_EDIT_HISTORY = 10_000
 const validStableId = (value: string, max = 120) =>
@@ -188,6 +211,14 @@ export function readHeuristic(collection: Y.Map<unknown>, id: string): ResearchH
   )
   if (editList.length === 0 || new Set(editList.map((edit) => edit.editId)).size !== editList.length) return null
   return { schemaVersion, id, title, guidance, priority: priority as HeuristicPriority, enabled, createdBy, createdAt, edits: editList }
+}
+
+export function readHeuristicEdit(
+  collection: Y.Map<unknown>, heuristicId: string, editId: string,
+): HeuristicEdit | null {
+  const heuristic = readHeuristic(collection, heuristicId)
+  const edit = heuristic?.edits.find((candidate) => candidate.editId === editId)
+  return edit ? { ...edit, fields: [...edit.fields], changes: { ...edit.changes } } : null
 }
 
 export function listHeuristics(collection: Y.Map<unknown>): ResearchHeuristic[] {

@@ -53,6 +53,26 @@ export interface RemoveHeuristicExampleInput {
   timestamp: number
 }
 
+const bytesToBase64Url = (bytes: Uint8Array) => {
+  let binary = ''
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte) })
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+export function canonicalHeuristicExampleEvent(event: HeuristicExampleEvent): string {
+  return JSON.stringify({
+    schemaVersion: event.schemaVersion, eventId: event.eventId, exampleId: event.exampleId,
+    heuristicId: event.heuristicId, action: event.action, parentEventId: event.parentEventId,
+    polarity: event.polarity, body: event.body, participantId: event.participantId,
+    displayName: event.displayName, timestamp: event.timestamp,
+  })
+}
+
+export async function heuristicExampleEventSha256(event: HeuristicExampleEvent): Promise<string> {
+  const bytes = new TextEncoder().encode(canonicalHeuristicExampleEvent(event))
+  return bytesToBase64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
+}
+
 const BUCKET_PREFIX = 'heuristic-examples:v1:'
 const MAX_BUCKETS = 20_000
 const MAX_EVENTS_PER_HEURISTIC = 100_000
@@ -173,6 +193,15 @@ export function readHeuristicExampleHistories(
   const ids = Array.from(new Set(events.map(({ exampleId }) => exampleId))).sort()
   const projected = ids.map((id) => projectExample(events.filter(({ exampleId }) => exampleId === id)))
   return projected.some((value) => value === null) ? null : projected as HeuristicExampleHistory[]
+}
+
+export function readHeuristicExampleEvent(
+  collection: Y.Map<unknown>, heuristicId: string, exampleId: string, eventId: string,
+): HeuristicExampleEvent | null {
+  const history = readHeuristicExampleHistories(collection, heuristicId)
+    ?.find((candidate) => candidate.id === exampleId)
+  const event = history?.events.find((candidate) => candidate.eventId === eventId)
+  return event ? { ...event } : null
 }
 
 export function listActiveHeuristicExamples(collection: Y.Map<unknown>, heuristicId: string) {

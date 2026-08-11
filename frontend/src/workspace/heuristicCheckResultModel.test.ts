@@ -4,8 +4,10 @@ import type { AutomationDocumentBlock } from './editorAutomationRegistry'
 import { buildHeuristicCheckRequest, HEURISTIC_CHECK_CONTRACT_VERSION } from './heuristicCheck'
 import {
   commitHeuristicCheckResult,
+  heuristicCheckResultSha256,
   inspectHeuristicCheckResults,
   listHeuristicCheckResults,
+  readHeuristicCheckResult,
 } from './heuristicCheckResultModel'
 import { createHeuristicExample, listActiveHeuristicExamples } from './heuristicExampleModel'
 import { createHeuristic, updateHeuristic } from './heuristicsModel'
@@ -52,6 +54,18 @@ function fixture(clientID?: number) {
 }
 
 describe('collaborative heuristic check results', () => {
+  it('hashes and re-reads exact retained check results', async () => {
+    const value = fixture()
+    const result = commitHeuristicCheckResult(value.doc, value.request, value.output, {
+      resultId: 'result-hash', authorId: 'alice', authorDisplayName: 'Alice', timestamp: 3,
+      currentBlocks: blocks,
+    })
+    expect(readHeuristicCheckResult(value.discussions, value.heuristic.id, result.resultId)).toEqual(result)
+    const hash = await heuristicCheckResultSha256(result)
+    await expect(heuristicCheckResultSha256({ ...result, rationale: 'Changed rationale' }))
+      .resolves.not.toBe(hash)
+  })
+
   it('commits an attributed route-bound result and replays the exact identity idempotently', () => {
     const value = fixture()
     const input = { resultId: 'result-1', authorId: 'alice', authorDisplayName: 'Alice', timestamp: 3, currentBlocks: blocks }

@@ -66,7 +66,7 @@ Recommended first instruction to an MCP-capable model:
 | `open_project` | navigation | Opens a non-archived project by stable ID |
 | `rename_project` | local metadata or Drive title event | Local projects change local metadata. Drive projects require the complete exact `sharedTitle.revisionGuards`; stale calls fail, simultaneous siblings remain visible, and an all-tip rename reconciles without deleting history |
 | `read_active_project` | no | Returns the manifest plus structured blocks, plain text, and a revision; Drive projects also return bounded shared-title tips and exact rename guards |
-| `inspect_research_state` | no | Validates bounded signed project-device registrations, exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, suggestion, policy-version, and adversarial archive/decision events, and relay-approval intent metadata plus live scenario/vote/flag/note/label/suggestion/heuristic/adversarial-review/version/head/lineage state; omits proof bodies, private keys, member capabilities, and research bodies; shared state explicitly cannot attest the relay host's current policy and grants no human identity, role, revocation, relay, or mutation authority |
+| `inspect_research_state` | no | Validates bounded signed project-device registrations, exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, suggestion, heuristic, policy-version, and adversarial archive/decision events, and relay-approval intent metadata plus live scenario/vote/flag/note/label/suggestion/heuristic/adversarial-review/version/head/lineage state; omits proof bodies, private keys, member capabilities, and research bodies; shared state explicitly cannot attest the relay host's current policy and grants no human identity, role, revocation, relay, or mutation authority |
 | `inspect_relay_approval_policy` | no | On a project hosted by this running Syzygy relay only, reads the authoritative registry revision, aggregate member counts, configured signer key IDs/quorum, and eligible registered installation key IDs; omits member IDs, public keys, capabilities, storage paths, and research bodies |
 | `configure_relay_approval_policy` | hosted relay policy | Under the exact inspected registry revision, installs/updates a 1-16-key policy with a bounded quorum or removes it; every selected key must be an exact healthy project registration and the returned revision and policy must prove the requested transition |
 | `read_scenario` | explicit scenario content | Reads one validated scenario background plus at most 1,000 ordered turn identities, roles, immutable-revision counts, selected heads, complete tip sets, and reconciliation state; turn bodies remain omitted |
@@ -231,10 +231,11 @@ MCP host
   inspection returns event/key/participant/hash metadata but omits public keys, signatures, display
   names, and vote bodies. A stale call fails before adding an event. Installation signatures improve
   attribution continuity but are self-issued device claims, so the tool is not an authenticated
-  election, person/organization identity, or Sybil-resistant consensus. Eight of ten named event
-  kinds now have production resolvers; heuristic and scenario-rerun remain unsigned
-  until their domain and product/MCP mutation paths adopt the same ledger. Suggestion proposal and
-  decision tools now follow the same commit-first exact-retained-event pattern.
+  election, person/organization identity, or Sybil-resistant consensus. Nine of ten named event
+  kinds now have production resolvers; scenario-rerun remains unsigned
+  until its domain and product/MCP mutation paths adopt the same ledger. Suggestion proposal/decision
+  tools and product heuristic definition/example/check-result mutations follow the same commit-first
+  exact-retained-event pattern.
 - Scenario-turn add, revise, and reconcile retain an exact immutable revision before best-effort
   registered-device signing. The canonical hash binds edit ID, role, body, participant, caller time,
   complete parent set, and create/edit/reconcile source; a length-prefixed locator binds the scenario

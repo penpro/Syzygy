@@ -23,6 +23,7 @@ import {
 } from './heuristicCheckRuntime'
 import { readHeuristicExampleHistories } from './heuristicExampleModel'
 import { readHeuristic, type ResearchHeuristic } from './heuristicsModel'
+import { attestHeuristicCheckResultEvent } from './researchEventAttribution'
 import { getProjectSharedTypes } from './projectModel'
 import type { ResearchProjectManifest } from './schema'
 
@@ -178,15 +179,20 @@ export function HeuristicChecker({
         setMessage('Native approval or the provider response is pending. Content leaves only after Send once.')
       }
       const output = await runHeuristicCheck(adapter, request, controller.signal)
-      commitHeuristicCheckResult(doc, request, output, {
+      const committed = commitHeuristicCheckResult(doc, request, output, {
         resultId: `heuristic-result-${uid()}`,
         authorId: researcherId,
         authorDisplayName: researcherName.trim(),
         timestamp: now(),
         currentBlocks: editor.read().blocks,
       })
+      setMessage('Shared result saved. Saving device signature…')
+      const attribution = await attestHeuristicCheckResultEvent(doc, project.id, committed)
+      if (active.current?.runId !== runId) return
       setPhase('complete')
-      setMessage('Shared result saved with verified policy spans, uncertainty, and provider provenance.')
+      setMessage(attribution.status === 'signed-device'
+        ? `Shared result saved with this installation’s signature · ${attribution.keyId.replace('ed25519-sha256:', '').slice(0, 12)}…`
+        : `Shared result saved without a device signature · ${attribution.reason}`)
     } catch (error) {
       if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
         setPhase('idle')

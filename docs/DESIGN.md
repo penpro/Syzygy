@@ -357,6 +357,9 @@ removal is an explicit action that retains shared history rather than erasing it
 states are accessible, all treatments use theme tokens, and copy states that collaboration identity
 is installation-provided rather than authenticated. The surface must not imply that examples have
 been scored, validated as true, or applied to policy text.
+After a heuristic definition or example mutation commits, the surface shows device-signature
+progress followed by a shortened installation-key confirmation or explicit unsigned reason. The
+same status follows a saved explainable check result. Copy must not imply verified human authorship.
 
 The selected heuristic includes an **Explainable policy check** below its shared examples. The
 provider and model are explicit; local-unavailable copy preserves manual work, while API copy names

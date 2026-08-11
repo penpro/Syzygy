@@ -325,7 +325,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "inspect_research_state",
-            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, suggestion, immutable policy-version, and adversarial archive/decision events, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, suggestions, heuristics, and policy-version history. Device/attestation entries expose stable key IDs plus self-reported participant IDs but no proof bodies and grant no human identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
+            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, suggestion, heuristic, immutable policy-version, and adversarial archive/decision events, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, suggestions, heuristics, and policy-version history. Device/attestation entries expose stable key IDs plus self-reported participant IDs but no proof bodies and grant no human identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
             object_schema(&[], &[]),
         ),
         tool(

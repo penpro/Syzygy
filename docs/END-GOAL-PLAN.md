@@ -170,7 +170,7 @@ relay separately has explicit operator enrollment, signed installation-key roles
 connection proofs, and a second action-bound signature for device-administered exact-revision room
 membership. A repeatable exact-binary five-client partition/reconnect soak passes. Shared-directory
 approval, propagated identity revocation, device-key rotation/recovery, presence-proof replay
-rejection, signed adoption for the remaining heuristic/scenario-rerun event domains, and physical two-install product proof remain open, so
+rejection, signed adoption for the remaining scenario-rerun event domain, and physical two-install product proof remain open, so
 P-11 is `implemented_unverified`.
 
 

@@ -40,4 +40,16 @@ describe('heuristic examples product surface', () => {
     expect(html).toContain('role="alert"')
     expect(html).toContain('Peer example failed validation')
   })
+
+  it('reports device-signature progress and explicit unsigned saves accessibly', () => {
+    const pending = renderToStaticMarkup(
+      <HeuristicWorkspaceContent {...props()} attributionMessage="Saving device signature…" />,
+    )
+    expect(pending).toContain('Saving device signature')
+    expect(pending).toContain('role="status"')
+    const unsigned = renderToStaticMarkup(
+      <HeuristicWorkspaceContent {...props()} attributionMessage="Saved without a device signature · signing unavailable" />,
+    )
+    expect(unsigned).toContain('Saved without a device signature')
+  })
 })

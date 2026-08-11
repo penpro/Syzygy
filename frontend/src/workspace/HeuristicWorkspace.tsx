@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type * as Y from 'yjs'
 import { useStore } from '../store'
 import { now, uid } from '../util'
@@ -13,6 +13,11 @@ import {
 import { getProjectSharedTypes } from './projectModel'
 import type { ResearchProjectManifest } from './schema'
 import { HeuristicChecker } from './HeuristicChecker'
+import {
+  attestHeuristicEditEvent,
+  attestHeuristicExampleEvent,
+  type ResearchEventAttributionResult,
+} from './researchEventAttribution'
 
 export interface HeuristicWorkspaceContentProps {
   ready: boolean
@@ -25,6 +30,7 @@ export interface HeuristicWorkspaceContentProps {
   polarity: HeuristicExamplePolarity
   exampleBody: string
   error: string
+  attributionMessage?: string
   onSelect: (id: string) => void
   onTitle: (value: string) => void
   onGuidance: (value: string) => void
@@ -49,6 +55,7 @@ export function HeuristicWorkspaceContent(props: HeuristicWorkspaceContentProps)
       <p className="scenario-state">Project rules and examples work without AI. They sync with the collaboration document.</p>
       {!props.ready && <p className="scenario-state" role="status">Preparing shared heuristics…</p>}
       {props.error && <div className="scenario-state error" role="alert">{props.error}</div>}
+      {props.attributionMessage && <p className="scenario-state" role="status">{props.attributionMessage}</p>}
       <form className="scenario-form compact" aria-label="Create heuristic" onSubmit={props.onCreateHeuristic}>
         <label>Title<input required maxLength={200} value={props.title} onChange={(event) => props.onTitle(event.target.value)} /></label>
         <label>Guidance<textarea required maxLength={10_000} value={props.guidance} onChange={(event) => props.onGuidance(event.target.value)} /></label>
@@ -96,6 +103,8 @@ export function HeuristicWorkspace({ project, doc }: { project: ResearchProjectM
   const [polarity, setPolarity] = useState<HeuristicExamplePolarity>('positive')
   const [exampleBody, setExampleBody] = useState('')
   const [error, setError] = useState('')
+  const [attributionMessage, setAttributionMessage] = useState('')
+  const attributionOperation = useRef(0)
   const { discussions, heuristics: heuristicMap } = getProjectSharedTypes(doc)
   const heuristics = listHeuristics(heuristicMap)
   const selected = heuristics.find(({ id }) => id === selectedId) ?? heuristics[0] ?? null
@@ -103,6 +112,25 @@ export function HeuristicWorkspace({ project, doc }: { project: ResearchProjectM
   const identity = () => {
     if (!researcherId || !researcherName.trim()) throw new Error('Set a researcher name in Settings before editing shared heuristics')
     return { participantId: researcherId, displayName: researcherName.trim() }
+  }
+  useEffect(() => {
+    attributionOperation.current += 1
+    setAttributionMessage('')
+  }, [project.id, doc])
+  const publishAttribution = (pending: Promise<ResearchEventAttributionResult>) => {
+    const operation = attributionOperation.current + 1
+    attributionOperation.current = operation
+    setAttributionMessage('Saving device signature…')
+    void pending.then((result) => {
+      if (attributionOperation.current !== operation) return
+      setAttributionMessage(result.status === 'signed-device'
+        ? `Saved with this installation’s signature · ${result.keyId.replace('ed25519-sha256:', '').slice(0, 12)}…`
+        : `Saved without a device signature · ${result.reason}`)
+    }, () => {
+      if (attributionOperation.current === operation) {
+        setAttributionMessage('Saved without a device signature · signing unavailable')
+      }
+    })
   }
   const mutate = (operation: () => void) => {
     setError('')
@@ -113,10 +141,13 @@ export function HeuristicWorkspace({ project, doc }: { project: ResearchProjectM
     mutate(() => {
       const author = identity()
       const id = `heuristic-${uid()}`
-      createHeuristic(heuristicMap, {
+      const editId = `heuristic-edit-${uid()}`
+      const created = createHeuristic(heuristicMap, {
         id, title: title.trim(), guidance, priority, authorId: author.participantId,
-        timestamp: now(), editId: `heuristic-edit-${uid()}`,
+        timestamp: now(), editId,
       })
+      publishAttribution(attestHeuristicEditEvent(doc, project.id, id,
+        created.edits.find((edit) => edit.editId === editId)!))
       setSelectedId(id); setTitle(''); setGuidance('')
     })
   }
@@ -125,27 +156,34 @@ export function HeuristicWorkspace({ project, doc }: { project: ResearchProjectM
     mutate(() => {
       if (!selected) throw new Error('Select a heuristic first')
       const author = identity()
-      createHeuristicExample(discussions, heuristicMap, {
-        eventId: `example-event-${uid()}`, exampleId: `example-${uid()}`, heuristicId: selected.id,
+      const eventId = `example-event-${uid()}`
+      const created = createHeuristicExample(discussions, heuristicMap, {
+        eventId, exampleId: `example-${uid()}`, heuristicId: selected.id,
         polarity, body: exampleBody, participantId: author.participantId,
         displayName: author.displayName, timestamp: now(),
       })
+      publishAttribution(attestHeuristicExampleEvent(doc, project.id,
+        created.events.find((item) => item.eventId === eventId)!))
       setExampleBody('')
     })
   }
   const remove = (example: HeuristicExampleHistory) => mutate(() => {
     const author = identity()
-    removeHeuristicExample(discussions, heuristicMap, {
-      eventId: `example-remove-${uid()}`, exampleId: example.id, heuristicId: example.heuristicId,
+    const eventId = `example-remove-${uid()}`
+    const removed = removeHeuristicExample(discussions, heuristicMap, {
+      eventId, exampleId: example.id, heuristicId: example.heuristicId,
       expectedCurrentEventId: example.currentEventId, participantId: author.participantId,
       displayName: author.displayName, timestamp: now(),
     })
+    publishAttribution(attestHeuristicExampleEvent(doc, project.id,
+      removed.events.find((item) => item.eventId === eventId)!))
   })
   return <>
     <HeuristicWorkspaceContent
       ready heuristics={heuristics} selectedId={selected?.id ?? null} examples={examples}
       title={title} guidance={guidance} priority={priority} polarity={polarity} exampleBody={exampleBody}
-      error={error} onSelect={setSelectedId} onTitle={setTitle} onGuidance={setGuidance}
+      error={error} attributionMessage={attributionMessage}
+      onSelect={setSelectedId} onTitle={setTitle} onGuidance={setGuidance}
       onPriority={setPriority} onCreateHeuristic={create} onPolarity={setPolarity}
       onExampleBody={setExampleBody} onAddExample={addExample} onRemoveExample={remove}
     />

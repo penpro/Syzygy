@@ -50,6 +50,30 @@ export interface CommitHeuristicCheckResultInput {
   currentBlocks: AutomationDocumentBlock[]
 }
 
+const bytesToBase64Url = (bytes: Uint8Array) => {
+  let binary = ''
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte) })
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+export function canonicalHeuristicCheckResult(result: HeuristicCheckResult): string {
+  return JSON.stringify({
+    schemaVersion: result.schemaVersion, resultId: result.resultId, runId: result.runId,
+    projectId: result.projectId, documentId: result.documentId, heuristicId: result.heuristicId,
+    heuristicRevision: result.heuristicRevision, exampleRevision: result.exampleRevision,
+    sourceRevision: result.sourceRevision, providerId: result.providerId,
+    requestedModelId: result.requestedModelId, executedModelId: result.executedModelId,
+    verdict: result.verdict, rationale: result.rationale, uncertainty: result.uncertainty,
+    citations: result.citations.map(({ start, end, quote }) => ({ start, end, quote })),
+    authorId: result.authorId, authorDisplayName: result.authorDisplayName, timestamp: result.timestamp,
+  })
+}
+
+export async function heuristicCheckResultSha256(result: HeuristicCheckResult): Promise<string> {
+  const bytes = new TextEncoder().encode(canonicalHeuristicCheckResult(result))
+  return bytesToBase64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
+}
+
 const stableId = (value: unknown, max = 200): value is string =>
   typeof value === 'string' && value.length <= max && /^[A-Za-z0-9][A-Za-z0-9._:@-]*$/.test(value)
 const validText = (value: unknown, max: number): value is string =>
@@ -123,6 +147,13 @@ function resultsFor(collection: Y.Map<unknown>, heuristicId: string): HeuristicC
 export function listHeuristicCheckResults(collection: Y.Map<unknown>, heuristicId: string): HeuristicCheckResult[] {
   if (!stableId(heuristicId)) return []
   return resultsFor(collection, heuristicId) ?? []
+}
+
+export function readHeuristicCheckResult(
+  collection: Y.Map<unknown>, heuristicId: string, resultId: string,
+): HeuristicCheckResult | null {
+  return listHeuristicCheckResults(collection, heuristicId)
+    .find((result) => result.resultId === resultId) ?? null
 }
 
 function appendResult(collection: Y.Map<unknown>, result: HeuristicCheckResult): void {

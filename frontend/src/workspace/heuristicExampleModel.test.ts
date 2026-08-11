@@ -6,8 +6,10 @@ import { createHeuristic } from './heuristicsModel'
 import {
   createHeuristicExample,
   inspectHeuristicExamples,
+  heuristicExampleEventSha256,
   listActiveHeuristicExamples,
   readHeuristicExampleHistories,
+  readHeuristicExampleEvent,
   removeHeuristicExample,
 } from './heuristicExampleModel'
 
@@ -34,6 +36,18 @@ const add = (doc: Y.Doc, suffix: string, polarity: 'positive' | 'negative', body
 }
 
 describe('collaborative heuristic positive and negative examples', () => {
+  it('hashes and re-reads exact retained example events', async () => {
+    const doc = seeded()
+    const history = add(doc, 'hash', 'positive')
+    const event = readHeuristicExampleEvent(
+      getProjectSharedTypes(doc).discussions, history.heuristicId, history.id, history.currentEventId,
+    )!
+    expect(event).toEqual(history.events[0])
+    const hash = await heuristicExampleEventSha256(event)
+    await expect(heuristicExampleEventSha256({ ...event, body: 'Changed example body' }))
+      .resolves.not.toBe(hash)
+  })
+
   it('converges concurrent positive and negative additions across duplicate delivery orders', () => {
     const origin = seeded()
     const left = replica(origin)

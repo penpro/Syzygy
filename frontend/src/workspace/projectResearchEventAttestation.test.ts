@@ -22,6 +22,9 @@ import {
 import {
   attestPolicyVersionEvent,
   attestSuggestionEvent,
+  attestHeuristicCheckResultEvent,
+  attestHeuristicEditEvent,
+  attestHeuristicExampleEvent,
   attestScenarioAnnotationEvent,
   attestScenarioEditEvent,
   attestScenarioLabelEvent,
@@ -36,6 +39,7 @@ import {
   scenarioLabelAttestationEventId,
   scenarioTurnAttestationEventId,
   suggestionAttestationEventId,
+  heuristicEditAttestationEventId,
 } from './researchEventAttribution'
 import {
   createScenarioAnnotation,
@@ -71,6 +75,10 @@ import {
 } from './scenarioLabelModel'
 import { readScenarioVotes } from './scenarioVoteModel'
 import { createSuggestion, readSuggestionEvent, suggestionEventSha256 } from './suggestionModel'
+import { buildHeuristicCheckRequest, HEURISTIC_CHECK_CONTRACT_VERSION } from './heuristicCheck'
+import { commitHeuristicCheckResult } from './heuristicCheckResultModel'
+import { createHeuristicExample } from './heuristicExampleModel'
+import { createHeuristic, heuristicEditSha256 } from './heuristicsModel'
 import type { ResearchProjectManifest } from './schema'
 
 const projectId = 'project-research-event-attestations'
@@ -197,6 +205,64 @@ async function make(
 }
 
 describe('project research event attestations', () => {
+  it('signs retained heuristic edits, examples, and check results and rejects a cross-author edit', async () => {
+    const signer = await identity(participantA)
+    const other = await identity(participantB)
+    const document = createProjectDocument(manifest)
+    const { discussions, heuristics, settings, versions, scenarios } = getProjectSharedTypes(document)
+    const heuristic = createHeuristic(heuristics, {
+      id: 'heuristic-signed', title: 'Evidence', guidance: 'Cite evidence.', priority: 'required',
+      authorId: participantA, timestamp: 1, editId: 'heuristic-create-signed',
+    })
+    const edit = heuristic.edits[0]
+    const example = createHeuristicExample(discussions, heuristics, {
+      eventId: 'example-event-signed', exampleId: 'example-signed', heuristicId: heuristic.id,
+      polarity: 'positive', body: 'A supported claim.', participantId: participantA,
+      displayName: 'Alice', timestamp: 2,
+    })
+    const blocks = [{ kind: 'policy' as const, policyId: 'rule', status: 'review' as const, text: 'Every claim cites evidence.' }]
+    const request = buildHeuristicCheckRequest({
+      runId: 'heuristic-run-signed', providerId: 'local', requestedModelId: 'model-fixture',
+      project: manifest, heuristic, examples: [example], blocks,
+    })
+    const quote = 'Every claim cites evidence.'
+    const start = request.policyText.indexOf(quote)
+    const result = commitHeuristicCheckResult(document, request, {
+      contractVersion: HEURISTIC_CHECK_CONTRACT_VERSION, runId: request.runId,
+      providerId: request.providerId, requestedModelId: request.requestedModelId,
+      executedModelId: 'model-fixture', verdict: 'pass', rationale: 'The rule is explicit.',
+      uncertainty: 'Source quality is separate.', citations: [{ start, end: start + quote.length, quote }],
+    }, {
+      resultId: 'heuristic-result-signed', authorId: participantA,
+      authorDisplayName: 'Alice', timestamp: 3, currentBlocks: blocks,
+    })
+    const dependenciesFor = (value: TestIdentity, nonce: string) => ({
+      inspectDirectory: async () => directory([signer, other]),
+      create: (id: string, participantId: string, kind: ProjectResearchEventKind, eventId: string, hash: string) =>
+        createProjectResearchEventAttestation(id, participantId, kind, eventId, hash, dependencies(value, nonce)),
+    })
+    await expect(attestHeuristicEditEvent(
+      document, projectId, heuristic.id, edit, dependenciesFor(signer, nonceA),
+    )).resolves.toEqual(expect.objectContaining({ status: 'signed-device', eventKind: 'heuristic' }))
+    await expect(attestHeuristicExampleEvent(
+      document, projectId, example.events[0], dependenciesFor(signer, nonceB),
+    )).resolves.toEqual(expect.objectContaining({ status: 'signed-device', eventKind: 'heuristic' }))
+    await expect(attestHeuristicCheckResultEvent(
+      document, projectId, result, dependenciesFor(signer, nonceC),
+    )).resolves.toEqual(expect.objectContaining({ status: 'signed-device', eventKind: 'heuristic' }))
+    const resolver = researchEventAttestationResolver(discussions, settings, versions, scenarios, heuristics)
+    await expect(inspectProjectResearchEventAttestations(
+      settings, projectId, directory([signer, other]), resolver,
+    )).resolves.toEqual(expect.objectContaining({ healthy: true, attestationCount: 3 }))
+
+    const editEventId = heuristicEditAttestationEventId(heuristic.id, edit)
+    const forged = await make(other, 'heuristic', editEventId,
+      await heuristicEditSha256(heuristic.id, edit), nonceA)
+    await expect(publishProjectResearchEventAttestation(
+      settings, projectId, directory([signer, other]), resolver, forged,
+    )).rejects.toThrow('proof is invalid')
+  })
+
   it('signs an exact retained suggestion event and rejects a cross-author proof', async () => {
     const signer = await identity(participantA)
     const other = await identity(participantB)

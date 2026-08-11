@@ -43,6 +43,7 @@ const expectedEditorDependencies = {
   yjs: '13.6.31',
   'y-indexeddb': '9.0.12',
   'y-protocols': '1.0.7',
+  'y-websocket': '3.0.0',
 }
 const rootPackage = lock.packages?.[''] ?? {}
 const editorDependencyMismatches = Object.entries(expectedEditorDependencies).filter(
@@ -52,6 +53,37 @@ record(
   'editor dependencies exact',
   editorDependencyMismatches.length === 0,
   editorDependencyMismatches.map(([name, version]) => `${name} != ${version}`).join(', ') || 'all approved versions pinned',
+)
+
+const websocketProviderSource = text('frontend/src/workspace/websocketProjectProvider.ts')
+const websocketProviderTestSource = text('frontend/src/workspace/websocketProjectProvider.test.ts')
+const websocketHarnessSource = text('scripts/websocket-collaboration-harness.mjs')
+const websocketEvidence = text('docs/audits/runs/SELF-HOSTED-WEBSOCKET-TRANSPORT-2026-08-11.json')
+const websocketClientPackage = lock.packages?.['node_modules/y-websocket']
+const websocketRelayPackage = lock.packages?.['node_modules/@y/websocket-server']
+record(
+  'self-hosted collaboration spine remains exact, bounded, reaped, and evidence-honest',
+  rootPackage.devDependencies?.['@y/websocket-server'] === '0.1.1' &&
+    rootPackage.dependencies?.['@y/websocket-server'] === undefined &&
+    websocketClientPackage?.integrity === 'sha512-mUHy7AzkOZ834T/7piqtlA8Yk6AchqKqcrCXjKW8J1w2lPtRDjz8W5/CvXz9higKAHgKRKqpI3T33YkRFLkPtg==' &&
+    websocketRelayPackage?.version === '0.1.1' &&
+    websocketRelayPackage?.integrity === 'sha512-pPtXm5Ceqs4orhXXHwm2I+u1mKNBDNzlrwNiI7OMwM7PlVS4WCMpiIuSB8WsYeSuISbvpXPNvaj6H1MoQBbE+g==' &&
+    frontendPackage.scripts?.['test:collaboration:websocket'] === 'node ../scripts/websocket-collaboration-harness.mjs' &&
+    websocketProviderSource.includes('READY_DEADLINE_MS = 15_000') &&
+    websocketProviderSource.includes("if (endpoint.protocol === 'ws:' && !isPrivateHostname(endpoint.hostname))") &&
+    websocketProviderSource.includes('endpoint.username || endpoint.password || endpoint.search || endpoint.hash') &&
+    websocketProviderSource.includes('ROOM_ID_PATTERN = /^[A-Za-z0-9_-]{32,128}$/') &&
+    websocketProviderSource.includes('remotePersistence: false') &&
+    websocketProviderSource.includes('disableBc: true') &&
+    websocketProviderTestSource.includes('refuses lookalike addresses') &&
+    websocketHarnessSource.includes("child.kill('SIGTERM')") &&
+    websocketHarnessSource.includes("child.kill('SIGKILL')") &&
+    websocketHarnessSource.includes('partitionedEditsConverged: true') &&
+    websocketHarnessSource.includes('staleAwarenessRemoved: true') &&
+    websocketEvidence.includes('"productManifestBindingUsed": false') &&
+    websocketEvidence.includes('"packagedTwoInstallUsed": false') &&
+    websocketEvidence.includes('"status": "implemented_unverified"'),
+  'stable Yjs-13 pins, private-plaintext boundary, secret-free binding, sync deadline, relay reaping, real convergence harness, and explicit product/auth/persistence nonclaims are present',
 )
 
 const sourceFiles = [

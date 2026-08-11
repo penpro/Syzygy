@@ -579,9 +579,14 @@ collaborators are not required to download large project folders.
    active records without deletion, leaves invalid archive/quarantine records untouched while allowing
    later-valid parent-complete quarantine to re-enter a canonical snapshot, and exposes four-slot
    30-second-heartbeat background jobs to MCP so the 15-second live bridge never owns the mutation.
-   Next: run and record the packaged two-install convergence/reconciliation/title harness,
-   large-account catalog latency, and real-Drive update/title compaction plus interruption repair;
-   then add the first self-hosted non-Drive transport.
+   The first self-hosted non-Drive protocol/provider spine has now landed separately: stable-Yjs-13
+   `y-websocket` is composed with local IndexedDB and live awareness behind the provider-neutral
+   capability contract. A real two-client loopback harness proves relay restart, partition
+   convergence, awareness propagation, stale-presence cleanup, and process reaping without claiming
+   relay persistence. Next: run and record the packaged two-install Drive convergence/reconciliation/
+   title harness, large-account catalog latency, and real-Drive update/title compaction plus
+   interruption repair; then add persisted project binding, product share/join, authentication,
+   durable relay deployment/backups, CSP activation, and five-client soak for WebSocket transport.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.
    v0.1.14 added same-name folder codes and the bounded MCP/LAN diagnostic; the two-physical-install
    run then proved the client had no selected workspace rather than a failed project upload.

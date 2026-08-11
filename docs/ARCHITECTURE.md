@@ -208,10 +208,17 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
 
 ## Persistence map
 
-The frontend `workspace/` folder defines one collaboration-provider lifecycle. IndexedDB remains
-the local durability layer. Local projects use it alone; Drive-bound projects add an append-only
-remote provider that polls immutable coalesced Yjs updates in the selected workspace and merges
-them through Yjs. A deterministic Memory provider remains the fast provider-contract fixture. The
+The frontend `workspace/` folder defines one collaboration-provider lifecycle and an explicit
+`{ realtime, awareness, durableLocal, remotePersistence, attachments }` capability record.
+IndexedDB remains the local durability layer. Local projects use it alone; Drive-bound projects add
+an append-only remote provider that polls immutable coalesced Yjs updates in the selected workspace
+and merges them through Yjs. A deterministic Memory provider remains the fast provider-contract
+fixture. `WebsocketProjectProvider` is the first non-Drive implementation: it composes the same local
+IndexedDB/automation lifecycle with the stable Yjs 13 `y-websocket` protocol, live awareness,
+15-second initial-readiness bound, and reconnect backoff. Binding validation permits plaintext only
+for loopback/private-LAN hosts and rejects credentials, queries, fragments, prefilled room paths, and
+weak room IDs. The provider is not yet reachable from a persisted project manifest or product UI;
+relay authentication, server persistence/backups, quotas, and CSP activation remain gates. The
 Drive provider publishes to the UI/MCP automation registry only after local reopen plus its initial
 remote pull, and a live canary proves the underlying Google create/list/readback/cleanup path.
 Drive project titles are a second, metadata-only append path rather than a mutable manifest field.

@@ -904,3 +904,23 @@ node ..\scripts\network-boundary-harness.mjs --write-proof
 ```
 
 The first command adversarially rejects unknown manifest fields, duplicate boundary IDs, missing copy anchors, and new unclassified production origins. A secret-bearing URL canary proves the output omits credentials, paths, queries, and fragments. The second command refreshes `docs/audits/runs/NETWORK-BOUNDARIES-2026-07-20.json`; review its hashes and origin-only observations before committing. This is a source/copy/destination trace, not an OS packet capture or live-provider certification.
+
+## Headless self-hosted collaboration proof
+
+Run the first non-Drive provider contract without Google, a model, or a webview:
+
+```powershell
+cd D:\PolicyPad\syzygy
+node scripts\run-with-heartbeat.mjs `
+  --timeout-seconds 120 `
+  --heartbeat-seconds 30 `
+  -- npm --prefix frontend run test:collaboration:websocket
+```
+
+The harness starts the exact test-only `@y/websocket-server@0.1.1` relay on loopback, connects two
+stable-Yjs-13 clients, proves bidirectional document and awareness propagation, kills and reaps the
+relay, creates partitioned edits, restarts the relay, requires convergence, and checks stale
+awareness removal. It reports explicitly that the relay retained no document state. Client-local
+IndexedDB is composed by `WebsocketProjectProvider`, but app-process restart, manifest/UI binding,
+authentication, relay persistence/backups, five-client soak, and packaged CSP/network behavior are
+not proved by this harness.

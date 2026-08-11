@@ -4,6 +4,7 @@ import { Awareness } from 'y-protocols/awareness'
 import * as Y from 'yjs'
 import type {
   ProjectCollaborationProvider,
+  ProjectProviderCapabilities,
   ProjectProviderEvent,
   ProjectProviderListener,
 } from './collaborationProvider'
@@ -15,6 +16,13 @@ import { registerProjectPresence } from './presenceRegistry'
 
 export class LocalProjectProvider implements ProjectCollaborationProvider {
   readonly awareness: Awareness
+  readonly capabilities: ProjectProviderCapabilities = {
+    realtime: false,
+    awareness: false,
+    durableLocal: true,
+    remotePersistence: false,
+    attachments: false,
+  }
   private readonly persistence: IndexeddbPersistence
   private readonly listeners = new Map<ProjectProviderEvent, Set<ProjectProviderListener>>()
   private connected = false

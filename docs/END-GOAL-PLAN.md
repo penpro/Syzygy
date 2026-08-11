@@ -415,6 +415,16 @@ signaling/privacy/reliability spike passes.
 Gate: five-client rapid-edit soak converges; stale presence disappears; restart/partition loses
 no edit; schema is unchanged when switching providers; P-11/P-12/S-05 pass.
 
+Progress: the provider lifecycle now declares exact realtime/awareness/local-durability/
+remote-persistence/attachment capabilities, and the first stable-Yjs-13
+`WebsocketProjectProvider` composes live y-websocket exchange with existing IndexedDB durability,
+automation registration, and ephemeral presence. A real loopback relay harness proves two-client
+updates, awareness, stale-presence cleanup, relay termination/restart, and partition convergence.
+The harness rejected the current Yjs-14 relay line and pins the compatible MIT 0.1.1 test server.
+This is protocol/provider infrastructure, not a product transport yet: project save migration,
+share/join UI, CSP activation, authentication, durable relay storage/backups, quotas, packaged
+two-install use, and five-client soak remain open.
+
 ### Phase 6 — scenario workflow (`XL`)
 
 Deliver gallery/CRUD/labels/branches/contributors, multi-turn editing, local generation and

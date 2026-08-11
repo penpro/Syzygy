@@ -16,6 +16,7 @@ import {
 import { useStore } from '../store'
 import type {
   ProjectCollaborationProvider,
+  ProjectProviderCapabilities,
   ProjectProviderEvent,
   ProjectProviderListener,
 } from './collaborationProvider'
@@ -94,6 +95,13 @@ export function base64ToBytes(value: string): Uint8Array {
  */
 export class DriveProjectProvider implements ProjectCollaborationProvider {
   readonly awareness: Awareness
+  readonly capabilities: ProjectProviderCapabilities = {
+    realtime: false,
+    awareness: false,
+    durableLocal: true,
+    remotePersistence: true,
+    attachments: false,
+  }
   private readonly listeners = new Map<ProjectProviderEvent, Set<ProjectProviderListener>>()
   private readonly seenUpdateIds = new Set<string>()
   private readonly clientId = crypto.randomUUID()

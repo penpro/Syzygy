@@ -42,6 +42,7 @@
     "test:mcp:lan": "node ../scripts/lan-mcp-harness.mjs",
     "test:mcp:lan:packaged": "node ../scripts/lan-packaged-agent-harness.mjs",
     "test:mcp:lan:drive-live": "node ../scripts/lan-drive-live-harness.mjs",
+    "test:collaboration:websocket": "node ../scripts/websocket-collaboration-harness.mjs",
     "test:mcp:live": "node ../scripts/mcp-live-harness.mjs --write-proof",
     "audit": "node ../scripts/audit.mjs",
     "test:drive-live": "cargo run --manifest-path src-tauri/Cargo.toml --bin drive-harness --",
@@ -72,11 +73,13 @@
     "remark-gfm": "^4.0.0",
     "y-indexeddb": "9.0.12",
     "y-protocols": "1.0.7",
+    "y-websocket": "3.0.0",
     "yjs": "13.6.31",
     "zustand": "^4.5.5"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.3",
+    "@y/websocket-server": "0.1.1",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "5.2.0",

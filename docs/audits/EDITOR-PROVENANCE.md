@@ -52,6 +52,8 @@
 | `frontend/src/workspace/policyVersionHistory.ts` | Penumbra original | Exact-head commits, restore-as-new-child history, concurrent branch retention, and deterministic engine-free structured diffs |
 | `frontend/src/workspace/localProvider.ts` | Penumbra original | Local IndexedDB provider implementing the Lexical/Yjs boundary with migration-before-automation reopen |
 | `frontend/src/workspace/driveProjectProvider.ts` | Penumbra original | Immutable-update Drive-backed Yjs provider with IndexedDB durability, partition/reconnect merge, post-pull migration, shared-title pull/projection/exact-guard append, and final-sync snapshot-first compaction |
+| `frontend/src/workspace/websocketProjectProvider.ts` | Penumbra original | Stable-Yjs-13 y-websocket provider composed with local IndexedDB, live awareness, bounded initial readiness, strict endpoint/room validation, and honest no-relay-persistence capabilities |
+| `frontend/src/workspace/websocketProjectProvider.test.ts` | Penumbra original | Hostile endpoint/room validation and exact provider-capability non-claim fixtures |
 | `frontend/src/workspace/driveTitleRepairJobs.ts` | Penumbra original | Content-minimized bounded background jobs for exact-inventory Drive shared-title inspection and recoverable repair, with 30-second heartbeats and one-hour terminal retention |
 | `frontend/src/workspace/driveProjectMaintenanceRegistry.ts` | Penumbra original | Identity-safe lifecycle registry exposing explicit compaction/title maintenance only for the currently ready Drive provider without stale-disconnect teardown |
 | `frontend/src/workspace/driveProjectActions.ts` | Penumbra original | Exact-revision Drive publish and refetched exact-identity Join actions shared by product UI and MCP automation |
@@ -110,7 +112,7 @@
 
 All product dependencies below are exact-pinned in both `package.json` and `package-lock.json`.
 Integrity values are npm registry `dist.integrity` values captured before installation. The root
-Lexical repository and packages are MIT; Yjs, y-indexeddb, and y-protocols are MIT. The test-only
+Lexical repository and packages are MIT; Yjs, y-indexeddb, y-protocols, and y-websocket are MIT. The test-only
 fake IndexedDB implementation is Apache-2.0. No example/playground source or UI was copied.
 
 | Package | Version | License/source evidence | npm integrity |
@@ -123,6 +125,8 @@ fake IndexedDB implementation is Apache-2.0. No example/playground source or UI 
 | `yjs` | 13.6.31 | MIT; <https://github.com/yjs/yjs> | `sha512-Eq+5BRfbeGyqGVrTJL3bEcr8gKkxPuyuoHmAwpk52fDb8kOVMrfVSTRPd6yiGgX5Fskb96qCRjzjbRjrL4YEnw==` |
 | `y-indexeddb` | 9.0.12 | MIT; <https://github.com/yjs/y-indexeddb> | `sha512-9oCFRSPPzBK7/w5vOkJBaVCQZKHXB/v6SIT+WYhnJxlEC61juqG0hBrAf+y3gmSMLFLwICNH9nQ53uscuse6Hg==` |
 | `y-protocols` | 1.0.7 | MIT; <https://github.com/yjs/y-protocols> | `sha512-YSVsLoXxO67J6eE/nV4AtFtT3QEotZf5sK5BHxFBXso7VDUT3Tx07IfA6hsu5Q5OmBdMkQVmFZ9QOA7fikWvnw==` |
+| `y-websocket` | 3.0.0 | MIT; <https://github.com/yjs/y-websocket> | `sha512-mUHy7AzkOZ834T/7piqtlA8Yk6AchqKqcrCXjKW8J1w2lPtRDjz8W5/CvXz9higKAHgKRKqpI3T33YkRFLkPtg==` |
+| `@y/websocket-server` | 0.1.1 (test only) | MIT; <https://github.com/yjs/y-websocket-server> | `sha512-pPtXm5Ceqs4orhXXHwm2I+u1mKNBDNzlrwNiI7OMwM7PlVS4WCMpiIuSB8WsYeSuISbvpXPNvaj6H1MoQBbE+g==` |
 | `fake-indexeddb` (test only) | 6.2.5 | Apache-2.0; <https://github.com/dumbmatter/fakeIndexedDB> | `sha512-CGnyrvbhPlWYMngksqrSSUT1BAVP49dZocrHuK0SvtR0D5TMs5wP0o3j7jexDJW01KSadjBp1M/71o/KR3nD1w==` |
 
 The generated full SBOM/license inventory remains an open Phase 0 gate; this ledger approves only

@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "runId": "SELF-HOSTED-WEBSOCKET-TRANSPORT-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "adb3f7a",
+  "capabilities": ["P-11", "P-12", "S-05"],
+  "status": "implemented_unverified",
+  "claim": "Syzygy has a provider-neutral, stable-Yjs-13-compatible self-hosted WebSocket transport implementation with local IndexedDB composition, live awareness, strict endpoint/room validation, bounded initial readiness, and a real two-client relay lifecycle harness, but it is not yet selectable from a persisted project or product UI.",
+  "commands": [
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend exec vitest run src/workspace/websocketProjectProvider.test.ts src/workspace/memoryProvider.test.ts src/workspace/memoryProvider.presence.test.ts src/workspace/localProvider.test.ts src/workspace/driveProjectProvider.test.ts",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend run test:collaboration:websocket",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend run build",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend test -- --run",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend ls yjs y-websocket @y/websocket-server --all",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run check:supervised",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run build:status -- 20260811-095342-a81576"
+  ],
+  "result": {
+    "focusedProviderFilesPassed": 5,
+    "focusedProviderTestsPassed": 19,
+    "twoClientRelayHarnessPassed": true,
+    "relayRestarted": true,
+    "partitionedEditsConverged": true,
+    "awarenessPropagated": true,
+    "staleAwarenessRemoved": true,
+    "relayProcessReaped": true,
+    "frontendProductionBuildPassed": true,
+    "fullFrontendFilesPassed": 112,
+    "fullFrontendFilesSkipped": 2,
+    "fullFrontendTestsPassed": 470,
+    "fullFrontendTestsSkipped": 2,
+    "singleStableYjsVersion": "13.6.31",
+    "structuralAuditPassed": true,
+    "rustCheckPassed": true,
+    "supervisedCheckRunId": "20260811-095342-a81576",
+    "supervisedCheckElapsedSeconds": 14,
+    "productManifestBindingUsed": false,
+    "packagedTwoInstallUsed": false
+  },
+  "dependencyDecision": {
+    "client": "y-websocket@3.0.0",
+    "testRelay": "@y/websocket-server@0.1.1",
+    "rejectedRelay": "@y/websocket-server@0.1.5",
+    "reason": "The current 0.1.5 relay depends on Yjs 14 release-candidate protocol packages and failed live update propagation against Syzygy's pinned stable Yjs 13 client. The exact official 0.1.1 line declares yjs ^13.5.6 and passed the same live harness."
+  },
+  "proved": [
+    "Every collaboration provider declares exact realtime, awareness, durable-local, remote-persistence, and attachment capabilities instead of inferring them from a transport name.",
+    "The WebSocket binding rejects public plaintext endpoints, non-WebSocket schemes, embedded credentials, query parameters, fragments, prefilled room paths, weak room IDs, and private-address lookalikes.",
+    "Two real stable-Yjs-13 clients exchange document updates and ephemeral awareness through an exact pinned y-websocket-compatible relay.",
+    "After the relay process exits, independent client edits made during the partition converge after a fresh relay process starts on the same endpoint.",
+    "Disconnect publishes an awareness tombstone and the remaining client removes stale presence.",
+    "The WebSocket provider composes the existing local IndexedDB provider and automation registry while advertising that the basic relay has no remote persistence."
+  ],
+  "notProved": [
+    "Persisted project-manifest migration, product share/join UI, CSP activation, or a packaged app selecting this provider.",
+    "Relay authentication/authorization, durable server persistence, backup/restore, quotas, abuse controls, or TLS deployment.",
+    "App-process restart restoration through IndexedDB while the relay is unavailable; the live harness keeps both client documents in memory across relay restart.",
+    "Five-client rapid-edit soak, large-document latency, hostile binary-frame fuzzing, cross-platform packet capture, or physical two-install use.",
+    "A current online registry vulnerability audit; the offline npm audit cache result is not treated as release evidence.",
+    "A shipped updater artifact containing this implementation."
+  ],
+  "implementationAnchors": [
+    "frontend/src/workspace/collaborationProvider.ts",
+    "frontend/src/workspace/websocketProjectProvider.ts",
+    "frontend/src/workspace/websocketProjectProvider.test.ts",
+    "scripts/websocket-collaboration-harness.mjs",
+    "frontend/package.json",
+    "frontend/package-lock.json"
+  ]
+}

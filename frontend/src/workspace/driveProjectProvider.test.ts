@@ -20,6 +20,13 @@ import { currentDriveProjectTitleState } from './driveProjectTitleStatus'
 
 class ImmediateLocalProvider implements ProjectCollaborationProvider {
   readonly awareness: Awareness
+  readonly capabilities = {
+    realtime: false,
+    awareness: false,
+    durableLocal: true,
+    remotePersistence: false,
+    attachments: false,
+  }
   constructor(readonly doc: Y.Doc) {
     this.awareness = new Awareness(doc)
   }

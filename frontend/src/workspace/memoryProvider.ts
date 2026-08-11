@@ -2,6 +2,7 @@ import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protoc
 import * as Y from 'yjs'
 import type {
   ProjectCollaborationProvider,
+  ProjectProviderCapabilities,
   ProjectProviderEvent,
   ProjectProviderListener,
 } from './collaborationProvider'
@@ -51,6 +52,13 @@ export class MemoryProjectHub {
 
 export class MemoryProjectProvider implements ProjectCollaborationProvider {
   readonly awareness: Awareness
+  readonly capabilities: ProjectProviderCapabilities = {
+    realtime: true,
+    awareness: true,
+    durableLocal: false,
+    remotePersistence: false,
+    attachments: false,
+  }
   private readonly listeners = new Map<ProjectProviderEvent, Set<ProjectProviderListener>>()
   private connected = false
   private readonly forwardUpdate = (update: Uint8Array, origin: unknown) => {

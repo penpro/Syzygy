@@ -30,9 +30,12 @@ import {
   type PolicyVersion,
 } from './policyVersionModel'
 import {
+  readScenarioEdit,
   readScenarioTurnRevision,
+  scenarioEditSha256,
   scenarioTurnRevisionSha256,
   type ResearchScenario,
+  type ScenarioEdit,
   type ScenarioTurnRevision,
 } from './scenarioModel'
 import {
@@ -96,6 +99,12 @@ export interface AttributedScenarioTurnRevision {
   attribution: ResearchEventAttributionResult
 }
 
+export interface AttributedScenarioEdit {
+  scenario: ResearchScenario
+  edit: ScenarioEdit
+  attribution: ResearchEventAttributionResult
+}
+
 const DEFAULT_DEPENDENCIES: ResearchEventAttributionDependencies = {
   inspectDirectory: (document, projectId) => inspectProjectDeviceDirectory(
     getProjectSharedTypes(document).settings,
@@ -125,6 +134,10 @@ export function scenarioTurnAttestationEventId(
   revision: ScenarioTurnRevision,
 ): string {
   return `t:${scenarioId.length}:${scenarioId}${turnId.length}:${turnId}${revision.editId}`
+}
+
+export function scenarioEditAttestationEventId(scenarioId: string, edit: ScenarioEdit): string {
+  return `s:${scenarioId.length}:${scenarioId}${edit.editId}`
 }
 
 function parseLengthPrefixed(
@@ -192,6 +205,17 @@ function parseScenarioTurnAttestationEventId(value: string): {
   return editId ? { scenarioId: scenario.segment, turnId: turn.segment, editId } : null
 }
 
+function parseScenarioEditAttestationEventId(value: string): {
+  scenarioId: string
+  editId: string
+} | null {
+  if (!value.startsWith('s:')) return null
+  const scenario = parseLengthPrefixed(value, 2)
+  if (!scenario) return null
+  const editId = value.slice(scenario.cursor)
+  return editId ? { scenarioId: scenario.segment, editId } : null
+}
+
 export function researchEventAttestationResolver(
   discussions: Y.Map<unknown>,
   settings?: Y.Map<unknown>,
@@ -200,13 +224,23 @@ export function researchEventAttestationResolver(
 ): ProjectResearchEventResolver {
   const cache = new Map<string, Promise<{ eventSha256: string; participantId: string } | null>>()
   return (eventKind, attestationEventId) => {
-    if (eventKind !== 'scenario-vote' && eventKind !== 'scenario-annotation' &&
+    if (eventKind !== 'scenario' && eventKind !== 'scenario-vote' && eventKind !== 'scenario-annotation' &&
       eventKind !== 'scenario-label' && eventKind !== 'policy-version' &&
       eventKind !== 'scenario-turn') return null
     const cacheKey = `${eventKind}:${attestationEventId}`
     const cached = cache.get(cacheKey)
     if (cached) return cached
     const resolved = (async () => {
+      if (eventKind === 'scenario') {
+        if (!scenarios) return null
+        const identity = parseScenarioEditAttestationEventId(attestationEventId)
+        if (!identity) return null
+        const edit = readScenarioEdit(scenarios, identity.scenarioId, identity.editId)
+        return edit ? {
+          eventSha256: await scenarioEditSha256(edit),
+          participantId: edit.authorId,
+        } : null
+      }
       if (eventKind === 'scenario-turn') {
         if (!scenarios) return null
         const identity = parseScenarioTurnAttestationEventId(attestationEventId)
@@ -265,7 +299,7 @@ export function researchEventAttestationResolver(
 async function attestResearchEvent(
   document: Y.Doc,
   projectId: string,
-  eventKind: 'scenario-vote' | 'scenario-annotation' | 'scenario-label' | 'policy-version' | 'scenario-turn',
+  eventKind: 'scenario' | 'scenario-vote' | 'scenario-annotation' | 'scenario-label' | 'policy-version' | 'scenario-turn',
   eventId: string,
   participantId: string,
   eventHash: () => Promise<string>,
@@ -426,6 +460,50 @@ export async function attestScenarioTurnRevisionEvent(
     () => scenarioTurnRevisionSha256(revision),
     dependencies,
   )
+}
+
+/** Best-effort device attribution after an immutable scenario create/edit/status event commits. */
+export async function attestScenarioEditEvent(
+  document: Y.Doc,
+  projectId: string,
+  scenarioId: string,
+  edit: ScenarioEdit,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<ResearchEventAttributionResult> {
+  return attestResearchEvent(
+    document,
+    projectId,
+    'scenario',
+    scenarioEditAttestationEventId(scenarioId, edit),
+    edit.authorId,
+    () => scenarioEditSha256(edit),
+    dependencies,
+  )
+}
+
+/** Product scenario path: validate identity, commit once, resolve the exact edit, then attest. */
+export async function commitScenarioEditWithAttribution(
+  document: Y.Doc,
+  projectId: string,
+  scenarioId: string,
+  editId: string,
+  commit: () => ResearchScenario,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<AttributedScenarioEdit> {
+  const shared = getProjectSharedTypes(document)
+  if (shared.metadata.get('projectId') !== projectId) {
+    throw new Error('Live collaboration document project identity does not match')
+  }
+  const scenario = commit()
+  const edit = readScenarioEdit(shared.scenarios, scenarioId, editId)
+  if (!edit) throw new Error('Scenario edit was not retained')
+  return {
+    scenario,
+    edit,
+    attribution: await attestScenarioEditEvent(
+      document, projectId, scenarioId, edit, dependencies,
+    ),
+  }
 }
 
 /** Product turn path: validate identity, commit once, resolve the exact revision, then attest. */

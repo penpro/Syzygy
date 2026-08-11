@@ -191,6 +191,10 @@ const scenarioTurnAttributionProductSource = text('frontend/src/workspace/Scenar
 const scenarioTurnAttributionProductTest = text('frontend/src/workspace/ScenarioTurnWorkspace.ui.test.tsx')
 const scenarioTurnAttributionAutomationSource = text('frontend/src/workspace/scenarioAutomation.ts')
 const scenarioTurnAttributionEvidence = text('docs/audits/runs/SIGNED-SCENARIO-TURN-EVENTS-2026-08-11.json')
+const scenarioEditAttributionSource = text('frontend/src/workspace/scenarioModel.ts')
+const scenarioEditAttributionProductSource = text('frontend/src/workspace/ScenarioWorkspace.tsx')
+const scenarioEditAttributionProductTest = text('frontend/src/workspace/ScenarioWorkspace.ui.test.ts')
+const scenarioEditAttributionEvidence = text('docs/audits/runs/SIGNED-SCENARIO-EVENTS-2026-08-11.json')
 record(
   'app-managed collaboration relay remains private, bounded, durable, reaped, and identity-honest',
   collaborationRelayCargo.includes('tungstenite = "=0.21.0"') &&
@@ -435,7 +439,7 @@ record(
     scenarioAnnotationProductTest.includes('without claiming human identity') &&
     scenarioAnnotationAutomationSource.match(/Scenario annotation event was not retained/g)?.length === 3 &&
     scenarioAnnotationBridgeSource.match(/await attestScenarioAnnotationEvent/g)?.length === 3 &&
-    researchEventMcpSource.includes('exact-hash installation attestations for scenario turn, vote, annotation, label, and immutable policy-version events') &&
+    researchEventMcpSource.includes('exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, and immutable policy-version events') &&
     scenarioAnnotationEvidence.includes('"productionAdoptedEventKind": "scenario-annotation"') &&
     scenarioAnnotationEvidence.includes('"mutatedRetainedBodyRejected": true') &&
     scenarioAnnotationEvidence.includes('"signingFailurePreservesCommittedMutation": true') &&
@@ -463,7 +467,7 @@ record(
     scenarioAnnotationAutomationSource.match(/Scenario label event was not retained/g)?.length === 2 &&
     scenarioAnnotationAutomationSource.includes('Scenario label assignment event was not retained') &&
     scenarioAnnotationBridgeSource.match(/await attestScenarioLabelEvent/g)?.length === 3 &&
-    scenarioAnnotationBridgeSource.match(/researchRevision: projectStateFingerprint\(document\)/g)?.length === 11 &&
+    scenarioAnnotationBridgeSource.match(/researchRevision: projectStateFingerprint\(document\)/g)?.length === 12 &&
     researchEventAttestationTest.includes('maximum-length label assignment locator') &&
     researchEventAttestationTest.includes('assignmentEvents.set(assignmentStorageKey') &&
     researchEventAttestationTest.includes('not.toBe(mutationOnlyRevision)') &&
@@ -547,6 +551,41 @@ record(
     scenarioTurnAttributionEvidence.includes('"repositoryAuditPassed": true') &&
     scenarioTurnAttributionEvidence.includes('"fullValidationPending": false') &&
     scenarioTurnAttributionEvidence.includes('"status": "implemented_unverified"') &&
+    scenarioEditAttributionSource.includes('canonicalScenarioEdit') &&
+    scenarioEditAttributionSource.includes('scenarioEditSha256') &&
+    scenarioEditAttributionSource.includes('readScenarioEdit') &&
+    researchEventAttributionSource.includes('scenarioEditAttestationEventId') &&
+    researchEventAttributionSource.includes("eventKind !== 'scenario'") &&
+    researchEventAttributionSource.includes('attestScenarioEditEvent') &&
+    researchEventAttributionSource.includes('commitScenarioEditWithAttribution') &&
+    scenarioEditAttributionProductSource.includes('await commitScenarioEditWithAttribution(') &&
+    scenarioEditAttributionProductSource.includes('scenarioOperation.current === operation') &&
+    scenarioEditAttributionProductSource.includes('Scenario change saved without a device signature') &&
+    scenarioEditAttributionProductSource.includes('not a person') &&
+    scenarioEditAttributionProductTest.includes('without hiding unsigned committed changes') &&
+    scenarioTurnAttributionAutomationSource.includes('Scenario edit was not retained') &&
+    scenarioAnnotationBridgeSource.match(/await attestScenarioEditEvent/g)?.length === 1 &&
+    researchEventAttestationTest.includes('signs exact scenario create/edit/status records and rejects cross-author or changed records') &&
+    researchEventAttestationTest.includes("title: 'Changed retained scenario edit'") &&
+    researchEventMcpSource.includes('best-effort exact-edit registered-device signature') &&
+    scenarioEditAttributionEvidence.includes('"productionAdoptedEventKind": "scenario"') &&
+    scenarioEditAttributionEvidence.includes('"lengthPrefixedScenarioEditLocator": true') &&
+    scenarioEditAttributionEvidence.includes('"crossAuthorClaimRejected": true') &&
+    scenarioEditAttributionEvidence.includes('"mcpReturnsPostAttributionResearchRevision": true') &&
+    scenarioEditAttributionEvidence.includes('"signingFailurePreservesCommittedEdit": true') &&
+    scenarioEditAttributionEvidence.includes('"mutatedRetainedEditRejected": true') &&
+    scenarioEditAttributionEvidence.includes('"scenarioAndProofBodiesReturnedByInspection": false') &&
+    scenarioEditAttributionEvidence.includes('"humanOrOrganizationIdentityClaimed": false') &&
+    scenarioEditAttributionEvidence.includes('"supervisedRunId": "20260811-190628-16afae"') &&
+    scenarioEditAttributionEvidence.includes('"frontendTestFilesPassed": 128') &&
+    scenarioEditAttributionEvidence.includes('"frontendTestFilesSkipped": 3') &&
+    scenarioEditAttributionEvidence.includes('"frontendTestsPassed": 554') &&
+    scenarioEditAttributionEvidence.includes('"frontendTestsSkipped": 3') &&
+    scenarioEditAttributionEvidence.includes('"frontendModulesTransformed": 1267') &&
+    scenarioEditAttributionEvidence.includes('"rustAppRecompiled": true') &&
+    scenarioEditAttributionEvidence.includes('"repositoryAuditPassed": true') &&
+    scenarioEditAttributionEvidence.includes('"fullValidationPending": false') &&
+    scenarioEditAttributionEvidence.includes('"status": "implemented_unverified"') &&
     researchEventEvidence.includes('"status": "implemented_unverified"'),
   'closed typed native signing, exact project/participant/kind/event/hash/time/nonce binding, retained hash/author resolution, registered-device matching, bounded merge/replay/poison gates, explicit unsigned fallback, body-free inspection, and human-identity nonclaims are present',
 )

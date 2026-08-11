@@ -25,6 +25,10 @@ describe('automation scenario creation', () => {
       participantId: 'mcp-researcher', createdAt: 10, editId: 'create-mcp-scenario',
     })
     expect(result.scenario).toMatchObject({ id: 'mcp-scenario', status: 'draft', createdBy: 'mcp-researcher' })
+    expect(result.edit).toEqual(expect.objectContaining({
+      editId: 'create-mcp-scenario', authorId: 'mcp-researcher',
+      fields: ['title', 'background', 'status'],
+    }))
     expect(result.researchRevision).not.toBe(before)
     expect(readScenario(getProjectSharedTypes(doc).scenarios, 'mcp-scenario')?.title).toBe('MCP scenario')
   })

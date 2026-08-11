@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "runId": "SIGNED-SCENARIO-EVENTS-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "b744d11",
+  "capabilities": ["P-14"],
+  "status": "implemented_unverified",
+  "claim": "Product scenario create, detail edit, and status changes plus MCP scenario creation retain an immutable scenario edit before best-effort registered-installation attribution over the exact edit record. Signing failure remains explicit and never rolls back the scenario change.",
+  "commands": [
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm test -- --run src/workspace/projectResearchEventAttestation.test.ts src/workspace/scenarioModel.test.ts src/workspace/scenarioAutomation.test.ts src/workspace/ScenarioWorkspace.ui.test.ts src/workspace/researchStateInspection.test.ts src/automationCapabilities.test.ts",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run check:supervised",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/audit.mjs"
+  ],
+  "result": {
+    "productionAdoptedEventKind": "scenario",
+    "actionsCovered": ["create", "edit-details", "change-status"],
+    "exactCanonicalEditHashRequired": true,
+    "lengthPrefixedScenarioEditLocator": true,
+    "storedEventParticipantRequired": true,
+    "crossAuthorClaimRejected": true,
+    "productEditCommittedBeforeAttribution": true,
+    "mcpCreateCommittedBeforeAttribution": true,
+    "mcpReturnsPostAttributionResearchRevision": true,
+    "signingFailurePreservesCommittedEdit": true,
+    "mutatedRetainedEditRejected": true,
+    "scenarioAndProofBodiesReturnedByInspection": false,
+    "signedUnsignedAndPendingUiStates": true,
+    "staleAsyncResultSuppressed": true,
+    "humanOrOrganizationIdentityClaimed": false,
+    "focusedFrontendTestFilesPassed": 6,
+    "focusedFrontendTestsPassed": 44,
+    "physicalPackagedTwoInstallUsed": false,
+    "supervisedRunId": "20260811-190628-16afae",
+    "frontendTestFilesPassed": 128,
+    "frontendTestFilesSkipped": 3,
+    "frontendTestsPassed": 554,
+    "frontendTestsSkipped": 3,
+    "frontendModulesTransformed": 1267,
+    "rustAppRecompiled": true,
+    "repositoryAuditPassed": true,
+    "fullValidationPending": false
+  },
+  "proved": [
+    "The strict canonical digest binds edit ID, retained author, timestamp, ordered changed-field set, and exact title/background/status values; a separate length-prefixed locator binds the owning scenario and edit identities.",
+    "Resolver verification re-reads the exact retained edit and requires both its hash and author to equal the signed claim, rejecting cross-author claims and later retained-record mutation.",
+    "Product scenario create, detail edit, and status changes expose pending, signed-device, or explicit unsigned state without treating an installation key as a person or organization.",
+    "MCP scenario creation signs only after the exact immutable edit is retained and returns the post-attribution research revision, so the caller's next guarded mutation is not stale.",
+    "Attribution inspection exposes bounded key/event/hash metadata but omits scenario title/background values and signature/public-key proof bodies."
+  ],
+  "notProved": [
+    "Authenticated human or organizational identity, trusted distributed time, device-key recovery, or revocation.",
+    "Packaged pointer, focus, screen-reader, or physical two-install interaction for scenario edit attribution.",
+    "Cryptographic non-repudiation against collaborators who can delete shared Yjs records or attestations.",
+    "Production adoption for suggestion, adversarial-review, heuristic, or scenario-rerun event kinds."
+  ]
+}

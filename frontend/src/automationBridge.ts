@@ -22,6 +22,7 @@ import { inspectResearchState } from './workspace/researchStateInspection'
 import {
   attestPolicyVersionEvent,
   attestScenarioAnnotationEvent,
+  attestScenarioEditEvent,
   attestScenarioLabelEvent,
   attestScenarioTurnRevisionEvent,
   attestScenarioVoteEvent,
@@ -502,7 +503,8 @@ export async function dispatchAutomationRequest(
         throw new Error('status must be draft, ready, or archived')
       }
       const createdAt = Date.now()
-      const created = createAutomationScenario(getAutomationProjectDocument(project.id), project.id, {
+      const document = getAutomationProjectDocument(project.id)
+      const created = createAutomationScenario(document, project.id, {
         expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
         scenarioId: requiredString(params, 'scenarioId'),
         title: requiredString(params, 'title'),
@@ -513,6 +515,9 @@ export async function dispatchAutomationRequest(
         createdAt,
         editId: `mcp-${crypto.randomUUID()}`,
       })
+      const attribution = await attestScenarioEditEvent(
+        document, project.id, created.scenario.id, created.edit,
+      )
       return {
         project: summarizeProject(project, latest.activeProjectId),
         scenario: {
@@ -524,7 +529,8 @@ export async function dispatchAutomationRequest(
           createdAt: created.scenario.createdAt,
           turnCount: created.scenario.turns.length,
         },
-        researchRevision: created.researchRevision,
+        attribution,
+        researchRevision: projectStateFingerprint(document),
       }
     }
     case 'project.addScenarioTurn':

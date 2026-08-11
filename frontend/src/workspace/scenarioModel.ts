@@ -160,6 +160,24 @@ export async function scenarioTurnRevisionSha256(revision: ScenarioTurnRevision)
   return encodeBase64Url(new Uint8Array(digest))
 }
 
+export function canonicalScenarioEdit(edit: ScenarioEdit): string {
+  if (!validScenarioEdit(edit)) throw new Error('Scenario edit event is invalid')
+  return JSON.stringify({
+    editId: edit.editId,
+    authorId: edit.authorId,
+    timestamp: edit.timestamp,
+    fields: [...edit.fields],
+    changes: Object.fromEntries(edit.fields.map((field) => [field, edit.changes[field]])),
+  })
+}
+
+export async function scenarioEditSha256(edit: ScenarioEdit): Promise<string> {
+  const digest = await globalThis.crypto.subtle.digest(
+    'SHA-256', new TextEncoder().encode(canonicalScenarioEdit(edit)),
+  )
+  return encodeBase64Url(new Uint8Array(digest))
+}
+
 const compareRevisions = (left: ScenarioTurnRevision, right: ScenarioTurnRevision) =>
   left.timestamp - right.timestamp || left.editId.localeCompare(right.editId) || left.authorId.localeCompare(right.authorId)
 
@@ -420,6 +438,17 @@ export function readScenarioTurnRevision(
   const turn = scenario?.turns.find((candidate) => candidate.id === turnId)
   const revision = turn?.revisions.find((candidate) => candidate.editId === editId)
   return revision ? { ...revision, parentEditIds: [...revision.parentEditIds] } : null
+}
+
+export function readScenarioEdit(
+  collection: Y.Map<unknown>,
+  scenarioId: string,
+  editId: string,
+): ScenarioEdit | null {
+  if (!stableId(scenarioId) || !stableId(editId)) return null
+  const scenario = readScenario(collection, scenarioId)
+  const edit = scenario?.edits.find((candidate) => candidate.editId === editId)
+  return edit ? { ...edit, fields: [...edit.fields], changes: { ...edit.changes } } : null
 }
 export function deleteScenarioTurn(collection: Y.Map<unknown>, scenarioId: string, turnId: string): ResearchScenario {
   const record = scenarioRecord(collection, scenarioId)

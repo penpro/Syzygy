@@ -1,6 +1,6 @@
 import type * as Y from 'yjs'
 import { getProjectSharedTypes, projectStateFingerprint } from './projectModel'
-import { addScenarioTurn, createScenario, inspectScenarioGraph, readScenario, readScenarioTurnRevision, reconcileScenarioTurn, type ScenarioStatus, type ScenarioTurnRole, updateScenarioTurn } from './scenarioModel'
+import { addScenarioTurn, createScenario, inspectScenarioGraph, readScenario, readScenarioEdit, readScenarioTurnRevision, reconcileScenarioTurn, type ScenarioStatus, type ScenarioTurnRole, updateScenarioTurn } from './scenarioModel'
 import { castScenarioVote, type ScenarioVoteChoice } from './scenarioVoteModel'
 import {
   createScenarioAnnotation,
@@ -205,7 +205,9 @@ export function createAutomationScenario(doc: Y.Doc, expectedProjectId: string, 
     timestamp: input.createdAt,
     editId: input.editId,
   })
-  return { scenario, researchRevision: projectStateFingerprint(doc) }
+  const edit = readScenarioEdit(scenarios, input.scenarioId, input.editId)
+  if (!edit) throw new Error('Scenario edit was not retained')
+  return { scenario, edit, researchRevision: projectStateFingerprint(doc) }
 }
 
 export function addAutomationScenarioTurn(doc: Y.Doc, expectedProjectId: string, input: MutateAutomationScenarioTurnInput) {

@@ -51,6 +51,8 @@ const props: Parameters<typeof ScenarioWorkspaceContent>[0] = {
     history: [],
   },
   currentVote: 'support' as const,
+  scenarioAttribution: null,
+  scenarioPending: false,
   voteAttribution: null,
   votePending: false,
   integrityIssues: [],
@@ -119,6 +121,38 @@ describe('scenario workspace UI contract', () => {
     expect(pending).toContain('Saving vote and checking registered-device attribution')
     expect(pending.match(/role="status"/g)).toHaveLength(1)
     expect(pending.match(/disabled=""/g)).toHaveLength(4)
+  })
+
+  it('reports exact scenario-edit device attribution without hiding unsigned committed changes', () => {
+    const signed = render({
+      scenarioAttribution: {
+        status: 'signed-device',
+        keyId: 'ed25519-sha256:abcdefghijklmnopqrstuv0123456789ABCDEFG',
+        eventKind: 'scenario',
+        eventId: 's:13:scenario-ui-1scenario-edit-1',
+        eventSha256: 'abcdefghijklmnopqrstuv0123456789ABCDEFG',
+        attestationCount: 1,
+        authority: 'installation-device-not-human-identity',
+      },
+    })
+    expect(signed).toContain('Scenario change saved with registered-device signature')
+    expect(signed).toContain('exact retained edit')
+    expect(signed).toContain('not a person or organization')
+
+    const unsigned = render({
+      scenarioAttribution: {
+        status: 'unsigned',
+        reason: 'attestation-history-unhealthy',
+        authority: 'installation-device-not-human-identity',
+      },
+    })
+    expect(unsigned).toContain('Scenario change saved without a device signature')
+    expect(unsigned).toContain('signed attribution history needs attention')
+
+    const pending = render({ scenarioPending: true })
+    expect(pending).toContain('Scenario change saved; checking registered-device attribution')
+    expect(pending).toContain('<select disabled=""')
+    expect(pending).toContain('Save details</button>')
   })
 
   it('offers engine-free creation from an honest empty state', () => {

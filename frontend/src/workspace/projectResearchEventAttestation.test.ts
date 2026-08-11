@@ -22,13 +22,16 @@ import {
 import {
   attestPolicyVersionEvent,
   attestScenarioAnnotationEvent,
+  attestScenarioEditEvent,
   attestScenarioLabelEvent,
   attestScenarioTurnRevisionEvent,
   castScenarioVoteWithAttribution,
   commitScenarioAnnotationWithAttribution,
+  commitScenarioEditWithAttribution,
   commitScenarioLabelWithAttribution,
   commitScenarioTurnWithAttribution,
   researchEventAttestationResolver,
+  scenarioEditAttestationEventId,
   scenarioLabelAttestationEventId,
   scenarioTurnAttestationEventId,
 } from './researchEventAttribution'
@@ -47,8 +50,11 @@ import {
 import {
   addScenarioTurn,
   createScenario,
+  readScenarioEdit,
   readScenarioTurnRevision,
+  scenarioEditSha256,
   scenarioTurnRevisionSha256,
+  updateScenario,
   updateScenarioTurn,
 } from './scenarioModel'
 import {
@@ -670,6 +676,117 @@ describe('project research event attestations', () => {
       settings, projectId, directory([signer, otherSigner]),
       researchEventAttestationResolver(discussions, settings, versions),
     )).resolves.toEqual(expect.objectContaining({ healthy: false, invalidRecords: 1 }))
+  })
+
+  it('signs exact scenario create/edit/status records and rejects cross-author or changed records', async () => {
+    const signer = await identity(participantA)
+    const otherSigner = await identity(participantB)
+    const document = createProjectDocument(manifest)
+    const { discussions, scenarios, settings, versions } = getProjectSharedTypes(document)
+    const created = await commitScenarioEditWithAttribution(
+      document, projectId, 'scenario-attribution', 'scenario-create-edit',
+      () => createScenario(scenarios, {
+        id: 'scenario-attribution', title: 'Scenario title canary',
+        background: 'Scenario background canary', authorId: participantA,
+        timestamp: 1, editId: 'scenario-create-edit',
+      }),
+      {
+        inspectDirectory: async () => directory([signer, otherSigner]),
+        create: (id, participantId, kind, eventId, hash) => createProjectResearchEventAttestation(
+          id, participantId, kind, eventId, hash, dependencies(signer, nonceA),
+        ),
+      },
+    )
+    expect(created.attribution).toEqual(expect.objectContaining({
+      status: 'signed-device', eventKind: 'scenario', attestationCount: 1,
+    }))
+    const createEdit = readScenarioEdit(scenarios, 'scenario-attribution', 'scenario-create-edit')!
+    expect(created.edit).toEqual(createEdit)
+    expect(created.attribution).toEqual(expect.objectContaining({
+      eventId: scenarioEditAttestationEventId('scenario-attribution', createEdit),
+      eventSha256: await scenarioEditSha256(createEdit),
+    }))
+
+    const edited = await commitScenarioEditWithAttribution(
+      document, projectId, 'scenario-attribution', 'scenario-update-edit',
+      () => updateScenario(scenarios, {
+        id: 'scenario-attribution', authorId: participantA, timestamp: 2,
+        editId: 'scenario-update-edit', changes: { title: 'Edited title canary', status: 'ready' },
+      }),
+      {
+        inspectDirectory: async () => directory([signer, otherSigner]),
+        create: (id, participantId, kind, eventId, hash) => createProjectResearchEventAttestation(
+          id, participantId, kind, eventId, hash, dependencies(signer, nonceB),
+        ),
+      },
+    )
+    expect(edited.attribution).toEqual(expect.objectContaining({
+      status: 'signed-device', eventKind: 'scenario', attestationCount: 2,
+    }))
+
+    const unsigned = await commitScenarioEditWithAttribution(
+      document, projectId, 'scenario-attribution', 'scenario-unsigned-edit',
+      () => updateScenario(scenarios, {
+        id: 'scenario-attribution', authorId: participantA, timestamp: 3,
+        editId: 'scenario-unsigned-edit', changes: { status: 'archived' },
+      }),
+      {
+        inspectDirectory: async () => { throw new Error('directory unavailable') },
+        create: async () => { throw new Error('must not sign') },
+      },
+    )
+    expect(unsigned.attribution).toEqual({
+      status: 'unsigned', reason: 'device-directory-unhealthy',
+      authority: 'installation-device-not-human-identity',
+    })
+    expect(readScenarioEdit(
+      scenarios, 'scenario-attribution', 'scenario-unsigned-edit',
+    )).not.toBeNull()
+
+    const resolver = researchEventAttestationResolver(discussions, settings, versions, scenarios)
+    const inspection = await inspectProjectResearchEventAttestations(
+      settings, projectId, directory([signer, otherSigner]), resolver,
+    )
+    expect(inspection).toEqual(expect.objectContaining({ healthy: true, attestationCount: 2 }))
+    expect(JSON.stringify(inspection)).not.toContain('Scenario title canary')
+    expect(JSON.stringify(inspection)).not.toContain('Scenario background canary')
+    expect(JSON.stringify(inspection)).not.toContain('Edited title canary')
+
+    const editedRecord = readScenarioEdit(scenarios, 'scenario-attribution', 'scenario-update-edit')!
+    const crossAuthor = await createProjectResearchEventAttestation(
+      projectId, participantB, 'scenario',
+      scenarioEditAttestationEventId('scenario-attribution', editedRecord),
+      await scenarioEditSha256(editedRecord), dependencies(otherSigner, nonceC),
+    )
+    await expect(publishProjectResearchEventAttestation(
+      settings, projectId, directory([signer, otherSigner]),
+      researchEventAttestationResolver(discussions, settings, versions, scenarios), crossAuthor,
+    )).rejects.toThrow('proof is invalid')
+
+    const scenarioRecord = Array.from(scenarios.values()).find(
+      (value) => value instanceof Y.Map && value.get('id') === 'scenario-attribution',
+    ) as Y.Map<unknown>
+    const edits = scenarioRecord.get('edits') as Y.Map<unknown>
+    const [storageKey, stored] = Array.from(edits.entries()).find(
+      ([, value]) => !!value && typeof value === 'object' &&
+        (value as { editId?: string }).editId === 'scenario-update-edit',
+    )!
+    edits.set(storageKey, {
+      ...(stored as object), changes: { title: 'Changed retained scenario edit', status: 'ready' },
+    })
+    await expect(inspectProjectResearchEventAttestations(
+      settings, projectId, directory([signer, otherSigner]),
+      researchEventAttestationResolver(discussions, settings, versions, scenarios),
+    )).resolves.toEqual(expect.objectContaining({ healthy: false, invalidRecords: 1 }))
+
+    const detached = readScenarioEdit(scenarios, 'scenario-attribution', 'scenario-create-edit')!
+    await expect(attestScenarioEditEvent(
+      document, projectId, 'scenario-attribution', detached,
+      {
+        inspectDirectory: async () => directory([signer, otherSigner]),
+        create: async () => { throw new Error('signing unavailable') },
+      },
+    )).resolves.toEqual(expect.objectContaining({ status: 'unsigned' }))
   })
 
   it('signs exact scenario-turn revisions and rejects cross-author or changed retained bodies', async () => {

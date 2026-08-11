@@ -358,11 +358,17 @@ snapshot, timestamp, and note. Cross-author claims and mutated retained versions
 directory/signing failure leaves the checkpoint committed and explicitly unsigned. Product UI
 shows pending/signed/unsigned states without claiming human identity, and MCP returns the
 post-attribution research revision.
-Every signed MCP vote, annotation, label, or policy-version response recomputes `researchRevision` after attribution
+Scenario create, detail edit, and status changes now sign the exact retained `ScenarioEdit` after
+commit. The canonical digest binds edit ID, retained author, timestamp, ordered field set, and exact
+changed values; the separate length-prefixed locator binds the owning scenario. Product UI exposes
+pending/signed/unsigned state, while MCP scenario creation returns attribution and the
+post-attribution revision. Cross-author claims and changed retained edits fail verification;
+directory/signing failure leaves the scenario edit committed.
+Every signed MCP scenario, vote, annotation, label, or policy-version response recomputes `researchRevision` after attribution
 publication; returning the mutation-only revision would make the caller's next guarded write stale.
 `npm run test:collaboration:identity` independently verifies the Rust-produced signature and
-rejects seven signed-field mutations. Product and MCP scenario votes, annotations, and labels
-plus policy versions currently have production resolvers; the other six allowed kinds remain a
+rejects seven signed-field mutations. Product and MCP scenario lifecycle, votes, annotations, and
+labels plus policy versions currently have production resolvers; the other four allowed kinds remain a
 closed native vocabulary awaiting domain adoption.
 
 `projectRelayAdminDecision.test.ts` is the shared remote-administration decision gate. It creates
@@ -431,11 +437,13 @@ parent inspection. It also requires a durable selected head, the complete derive
 zero-write rejection of stale or incomplete reconciliation, an all-parent merge revision, conflict
 reopening when a late sibling arrives, and exact canonical turn-revision hashes. Eighty seeded
 duplicate/reordered delivery checks must converge. `projectResearchEventAttestation.test.ts`
-additionally signs retained create/edit revisions, rejects cross-author claims and changed retained bodies, omits turn
-bodies from inspection, and proves directory/signing failure leaves the committed turn present.
-Product create/edit/reconcile and all three MCP routes report signed-device or explicit unsigned
-state; MCP recomputes the post-attribution research revision. Scenario turns are the fifth adopted
-event domain, leaving five of the closed ten-kind vocabulary without production resolvers.
+additionally signs exact retained scenario create/edit/status records and turn create/edit/reconcile
+revisions, rejects cross-author claims and changed retained values, omits scenario/turn bodies from
+inspection, and proves directory/signing failure leaves each committed record present. Product
+scenario create/edit/status and turn create/edit/reconcile report signed-device or explicit unsigned
+state; MCP scenario and turn creation paths recompute the post-attribution research revision.
+Scenario lifecycle is the sixth adopted event domain, leaving four of the closed ten-kind vocabulary
+without production resolvers.
 `ScenarioWorkspace.ui.test.ts` covers the engine-free gallery shell. The product-level
 `ScenarioTurnWorkspace.ui.test.tsx` gate proves manual no-AI add/edit, immutable attribution, stale
 zero-write recovery with the draft retained, hostile-state write refusal, deterministic disconnected

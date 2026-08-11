@@ -206,15 +206,17 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   `projectResearchEventAttestation.ts` is a parallel bounded Yjs ledger for exact event-hash
   installation signatures, so event-domain schemas do not require destructive changes.
   `researchEventAttribution.ts` is the first resolver/adoption layer: after an MCP or product
-  scenario vote, annotation create/edit/resolve/reopen, label create/rename/add/remove, or immutable
-  policy save/restore checkpoint is committed, it locates and hashes that exact retained event,
+  scenario create/edit/status change, scenario vote, annotation create/edit/resolve/reopen, label
+  create/rename/add/remove, or immutable policy save/restore checkpoint is committed, it locates and
+  hashes that exact retained event,
   requires the signer key to be an unconflicted project registration for the participant claim, and
   requires the claim participant to equal the retained event author. It then publishes best-effort
   attribution. Failure remains explicitly unsigned and never rolls back or disguises the research
-  mutation. The generic ledger recognizes ten event kinds; scenario turns, votes, annotations,
-  labels, and policy versions currently have production resolvers. Turn revisions and label
-  lifecycle/assignment records use distinct length-prefixed attestation locators so maximum valid
-  scenario/turn/label/event IDs remain unambiguous without changing their existing Yjs schemas.
+  mutation. The generic ledger recognizes ten event kinds; scenario lifecycle edits, turns, votes,
+  annotations, labels, and policy versions currently have production resolvers. Scenario edits,
+  turn revisions, and label lifecycle/assignment records use distinct length-prefixed attestation
+  locators so maximum valid scenario/turn/label/event IDs remain unambiguous without changing their
+  existing Yjs schemas.
   `versionAutomation.ts` maps the exact active semantic editor snapshot into an
   immutable version only after both the document revision and version head pass inside the final
   Yjs transaction. The bridge does not own persistence.

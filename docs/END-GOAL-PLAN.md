@@ -197,6 +197,11 @@ graph inspection detects missing/cyclic ancestry. Researchers can create turns a
 current revisions manually without AI; stale drafts stay visible but add no write, disconnected
 siblings remain auditable and converge deterministically, ordinary edit is blocked during conflict,
 and explicit UI/MCP reconciliation appends an all-parent merge under exact research/head/tip guards.
+Product scenario create/edit/status changes retain and hash the exact immutable scenario edit before
+best-effort registered-device attribution. MCP scenario creation returns the same signed-device or
+explicit unsigned result and a post-attribution revision; signing failure never removes the edit.
+Verification re-reads both the exact retained hash and author, so cross-author claims and later
+record mutation fail closed while inspection omits scenario bodies.
 Product and MCP turn create/edit/reconcile retain the exact revision before best-effort
 registered-device attribution; cross-author claims or changed retained bodies fail verification,
 while signing failure leaves the turn committed and explicitly unsigned. MCP returns the
@@ -455,8 +460,9 @@ project/room/revision/action-bound quorum, while no-policy rooms remain compatib
 retains emergency local authority. Product controls publish partial approvals and submit a completed
 bundle automatically. A parallel bounded attestation ledger now binds exact event hashes to the
 same installation key and registered participant claim without changing every event schema; the
-first production adopters are scenario-turn revision, scenario voting, annotation lifecycle,
-label lifecycle/assignment, and immutable policy-version events through both product and MCP,
+first production adopters are scenario lifecycle edits, scenario-turn revision, scenario voting,
+annotation lifecycle, label lifecycle/assignment, and immutable policy-version events through
+product and MCP,
 with explicit unsigned fallback and body-free inspection. The next identity increments are adoption across the remaining
 research-event domains,
 device-key rotation/recovery, authenticated human/organizational enrollment, trusted time, and

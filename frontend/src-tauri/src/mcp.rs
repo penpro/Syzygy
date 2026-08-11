@@ -323,7 +323,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "inspect_research_state",
-            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, exact-hash installation attestations for scenario turn, vote, annotation, label, and immutable policy-version events, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and policy-version history. Device/attestation entries expose stable key IDs plus self-reported participant IDs but no proof bodies and grant no human identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
+            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, and immutable policy-version events, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and policy-version history. Device/attestation entries expose stable key IDs plus self-reported participant IDs but no proof bodies and grant no human identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
             object_schema(&[], &[]),
         ),
         tool(
@@ -415,7 +415,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "create_scenario",
-            "Create one scenario in the active live project against the exact research revision from inspect_research_state. This creates scenario metadata/background only; it does not generate model turns or imply a visible gallery.",
+            "Create one scenario in the active live project against the exact research revision from inspect_research_state, retain its immutable creation edit, then attempt a best-effort exact-edit registered-device signature. The response reports signed or explicitly unsigned attribution plus the post-attribution research revision; signing failure never rolls back the scenario and does not authenticate a person. This creates scenario metadata/background only and does not generate model turns.",
             object_schema(
                 &[
                     ("expectedResearchRevision", string_schema("Exact researchState.revision from inspect_research_state.")),

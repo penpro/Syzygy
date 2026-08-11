@@ -2653,6 +2653,16 @@ input.workspace-title-input:focus {
   font: 10px/1.45 var(--mono);
 }
 .plugin-warning { color: var(--warn); font-size: 10px; }
+.plugin-apply-confirmation {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 10px;
+}
+.plugin-apply-confirmation p { color: var(--text-2); }
 .plugin-error { margin-top: 8px; color: var(--danger); font-size: 10px; }
 .plugin-status { margin-top: 8px; color: var(--accent-2); font-size: 10px; }
 .scenario-workspace { min-width: 0; }

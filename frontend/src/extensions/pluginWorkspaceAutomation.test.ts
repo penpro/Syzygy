@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
-import { registerAutomationEditorController } from '../workspace/editorAutomationRegistry'
+import {
+  registerAutomationEditorController,
+  type AutomationEditorController,
+} from '../workspace/editorAutomationRegistry'
 import { getProjectSharedTypes, projectStateFingerprint } from '../workspace/projectModel'
 import { PluginPackageRegistry } from './pluginPackageRegistry'
 import { pluginInstallationCatalog } from './pluginInstallationStore'
@@ -8,6 +11,7 @@ import { loadZeroAuthorityPluginPackage, ZeroAuthorityPluginExecutor } from './p
 import { createPluginReview } from './pluginReviewModel'
 import {
   decidePluginReviewForProject,
+  applyPluginReviewForProject,
   inspectPluginWorkspace,
   runLoadedPluginForProject,
 } from './pluginWorkspaceAutomation'
@@ -169,12 +173,89 @@ describe('plugin workspace automation', () => {
       review: { status: 'accepted' }, automaticDraftMutation: false,
       attribution: { status: 'unsigned' },
     })
+    expect(inspectPluginWorkspace(doc, packages).reviews[0]).toMatchObject({
+      status: 'accepted', acceptedDecisionEventId: 'decision-1', decisionCount: 1,
+    })
     await expect(decidePluginReviewForProject(doc, 'project-1', {
       reviewId: publication.reviews[0].id,
       expectedProposalEventId: publication.reviews[0].proposal.eventId,
       expectedResearchRevision: inspection.researchRevision,
       decision: 'rejected', participantId: 'reviewer-1', displayName: 'Reviewer',
     })).rejects.toThrow('Research revision conflict')
+  })
+
+  it('applies only the exact accepted review under document and research revision guards', async () => {
+    const doc = new Y.Doc({ guid: 'project-1' })
+    const shared = getProjectSharedTypes(doc)
+    const proposal = createPluginReview(shared.discussions, {
+      reviewId: 'apply-review', eventId: 'apply-proposal', pluginVersion: '1.0.0',
+      componentSha256: 'a'.repeat(64), contributionId: 'review', runnerId: 'runner-1',
+      runnerDisplayName: 'Runner', timestamp: 10,
+      proposal: {
+        proposalVersion: 1, proposalId: 'apply-plugin-proposal', pluginId: 'org.example.fixture',
+        projectId: 'project-1', expectedRevision: 'revision-1', summary: 'Apply proposal',
+        content: 'Linked plugin policy.', operation: 'append',
+      },
+    })
+    const accepted = await decidePluginReviewForProject(doc, 'project-1', {
+      reviewId: proposal.id, expectedProposalEventId: proposal.proposal.eventId,
+      expectedResearchRevision: projectStateFingerprint(doc), decision: 'accepted',
+      participantId: 'reviewer-1', displayName: 'Reviewer',
+    }, {
+      id: () => 'apply-decision', clock: () => 20,
+      attest: async () => ({
+        status: 'unsigned', reason: 'signing-or-registration-unavailable',
+        authority: 'installation-device-not-human-identity',
+      }),
+    })
+    let writes = 0
+    const controller: AutomationEditorController = {
+      projectId: 'project-1',
+      read: () => ({
+        projectId: 'project-1', revision: 'revision-1', text: 'Existing',
+        blocks: [{ kind: 'paragraph' as const, text: 'Existing' }], scenarioIds: [],
+      }),
+      replace: () => { throw new Error('unexpected replace') },
+      append: () => { throw new Error('unexpected append') },
+      replaceBlocks: (_expected, blocks) => {
+        writes += 1
+        return { projectId: 'project-1', revision: 'revision-2', text: '', blocks, scenarioIds: [] }
+      },
+    }
+    const expectedResearchRevision = projectStateFingerprint(doc)
+    expect(() => applyPluginReviewForProject(doc, 'project-1', {
+      reviewId: proposal.id,
+      expectedProposalEventId: proposal.proposal.eventId,
+      expectedDecisionEventId: accepted.review.decisions[0].eventId,
+      expectedDocumentRevision: 'revision-1',
+      expectedResearchRevision,
+      confirmFullReplacement: true,
+    }, { controller })).toThrow('confirmation does not match')
+    expect(writes).toBe(0)
+    const applied = applyPluginReviewForProject(doc, 'project-1', {
+      reviewId: proposal.id,
+      expectedProposalEventId: proposal.proposal.eventId,
+      expectedDecisionEventId: accepted.review.decisions[0].eventId,
+      expectedDocumentRevision: 'revision-1',
+      expectedResearchRevision,
+      confirmFullReplacement: false,
+    }, { controller })
+    expect(applied).toMatchObject({
+      reviewId: proposal.id, decisionEventId: 'apply-decision', operation: 'append',
+      linkedPolicyId: proposal.id, documentRevision: 'revision-2', documentBlockCount: 2,
+      contentOmitted: true, explicitDraftMutation: true, automaticDraftMutation: false,
+    })
+    expect(JSON.stringify(applied)).not.toContain('Linked plugin policy')
+    expect(writes).toBe(1)
+    expect(() => applyPluginReviewForProject(doc, 'project-1', {
+      reviewId: proposal.id,
+      expectedProposalEventId: proposal.proposal.eventId,
+      expectedDecisionEventId: 'apply-decision',
+      expectedDocumentRevision: 'revision-1',
+      expectedResearchRevision: 'stale-research-revision',
+      confirmFullReplacement: false,
+    }, { controller })).toThrow('Research revision conflict')
+    expect(writes).toBe(1)
   })
 
   it('rejects a cross-project review before writing any shared decision event', async () => {

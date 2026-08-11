@@ -67,6 +67,7 @@ import {
   decideAutomationSuggestion,
 } from './workspace/suggestionAutomation'
 import {
+  applyPluginReviewForProject,
   inspectPluginWorkspace,
   runLoadedPluginForProject,
 } from './extensions/pluginWorkspaceAutomation'
@@ -380,6 +381,29 @@ export async function dispatchAutomationRequest(
         project: summarizeProject(project, latest.activeProjectId),
         pluginRun: publication,
         automaticDraftMutation: false,
+      }
+    }
+    case 'plugin.applyAccepted': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const application = applyPluginReviewForProject(
+        getAutomationProjectDocument(project.id),
+        project.id,
+        {
+          reviewId: requiredString(params, 'reviewId'),
+          expectedProposalEventId: requiredString(params, 'expectedProposalEventId'),
+          expectedDecisionEventId: requiredString(params, 'expectedDecisionEventId'),
+          expectedDocumentRevision: requiredString(params, 'expectedDocumentRevision'),
+          expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
+          confirmFullReplacement: requiredBoolean(params, 'confirmFullReplacement'),
+        },
+      )
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        pluginApplication: application,
       }
     }
     case 'project.inspectRelayPolicy': {

@@ -95,7 +95,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Compact Drive history only on explicit request and only with the latest exact revisions from both read_active_project and inspect_research_state; compaction appends a snapshot before recoverably archiving applied records and reports partial work. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, suggestions, heuristics, adversarial review archives/decisions, and immutable history; it cannot attest host-local relay policy. inspect_plugin_workspace reports content-minimized metadata for locally installed signed versions, packages active in this running app, and shared plugin review; it cannot change package lifecycle. run_loaded_plugin requires exact document and research revisions, runs only an already active zero-import component, and appends proposals to shared human review without editing the draft. On a project hosted by this running Syzygy relay, use inspect_relay_approval_policy for authoritative content-minimized policy state and pass its exact registry revision to configure_relay_approval_policy. Installation keys are not authenticated people or organizations, and the relay host remains emergency local authority. Use read_scenario for one explicit scenario background and its bounded turn identity/head index, then read_scenario_turn_revision for one current, named, or indexed revision body; both are content-disclosing reads. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. For a Drive-shared project, read_active_project also returns sharedTitle and its complete revisionGuards; pass those exact guards to rename_project. A stale rename fails closed, simultaneous sibling titles remain visible, and an explicit rename with every current sibling guard reconciles them without deleting history. Scenario, turn, vote, annotation, label, and suggestion tools require the latest exact research revision from inspection or the prior mutation; follow-up mutations additionally require their exact retained event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. When a scenario turn reports sibling tips, read the candidate revisions and call reconcile_scenario_turn with the exact research revision, selected head, and complete tip set; ordinary revision writes fail closed until reconciliation. Adversarial model review starts with start_adversarial_review followed by inspect_adversarial_review or cancel_adversarial_review; it requires configured built-in provider credentials and one native disclosure approval, and its result remains transient and pending human review. Call save_adversarial_review only with explicit authority to make the full question, selected source excerpts, and results shared project content that can synchronize through Drive. Call decide_adversarial_review separately to append an immutable accept/reject event; both mutations report exact retained-event device attribution as signed or explicitly unsigned and never edit the draft. Never claim real-time collaborator presence is available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Compact Drive history only on explicit request and only with the latest exact revisions from both read_active_project and inspect_research_state; compaction appends a snapshot before recoverably archiving applied records and reports partial work. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, suggestions, heuristics, adversarial review archives/decisions, and immutable history; it cannot attest host-local relay policy. inspect_plugin_workspace reports content-minimized metadata for locally installed signed versions, packages active in this running app, and shared plugin review; it cannot change package lifecycle. run_loaded_plugin requires exact document and research revisions, runs only an already active zero-import component, and appends proposals to shared human review without editing the draft. apply_accepted_plugin_review is a separate explicit mutation: use only an exact accepted non-conflicted review and pass its proposal and decision event IDs plus fresh document and research revisions. Append retains existing blocks; replace removes the entire draft; both create one linked review-policy block and give the plugin no mutation authority. On a project hosted by this running Syzygy relay, use inspect_relay_approval_policy for authoritative content-minimized policy state and pass its exact registry revision to configure_relay_approval_policy. Installation keys are not authenticated people or organizations, and the relay host remains emergency local authority. Use read_scenario for one explicit scenario background and its bounded turn identity/head index, then read_scenario_turn_revision for one current, named, or indexed revision body; both are content-disclosing reads. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. For a Drive-shared project, read_active_project also returns sharedTitle and its complete revisionGuards; pass those exact guards to rename_project. A stale rename fails closed, simultaneous sibling titles remain visible, and an explicit rename with every current sibling guard reconciles them without deleting history. Scenario, turn, vote, annotation, label, and suggestion tools require the latest exact research revision from inspection or the prior mutation; follow-up mutations additionally require their exact retained event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. When a scenario turn reports sibling tips, read the candidate revisions and call reconcile_scenario_turn with the exact research revision, selected head, and complete tip set; ordinary revision writes fail closed until reconciliation. Adversarial model review starts with start_adversarial_review followed by inspect_adversarial_review or cancel_adversarial_review; it requires configured built-in provider credentials and one native disclosure approval, and its result remains transient and pending human review. Call save_adversarial_review only with explicit authority to make the full question, selected source excerpts, and results shared project content that can synchronize through Drive. Call decide_adversarial_review separately to append an immutable accept/reject event; both mutations report exact retained-event device attribution as signed or explicitly unsigned and never edit the draft. Never claim real-time collaborator presence is available."
             })
         }
         "ping" => json!({}),
@@ -144,6 +144,7 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "inspect_research_state" => live("project.readResearchState", json!({})),
         "inspect_plugin_workspace" => live("plugin.inspectWorkspace", json!({})),
         "run_loaded_plugin" => live("plugin.runLoaded", arguments),
+        "apply_accepted_plugin_review" => live("plugin.applyAccepted", arguments),
         "inspect_relay_approval_policy" => live("project.inspectRelayPolicy", json!({})),
         "configure_relay_approval_policy" => live("project.configureRelayPolicy", arguments),
         "read_scenario" => live("project.readScenario", arguments),
@@ -346,6 +347,24 @@ fn tool_definitions() -> Vec<Value> {
                     ("expectedResearchRevision", string_schema("Exact revision from inspect_plugin_workspace.")),
                 ],
                 &["packageId", "contributionId", "expectedDocumentRevision", "expectedResearchRevision"],
+            ),
+        ),
+        tool(
+            "apply_accepted_plugin_review",
+            "Explicitly apply one accepted, non-conflicted plugin proposal to the active draft. This is separate from plugin execution and review: the plugin receives no mutation authority. Requires the exact review, proposal event, accepted decision event, document revision, and research revision from inspect_plugin_workspace/read_active_project. confirmFullReplacement must be true only for a retained replace proposal and false for append. Append retains every current block and adds one linked review-policy block; replace removes every current block and creates one linked review-policy block. Any stale, conflicting, replayed, colliding, or confirmation-mismatched state fails before the write.",
+            object_schema(
+                &[
+                    ("reviewId", string_schema("Exact accepted review ID from inspect_plugin_workspace.")),
+                    ("expectedProposalEventId", string_schema("Exact proposal event ID from inspect_plugin_workspace.")),
+                    ("expectedDecisionEventId", string_schema("Exact accepted decision event ID from the shared review.")),
+                    ("expectedDocumentRevision", string_schema("Exact revision from read_active_project; must also equal the proposal's source revision.")),
+                    ("expectedResearchRevision", string_schema("Exact revision from inspect_plugin_workspace.")),
+                    ("confirmFullReplacement", json!({ "type": "boolean", "description": "Must be true only when explicitly confirming a retained replace operation; false for append." })),
+                ],
+                &[
+                    "reviewId", "expectedProposalEventId", "expectedDecisionEventId",
+                    "expectedDocumentRevision", "expectedResearchRevision", "confirmFullReplacement",
+                ],
             ),
         ),
         tool(
@@ -898,6 +917,7 @@ mod tests {
         assert!(names.contains(&"inspect_research_state"));
         assert!(names.contains(&"inspect_plugin_workspace"));
         assert!(names.contains(&"run_loaded_plugin"));
+        assert!(names.contains(&"apply_accepted_plugin_review"));
         assert!(names.contains(&"inspect_relay_approval_policy"));
         assert!(names.contains(&"configure_relay_approval_policy"));
         assert!(names.contains(&"read_scenario"));
@@ -931,7 +951,7 @@ mod tests {
         assert!(names.contains(&"cancel_adversarial_review"));
         assert!(names.contains(&"save_adversarial_review"));
         assert!(names.contains(&"decide_adversarial_review"));
-        assert_eq!(names.len(), 48);
+        assert_eq!(names.len(), 49);
         assert!(names.contains(&"replace_active_document"));
         for tool_name in ["save_adversarial_review", "decide_adversarial_review"] {
             let review_tool = tools["result"]["tools"]
@@ -1230,7 +1250,8 @@ mod tests {
             "packageId": "org.example.fixture@1.0.0#0123456789abcdef",
             "contributionId": "review",
             "expectedDocumentRevision": "document-revision",
-            "expectedResearchRevision": "research-revision"
+            "expectedResearchRevision": "research-revision",
+            "confirmFullReplacement": false
         });
         let execution = dispatch_message(
             &json!({
@@ -1249,6 +1270,32 @@ mod tests {
         assert_eq!(
             execution["result"]["structuredContent"]["params"],
             arguments
+        );
+
+        let apply_arguments = json!({
+            "reviewId": "review-1",
+            "expectedProposalEventId": "proposal-1",
+            "expectedDecisionEventId": "decision-1",
+            "expectedDocumentRevision": "document-revision",
+            "expectedResearchRevision": "research-revision"
+        });
+        let application = dispatch_message(
+            &json!({
+                "jsonrpc": "2.0",
+                "id": "plugin-apply",
+                "method": "tools/call",
+                "params": { "name": "apply_accepted_plugin_review", "arguments": apply_arguments }
+            }),
+            &fake_live,
+        )
+        .unwrap();
+        assert_eq!(
+            application["result"]["structuredContent"]["method"],
+            "plugin.applyAccepted"
+        );
+        assert_eq!(
+            application["result"]["structuredContent"]["params"],
+            apply_arguments
         );
     }
 
@@ -1689,7 +1736,7 @@ mod tests {
         );
         assert_eq!(
             response["result"]["structuredContent"]["implementationStatus"]["pluginReview"],
-            "shared-proposal-ledger-human-decision-no-apply"
+            "shared-proposal-ledger-human-decision-explicit-revision-guarded-apply"
         );
         assert_eq!(
             response["result"]["structuredContent"]["implementationStatus"]

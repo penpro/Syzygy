@@ -2125,7 +2125,7 @@ record(
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioAnnotationRejected: true') &&
     text('scripts/mcp-live-harness.mjs').includes('scenarioLabelLifecycleGuarded: true') &&
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioLabelRejected: true'),
-  'stable inspection revision, exact-head/tip sibling reconciliation, zero-write stale rejection, live Y.Doc scenario/turn/vote/annotation/label/suggestion routes, 48-tool MCP surface, and packaged-live assertions are present',
+  'stable inspection revision, exact-head/tip sibling reconciliation, zero-write stale rejection, live Y.Doc scenario/turn/vote/annotation/label/suggestion routes, 49-tool MCP surface, and packaged-live assertions are present',
 )
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))
@@ -2158,7 +2158,7 @@ record(
     pluginPublisherSignatureSchema.additionalProperties === false &&
     pluginCertificationSchema.additionalProperties === false &&
     platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-reverified"') &&
-    platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-no-apply"') &&
+    platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-explicit-revision-guarded-apply"') &&
     platformContractsSource.includes('"pluginReviewAttribution": "exact-retained-event-registered-device-or-explicit-unsigned"') &&
     platformContractsSource.includes('"pluginCertifier": "contract-certified-runner"') &&
     platformContractsSource.includes('"automaticSharedMutation": false'),
@@ -2274,6 +2274,9 @@ const pluginInstallationStoreSource = text('frontend/src/extensions/pluginInstal
 const pluginInstallationStoreTestSource = text('frontend/src/extensions/pluginInstallationStore.test.ts')
 const pluginReviewSource = text('frontend/src/extensions/pluginReviewModel.ts')
 const pluginReviewTestSource = text('frontend/src/extensions/pluginReviewModel.test.ts')
+const pluginReviewApplicationSource = text('frontend/src/extensions/pluginReviewApplication.ts')
+const pluginReviewApplicationTestSource = text('frontend/src/extensions/pluginReviewApplication.test.ts')
+const pluginReviewApplicationIntegrationTestSource = text('frontend/src/extensions/pluginReviewApplicationIntegration.test.ts')
 const pluginWorkspaceAutomationSource = text('frontend/src/extensions/pluginWorkspaceAutomation.ts')
 const pluginWorkspaceAutomationTestSource = text('frontend/src/extensions/pluginWorkspaceAutomation.test.ts')
 const pluginWorkspaceSource = text('frontend/src/workspace/PluginWorkspace.tsx')
@@ -2286,6 +2289,9 @@ const pluginReviewAttributionEvidence = JSON.parse(
 )
 const pluginSignedInstallEvidence = JSON.parse(
   text('docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json'),
+)
+const pluginAcceptedApplyEvidence = JSON.parse(
+  text('docs/audits/runs/PLUGIN-ACCEPTED-APPLY-2026-08-11.json'),
 )
 record(
   'user-selected zero-authority plugins compose into shared human review without draft authority',
@@ -2309,7 +2315,7 @@ record(
     pluginWorkspaceSource.includes("manifestFile.name !== 'syzygy-plugin.json'") &&
     pluginWorkspaceSource.includes('Run in no-authority sandbox') &&
     pluginWorkspaceSource.includes('never edit the draft automatically') &&
-    pluginWorkspaceSource.includes('does not apply, append, or replace policy text') &&
+    pluginWorkspaceSource.includes('review decision only records shared history') &&
     text('frontend/src/workspace/WorkspaceView.tsx').includes('<PluginWorkspace project={project} />') &&
     text('frontend/src/automationBridge.ts').includes("case 'plugin.inspectWorkspace'") &&
     text('frontend/src/automationBridge.ts').includes("case 'plugin.runLoaded'") &&
@@ -2317,7 +2323,7 @@ record(
     mcpSource.includes('"run_loaded_plugin" => live("plugin.runLoaded"') &&
     frontendPackage.scripts?.['test:plugin-composition']?.includes('pluginWorkspaceAutomation.test.ts') &&
     platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-reverified"') &&
-    platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-no-apply"') &&
+    platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-explicit-revision-guarded-apply"') &&
     pluginExecutionTestSource.includes('recomputes component provenance') &&
     pluginReviewTestSource.includes('converges disconnected reviews') &&
     pluginReviewTestSource.includes('preflights a proposal batch') &&
@@ -2336,7 +2342,56 @@ record(
     pluginCompositionEvidence.fullValidation?.frontendModulesTransformed === 1276 &&
     pluginCompositionEvidence.fullValidation?.repositoryAuditPassed === true &&
     pluginCompositionEvidence.fullValidation?.rustCheckPassed === true,
-  'exact user-selected manifest/component digest, 32-MiB/eight-package session cap, project-only grant subset, serialized bounded execution, atomic shared proposal batch, conflict-visible human decisions, exact MCP revisions, content-minimized inspection, and no apply route',
+  'exact user-selected manifest/component digest, 32-MiB/eight-package session cap, project-only grant subset, serialized bounded execution, atomic shared proposal batch, conflict-visible human decisions, exact MCP revisions, content-minimized inspection, and no plugin-held draft authority',
+)
+record(
+  'accepted plugin proposal application remains explicit, exact-revision guarded, linked, and plugin-authority free',
+  pluginReviewApplicationSource.includes('applyAcceptedPluginReview') &&
+    pluginReviewApplicationSource.includes("review.status !== 'accepted'") &&
+    pluginReviewApplicationSource.includes('review.proposal.expectedRevision !== current.revision') &&
+    pluginReviewApplicationSource.includes("policyId: review.id") &&
+    pluginReviewApplicationSource.includes("review.proposal.operation === 'append'") &&
+    pluginReviewApplicationSource.includes('controller.replaceBlocks(input.expectedDocumentRevision, next)') &&
+    pluginReviewApplicationTestSource.includes('appends one exact linked review policy') &&
+    pluginReviewApplicationTestSource.includes('replaces the entire draft') &&
+    pluginReviewApplicationTestSource.includes('editor race with zero writes') &&
+    pluginReviewApplicationTestSource.includes('replay/collision before mutation') &&
+    pluginReviewApplicationIntegrationTestSource.includes('appends one linked policy node') &&
+    pluginReviewApplicationIntegrationTestSource.includes('replaces the live draft') &&
+    pluginWorkspaceAutomationSource.includes('applyPluginReviewForProject') &&
+    pluginWorkspaceAutomationSource.includes("Research revision conflict; inspect plugin reviews again before applying") &&
+    pluginWorkspaceAutomationSource.includes('input.confirmFullReplacement !==') &&
+    pluginWorkspaceAutomationSource.includes('acceptedDecisionEventId') &&
+    pluginWorkspaceAutomationTestSource.includes('exact accepted review under document and research revision guards') &&
+    pluginWorkspaceSource.includes('Apply accepted proposal to draft') &&
+    pluginWorkspaceSource.includes('Confirm replace entire draft') &&
+    pluginWorkspaceSource.includes('plugin never receives draft mutation authority') &&
+    text('frontend/src/automationBridge.ts').includes("case 'plugin.applyAccepted'") &&
+    mcpSource.includes('"apply_accepted_plugin_review" => live("plugin.applyAccepted"') &&
+    mcpSource.includes('assert_eq!(names.len(), 49)') &&
+    text('scripts/mcp-harness.mjs').includes("tool.name === 'apply_accepted_plugin_review'") &&
+    platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-explicit-revision-guarded-apply"') &&
+    frontendPackage.scripts?.['test:plugin-composition']?.includes('pluginReviewApplication.test.ts') &&
+    frontendPackage.scripts?.['test:plugin-composition']?.includes('pluginReviewApplicationIntegration.test.ts') &&
+    pluginAcceptedApplyEvidence.status === 'implemented-headless-verified' &&
+    pluginAcceptedApplyEvidence.focusedValidation?.testFilesPassed === 9 &&
+    pluginAcceptedApplyEvidence.focusedValidation?.testsPassed === 56 &&
+    pluginAcceptedApplyEvidence.focusedValidation?.realLexicalAppendPassed === true &&
+    pluginAcceptedApplyEvidence.focusedValidation?.realLexicalFullReplacePassed === true &&
+    pluginAcceptedApplyEvidence.mcpValidation?.toolCount === 49 &&
+    pluginAcceptedApplyEvidence.implementation?.automationRequiresOperationMatchedFullReplacementConfirmation === true &&
+    pluginAcceptedApplyEvidence.mcpValidation?.pending === false &&
+    pluginAcceptedApplyEvidence.mcpValidation?.mcpRustRoutesPassed === 22 &&
+    pluginAcceptedApplyEvidence.mcpValidation?.stderrProtocolClean === true &&
+    pluginAcceptedApplyEvidence.fullValidation?.pending === false &&
+    pluginAcceptedApplyEvidence.fullValidation?.supervisedRunId === '20260811-231244-7d3670' &&
+    pluginAcceptedApplyEvidence.fullValidation?.frontendTestFilesPassed === 137 &&
+    pluginAcceptedApplyEvidence.fullValidation?.frontendTestsPassed === 612 &&
+    pluginAcceptedApplyEvidence.fullValidation?.frontendModulesTransformed === 1278 &&
+    pluginAcceptedApplyEvidence.fullValidation?.repositoryAuditPassed === true &&
+    pluginAcceptedApplyEvidence.fullValidation?.rustCheckPassed === true &&
+    pluginAcceptedApplyEvidence.notProved?.some((claim) => claim.includes('distinct immutable or signed application event')),
+  'accepted-only exact proposal/decision/research/document guards, linked review-policy output, real Lexical append/full replacement, stale/race/replay denial, two-step destructive UI, MCP route 49, explicit application-attribution nonclaim, and full supervised evidence are present',
 )
 record(
   'publisher-signed plugin lifecycle remains local, bounded, reverified, rollback-safe, and authority-honest',
@@ -2488,7 +2543,7 @@ record(
     automationBridgeSource.includes("case 'project.configureRelayPolicy'") &&
     mcpSource.includes('"inspect_relay_approval_policy"') &&
     mcpSource.includes('"configure_relay_approval_policy"') &&
-    mcpSource.includes('assert_eq!(names.len(), 48)') &&
+    mcpSource.includes('assert_eq!(names.len(), 49)') &&
     mcpHarnessSource.includes("tool.name === 'inspect_relay_approval_policy'") &&
     mcpHarnessSource.includes("tool.name === 'configure_relay_approval_policy'") &&
     relayPolicyAutomationEvidence.includes('"supervisedRunId": "20260811-165714-c11043"') &&
@@ -2497,7 +2552,7 @@ record(
     relayPolicyAutomationEvidence.includes('"repositoryAuditPassed": true') &&
     relayPolicyAutomationEvidence.includes('"fullValidationPending": false') &&
     relayPolicyAutomationEvidence.includes('"status": "implemented_unverified"'),
-  'fresh exact local relay identity, aggregate-only inspection, eligible key-ID mapping, stale and malformed zero-write guards, exact returned transition, 48-tool routing, and human-identity nonclaims are present',
+  'fresh exact local relay identity, aggregate-only inspection, eligible key-ID mapping, stale and malformed zero-write guards, exact returned transition, 49-tool routing, and human-identity nonclaims are present',
 )
 record(
   'adversarial records remain evidence-gated',
@@ -2568,7 +2623,7 @@ record(
     researchStateInspectionSource.includes('adversarial-review question/source/result/decision-note bodies') &&
     mcpSource.includes('"save_adversarial_review"') &&
     mcpSource.includes('"decide_adversarial_review"') &&
-    mcpHarnessSource.includes('tools.length < 48') &&
+    mcpHarnessSource.includes('tools.length < 49') &&
     frontendPackage.scripts?.['test:adversarial']?.includes('adversarialHistory.test.ts'),
   'full archives persist only by explicit revision-guarded save; canonical hashes, provider provenance, peer convergence, exact-parent decision history, fail-closed conflicts, content-minimized inspection, and zero draft authority are enforced',
 )
@@ -3017,7 +3072,7 @@ record(
     existsSync(join(root, 'docs/audits/runs/LAN-COLLABORATION-SUPERVISION-2026-07-17.json')) &&
     existsSync(join(root, 'docs/audits/runs/LAN-DEV-MODE-LIFECYCLE-2026-07-18.json')) &&
     existsSync(join(root, 'docs/audits/runs/MCP-SCENARIO-TURN-READBACK-2026-08-02.json')),
-  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, 48-tool discovery, explicit scenario-index and sibling-body readback, deterministic current convergence, exact sibling reconciliation, title-history retention/repair, and stale-write gates are present',
+  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, 49-tool discovery, explicit scenario-index and sibling-body readback, deterministic current convergence, exact sibling reconciliation, title-history retention/repair, and stale-write gates are present',
 )
 const ledger = JSON.parse(text('docs/audits/CAPABILITIES.json'))
 const expectedIds = [

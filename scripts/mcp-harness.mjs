@@ -82,11 +82,24 @@ async function proveStdioContract() {
   if (messages.length !== 6) throw new Error(`expected 6 MCP responses, received ${messages.length}`)
   if (byId.get(1)?.result?.protocolVersion !== '2025-11-25') throw new Error('MCP version negotiation failed')
   const tools = byId.get(2)?.result?.tools
-  if (!Array.isArray(tools) || tools.length < 48) throw new Error('MCP tool discovery is incomplete')
+  if (!Array.isArray(tools) || tools.length < 49) throw new Error('MCP tool discovery is incomplete')
   if (!tools.some((tool) => tool.name === 'workspace_walkthrough')) throw new Error('walkthrough tool is missing')
   if (!tools.some((tool) => tool.name === 'inspect_research_state')) throw new Error('research-state inspection tool is missing')
   if (!tools.some((tool) => tool.name === 'inspect_plugin_workspace')) throw new Error('plugin workspace inspection tool is missing')
   if (!tools.some((tool) => tool.name === 'run_loaded_plugin')) throw new Error('loaded plugin execution tool is missing')
+  const applyPluginReview = tools.find((tool) => tool.name === 'apply_accepted_plugin_review')
+  if (!applyPluginReview) throw new Error('accepted plugin proposal application tool is missing')
+  if (applyPluginReview.inputSchema?.additionalProperties !== false) {
+    throw new Error('accepted plugin proposal application schema is not strict')
+  }
+  for (const field of [
+    'reviewId', 'expectedProposalEventId', 'expectedDecisionEventId',
+    'expectedDocumentRevision', 'expectedResearchRevision', 'confirmFullReplacement',
+  ]) {
+    if (!applyPluginReview.inputSchema?.required?.includes(field)) {
+      throw new Error(`accepted plugin proposal application schema omits ${field}`)
+    }
+  }
   if (!tools.some((tool) => tool.name === 'inspect_relay_approval_policy')) throw new Error('relay approval policy inspection tool is missing')
   if (!tools.some((tool) => tool.name === 'configure_relay_approval_policy')) throw new Error('relay approval policy configuration tool is missing')
   if (!tools.some((tool) => tool.name === 'inspect_drive_project_discovery')) throw new Error('Drive project discovery diagnostic is missing')
@@ -199,7 +212,7 @@ async function proveStdioContract() {
   if (byId.get(6)?.result?.isError !== false) throw new Error('platform contracts tool failed without a live GUI')
   if (contracts?.contractVersion !== 1) throw new Error('platform contract version is missing')
   if (contracts?.implementationStatus?.pluginLoader !== 'signed-local-indexeddb-install-disable-upgrade-rollback-reverified') throw new Error('plugin loader status is inaccurate')
-  if (contracts?.implementationStatus?.pluginReview !== 'shared-proposal-ledger-human-decision-no-apply') throw new Error('plugin review status is inaccurate')
+  if (contracts?.implementationStatus?.pluginReview !== 'shared-proposal-ledger-human-decision-explicit-revision-guarded-apply') throw new Error('plugin review status is inaccurate')
   if (contracts?.implementationStatus?.pluginReviewAttribution !== 'exact-retained-event-registered-device-or-explicit-unsigned') throw new Error('plugin review attribution status is inaccurate')
   if (contracts?.implementationStatus?.pluginAuthorityBroker !== 'implemented-non-executing') throw new Error('plugin authority broker status is inaccurate')
   if (contracts?.implementationStatus?.pluginWitContract !== 'zero-import-subprocess-runtime-bounded') throw new Error('plugin WIT contract status is inaccurate')

@@ -754,7 +754,8 @@ recomputes SHA-256 before execution, runs a selected contribution with only proj
 and appends valid output to shared conflict-visible human review. Signed packages can persist and
 retain rollback versions, but a publisher key establishes package continuity rather than publisher
 identity, safety, or quality. Plugin discovery, publisher reputation/key rotation, capability-bearing
-WIT, and direct mutation/apply remain unavailable.
+WIT, and plugin-held direct mutation remain unavailable. A separate exact accepted-review Apply path
+exists for append/full replacement; application-specific signed attribution and editable variants do not.
 
 Gate: unknown/undeclared authority fails closed; WASI begins with no project, Drive, network,
 model, or filesystem access; native MCP is never described as sandboxed; all mutations are bounded
@@ -767,7 +768,7 @@ live-provider certification separate from local conformance and report:
 `native-atomic-dependency-bound-executor` for native reservation/execution, and
 `contract-only` for custom-adapter execution,
 `signed-local-indexeddb-install-disable-upgrade-rollback-reverified` for plugin loading,
-`shared-proposal-ledger-human-decision-no-apply` for plugin review, and
+`shared-proposal-ledger-human-decision-explicit-revision-guarded-apply` for plugin review, and
 `one-shot-child-process-fuel-epoch-store-and-parent-deadline` for plugin runtime isolation.
 The machine-readable synthetic and hostile-worker proof, including explicit non-claims, is
 `docs/audits/runs/PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11.json`.

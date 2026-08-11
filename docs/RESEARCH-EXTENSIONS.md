@@ -90,7 +90,8 @@ resources, exact output revalidation, and no WASI dependency. Each run lives in 
 child process under a five-second kill-and-reap parent deadline. The Windows hostile-fuel fixture
 terminates only that worker and a clean successor still succeeds. This establishes the portable
 no-authority execution baseline; package discovery, publisher identity/reputation and signing-key
-rotation, capability-bearing interfaces, proposal Apply, and useful third-party behavior remain open.
+rotation, capability-bearing interfaces, and useful third-party behavior remain open. Apply is a
+separate product/automation action after shared acceptance; it is not a component host capability.
 
 Machine-readable runtime limits, commands, results, proved claims, and explicit non-claims are in
 `docs/audits/runs/PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11.json`.
@@ -110,13 +111,20 @@ preflighted batch into a shared Yjs ledger with exact component provenance; disc
 converge and opposite decisions become visible conflicts. Each retained proposal and decision is
 then exact-body hashed and best-effort signed by the participant's unconflicted registered
 installation; cross-author claims or later body changes fail verification, while unavailable
-signing remains explicit and never rolls back history. MCP can inspect content-minimized installed,
-active, and review state and run only an already-active package against exact document/research
-revisions. It cannot change package lifecycle, load component bytes, decide a review, or apply draft
-text. Evidence and falsifiers are in
+signing remains explicit and never rolls back history. A separate accepted-review application service
+requires exact proposal, decision, research, and document revisions plus an operation-matched full-
+replacement confirmation. Append retains the current
+blocks and adds one linked review-policy block; replace uses the same final editor guard to create
+exactly one linked block. The product requires a second confirmation for full-draft replacement,
+and MCP exposes the same content-minimized guarded mutation. The plugin itself never receives Apply
+authority. MCP can inspect content-minimized installed, active, and review state and run only an
+already-active package against exact document/research revisions. It cannot change package lifecycle,
+load component bytes, or decide a review. Application-specific event attribution and proposal editing
+remain open. Evidence and falsifiers are in
 `docs/audits/runs/PLUGIN-SHARED-REVIEW-2026-08-11.json` and
 `docs/audits/runs/SIGNED-PLUGIN-REVIEW-EVENTS-2026-08-11.json`, plus the lifecycle proof in
-`docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json`.
+`docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json` and
+`docs/audits/runs/PLUGIN-ACCEPTED-APPLY-2026-08-11.json`.
 
 ## Benchmark before product claims
 

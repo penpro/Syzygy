@@ -1,0 +1,75 @@
+{
+  "verificationDate": "2026-08-11",
+  "feature": "explicit revision-guarded application of accepted plugin proposals",
+  "status": "implemented-headless-verified",
+  "implementation": {
+    "reviewStatus": "shared-proposal-ledger-human-decision-explicit-revision-guarded-apply",
+    "applicationAuthority": "separate-product-and-mcp-action-not-plugin-host-capability",
+    "requiredGuards": [
+      "reviewId",
+      "expectedProposalEventId",
+      "expectedDecisionEventId",
+      "expectedDocumentRevision",
+      "expectedResearchRevision"
+    ],
+    "acceptedNonConflictedRequired": true,
+    "proposalSourceRevisionMustEqualLiveDocumentRevision": true,
+    "linkedPolicyStatus": "review",
+    "appendRetainsExistingBlocks": true,
+    "replaceRemovesAllExistingBlocks": true,
+    "replaceRequiresSecondProductConfirmation": true,
+    "automationRequiresOperationMatchedFullReplacementConfirmation": true,
+    "pluginReceivesMutationAuthority": false,
+    "mcpResponseIncludesProposalContent": false
+  },
+  "focusedValidation": {
+    "command": "npm run test:plugin-composition",
+    "testFilesPassed": 9,
+    "testsPassed": 56,
+    "unitAppendPassed": true,
+    "unitFullReplacePassed": true,
+    "realLexicalAppendPassed": true,
+    "realLexicalFullReplacePassed": true,
+    "staleDocumentRejectedWithoutWrite": true,
+    "finalEditorRaceRejectedWithoutWrite": true,
+    "rejectedPendingConflictedStateRejected": true,
+    "crossProjectRejected": true,
+    "replayPolicyIdentityCollisionRejected": true,
+    "productApplyRequiresAcceptance": true,
+    "productReplaceSecondConfirmationVisible": true
+  },
+  "mcpValidation": {
+    "command": "npm run test:mcp",
+    "pending": false,
+    "toolCount": 49,
+    "route": "plugin.applyAccepted",
+    "strictFiveRevisionIdentityGuardsPlusReplaceConfirmation": true,
+    "mcpRustRoutesPassed": 22,
+    "platformContractTestsPassed": 2,
+    "frontendEditorContractTestsPassed": 10,
+    "stderrProtocolClean": true
+  },
+  "fullValidation": {
+    "pending": false,
+    "supervisedRunId": "20260811-231244-7d3670",
+    "frontendTestFilesPassed": 137,
+    "frontendTestsPassed": 612,
+    "frontendModulesTransformed": 1278,
+    "repositoryAuditPassed": true,
+    "rustCheckPassed": true
+  },
+  "proved": [
+    "A plugin component cannot call the application service; execution still returns proposal-only output from the zero-import world.",
+    "Append and full replacement re-resolve one accepted non-conflicted retained review, its exact proposal and accepted decision, project identity, research revision, proposal-source/live document equality, linked-policy identity, and the editor's final revision guard.",
+    "Append preserves every current semantic block and adds exactly one policy block in review status whose stable policy ID is the shared review ID.",
+    "Replace requires a second visible product confirmation and replaces the current semantic document with exactly one linked policy block in review status.",
+    "The MCP mutation uses the same application service, five exact identity/revision guards, and an operation-matched full-replacement confirmation boolean, and returns content-minimized metadata rather than proposal content.",
+    "Unit and real Lexical fixtures prove exact append/replacement shape and zero-write denial for stale, raced, rejected, pending, conflicted, cross-project, and colliding requests."
+  ],
+  "notProved": [
+    "A distinct immutable or signed application event, the identity of the person who clicked Apply, or authenticated human/organizational consent.",
+    "Editing proposal content before application, targeted replacement of one selected block, semantic diff quality, undo UX, or application reconciliation after a later draft rollback.",
+    "Packaged pointer/keyboard confirmation, application across two physical installations, Drive/WebSocket race behavior, or crash injection between editor mutation and UI acknowledgement.",
+    "Plugin semantic correctness, research quality, publisher identity/reputation, or safety."
+  ]
+}

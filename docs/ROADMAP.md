@@ -340,11 +340,20 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   and removal. SHA-256 is also recomputed
   before execution; only project read/propose can activate.
   Valid output becomes one preflighted shared Yjs proposal batch. Human accept/reject decisions
-  converge, expose conflicts, and never apply the draft. MCP can inspect metadata and run only an
+  converge and expose conflicts; a decision alone never applies the draft. A separate guarded Apply
+  service now re-resolves the exact accepted proposal/decision plus research/document revisions.
+  Append retains all blocks and adds one linked review-policy block; replace requires a second UI
+  confirmation and replaces the full draft with one linked block. Real Lexical fixtures prove both,
+  while stale, conflicted, cross-project, replay/collision, and final editor races write nothing. MCP
+  exposes the same content-minimized mutation as tool 49 and requires a boolean matching append versus
+  explicit full replacement. MCP can inspect metadata and run only an
   already-active package with exact document/research revisions and content-minimized installed
   metadata. Publisher identity/reputation and signing-key rotation, package discovery, a useful
-  executable example, capability-bearing worlds, and Apply remain open. Evidence:
+  executable example, capability-bearing worlds, application-event attribution, and editable apply
+  variants remain open. Evidence:
   `docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json`.
+  Accepted-review Apply evidence:
+  `docs/audits/runs/PLUGIN-ACCEPTED-APPLY-2026-08-11.json`.
 - The adversarial protocol now has an executable run-record validator and synthetic benchmark
   fixture. Eight tests enforce blinded artifacts, complete candidates/critiques, claim-level source
   audits, planned reversed judge order, equal actual call budgets, supported-minority retention,

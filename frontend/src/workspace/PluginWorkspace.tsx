@@ -21,6 +21,7 @@ import {
   type InstalledPluginSummary,
 } from '../extensions/pluginInstallationStore'
 import {
+  applyPluginReviewForProject,
   decidePluginReviewForProject,
   runLoadedPluginForProject,
 } from '../extensions/pluginWorkspaceAutomation'
@@ -43,6 +44,7 @@ export interface PluginWorkspaceContentProps {
   selectedPackageId: string
   selectedContributionId: string
   selectedReviewId: string
+  armedReplaceReviewId: string
   busy: boolean
   status: string | null
   error: string | null
@@ -65,19 +67,24 @@ export interface PluginWorkspaceContentProps {
   onRun: () => void
   onSelectReview: (reviewId: string) => void
   onDecision: (decision: PluginReviewDecision) => void
+  onApplyReview: (reviewId: string) => void
+  onCancelReplace: () => void
 }
 
 export function PluginWorkspaceContent({
   packages, installedPackages, reviews, healthy, selectedPackageId, selectedContributionId, selectedReviewId,
+  armedReplaceReviewId,
   busy, status, error, manifestName, componentName, signatureName, currentDocumentRevision,
   onManifestFile, onComponentFile, onSignatureFile, onLoad, onSelectPackage, onSelectContribution,
   onInstall, onRemovePackage, onActivateInstalled, onDisableInstalled, onRollbackInstalled,
-  onRemoveInstalled, onRun, onSelectReview, onDecision,
+  onRemoveInstalled, onRun, onSelectReview, onDecision, onApplyReview, onCancelReplace,
 }: PluginWorkspaceContentProps) {
   const selectedPackage = packages.find((plugin) => plugin.packageId === selectedPackageId) ?? null
   const selectedReview = reviews.find((review) => review.id === selectedReviewId) ?? reviews[reviews.length - 1] ?? null
   const stale = Boolean(selectedReview && currentDocumentRevision &&
     selectedReview.proposal.expectedRevision !== currentDocumentRevision)
+  const acceptedDecision = selectedReview?.status === 'accepted'
+    ? selectedReview.decisions.find((decision) => decision.decision === 'accepted') ?? null : null
   const inactiveCapabilities = selectedPackage?.requestedCapabilities.filter(
     (capability) => capability !== 'project.read' && capability !== 'project.propose',
   ) ?? []
@@ -273,8 +280,48 @@ export function PluginWorkspaceContent({
                   <button type="button" className="btn ghost" disabled={busy || !healthy} onClick={() => onDecision('rejected')}>Record rejected</button>
                 </div>
               ) : null}
+              {selectedReview.status === 'accepted' && acceptedDecision ? (
+                selectedReview.proposal.operation === 'replace' && armedReplaceReviewId !== selectedReview.id ? (
+                  <div className="plugin-actions">
+                    <button
+                      type="button"
+                      disabled={busy || !healthy || stale || !currentDocumentRevision}
+                      onClick={() => onApplyReview(selectedReview.id)}
+                    >
+                      Review replacement of entire draft
+                    </button>
+                  </div>
+                ) : selectedReview.proposal.operation === 'replace' ? (
+                  <div className="plugin-apply-confirmation" role="alert">
+                    <strong>This will replace every current draft block.</strong>
+                    <p>The accepted proposal becomes one linked policy block in review status. Shared review history remains intact.</p>
+                    <div className="plugin-actions">
+                      <button
+                        type="button"
+                        disabled={busy || !healthy || stale || !currentDocumentRevision}
+                        onClick={() => onApplyReview(selectedReview.id)}
+                      >
+                        Confirm replace entire draft
+                      </button>
+                      <button type="button" className="btn ghost" disabled={busy} onClick={onCancelReplace}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="plugin-actions">
+                    <button
+                      type="button"
+                      disabled={busy || !healthy || stale || !currentDocumentRevision}
+                      onClick={() => onApplyReview(selectedReview.id)}
+                    >
+                      Apply accepted proposal to draft
+                    </button>
+                  </div>
+                )
+              ) : null}
               <p className="plugin-scope-note">
-                This decision is shared project history. It does not apply, append, or replace policy text.
+                A review decision only records shared history. Apply is a separate action guarded by
+                this exact proposal, accepted decision, research revision, and live document revision.
+                The plugin never receives draft mutation authority.
               </p>
             </article>
           ) : null}
@@ -297,6 +344,7 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
   const [selectedPackageId, setSelectedPackageId] = useState('')
   const [selectedContributionId, setSelectedContributionId] = useState('')
   const [selectedReviewId, setSelectedReviewId] = useState('')
+  const [armedReplaceReviewId, setArmedReplaceReviewId] = useState('')
   const [busy, setBusy] = useState(true)
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -492,6 +540,34 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
       setStatus(`Review decision recorded as ${decision} with ${result.attribution.status === 'signed-device' ? 'registered-device attribution' : 'explicit unsigned attribution'}. Device attribution does not verify a human identity. The draft was not changed.`)
     } catch (value) { setError(explain(value)) } finally { setBusy(false) }
   }
+  const applyReview = (reviewId: string) => {
+    setError(null); setStatus(null)
+    if (!doc || !currentDocumentRevision) return
+    const review = reviews.find((candidate) => candidate.id === reviewId)
+    const acceptedDecision = review?.status === 'accepted'
+      ? review.decisions.find((decision) => decision.decision === 'accepted') : null
+    if (!review || !acceptedDecision) return
+    if (review.proposal.operation === 'replace' && armedReplaceReviewId !== review.id) {
+      setArmedReplaceReviewId(review.id)
+      setStatus('Full-draft replacement is armed. Confirm only after reviewing the exact accepted proposal and current draft.')
+      return
+    }
+    setBusy(true)
+    try {
+      const result = applyPluginReviewForProject(doc, project.id, {
+        reviewId: review.id,
+        expectedProposalEventId: review.proposal.eventId,
+        expectedDecisionEventId: acceptedDecision.eventId,
+        expectedDocumentRevision: currentDocumentRevision,
+        expectedResearchRevision: projectStateFingerprint(doc),
+        confirmFullReplacement: review.proposal.operation === 'replace',
+      })
+      setArmedReplaceReviewId('')
+      setStatus(result.operation === 'append'
+        ? 'Applied the exact accepted proposal as one linked review-policy block. The plugin received no mutation authority.'
+        : 'Replaced the draft with the exact accepted proposal as one linked review-policy block. Shared review history was retained.')
+    } catch (value) { setError(explain(value)) } finally { setBusy(false) }
+  }
 
   return <PluginWorkspaceContent
     packages={packages}
@@ -501,6 +577,7 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
     selectedPackageId={effectivePackageId}
     selectedContributionId={effectiveContributionId}
     selectedReviewId={effectiveReviewId}
+    armedReplaceReviewId={armedReplaceReviewId}
     busy={busy}
     status={status}
     error={error}
@@ -521,7 +598,9 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
     onRollbackInstalled={(pluginId, packageId) => { void rollbackInstalled(pluginId, packageId) }}
     onRemoveInstalled={(packageId) => { void removeInstalled(packageId) }}
     onRun={() => { void run() }}
-    onSelectReview={setSelectedReviewId}
+    onSelectReview={(reviewId) => { setSelectedReviewId(reviewId); setArmedReplaceReviewId('') }}
     onDecision={(decision) => { void decide(decision) }}
+    onApplyReview={applyReview}
+    onCancelReplace={() => { setArmedReplaceReviewId(''); setStatus(null) }}
   />
 }

@@ -1,6 +1,9 @@
 import type * as Y from 'yjs'
 import { now, uid } from '../util'
-import { getAutomationEditorController } from '../workspace/editorAutomationRegistry'
+import {
+  getAutomationEditorController,
+  type AutomationEditorController,
+} from '../workspace/editorAutomationRegistry'
 import { getProjectSharedTypes, projectStateFingerprint } from '../workspace/projectModel'
 import {
   attestPluginReviewEvent,
@@ -12,6 +15,7 @@ import {
   type PluginPackageRegistry,
 } from './pluginPackageRegistry'
 import { pluginInstallationCatalog } from './pluginInstallationStore'
+import { applyAcceptedPluginReview } from './pluginReviewApplication'
 import {
   zeroAuthorityPluginExecutor,
   type PluginExecutionOutcome,
@@ -44,6 +48,15 @@ export interface DecidePluginReviewAutomationInput extends PluginRunnerIdentity 
   expectedProposalEventId: string
   expectedResearchRevision: string
   decision: PluginReviewDecision
+}
+
+export interface ApplyPluginReviewAutomationInput {
+  reviewId: string
+  expectedProposalEventId: string
+  expectedDecisionEventId: string
+  expectedDocumentRevision: string
+  expectedResearchRevision: string
+  confirmFullReplacement: boolean
 }
 
 export interface PluginRunPublication {
@@ -146,6 +159,9 @@ export function inspectPluginWorkspace(
       timestamp: review.proposal.timestamp,
       status: review.status,
       decisionCount: review.decisions.length,
+      acceptedDecisionEventId: review.status === 'accepted'
+        ? review.decisions.find((decision) => decision.decision === 'accepted')?.eventId ?? null
+        : null,
     })),
     inspection,
     researchRevision: projectStateFingerprint(doc),
@@ -191,6 +207,41 @@ export async function decidePluginReviewForProject(
     review,
     attribution,
     researchRevision: projectStateFingerprint(doc),
+    automaticDraftMutation: false,
+  }
+}
+
+export function applyPluginReviewForProject(
+  doc: Y.Doc,
+  projectId: string,
+  input: ApplyPluginReviewAutomationInput,
+  dependencies: { controller?: AutomationEditorController } = {},
+) {
+  if (projectStateFingerprint(doc) !== input.expectedResearchRevision) {
+    throw new Error('Research revision conflict; inspect plugin reviews again before applying')
+  }
+  const controller = dependencies.controller ?? getAutomationEditorController(projectId)
+  const shared = getProjectSharedTypes(doc)
+  const review = readPluginReview(shared.discussions, input.reviewId)
+  if (!review) throw new Error('Plugin review is missing or invalid')
+  if (input.confirmFullReplacement !== (review.proposal.operation === 'replace')) {
+    throw new Error('Full-draft replacement confirmation does not match the retained proposal operation')
+  }
+  const document = applyAcceptedPluginReview(shared.discussions, controller, projectId, input)
+  return {
+    reviewId: review.id,
+    proposalEventId: review.proposal.eventId,
+    decisionEventId: input.expectedDecisionEventId,
+    operation: review.proposal.operation,
+    pluginId: review.proposal.pluginId,
+    pluginVersion: review.proposal.pluginVersion,
+    componentSha256: review.proposal.componentSha256,
+    linkedPolicyId: review.id,
+    documentRevision: document.revision,
+    documentBlockCount: document.blocks.length,
+    researchRevision: projectStateFingerprint(doc),
+    contentOmitted: true,
+    explicitDraftMutation: true,
     automaticDraftMutation: false,
   }
 }

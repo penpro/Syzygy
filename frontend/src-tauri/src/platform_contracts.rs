@@ -67,7 +67,7 @@ pub fn current() -> Result<Value, String> {
             "pluginWitContract": "zero-import-subprocess-runtime-bounded",
             "pluginRuntimeIsolation": "one-shot-child-process-fuel-epoch-store-and-parent-deadline",
             "pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-reverified",
-            "pluginReview": "shared-proposal-ledger-human-decision-no-apply",
+        "pluginReview": "shared-proposal-ledger-human-decision-explicit-revision-guarded-apply",
             "pluginReviewAttribution": "exact-retained-event-registered-device-or-explicit-unsigned",
             "scenarioPackCodec": "product-import-export-checksummed-atomic",
             "networkBoundaryTrace": "source-copy-origin-harness-no-os-packet-capture"
@@ -212,7 +212,7 @@ mod tests {
         );
         assert_eq!(
             contracts["implementationStatus"]["pluginReview"],
-            "shared-proposal-ledger-human-decision-no-apply"
+            "shared-proposal-ledger-human-decision-explicit-revision-guarded-apply"
         );
         assert_eq!(
             contracts["implementationStatus"]["pluginReviewAttribution"],

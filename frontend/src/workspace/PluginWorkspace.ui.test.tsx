@@ -32,6 +32,7 @@ const props: PluginWorkspaceContentProps = {
   healthy: true,
   selectedPackageId: 'org.example.fixture@1.0.0#aaaaaaaaaaaaaaaa',
   selectedContributionId: 'review', selectedReviewId: 'review-1', busy: false,
+  armedReplaceReviewId: '',
   status: null, error: null, manifestName: null, componentName: null, signatureName: null,
   currentDocumentRevision: 'revision-2',
   onManifestFile: callback, onComponentFile: callback, onSignatureFile: callback,
@@ -40,6 +41,7 @@ const props: PluginWorkspaceContentProps = {
   onActivateInstalled: callback, onDisableInstalled: callback, onRollbackInstalled: callback,
   onRemoveInstalled: callback,
   onRun: callback, onSelectReview: callback, onDecision: callback,
+  onApplyReview: callback, onCancelReplace: callback,
 }
 
 describe('plugin workspace product contract', () => {
@@ -54,10 +56,10 @@ describe('plugin workspace product contract', () => {
     expect(html).toContain('Review content')
     expect(html).toContain('live draft changed')
     expect(html).toContain('Record accepted')
-    expect(html).toContain('does not apply, append, or replace policy text')
+    expect(html).toContain('review decision only records shared history')
   })
 
-  it('exposes explicit signed rollback and disabled-version removal without Apply authority', () => {
+  it('exposes explicit signed rollback and disabled-version removal without package lifecycle Apply authority', () => {
     const html = renderToStaticMarkup(createElement(PluginWorkspaceContent, {
       ...props,
       installedPackages: [{
@@ -71,10 +73,10 @@ describe('plugin workspace product contract', () => {
     }))
     expect(html).toContain('Roll back to this signed version')
     expect(html).toContain('Remove stored version')
-    expect(html).not.toContain('Apply to draft')
+    expect(html).not.toContain('Apply accepted proposal to draft')
   })
 
-  it('does not expose decision controls after a review is decided', () => {
+  it('exposes a separate exact-revision Apply action only after acceptance', () => {
     const html = renderToStaticMarkup(createElement(PluginWorkspaceContent, {
       ...props, reviews: [{ ...props.reviews[0], status: 'accepted', decisions: [{
         schemaVersion: 1, kind: 'decision', eventId: 'decision-1', reviewId: 'review-1',
@@ -84,5 +86,27 @@ describe('plugin workspace product contract', () => {
     }))
     expect(html).not.toContain('Record accepted')
     expect(html).toContain('accepted')
+    expect(html).toContain('Apply accepted proposal to draft')
+    expect(html).toContain('plugin never receives draft mutation authority')
+  })
+
+  it('requires a visible second confirmation for a full-draft replacement', () => {
+    const accepted = [{ ...props.reviews[0], status: 'accepted' as const, proposal: {
+      ...props.reviews[0].proposal, operation: 'replace' as const,
+    }, decisions: [{
+      schemaVersion: 1 as const, kind: 'decision' as const, eventId: 'decision-1', reviewId: 'review-1',
+      proposalEventId: 'event-1', decision: 'accepted' as const, reviewerId: 'reviewer-1',
+      reviewerDisplayName: 'Reviewer', timestamp: 2,
+    }] }]
+    const first = renderToStaticMarkup(createElement(PluginWorkspaceContent, {
+      ...props, reviews: accepted, currentDocumentRevision: 'revision-1',
+    }))
+    expect(first).toContain('Review replacement of entire draft')
+    expect(first).not.toContain('Confirm replace entire draft')
+    const armed = renderToStaticMarkup(createElement(PluginWorkspaceContent, {
+      ...props, reviews: accepted, currentDocumentRevision: 'revision-1', armedReplaceReviewId: 'review-1',
+    }))
+    expect(armed).toContain('replace every current draft block')
+    expect(armed).toContain('Confirm replace entire draft')
   })
 })

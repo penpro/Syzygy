@@ -30,6 +30,7 @@ filesystem access.
 - Session package registry: `frontend/src/extensions/pluginPackageRegistry.ts`
 - Signed local lifecycle: `frontend/src/extensions/pluginInstallationStore.ts`
 - Collaborative review ledger: `frontend/src/extensions/pluginReviewModel.ts`
+- Explicit accepted-review Apply boundary: `frontend/src/extensions/pluginReviewApplication.ts`
 - Product and MCP composition: `frontend/src/workspace/PluginWorkspace.tsx`,
   `frontend/src/extensions/pluginWorkspaceAutomation.ts`
 - Headless package certifier: `scripts/plugin-certifier.mjs`
@@ -191,7 +192,9 @@ execution nor decision changes the policy draft. MCP exposes `inspect_plugin_wor
 `run_loaded_plugin`; inspection omits component/proposal/signature bodies but includes bounded local
 installed-version and active-package metadata. Execution can address only a package already active
 in that running GUI, with exact document and research revisions. MCP cannot install, enable,
-upgrade, roll back, remove, load component bytes, decide a plugin review, or apply text.
+upgrade, roll back, remove, load component bytes, or decide a plugin review. The separate
+`apply_accepted_plugin_review` tool can apply only a previously accepted non-conflicted review with
+the exact proposal event, accepted decision event, research revision, and document revision.
 
 After each immutable proposal or decision commits, Syzygy hashes the exact versioned retained event
 and best-effort signs it with the participant's unconflicted registered installation key. The shared
@@ -201,9 +204,9 @@ unsigned attribution; failure to access a key, registration, or healthy attestat
 rolls back the review. These proofs identify an installation key, not a human or organization.
 
 This is truthful status `signed-local-indexeddb-install-disable-upgrade-rollback-reverified` plus
-`shared-proposal-ledger-human-decision-no-apply`. Discovery, publisher identity/reputation and
+`shared-proposal-ledger-human-decision-explicit-revision-guarded-apply`. Discovery, publisher identity/reputation and
 signing-key rotation, a useful executable third-party example, capability-bearing WIT worlds, and
-revision-guarded Apply remain open.
+application-specific signed attribution and editable apply variants remain open.
 
 Design basis: the upstream Component Model describes WIT worlds as the strict import/export
 boundary and explicitly notes that a component without a relevant import cannot access that host
@@ -227,9 +230,16 @@ executor:
 
 Plugins never receive a writable project handle. They return a `PluginChangeProposal` containing
 plugin/project identity, an expected document revision, summary, bounded content, and append or
-replace operation. Syzygy shows a diff; the person accepts, edits, or rejects. Acceptance rechecks
-plugin permission, project identity, revision, content bounds, and target provider, and attributes
-the change to the accepting person plus plugin/version.
+replace operation. Syzygy shows the exact proposal body and operation; collaborators independently
+record accept or reject. A decision never edits the draft. A separate Apply action re-resolves one
+accepted, non-conflicted review and its exact proposal/decision events, requires fresh research and
+document revisions, checks that the current document is still the proposal source, and requires an
+operation-matched full-replacement confirmation (`false` for append, `true` for replace). Append adds
+one linked policy block in review status while retaining all existing blocks. Replace requires a
+second visible confirmation, removes the full current draft, and creates one linked review-policy
+block. The plugin receives no writable project handle in either path. The linked policy ID points
+back to retained plugin/version/component review history; a distinct signed application event and
+edited-before-apply proposal variants remain future work.
 
 Drive mutations use separate domain-specific proposal schemas; generic replace/append does not
 grant Drive writes.

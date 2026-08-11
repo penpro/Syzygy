@@ -682,12 +682,22 @@ Yjs discussions map. Accept/reject decisions converge and expose conflicts. Afte
 decision commits, `researchEventAttribution.ts` hashes its exact retained body and best-effort signs
 it with the participant's unconflicted registered installation key. Signing failure is retained as
 explicit unsigned attribution and never rolls back the review event. Neither the model nor the
-current product/MCP surface has an apply route. `PluginWorkspace.tsx` is the explicit loader,
-runner, authority disclosure, and full-content review surface. MCP may inspect content-minimized
+review decision receives draft authority. `pluginReviewApplication.ts` is the separate explicit
+application boundary: it re-resolves one accepted, non-conflicted proposal and exact decision,
+requires the proposal source revision to equal the live document revision, rejects linked-policy
+identity collisions, and uses the editor's final revision guard. Append retains every existing block;
+replace creates exactly one linked review-policy block and removes the prior draft. The product uses
+a second visible confirmation for replace. `PluginWorkspace.tsx` is the explicit loader, runner,
+authority disclosure, full-content review, and apply surface. MCP may inspect content-minimized
 installed-version, active-package, and review metadata and run one already-active contribution against exact document and
-research revisions; run results report signed-device or unsigned proposal attribution. MCP cannot
-install, enable, upgrade, roll back, remove, load component bytes, decide a review, or mutate draft
-text. The general research-state inspector
+research revisions; run results report signed-device or unsigned proposal attribution. The separate
+`apply_accepted_plugin_review` route requires the exact review/proposal/decision plus fresh research
+and document revisions, plus a boolean that must match append versus explicit full replacement, and
+returns content-free mutation metadata. MCP cannot install, enable,
+upgrade, roll back, remove, load component bytes, or decide a review. The application itself does not
+yet append or sign a distinct application event; the linked policy ID resolves to the retained signed
+or explicitly unsigned proposal/decision history but does not identify the person who clicked Apply.
+The general research-state inspector
 revalidates shared plugin-review proofs without returning proposal, decision, or signature bodies.
 
 The first plugin WIT world is a separate public contract with zero imports. It accepts only a

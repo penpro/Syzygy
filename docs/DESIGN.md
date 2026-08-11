@@ -538,12 +538,22 @@ publisher trust, semantic safety, or useful research quality. Returned proposal 
 may record accept/reject decisions; stale revisions and disconnected conflicting decisions remain
 visible. After commit, the product reports whether each local proposal/decision received exact-body
 registered-device attribution or remains explicitly unsigned, and must state that a device key does
-not authenticate a person. Copy must say that a decision does not apply, append, or replace policy
-text. Signed installs show the self-described publisher name and stable key fingerprint, explicitly
+not authenticate a person. Copy must say that a decision alone does not apply, append, or replace
+policy text. Once a proposal has one accepted, non-conflicted outcome, show a separate Apply action
+that repeats the exact proposal operation and remains disabled when the source draft revision is
+stale. Append creates one linked policy block in review status without changing existing blocks.
+Replace first arms a visible warning, then requires a second explicit confirmation that every current
+draft block will be removed and replaced by one linked review-policy block. Both paths recheck the
+exact proposal event, accepted decision event, research revision, and live document revision; the
+shared automation boundary also requires an operation-matched full-replacement confirmation boolean,
+so MCP cannot omit or ambiguously reuse replacement intent. The plugin never receives mutation
+authority. The linked policy ID preserves a path back to review
+history, but until a separate application event exists the UI must not claim to authenticate or sign
+the person who clicked Apply. Signed installs show the self-described publisher name and stable key fingerprint, explicitly
 deny that the key authenticates a person or organization, retain older exact versions, and expose
 separate disable, upgrade, rollback, and disabled-version removal actions. Unsigned packages never
 silently become durable. Package discovery/reputation, signing-key rotation, capability-bearing
-worlds, and any Apply action remain unavailable.
+worlds, application-event attribution, and edited-before-apply proposal variants remain unavailable.
 
 ## Network-boundary copy
 

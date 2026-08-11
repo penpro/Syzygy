@@ -878,6 +878,7 @@ session caps, strict Ed25519 publisher-package claims, 32-version/128-MiB local 
 publisher-key-continuous upgrades, reverified startup activation, explicit disable/rollback/removal,
 same-version substitution and tamper denial, project-only grant filtering, one active run, stale identity/revision refusal,
 preflighted 1–32 proposal publication, disconnected decision convergence/conflict visibility,
+exact accepted-review append/full-replace with a real Lexical editor, stale/race/collision zero-write denial,
 exact retained proposal/decision hashes, registered-device signer resolution, cross-author and
 post-signature tamper rejection, explicit unsigned fallback, content-minimized MCP inspection, and
 copy that decisions never apply the draft. The production UI

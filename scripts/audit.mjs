@@ -171,6 +171,9 @@ const researchEventAttestationTest = text('frontend/src/workspace/projectResearc
 const researchEventInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
 const researchEventMcpSource = text('frontend/src-tauri/src/mcp.rs')
 const researchEventEvidence = text('docs/audits/runs/SIGNED-PROJECT-RESEARCH-EVENT-ATTESTATIONS-2026-08-11.json')
+const productVoteAttributionSource = text('frontend/src/workspace/ScenarioWorkspace.tsx')
+const productVoteAttributionTest = text('frontend/src/workspace/ScenarioWorkspace.ui.test.ts')
+const productVoteAttributionEvidence = text('docs/audits/runs/PRODUCT-SCENARIO-VOTE-ATTESTATION-2026-08-11.json')
 record(
   'app-managed collaboration relay remains private, bounded, durable, reaped, and identity-honest',
   collaborationRelayCargo.includes('tungstenite = "=0.21.0"') &&
@@ -369,7 +372,16 @@ record(
     researchEventAttestationTest.includes('converges independent installation attestations') &&
     researchEventAttestationTest.includes('resignedLeftRecord') &&
     researchEventAttestationTest.includes('without hiding unsigned fallback') &&
+    researchEventAttestationTest.includes('verification unavailable') &&
     researchEventAttestationTest.includes("not.toContain('signature')") &&
+    researchEventAttributionSource.includes('castScenarioVoteWithAttribution') &&
+    researchEventAttributionSource.indexOf('const summary = castScenarioVote') <
+      researchEventAttributionSource.indexOf('attribution: await attestScenarioVoteEvent') &&
+    productVoteAttributionSource.includes('castScenarioVoteWithAttribution(document, project.id') &&
+    productVoteAttributionSource.includes('voteOperation.current === operation') &&
+    productVoteAttributionSource.includes('Vote saved with registered-device signature') &&
+    productVoteAttributionSource.includes('Vote saved without a device signature') &&
+    productVoteAttributionTest.includes('without claiming human identity or hiding unsigned votes') &&
     collaborationIdentityInterop.includes('researchEventVerified: true') &&
     collaborationIdentityInterop.includes('rejectedResearchEventMutations: researchEventMutations.length') &&
     researchEventInspectionSource.includes('proofBodiesReturned: false') &&
@@ -380,6 +392,17 @@ record(
     researchEventEvidence.includes('"rustAppRecompiled": true') &&
     researchEventEvidence.includes('"repositoryAuditPassed": true') &&
     researchEventEvidence.includes('"fullValidationPending": false') &&
+    productVoteAttributionEvidence.includes('"productVoteCommittedBeforeAttribution": true') &&
+    productVoteAttributionEvidence.includes('"projectIdentityMismatchRejectedBeforeVote": true') &&
+    productVoteAttributionEvidence.includes('"signingFailurePreservesCommittedVote": true') &&
+    productVoteAttributionEvidence.includes('"directoryInspectionFailurePreservesCommittedVote": true') &&
+    productVoteAttributionEvidence.includes('"humanOrOrganizationIdentityClaimed": false') &&
+    productVoteAttributionEvidence.includes('"supervisedRunId": "20260811-174009-516e39"') &&
+    productVoteAttributionEvidence.includes('"frontendTestsPassed": 543') &&
+    productVoteAttributionEvidence.includes('"rustAppRecompiled": true') &&
+    productVoteAttributionEvidence.includes('"repositoryAuditPassed": true') &&
+    productVoteAttributionEvidence.includes('"fullValidationPending": false') &&
+    productVoteAttributionEvidence.includes('"status": "implemented_unverified"') &&
     researchEventEvidence.includes('"status": "implemented_unverified"'),
   'closed typed native signing, exact project/participant/kind/event/hash/time/nonce binding, live-event resolution, registered-device matching, bounded merge/replay/poison gates, explicit unsigned fallback, body-free inspection, and human-identity nonclaims are present',
 )
@@ -1228,8 +1251,10 @@ record(
     scenarioWorkspaceSource.includes('if (!graph.healthy)') &&
     scenarioWorkspaceSource.includes('createScenario(writableShared().scenarios') &&
     scenarioWorkspaceSource.includes('turnWorkspace={doc && selected ? <ScenarioTurnWorkspace') &&
-    scenarioWorkspaceSource.includes('castScenarioVote(types.discussions, types.scenarios') &&
-    scenarioWorkspaceSource.includes('identity is not authenticated') &&
+    scenarioWorkspaceSource.includes('castScenarioVoteWithAttribution(document, project.id') &&
+    scenarioWorkspaceSource.includes('both are self-reported') &&
+    scenarioWorkspaceSource.includes('not a person') &&
+    scenarioWorkspaceSource.includes('or organization') &&
     scenarioTurnWorkspaceSource.includes('createHumanScenarioTurn') &&
     scenarioTurnWorkspaceSource.includes('editHumanScenarioTurn') &&
     scenarioTurnWorkspaceSource.includes('reconcileHumanScenarioTurn') &&
@@ -1241,6 +1266,7 @@ record(
     scenarioTurnWorkspaceSource.includes('TURN_LINEAGE_SIZE = 50') &&
     scenarioWorkspaceTestSource.includes('offers engine-free creation from an honest empty state') &&
     scenarioWorkspaceTestSource.includes('reports loading, integrity, and mutation failures accessibly') &&
+    scenarioWorkspaceTestSource.includes('without claiming human identity or hiding unsigned votes') &&
     scenarioWorkspaceTestSource.includes('changes the stale-edit revision when any scenario edit identity appears') &&
     scenarioTurnWorkspaceTestSource.includes('rejects a stale turn save before mutating the shared document') &&
     scenarioTurnWorkspaceTestSource.includes('retains disconnected exact-parent edits and converges deterministically') &&

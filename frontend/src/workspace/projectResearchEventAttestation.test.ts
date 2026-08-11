@@ -19,9 +19,12 @@ import {
   type ProjectResearchEventAttestationRecord,
   type ProjectResearchEventHashResolver,
 } from './projectResearchEventAttestation'
-import { attestScenarioVoteEvent, scenarioVoteAttestationResolver } from './researchEventAttribution'
+import {
+  castScenarioVoteWithAttribution,
+  scenarioVoteAttestationResolver,
+} from './researchEventAttribution'
 import { createScenario } from './scenarioModel'
-import { castScenarioVote } from './scenarioVoteModel'
+import { readScenarioVotes } from './scenarioVoteModel'
 import type { ResearchProjectManifest } from './schema'
 
 const projectId = 'project-research-event-attestations'
@@ -243,7 +246,7 @@ describe('project research event attestations', () => {
     )).resolves.toEqual(expect.objectContaining({ healthy: false, excessRecords: 1 }))
   })
 
-  it('adds best-effort signed attribution to a real committed MCP-style vote without hiding unsigned fallback', async () => {
+  it('adds best-effort signed attribution to a product vote without hiding unsigned fallback', async () => {
     const signer = await identity(participantA)
     const document = createProjectDocument(manifest)
     const { discussions, scenarios, settings } = getProjectSharedTypes(document)
@@ -251,18 +254,21 @@ describe('project research event attestations', () => {
       id: 'scenario-1', title: 'Scenario', background: '', authorId: participantA,
       timestamp: 1, editId: 'create-scenario-1',
     })
-    const summary = castScenarioVote(discussions, scenarios, {
+    await expect(castScenarioVoteWithAttribution(document, 'wrong-project', {
+      eventId: 'wrong-project-vote', scenarioId: 'scenario-1', participantId: participantA,
+      displayName: 'Alice', choice: 'support', timestamp: 2,
+    })).rejects.toThrow('Project identity does not match')
+    expect(readScenarioVotes(discussions, 'scenario-1')).toBeNull()
+    const signed = await castScenarioVoteWithAttribution(document, projectId, {
       eventId: 'vote-1', scenarioId: 'scenario-1', participantId: participantA,
       displayName: 'Alice', choice: 'support', timestamp: 2,
-    })
-    const event = summary.history[0]
-    const signed = await attestScenarioVoteEvent(document, projectId, event, {
+    }, {
       inspectDirectory: async () => directory([signer]),
       create: (id, participantId, kind, eventId, hash) => createProjectResearchEventAttestation(
         id, participantId, kind, eventId, hash, dependencies(signer, nonceA),
       ),
     })
-    expect(signed).toEqual(expect.objectContaining({
+    expect(signed.attribution).toEqual(expect.objectContaining({
       status: 'signed-device',
       keyId: signer.keyId,
       eventKind: 'scenario-vote',
@@ -273,15 +279,35 @@ describe('project research event attestations', () => {
       settings, projectId, directory([signer]), scenarioVoteAttestationResolver(discussions),
     )).resolves.toEqual(expect.objectContaining({ healthy: true, attestationCount: 1 }))
 
-    const unsigned = await attestScenarioVoteEvent(document, projectId, event, {
+    const unsigned = await castScenarioVoteWithAttribution(document, projectId, {
+      eventId: 'vote-2', scenarioId: 'scenario-1', participantId: participantA,
+      displayName: 'Alice', choice: 'oppose', timestamp: 3,
+    }, {
       inspectDirectory: async () => directory([signer]),
       create: async () => { throw new Error('vault unavailable') },
     })
-    expect(unsigned).toEqual({
+    expect(unsigned.attribution).toEqual({
       status: 'unsigned',
       reason: 'signing-or-registration-unavailable',
       authority: 'installation-device-not-human-identity',
     })
-    expect(summary.history).toHaveLength(1)
+    expect(unsigned.summary.history).toHaveLength(2)
+    expect(unsigned.summary.activeVotes).toEqual([
+      expect.objectContaining({ eventId: 'vote-2', choice: 'oppose' }),
+    ])
+
+    const unavailableDirectory = await castScenarioVoteWithAttribution(document, projectId, {
+      eventId: 'vote-3', scenarioId: 'scenario-1', participantId: participantA,
+      displayName: 'Alice', choice: 'abstain', timestamp: 4,
+    }, {
+      inspectDirectory: async () => { throw new Error('verification unavailable') },
+      create: async () => { throw new Error('must not sign without directory inspection') },
+    })
+    expect(unavailableDirectory.attribution).toEqual({
+      status: 'unsigned',
+      reason: 'device-directory-unhealthy',
+      authority: 'installation-device-not-human-identity',
+    })
+    expect(unavailableDirectory.summary.history).toHaveLength(3)
   })
 })

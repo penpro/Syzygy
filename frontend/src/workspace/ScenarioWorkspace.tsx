@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import type * as Y from 'yjs'
 import { now, uid } from '../util'
 import { useStore } from '../store'
@@ -14,11 +14,14 @@ import {
   type ScenarioStatus,
 } from './scenarioModel'
 import {
-  castScenarioVote,
   readScenarioVotes,
   type ScenarioVoteChoice,
   type ScenarioVoteSummary,
 } from './scenarioVoteModel'
+import {
+  castScenarioVoteWithAttribution,
+  type ResearchEventAttributionResult,
+} from './researchEventAttribution'
 import { subscribeAutomationProjectDocument } from './workspaceAutomationRegistry'
 import { ScenarioGenerator } from './ScenarioGenerator'
 import { HeuristicWorkspace } from './HeuristicWorkspace'
@@ -33,6 +36,8 @@ interface ScenarioWorkspaceContentProps {
   selected: ResearchScenario | null
   voteSummary: ScenarioVoteSummary | null
   currentVote: ScenarioVoteChoice | null
+  voteAttribution: ResearchEventAttributionResult | null
+  votePending: boolean
   integrityIssues: string[]
   generation?: ReactNode
   collaboration?: ReactNode
@@ -68,6 +73,8 @@ export function ScenarioWorkspaceContent({
   selected,
   voteSummary,
   currentVote,
+  voteAttribution,
+  votePending,
   integrityIssues,
   generation,
   collaboration,
@@ -190,17 +197,43 @@ export function ScenarioWorkspaceContent({
                 className="btn sm"
                 type="button"
                 aria-pressed={currentVote === choice}
-                disabled={!canWrite}
+                disabled={!canWrite || votePending}
                 onClick={() => onVote(choice)}
               >
                 {choice[0].toUpperCase() + choice.slice(1)} {voteSummary?.counts[choice] ?? 0}
               </button>
             ))}
             {currentVote && (
-              <button className="btn sm" type="button" disabled={!canWrite} onClick={() => onVote('withdrawn')}>Withdraw mine</button>
+              <button className="btn sm" type="button" disabled={!canWrite || votePending} onClick={() => onVote('withdrawn')}>Withdraw mine</button>
             )}
           </div>
-          <p className="scenario-identity-note">Votes use this installation’s researcher identity; identity is not authenticated.</p>
+          <p className="scenario-identity-note">
+            Votes use this installation’s researcher name and local time; both are self-reported.
+          </p>
+          {votePending && (
+            <p className="scenario-identity-note" role="status">
+              Saving vote and checking registered-device attribution…
+            </p>
+          )}
+          {!votePending && voteAttribution?.status === 'signed-device' && (
+            <p className="scenario-identity-note" role="status">
+              Vote saved with registered-device signature from key{' '}
+              <span className="mono">
+                {voteAttribution.keyId.replace('ed25519-sha256:', '').slice(0, 12)}…
+              </span>.
+              This proves the exact retained event was signed by that installation key, not a person
+              or organization.
+            </p>
+          )}
+          {!votePending && voteAttribution?.status === 'unsigned' && (
+            <p className="scenario-identity-note" role="status">
+              Vote saved without a device signature: {voteAttribution.reason === 'device-directory-unhealthy'
+                ? 'the project device directory needs attention.'
+                : voteAttribution.reason === 'attestation-history-unhealthy'
+                  ? 'signed attribution history needs attention.'
+                  : 'this installation is not registered here or signing is unavailable.'}
+            </p>
+          )}
           {collaboration}
         </section>
       )}
@@ -229,6 +262,9 @@ export function ScenarioWorkspace({ project }: { project: ResearchProjectManifes
   const [editBackground, setEditBackground] = useState('')
   const [editingHead, setEditingHead] = useState('')
   const [error, setError] = useState('')
+  const [voteAttribution, setVoteAttribution] = useState<ResearchEventAttributionResult | null>(null)
+  const [votePending, setVotePending] = useState(false)
+  const voteOperation = useRef(0)
 
   useEffect(() => {
     let active: Y.Doc | null = null
@@ -274,7 +310,10 @@ export function ScenarioWorkspace({ project }: { project: ResearchProjectManifes
 
   useEffect(() => {
     loadDetails(selected)
-  }, [selected?.id])
+    voteOperation.current += 1
+    setVoteAttribution(null)
+    setVotePending(false)
+  }, [project.id, selected?.id])
 
   const shared = () => {
     if (!doc) throw new Error('Shared scenario data is not ready')
@@ -348,20 +387,36 @@ export function ScenarioWorkspace({ project }: { project: ResearchProjectManifes
     loadDetails(updated)
   })
 
-  const vote = (choice: ScenarioVoteChoice) => mutate(() => {
-    const author = identity()
-    const current = currentScenario()
-    const types = writableShared()
-    castScenarioVote(types.discussions, types.scenarios, {
-      eventId: uid(), scenarioId: current.id, participantId: author.authorId,
-      displayName: author.displayName, choice, timestamp: now(),
-    })
-  })
+  const vote = async (choice: ScenarioVoteChoice) => {
+    const operation = voteOperation.current + 1
+    voteOperation.current = operation
+    setError('')
+    setVoteAttribution(null)
+    setVotePending(true)
+    try {
+      const author = identity()
+      const current = currentScenario()
+      const document = doc
+      if (!document) throw new Error('Shared scenario data is not ready')
+      const result = await castScenarioVoteWithAttribution(document, project.id, {
+        eventId: uid(), scenarioId: current.id, participantId: author.authorId,
+        displayName: author.displayName, choice, timestamp: now(),
+      })
+      if (voteOperation.current === operation) setVoteAttribution(result.attribution)
+    } catch (caught) {
+      if (voteOperation.current === operation) {
+        setError(caught instanceof Error ? caught.message : 'Scenario vote failed')
+      }
+    } finally {
+      if (voteOperation.current === operation) setVotePending(false)
+    }
+  }
 
   return (
     <ScenarioWorkspaceContent
       ready={Boolean(doc)} scenarios={snapshot.scenarios} selected={selected}
       voteSummary={voteSummary} currentVote={currentVote} integrityIssues={snapshot.issues}
+      voteAttribution={voteAttribution} votePending={votePending}
       generation={doc && selected ? <ScenarioGenerator key={selected.id} project={project} doc={doc} scenario={selected} /> : undefined}
       collaboration={doc && selected ? <ScenarioCollaborationPanel
         key={selected.id} doc={doc} scenario={selected} writesDisabled={snapshot.issues.length > 0}

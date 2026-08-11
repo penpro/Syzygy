@@ -15,12 +15,15 @@ describe('live MCP capability self-description', () => {
     expect(AUTOMATION_CAPABILITIES.available).toContain(
       'explicit revision-guarded adversarial review archival and immutable human accept/reject history in the shared project',
     )
+    expect(AUTOMATION_CAPABILITIES.available).toContain(
+      'product and MCP scenario voting with best-effort registered-device exact-event attribution',
+    )
     expect(AUTOMATION_CAPABILITIES.available.join(' ')).not.toContain('MCP restore remains unavailable')
   })
 
   it('keeps only genuinely open attribution, generation, evaluation, embed, and presence work unavailable', () => {
     expect(AUTOMATION_CAPABILITIES.unavailable).toEqual([
-      'durable device attribution for research event domains other than MCP scenario votes',
+      'durable device attribution for research event domains other than scenario votes',
       'scenario generation, response evaluation, and spotlight/embed workflows',
       'real-time collaborator presence',
     ])

@@ -205,11 +205,12 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   resolves, and reopens also require the exact current lifecycle event.
   `projectResearchEventAttestation.ts` is a parallel bounded Yjs ledger for exact event-hash
   installation signatures, so event-domain schemas do not require destructive changes.
-  `researchEventAttribution.ts` is the first resolver/adoption layer: after an MCP scenario vote is
-  committed, it locates and hashes that exact retained event, requires the signer key to be an
-  unconflicted project registration for the participant claim, and publishes best-effort attribution.
+  `researchEventAttribution.ts` is the first resolver/adoption layer: after an MCP or product
+  scenario vote is committed, it locates and hashes that exact retained event, requires the signer
+  key to be an unconflicted project registration for the participant claim, and publishes
+  best-effort attribution.
   Failure remains explicitly unsigned and never rolls back or disguises the vote. The generic ledger
-  recognizes ten event kinds, but only MCP scenario votes currently have a production resolver.
+  recognizes ten event kinds, but only scenario votes currently have a production resolver.
   `versionAutomation.ts` maps the exact active semantic editor snapshot into an
   immutable version only after both the document revision and version head pass inside the final
   Yjs transaction. The bridge does not own persistence.

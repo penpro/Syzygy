@@ -318,7 +318,7 @@ and product-visible evidence, but the local app-data registry is a user preferen
 project record or access-control boundary. The managed relay separately supports explicit
 operator enrollment and signed installation-key-to-role authorization. This does not prove human
 identity, shared-directory approval, propagated identity revocation, presence-proof replay prevention, key
-rotation/recovery, durable event signatures beyond MCP votes, a physical two-install cursor run, or the Phase 5
+rotation/recovery, durable event signatures beyond scenario votes, a physical two-install cursor run, or the Phase 5
 five-client soak.
 
 `projectDeviceDirectory.test.ts` is the durable registration gate. It requires explicit strict
@@ -337,10 +337,11 @@ approval/revocation, relay authorization, or signed attribution for every resear
 gate. It uses real independent WebCrypto Ed25519 installations, two event kinds, disconnected merge,
 offline reopen, exact and fresh-nonce same-device/event idempotent replay, exact live-event hash
 resolution, registered participant/key matching, mutation/missing-event/poison/excess denial, and
-content-minimized inspection. The real
-MCP vote path commits its revision-guarded vote first, then best-effort publishes the attestation;
-vault/registration failure returns an explicit unsigned result without hiding or rolling back the
-vote. `npm run test:collaboration:identity` independently verifies the Rust-produced signature and
+content-minimized inspection. The real MCP and product vote paths commit the immutable vote first,
+then best-effort publish the attestation; vault/registration failure returns an explicit unsigned
+result without hiding or rolling back the vote. The product UI additionally preserves unsaved
+selection changes across the asynchronous check and labels the device-only authority.
+`npm run test:collaboration:identity` independently verifies the Rust-produced signature and
 rejects seven signed-field mutations. Only MCP scenario votes currently have a production resolver;
 the other nine allowed kinds are a closed native vocabulary awaiting domain adoption.
 

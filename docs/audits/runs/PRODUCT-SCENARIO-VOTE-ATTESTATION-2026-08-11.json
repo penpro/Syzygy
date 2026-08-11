@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "runId": "PRODUCT-SCENARIO-VOTE-ATTESTATION-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "367f0c8",
+  "capabilities": ["P-19"],
+  "status": "implemented_unverified",
+  "claim": "Product-created scenario votes now use the same post-commit exact-event-hash registered-installation attestation path as MCP votes. The UI reports pending, signed-device, or explicit unsigned state without rolling back the retained vote or claiming human identity.",
+  "commands": [
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm test -- --run src/workspace/projectResearchEventAttestation.test.ts src/workspace/ScenarioWorkspace.ui.test.ts",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run check:supervised",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/audit.mjs"
+  ],
+  "result": {
+    "productVoteCommittedBeforeAttribution": true,
+    "projectIdentityMismatchRejectedBeforeVote": true,
+    "exactRetainedEventResolved": true,
+    "signedDeviceStateVisible": true,
+    "unsignedStateVisible": true,
+    "pendingStateDisablesDuplicateVoteControls": true,
+    "staleAsyncResultSuppressed": true,
+    "signingFailurePreservesCommittedVote": true,
+    "directoryInspectionFailurePreservesCommittedVote": true,
+    "humanOrOrganizationIdentityClaimed": false,
+    "focusedFrontendTestsPassed": 9,
+    "supervisedRunId": "20260811-174009-516e39",
+    "frontendTestFilesPassed": 128,
+    "frontendTestFilesSkipped": 3,
+    "frontendTestsPassed": 543,
+    "frontendTestsSkipped": 3,
+    "frontendModulesTransformed": 1267,
+    "rustAppRecompiled": true,
+    "repositoryAuditPassed": true,
+    "fullValidationPending": false
+  },
+  "proved": [
+    "The product helper verifies the document project identity, retains the immutable scenario vote, re-reads that exact event, and only then awaits the existing best-effort attestation path.",
+    "A directory-inspection, signing, or registration failure returns an explicit unsigned result while the newly committed vote remains the participant's active vote.",
+    "The scenario workspace disables duplicate vote controls while attribution is pending, suppresses stale results after selection changes, and renders accessible signed, unsigned, and pending states.",
+    "Signed copy says the exact retained event was signed by an installation key and explicitly denies person or organization identity."
+  ],
+  "notProved": [
+    "That a self-issued installation key authenticates a person or organization, prevents Sybil voting, or supplies legal consent.",
+    "Durable attribution for the nine other research-event domains, append-only survival against a malicious Yjs writer, trusted time, or identity-key recovery.",
+    "Physical packaged two-install product interaction; current proof is deterministic headless product-path and UI contract coverage."
+  ],
+  "implementationAnchors": [
+    "frontend/src/workspace/researchEventAttribution.ts",
+    "frontend/src/workspace/ScenarioWorkspace.tsx",
+    "frontend/src/workspace/projectResearchEventAttestation.test.ts",
+    "frontend/src/workspace/ScenarioWorkspace.ui.test.ts"
+  ]
+}

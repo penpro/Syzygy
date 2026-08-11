@@ -51,6 +51,8 @@ const props: Parameters<typeof ScenarioWorkspaceContent>[0] = {
     history: [],
   },
   currentVote: 'support' as const,
+  voteAttribution: null,
+  votePending: false,
   integrityIssues: [],
   createOpen: false,
   createTitle: '',
@@ -85,7 +87,38 @@ describe('scenario workspace UI contract', () => {
     expect(html).toContain('Shared scenario conversation turns')
     expect(html).toContain('Editable turn history')
     expect(html).toContain('aria-pressed="true"')
-    expect(html).toContain('identity is not authenticated')
+    expect(html).toContain('researcher name and local time; both are self-reported')
+  })
+
+  it('reports product-vote device attribution without claiming human identity or hiding unsigned votes', () => {
+    const signed = render({
+      voteAttribution: {
+        status: 'signed-device',
+        keyId: 'ed25519-sha256:abcdefghijklmnopqrstuv0123456789ABCDEFG',
+        eventKind: 'scenario-vote',
+        eventId: '13:scenario-ui-1vote-1',
+        eventSha256: 'abcdefghijklmnopqrstuv0123456789ABCDEFG',
+        attestationCount: 1,
+        authority: 'installation-device-not-human-identity',
+      },
+    })
+    expect(signed).toContain('Vote saved with registered-device signature')
+    expect(signed).toContain('not a person or organization')
+
+    const unsigned = render({
+      voteAttribution: {
+        status: 'unsigned',
+        reason: 'signing-or-registration-unavailable',
+        authority: 'installation-device-not-human-identity',
+      },
+    })
+    expect(unsigned).toContain('Vote saved without a device signature')
+    expect(unsigned).toContain('not registered here or signing is unavailable')
+
+    const pending = render({ votePending: true })
+    expect(pending).toContain('Saving vote and checking registered-device attribution')
+    expect(pending.match(/role="status"/g)).toHaveLength(1)
+    expect(pending.match(/disabled=""/g)).toHaveLength(4)
   })
 
   it('offers engine-free creation from an honest empty state', () => {

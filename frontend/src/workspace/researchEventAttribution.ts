@@ -12,9 +12,12 @@ import {
   type ProjectDeviceDirectoryInspection,
 } from './projectDeviceDirectory'
 import {
+  castScenarioVote,
   readScenarioVoteEvent,
   scenarioVoteEventSha256,
+  type CastScenarioVoteInput,
   type ScenarioVoteEvent,
+  type ScenarioVoteSummary,
 } from './scenarioVoteModel'
 
 export type ResearchEventAttributionResult = {
@@ -43,6 +46,12 @@ export interface ResearchEventAttributionDependencies {
     eventId: string,
     eventSha256: string,
   ) => Promise<ProjectResearchEventAttestationRecord>
+}
+
+export interface AttributedScenarioVote {
+  summary: ScenarioVoteSummary
+  event: ScenarioVoteEvent
+  attribution: ResearchEventAttributionResult
 }
 
 const DEFAULT_DEPENDENCIES: ResearchEventAttributionDependencies = {
@@ -99,7 +108,16 @@ export async function attestScenarioVoteEvent(
   event: ScenarioVoteEvent,
   dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
 ): Promise<ResearchEventAttributionResult> {
-  const directory = await dependencies.inspectDirectory(document, projectId)
+  let directory: ProjectDeviceDirectoryInspection
+  try {
+    directory = await dependencies.inspectDirectory(document, projectId)
+  } catch {
+    return {
+      status: 'unsigned',
+      reason: 'device-directory-unhealthy',
+      authority: 'installation-device-not-human-identity',
+    }
+  }
   if (!directory.healthy) {
     return {
       status: 'unsigned',
@@ -109,9 +127,10 @@ export async function attestScenarioVoteEvent(
   }
   const { discussions, settings } = getProjectSharedTypes(document)
   const eventId = scenarioVoteAttestationEventId(event)
-  const eventSha256 = await scenarioVoteEventSha256(event)
+  let eventSha256: string
   let record: ProjectResearchEventAttestationRecord
   try {
+    eventSha256 = await scenarioVoteEventSha256(event)
     record = await dependencies.create(
       projectId, event.participantId, 'scenario-vote', eventId, eventSha256,
     )
@@ -147,5 +166,29 @@ export async function attestScenarioVoteEvent(
         : 'signing-or-registration-unavailable',
       authority: 'installation-device-not-human-identity',
     }
+  }
+}
+
+/**
+ * Product vote path: retain the immutable event first, then attempt the same best-effort device
+ * attribution used by MCP. Attribution failure is data returned to the UI, never a vote rollback.
+ */
+export async function castScenarioVoteWithAttribution(
+  document: Y.Doc,
+  projectId: string,
+  input: CastScenarioVoteInput,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<AttributedScenarioVote> {
+  const { metadata, discussions, scenarios } = getProjectSharedTypes(document)
+  if (metadata.get('projectId') !== projectId) {
+    throw new Error('Project identity does not match the vote document')
+  }
+  const summary = castScenarioVote(discussions, scenarios, input)
+  const event = readScenarioVoteEvent(discussions, input.scenarioId, input.eventId)
+  if (!event) throw new Error('Scenario vote event was not retained')
+  return {
+    summary,
+    event,
+    attribution: await attestScenarioVoteEvent(document, projectId, event, dependencies),
   }
 }

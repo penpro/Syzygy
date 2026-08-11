@@ -284,7 +284,8 @@ shared directory action.
 Self-hosted WS/WSS synchronization, an app-managed private-LAN relay, relay-enforced
 viewer/editor/admin roles, optional signed installation-key-to-role binding, and device-bound remote
 room administration are implemented. Human/organizational identity, project-shared approval,
-sole-administrator recovery without the relay host, general research-event signatures, relay-signed administration receipts, public
+sole-administrator recovery without the relay host, durable research-event signatures beyond
+scenario votes, relay-signed administration receipts, public
 WSS hosting, and backup administration remain open. The portable archive is still a separate
 handoff that creates independent local state after import and contains no relay invitation.
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,
@@ -305,7 +306,11 @@ scenario/turn notes and flags with edit, resolve, and reopen history, plus proje
 creation, assignment, removal, and rename. A stale detail, turn, annotation, label, or assignment
 write must fail instead of overwriting newer shared history. When scenario, turn, annotation, or
 label integrity fails, the affected mutation controls are disabled. Copy states that installation
-researcher identity and local time are not authenticated.
+researcher identity and local time are not authenticated. After a product vote commits, the app
+best-effort signs its exact retained event only when this installation has an unconflicted project
+registration for the participant claim. The status says signed or explicitly unsigned; signing
+failure never hides or rolls back the vote, and the copy never upgrades a device-key signature into
+person or organization identity.
 
 **Portable scenario packs** sit inside the scenario workspace and remain usable without AI. New
 exports use the strict v2 format with durable turn heads and revision-parent sets; checksummed v1

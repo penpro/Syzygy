@@ -167,7 +167,7 @@ relay separately has explicit operator enrollment, signed installation-key roles
 connection proofs, and a second action-bound signature for device-administered exact-revision room
 membership. A repeatable exact-binary five-client partition/reconnect soak passes. Shared-directory
 approval, propagated identity revocation, device-key rotation/recovery, presence-proof replay
-rejection, signed durable research events beyond MCP scenario votes, and physical two-install product proof remain open, so
+rejection, signed durable research events beyond scenario votes, and physical two-install product proof remain open, so
 P-11 is `implemented_unverified`.
 
 
@@ -444,8 +444,9 @@ project/room/revision/action-bound quorum, while no-policy rooms remain compatib
 retains emergency local authority. Product controls publish partial approvals and submit a completed
 bundle automatically. A parallel bounded attestation ledger now binds exact event hashes to the
 same installation key and registered participant claim without changing every event schema; the
-first production adopter is MCP scenario voting, with explicit unsigned fallback and body-free
-inspection. The next identity increments are adoption across the remaining research-event domains,
+first production adopter is scenario voting through both product and MCP, with explicit unsigned
+fallback and body-free inspection. The next identity increments are adoption across the remaining
+research-event domains,
 device-key rotation/recovery, authenticated human/organizational enrollment, trusted time, and
 policy/approval withdrawal or relay attestation before the product may say authenticated consent.
 

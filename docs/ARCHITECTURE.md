@@ -99,7 +99,7 @@ packaged MCP surface before succeeding.
 | `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses, Anthropic Messages, Gemini Interactions, and xAI Responses one-shot/SSE wire contracts have fake-server evidence with bounded controls, custom-function schema mapping, non-executing proposal normalization, a depth/node/keyword-bounded schema subset, and exact post-assembly argument validation. Validation always separates structural status from unreviewed domain semantics and false execution authority. xAI's boolean ZDR response header is required before event dispatch and preserved in the run record. |
 | `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. Ordinary tasks use one native Send-once decision whose disclosure includes any tool names, descriptions, and argument schemas; normalized proposals stay transient and are never executed, while the content-free output hash commits to their bodies and validation state. The runtime matches calls only to definitions from the approved request and authors valid/invalid/missing-definition status before returning the final outcome. Adversarial execution uses one content-bound batch decision that freezes exact research bytes, graph/routes/dependencies/order/limits/budgets; atomically consumes calls; verifies upstream output hashes; derives phase prompts; uses fixed built-in endpoints and the OS vault; rejects unsafe JSON; and records content-free provenance. The product executor is reachable through typed Tauri wrappers and revision-guarded resumable MCP jobs. Loopback transport is proven; packaged dialog interaction and live-provider behavior are not. |
 | `provider_stream.rs` | Incremental provider SSE normalization. OpenAI, Anthropic, Gemini, and xAI decoders handle fragmented frames, text/usage/finish lifecycles, unknown future events, sanitized provider errors, and bounded malformed/truncated input. Custom function calls normalize to one bounded start/delta/complete proposal lifecycle; orphaned, mismatched, malformed, duplicate, or unfinished calls fail closed. Anthropic/Gemini private-thinking bodies remain omitted. |
-| `collaboration_identity.rs` | OS-vault Ed25519 installation key, public fingerprint report, and narrowly typed live-presence, durable project-registration, relay access/administration, post-mutation decision, and pre-mutation shared-approval signing commands; it exposes no arbitrary signing or private-key read surface. |
+| `collaboration_identity.rs` | OS-vault Ed25519 installation key, public fingerprint report, and narrowly typed live-presence, durable project-registration/research-event, relay access/administration, post-mutation decision, and pre-mutation shared-approval signing commands; research-event signing accepts only ten named event kinds plus exact project/participant/event/hash/time/nonce fields and exposes no arbitrary signing or private-key read surface. |
 | `collaboration_relay_membership.rs` | Strict digest-only managed-room registry, device-bound member lifecycle, optional host-installed signer/quorum policy, and exact approval-bundle verification. Policy changes and membership mutations are revision guarded. |
 | `collaboration_relay_server.rs` | Bounded y-websocket-compatible relay plus the reserved signed remote-administration route. Configured rooms require exact valid shared-approval bundles before remote mutations; room status and host-local emergency administration remain separate. |
 | `collaboration_relay_runtime.rs` | App-owned relay child lifecycle and typed host-local room/member/policy commands. It stops and reaps the child around registry changes, then resumes from durable state. |
@@ -203,6 +203,13 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   immutable participant vote events, and manages parent-linked flag/note lifecycle only against
   the monotonic research revision returned by inspection or the prior mutation. Annotation edits,
   resolves, and reopens also require the exact current lifecycle event.
+  `projectResearchEventAttestation.ts` is a parallel bounded Yjs ledger for exact event-hash
+  installation signatures, so event-domain schemas do not require destructive changes.
+  `researchEventAttribution.ts` is the first resolver/adoption layer: after an MCP scenario vote is
+  committed, it locates and hashes that exact retained event, requires the signer key to be an
+  unconflicted project registration for the participant claim, and publishes best-effort attribution.
+  Failure remains explicitly unsigned and never rolls back or disguises the vote. The generic ledger
+  recognizes ten event kinds, but only MCP scenario votes currently have a production resolver.
   `versionAutomation.ts` maps the exact active semantic editor snapshot into an
   immutable version only after both the document revision and version head pass inside the final
   Yjs transaction. The bridge does not own persistence.
@@ -673,6 +680,10 @@ availability claim.
   Hosted relay-policy mutation likewise requires a fresh authoritative registry revision and exact
   local relay identity; it exposes neither member capabilities nor signer public keys and does not
   turn installation keys into authenticated human identity.
+  MCP scenario votes additionally attempt an exact-event-hash installation attestation after the
+  vote transaction. Research inspection validates the signature, registered-device participant
+  claim, and live event hash but returns no public key/signature body. This is device continuity,
+  not a person, organization, or Sybil-resistant voting claim.
   Setup data is generated from `current_exe` in Rust and reused by the app and the
   `syzygy_installation` tool. See `MCP.md`.
 - **Extensions request narrow authority.** Remote provider secrets and HTTPS stay in Rust.

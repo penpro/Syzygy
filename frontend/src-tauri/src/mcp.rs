@@ -323,7 +323,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "inspect_research_state",
-            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and immutable policy-version history. Device entries expose stable public fingerprints plus self-reported participant IDs but grant no identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
+            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, exact-hash installation attestations for MCP vote events, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and immutable policy-version history. Device/attestation entries expose stable key IDs plus self-reported participant IDs but no proof bodies and grant no human identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
             object_schema(&[], &[]),
         ),
         tool(
@@ -458,7 +458,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "cast_scenario_vote",
-            "Cast, revise, abstain, or withdraw one caller-identified participant vote on an existing scenario against the exact current research revision. Immutable vote history is retained, but participant identity is not authenticated across installs.",
+            "Cast, revise, abstain, or withdraw one caller-identified participant vote on an existing scenario against the exact current research revision. Immutable vote history is retained. When the caller's installation is an unconflicted registered project device, Syzygy adds a best-effort exact-event-hash installation signature; otherwise the response explicitly reports unsigned. This proves a device key, not a person or Sybil-resistant vote.",
             object_schema(
                 &[
                     ("expectedResearchRevision", string_schema("Exact research revision from inspect_research_state or the prior scenario mutation.")),

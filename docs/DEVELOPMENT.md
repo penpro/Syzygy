@@ -318,7 +318,7 @@ and product-visible evidence, but the local app-data registry is a user preferen
 project record or access-control boundary. The managed relay separately supports explicit
 operator enrollment and signed installation-key-to-role authorization. This does not prove human
 identity, shared-directory approval, propagated identity revocation, presence-proof replay prevention, key
-rotation/recovery, durable event signatures, a physical two-install cursor run, or the Phase 5
+rotation/recovery, durable event signatures beyond MCP votes, a physical two-install cursor run, or the Phase 5
 five-client soak.
 
 `projectDeviceDirectory.test.ts` is the durable registration gate. It requires explicit strict
@@ -331,7 +331,18 @@ copy, offline local approval controls, conflict/integrity warnings, and no direc
 local-only project. `researchStateInspection.test.ts` proves the existing read-only MCP route returns
 only bounded public device metadata and omits hostile record bodies. This does not prove that a
 registration is append-only against a bearer peer, trusted enrollment, identity, role, shared
-approval/revocation, relay authorization, or a signed durable research event.
+approval/revocation, relay authorization, or signed attribution for every research-event domain.
+
+`projectResearchEventAttestation.test.ts` is the first general durable research-event signature
+gate. It uses real independent WebCrypto Ed25519 installations, two event kinds, disconnected merge,
+offline reopen, exact and fresh-nonce same-device/event idempotent replay, exact live-event hash
+resolution, registered participant/key matching, mutation/missing-event/poison/excess denial, and
+content-minimized inspection. The real
+MCP vote path commits its revision-guarded vote first, then best-effort publishes the attestation;
+vault/registration failure returns an explicit unsigned result without hiding or rolling back the
+vote. `npm run test:collaboration:identity` independently verifies the Rust-produced signature and
+rejects seven signed-field mutations. Only MCP scenario votes currently have a production resolver;
+the other nine allowed kinds are a closed native vocabulary awaiting domain adoption.
 
 `projectRelayAdminDecision.test.ts` is the shared remote-administration decision gate. It creates
 real WebCrypto Ed25519 keys and requires an exact native-compatible decision domain, canonical

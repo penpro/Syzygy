@@ -18,8 +18,9 @@ describe('live MCP capability self-description', () => {
     expect(AUTOMATION_CAPABILITIES.available.join(' ')).not.toContain('MCP restore remains unavailable')
   })
 
-  it('keeps only genuinely open generation, evaluation, embed, and presence work unavailable', () => {
+  it('keeps only genuinely open attribution, generation, evaluation, embed, and presence work unavailable', () => {
     expect(AUTOMATION_CAPABILITIES.unavailable).toEqual([
+      'durable device attribution for research event domains other than MCP scenario votes',
       'scenario generation, response evaluation, and spotlight/embed workflows',
       'real-time collaborator presence',
     ])

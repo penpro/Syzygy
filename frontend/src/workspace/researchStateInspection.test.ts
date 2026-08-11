@@ -212,6 +212,16 @@ describe('research state inspection', () => {
       items: [],
       enforcement: 'relay-policy-state-not-part-of-shared-project',
     })
+    expect(result.researchEventAttestations).toEqual({
+      attestationCount: 0,
+      invalidRecords: 0,
+      unavailableRecords: 0,
+      excessRecords: 0,
+      truncated: false,
+      items: [],
+      authority: 'installation-device-not-human-identity',
+      proofBodiesReturned: false,
+    })
     expect(result.versions).toMatchObject({ totalRecords: 1, validRecords: 1, invalidRecords: 0, headVersionId: version.versionId, headLineageDepth: 1 })
     const serialized = JSON.stringify(result)
     expect(serialized).not.toContain('Secret guidance')

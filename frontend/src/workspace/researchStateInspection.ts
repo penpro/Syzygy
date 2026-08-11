@@ -16,6 +16,8 @@ import { inspectSuggestions, listSuggestions } from './suggestionModel'
 import { inspectRegisteredProjectPresence } from './presenceRegistry'
 import { inspectProjectDeviceDirectory } from './projectDeviceDirectory'
 import { inspectProjectRelayAdminApprovals } from './projectRelayAdminApproval'
+import { inspectProjectResearchEventAttestations } from './projectResearchEventAttestation'
+import { scenarioVoteAttestationResolver } from './researchEventAttribution'
 
 const MAX_RETURNED_ITEMS = 200
 
@@ -70,6 +72,12 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
     expectedProjectId,
     projectDevices,
   )
+  const researchEventAttestations = await inspectProjectResearchEventAttestations(
+    settings,
+    expectedProjectId,
+    projectDevices,
+    scenarioVoteAttestationResolver(discussions),
+  )
   const adversarialReviewInspection = await inspectAdversarialReviewHistory(discussions)
   const allVersions = await listPolicyVersions(versionMap)
   const versions = allVersions.filter((version) => version.projectId === expectedProjectId)
@@ -106,6 +114,9 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   }
   if (relayAdminApprovals.conflictingSigners > 0) {
     issues.push(`${relayAdminApprovals.conflictingSigners} project device(s) approved conflicting relay actions at the same revision`)
+  }
+  if (!researchEventAttestations.healthy) {
+    issues.push(`${researchEventAttestations.invalidRecords + researchEventAttestations.unavailableRecords} research event attestation(s) failed event, directory, signature, or bounds validation`)
   }
   if (invalidVersionRecords > 0) issues.push(`${invalidVersionRecords} version record(s) failed hash/schema validation`)
   if (foreignProjectVersions > 0) issues.push(`${foreignProjectVersions} version record(s) belong to another project`)
@@ -165,6 +176,16 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
         approvalCount: intent.approvalCount,
       })),
       enforcement: 'relay-policy-state-not-part-of-shared-project' as const,
+    },
+    researchEventAttestations: {
+      attestationCount: researchEventAttestations.attestationCount,
+      invalidRecords: researchEventAttestations.invalidRecords,
+      unavailableRecords: researchEventAttestations.unavailableRecords,
+      excessRecords: researchEventAttestations.excessRecords,
+      truncated: researchEventAttestations.attestations.length > MAX_RETURNED_ITEMS,
+      items: researchEventAttestations.attestations.slice(0, MAX_RETURNED_ITEMS),
+      authority: 'installation-device-not-human-identity' as const,
+      proofBodiesReturned: false as const,
     },
     heuristics: {
       totalRecords: heuristicMap.size,

@@ -1,7 +1,7 @@
 use app_lib::collaboration_identity::{
     ephemeral_identity_interop_proofs, PresenceIdentityClaim, ProjectDeviceRegistrationClaim,
-    ProjectRelayAdminApprovalClaim, ProjectRelayAdminDecisionClaim, RelayAccessIdentityClaim,
-    RelayAdminIdentityClaim,
+    ProjectRelayAdminApprovalClaim, ProjectRelayAdminDecisionClaim, ProjectResearchEventClaim,
+    RelayAccessIdentityClaim, RelayAdminIdentityClaim,
 };
 
 fn main() {
@@ -59,6 +59,16 @@ fn main() {
         expires_at_ms: 1_700_086_400_200,
         approval_nonce: "a4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
     };
+    let research_event_claim = ProjectResearchEventClaim {
+        schema_version: 1,
+        project_id: "project-identity-interop".into(),
+        participant_id: "participant-cross-language".into(),
+        event_kind: "scenario-vote".into(),
+        event_id: "vote-event-cross-language".into(),
+        event_sha256: "e4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
+        recorded_at_ms: 1_700_000_000_300,
+        attestation_nonce: "t4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
+    };
     match ephemeral_identity_interop_proofs(
         claim,
         registration_claim,
@@ -66,6 +76,7 @@ fn main() {
         relay_admin_claim,
         relay_admin_decision_claim,
         relay_admin_approval_claim,
+        research_event_claim,
     )
     .and_then(|proof| {
         serde_json::to_string(&proof).map_err(|_| "Could not encode identity proof".into())

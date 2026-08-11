@@ -252,7 +252,10 @@ export function castAutomationScenarioVote(doc: Y.Doc, expectedProjectId: string
     scenarioId: input.scenarioId, participantId: input.participantId, displayName: input.displayName,
     choice: input.choice, timestamp: input.timestamp, eventId: input.eventId,
   })
-  return { summary, researchRevision: projectStateFingerprint(doc) }
+  const event = summary.history.find((candidate) =>
+    candidate.scenarioId === input.scenarioId && candidate.eventId === input.eventId)
+  if (!event) throw new Error('Scenario vote event was not retained')
+  return { summary, event, researchRevision: projectStateFingerprint(doc) }
 }
 
 export function createAutomationScenarioAnnotation(doc: Y.Doc, expectedProjectId: string, input: CreateAutomationScenarioAnnotationInput) {

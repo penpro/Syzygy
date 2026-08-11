@@ -66,7 +66,7 @@ Recommended first instruction to an MCP-capable model:
 | `open_project` | navigation | Opens a non-archived project by stable ID |
 | `rename_project` | local metadata or Drive title event | Local projects change local metadata. Drive projects require the complete exact `sharedTitle.revisionGuards`; stale calls fail, simultaneous siblings remain visible, and an all-tip rename reconciles without deleting history |
 | `read_active_project` | no | Returns the manifest plus structured blocks, plain text, and a revision; Drive projects also return bounded shared-title tips and exact rename guards |
-| `inspect_research_state` | no | Validates bounded signed project-device registrations and relay-approval intent metadata plus live scenario/vote/flag/note/label/heuristic/adversarial-review/version/head/lineage state; omits proof bodies, private keys, member capabilities, and research bodies; shared state explicitly cannot attest the relay host's current policy and grants no identity, role, revocation, relay, or mutation authority |
+| `inspect_research_state` | no | Validates bounded signed project-device registrations, exact-hash installation attestations for MCP vote events, and relay-approval intent metadata plus live scenario/vote/flag/note/label/heuristic/adversarial-review/version/head/lineage state; omits proof bodies, private keys, member capabilities, and research bodies; shared state explicitly cannot attest the relay host's current policy and grants no human identity, role, revocation, relay, or mutation authority |
 | `inspect_relay_approval_policy` | no | On a project hosted by this running Syzygy relay only, reads the authoritative registry revision, aggregate member counts, configured signer key IDs/quorum, and eligible registered installation key IDs; omits member IDs, public keys, capabilities, storage paths, and research bodies |
 | `configure_relay_approval_policy` | hosted relay policy | Under the exact inspected registry revision, installs/updates a 1-16-key policy with a bounded quorum or removes it; every selected key must be an exact healthy project registration and the returned revision and policy must prove the requested transition |
 | `read_scenario` | explicit scenario content | Reads one validated scenario background plus at most 1,000 ordered turn identities, roles, immutable-revision counts, selected heads, complete tip sets, and reconciliation state; turn bodies remain omitted |
@@ -80,7 +80,7 @@ Recommended first instruction to an MCP-capable model:
 | `add_scenario_turn` | scenario content | Adds one attributed system/user/assistant turn against the exact current research revision; never invokes a model |
 | `revise_scenario_turn` | scenario content | Adds an attributed immutable revision to an existing single-tip turn against the exact current research revision; sibling conflicts fail closed |
 | `reconcile_scenario_turn` | scenario content | Resolves visible sibling tips only against the exact research revision, selected head, and complete tip set by appending an attributed all-parent merge revision; no sibling is deleted and no model is invoked |
-| `cast_scenario_vote` | vote event | Casts support/oppose/abstain/withdrawn against the exact current research revision; retains re-vote history and returns aggregate counts |
+| `cast_scenario_vote` | vote event | Casts support/oppose/abstain/withdrawn against the exact current research revision, retains re-vote history, and best-effort publishes an exact-event-hash installation signature when the caller key is an unconflicted registered project device; the response explicitly reports signed-device or unsigned |
 | `create_scenario_annotation` | annotation event | Creates a scenario- or turn-level flag/note against the exact research revision; stores but does not return its body |
 | `update_scenario_annotation` | annotation event | Appends a body revision only when both research revision and current annotation event match; prior bodies remain in history and readback omits them |
 | `set_scenario_annotation_resolution` | annotation event | Resolves or reopens by appending an event under both revision guards |
@@ -218,9 +218,15 @@ MCP host
   the persisted selected-head revision. The returned research revision can be chained into a later
   guarded mutation after the researcher reviews the disclosed content.
 - `cast_scenario_vote` uses the same guard and retains each attributed vote/re-vote/withdrawal as
-  an immutable event. Its response and inspection expose only aggregate counts/event totals. A
-  stale call fails before adding an event. Participant IDs, display names, and time are caller/
-  process supplied, so the tool is not an authenticated election or Sybil-resistant consensus.
+  an immutable event. After that mutation commits, Syzygy best-effort signs a canonical hash of the
+  exact vote event and publishes a parallel bounded attestation only when the same installation key
+  is an unconflicted registration for the claimed participant. Signing failure never rolls back or
+  disguises the already-committed vote: the response says `unsigned` with a bounded reason. Research
+  inspection returns event/key/participant/hash metadata but omits public keys, signatures, display
+  names, and vote bodies. A stale call fails before adding an event. Installation signatures improve
+  attribution continuity but are self-issued device claims, so the tool is not an authenticated
+  election, person/organization identity, or Sybil-resistant consensus. Other research-event kinds
+  remain unsigned until their domain resolvers and product/MCP mutation paths adopt the same ledger.
 - Annotation create uses the research revision guard. Edit/resolve/reopen additionally require the
   exact `currentEventId` returned by the preceding mutation or inspection. Both stale-research and
   stale-lifecycle conflicts fail before an event is added. Bodies are accepted for create/edit and

@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "runId": "SIGNED-PROJECT-RESEARCH-EVENT-ATTESTATIONS-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "c34565f",
+  "capabilities": ["P-11", "S-05", "S-07"],
+  "status": "implemented_unverified",
+  "claim": "Syzygy now has a bounded parallel shared ledger for exact-hash installation signatures over a closed vocabulary of durable research-event kinds. MCP scenario votes are the first production adopter: the vote commits under its existing revision guard, then best-effort attribution requires an unconflicted registered installation for the participant claim and revalidates the retained live event hash.",
+  "commands": [
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm test -- --run src/workspace/projectResearchEventAttestation.test.ts src/workspace/researchStateInspection.test.ts src/workspace/scenarioAutomation.test.ts",
+    "node ../../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --locked collaboration_identity::tests -- --nocapture",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run test:collaboration:identity",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/audit.mjs",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run check:supervised"
+  ],
+  "result": {
+    "closedNativeEventKindCount": 10,
+    "productionAdoptedKinds": ["scenario-vote"],
+    "exactLiveEventHashRequired": true,
+    "registeredKeyAndParticipantMatchRequired": true,
+    "attestationLimit": 2000,
+    "settingsScanLimit": 5000,
+    "verificationConcurrency": 8,
+    "disconnectedConvergencePassed": true,
+    "offlineReopenPassed": true,
+    "idempotentReplayPassed": true,
+    "resignedSameDeviceEventIdempotent": true,
+    "mutatedOrMissingEventRejected": true,
+    "poisonAndExcessRejected": true,
+    "unsignedFallbackPreservesCommittedVote": true,
+    "proofBodiesReturnedByInspection": false,
+    "humanOrOrganizationIdentityClaimed": false,
+    "rustToWebCryptoVerified": true,
+    "rejectedSignedFieldMutations": 7,
+    "focusedFrontendTestsPassed": 22,
+    "rustIdentityTestsPassed": 9,
+    "physicalPackagedTwoInstallUsed": false,
+    "supervisedRunId": "20260811-172318-534cac",
+    "frontendTestFilesPassed": 128,
+    "frontendTestFilesSkipped": 3,
+    "frontendTestsPassed": 542,
+    "frontendTestsSkipped": 3,
+    "frontendModulesTransformed": 1267,
+    "rustAppRecompiled": true,
+    "repositoryAuditPassed": true,
+    "fullValidationPending": false
+  },
+  "proved": [
+    "The OS-vault command signs only one of ten named research-event kinds and binds exact project, self-reported participant, event identity, SHA-256, time, and nonce fields under a separate domain.",
+    "Shared publication requires a healthy project directory, exact key/public-key match, participant membership in that unconflicted registration, a resolvable live event with the same hash, and a valid Ed25519 signature.",
+    "The 2,000-record/5,000-setting ledger verifies eight at a time, converges independent signers, reopens offline, treats exact replay and a same-device/event fresh-nonce retry idempotently, and fails closed on mutation, missing events, participant mismatch, poison, or excess state.",
+    "MCP scenario voting commits the guarded immutable vote before best-effort signing. Signing/registration failure is explicitly returned as unsigned and does not roll back or disguise the vote.",
+    "Research-state inspection returns bounded key/event/participant/hash/time metadata and omits public keys, signatures, display names, vote bodies, private keys, and other research bodies."
+  ],
+  "notProved": [
+    "That a self-issued installation key authenticates a person or organization, prevents Sybil voting, or represents legal or organizational consent.",
+    "Signed attribution for product-created votes or any event kind other than MCP scenario votes; the remaining native vocabulary is contract-only until each domain adds an exact resolver and mutation-path adoption.",
+    "Append-only survival against a malicious Yjs writer, trusted time, identity-key rotation/recovery, public WSS operation, or physical packaged two-install interaction."
+  ],
+  "implementationAnchors": [
+    "frontend/src-tauri/src/collaboration_identity.rs",
+    "frontend/src/tauri.ts",
+    "frontend/src/workspace/projectResearchEventAttestation.ts",
+    "frontend/src/workspace/researchEventAttribution.ts",
+    "frontend/src/workspace/scenarioVoteModel.ts",
+    "frontend/src/workspace/researchStateInspection.ts",
+    "frontend/src/automationBridge.ts",
+    "scripts/collaboration-identity-interop.mjs"
+  ]
+}

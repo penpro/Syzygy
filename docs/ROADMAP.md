@@ -189,7 +189,7 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   request. A repeatable five-client binary soak covers 60 rapid writes, two-client partition/rejoin,
   awareness cleanup/recovery, forced reauthentication, and remote issue/rotate/revoke. Human identity,
   shared-directory approval, propagated identity revocation, key
-  rotation/recovery, signed durable research events, and physical two-install product proof remain
+  rotation/recovery, signed durable research events beyond MCP scenario votes, and physical two-install product proof remain
   open, so P-11 remains
   `implemented_unverified`. Evidence:
   `docs/audits/runs/PRESENCE-LIFECYCLE-2026-07-18.json` and
@@ -652,8 +652,12 @@ collaborators are not required to download large project folders.
    generation/timestamp/nonce, consumes it once under a one-minute window, and the product creates a
    fresh proof on reconnect. Keys remain self-issued; an explicit signed project directory keeps device registrations available
    offline and exposes participant-claim conflicts, but local decisions are neither shared nor
-   authoritative, awareness-proof replay and participant-ID impersonation remain possible, and
-   durable research events are unsigned. Device-bound admin credentials now expose a strict reserved
+   authoritative, awareness-proof replay and participant-ID impersonation remain possible. A
+   separate bounded exact-hash attestation ledger now signs MCP-created scenario vote events when
+   the installation is an unconflicted registered device for the participant claim; inspection
+   re-resolves the live event hash and omits proof bodies. Signing failure is explicitly unsigned and
+   never rolls back the vote. Nine other named research-event domains still lack production
+   resolvers/adoption. Device-bound admin credentials now expose a strict reserved
    control channel: the relay consumes the ordinary fresh proof, verifies a second action/revision
    signature, durably mutates/reloads membership, and evicts room peers. The product exposes those
    controls on a remotely hosted project only for the enrolled admin installation. A repeatable exact
@@ -670,8 +674,8 @@ collaborators are not required to download large project folders.
    rejections, and stale replay. Host-only MCP automation now reads authoritative content-minimized
    policy state and applies an exact-revision install/remove transition using eligible registered
    key IDs. Next: run packaged physical two-install policy interaction, then
-   recovery when no admin survives (which still requires the relay host), signed durable-event
-   envelopes, device-key rotation/recovery, trusted time and replacement-invitation delivery, public WSS operations, compaction/export/backups
+   recovery when no admin survives (which still requires the relay host), durable-event attestation
+   adoption beyond MCP votes, device-key rotation/recovery, trusted time and replacement-invitation delivery, public WSS operations, compaction/export/backups
    and broader abuse controls, then run packaged physical two-install gates.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.
    v0.1.14 added same-name folder codes and the bounded MCP/LAN diagnostic; the two-physical-install

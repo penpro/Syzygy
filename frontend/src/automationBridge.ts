@@ -19,6 +19,7 @@ import {
   getAutomationEditorController,
 } from './workspace/editorAutomationRegistry'
 import { inspectResearchState } from './workspace/researchStateInspection'
+import { attestScenarioVoteEvent } from './workspace/researchEventAttribution'
 import {
   configureHostedRelayPolicy,
   inspectHostedRelayPolicy,
@@ -570,7 +571,8 @@ export async function dispatchAutomationRequest(
         (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
       )
       if (!project) throw new Error('No research project is active; list or create a project first')
-      const voted = castAutomationScenarioVote(getAutomationProjectDocument(project.id), project.id, {
+      const document = getAutomationProjectDocument(project.id)
+      const voted = castAutomationScenarioVote(document, project.id, {
         expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
         scenarioId: requiredString(params, 'scenarioId'),
         participantId: requiredString(params, 'participantId'),
@@ -579,6 +581,7 @@ export async function dispatchAutomationRequest(
         timestamp: Date.now(),
         eventId: `mcp-${crypto.randomUUID()}`,
       })
+      const attribution = await attestScenarioVoteEvent(document, project.id, voted.event)
       return {
         project: summarizeProject(project, latest.activeProjectId),
         vote: {
@@ -587,6 +590,7 @@ export async function dispatchAutomationRequest(
           activeVoteCount: voted.summary.activeVotes.length,
           eventCount: voted.summary.history.length,
         },
+        attribution,
         researchRevision: voted.researchRevision,
       }
     }

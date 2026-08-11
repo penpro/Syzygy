@@ -216,6 +216,33 @@ function parseRelayAdminApprovalProof(value) {
   return value
 }
 
+function parseResearchEventProof(value) {
+  if (!exactKeys(value, ['schemaVersion', 'algorithm', 'keyId', 'publicKey', 'claim', 'signature']) ||
+    value.schemaVersion !== 1 || value.algorithm !== 'Ed25519') {
+    throw new Error('Rust project research event proof header was not exact')
+  }
+  if (!exactKeys(value.claim, [
+    'schemaVersion', 'projectId', 'participantId', 'eventKind', 'eventId', 'eventSha256',
+    'recordedAtMs', 'attestationNonce',
+  ]) || value.claim.schemaVersion !== 1 ||
+    !/^[A-Za-z0-9][A-Za-z0-9._:@-]{0,199}$/.test(value.claim.projectId) ||
+    !/^[A-Za-z0-9][A-Za-z0-9._:@-]{0,199}$/.test(value.claim.participantId) ||
+    !['scenario', 'scenario-turn', 'scenario-vote', 'scenario-annotation', 'scenario-label',
+      'suggestion', 'policy-version', 'adversarial-review', 'heuristic', 'scenario-rerun']
+      .includes(value.claim.eventKind) ||
+    !/^[A-Za-z0-9][A-Za-z0-9._:@-]{0,511}$/.test(value.claim.eventId) ||
+    !Number.isSafeInteger(value.claim.recordedAtMs) || value.claim.recordedAtMs < 1) {
+    throw new Error('Rust project research event claim was not exact')
+  }
+  decodeBase64Url(value.claim.eventSha256, 32)
+  decodeBase64Url(value.claim.attestationNonce, 32)
+  const publicKey = decodeBase64Url(value.publicKey, 32)
+  decodeBase64Url(value.signature, 64)
+  const keyId = `ed25519-sha256:${createHash('sha256').update(publicKey).digest('base64url')}`
+  if (value.keyId !== keyId) throw new Error('Rust project research event key ID did not match its public key')
+  return value
+}
+
 function canonicalPresenceClaim(claim) {
   return Buffer.from([
     'syzygy-device-presence-v1',
@@ -288,6 +315,19 @@ function canonicalRelayAdminApprovalClaim(claim) {
   ].join('\n'), 'utf8')
 }
 
+function canonicalResearchEventClaim(claim) {
+  return Buffer.from([
+    'syzygy-project-research-event-v1',
+    claim.projectId,
+    claim.participantId,
+    claim.eventKind,
+    claim.eventId,
+    claim.eventSha256,
+    String(claim.recordedAtMs),
+    claim.attestationNonce,
+  ].join('\n'), 'utf8')
+}
+
 async function verifies(proof, canonicalClaim) {
   return verifiesWithPublicKey(proof, canonicalClaim, proof.publicKey)
 }
@@ -323,6 +363,7 @@ if (lines.length !== 1) throw new Error('Rust identity harness did not emit exac
 const output = JSON.parse(lines[0])
 if (!exactKeys(output, [
   'presence', 'registration', 'relayAccess', 'relayAdmin', 'relayAdminDecision', 'relayAdminApproval',
+  'researchEvent',
 ])) {
   throw new Error('Rust identity harness output was not exact')
 }
@@ -332,10 +373,13 @@ const relayAccess = parseRelayAccessProof(output.relayAccess)
 const relayAdmin = parseRelayAdminProof(output.relayAdmin)
 const relayAdminDecision = parseRelayAdminDecisionProof(output.relayAdminDecision)
 const relayAdminApproval = parseRelayAdminApprovalProof(output.relayAdminApproval)
+const researchEvent = parseResearchEventProof(output.researchEvent)
 if (proof.keyId !== registration.keyId || proof.keyId !== relayAccess.keyId ||
   proof.keyId !== relayAdmin.keyId || proof.keyId !== relayAdminDecision.keyId ||
-  proof.keyId !== relayAdminApproval.keyId || proof.publicKey !== registration.publicKey ||
-  proof.publicKey !== relayAdminDecision.publicKey || proof.publicKey !== relayAdminApproval.publicKey) {
+  proof.keyId !== relayAdminApproval.keyId || proof.keyId !== researchEvent.keyId ||
+  proof.publicKey !== registration.publicKey ||
+  proof.publicKey !== relayAdminDecision.publicKey || proof.publicKey !== relayAdminApproval.publicKey ||
+  proof.publicKey !== researchEvent.publicKey) {
   throw new Error('Rust identity harness did not reuse one installation key')
 }
 if (!await verifies(proof, canonicalPresenceClaim)) {
@@ -355,6 +399,9 @@ if (!await verifies(relayAdminDecision, canonicalRelayAdminDecisionClaim)) {
 }
 if (!await verifies(relayAdminApproval, canonicalRelayAdminApprovalClaim)) {
   throw new Error('WebCrypto rejected the canonical Rust project relay administrator approval signature')
+}
+if (!await verifies(researchEvent, canonicalResearchEventClaim)) {
+  throw new Error('WebCrypto rejected the canonical Rust project research event signature')
 }
 
 const mutations = [
@@ -425,6 +472,20 @@ for (const mutation of relayAdminApprovalMutations) {
     throw new Error('WebCrypto accepted a mutated Rust project relay administrator approval')
   }
 }
+const researchEventMutations = [
+  { ...researchEvent, claim: { ...researchEvent.claim, projectId: 'project-mutated' } },
+  { ...researchEvent, claim: { ...researchEvent.claim, participantId: 'participant-mutated' } },
+  { ...researchEvent, claim: { ...researchEvent.claim, eventKind: 'scenario-label' } },
+  { ...researchEvent, claim: { ...researchEvent.claim, eventId: 'event-mutated' } },
+  { ...researchEvent, claim: { ...researchEvent.claim, eventSha256: 'z'.repeat(43) } },
+  { ...researchEvent, claim: { ...researchEvent.claim, recordedAtMs: researchEvent.claim.recordedAtMs + 1 } },
+  { ...researchEvent, claim: { ...researchEvent.claim, attestationNonce: 'z'.repeat(43) } },
+]
+for (const mutation of researchEventMutations) {
+  if (await verifies(mutation, canonicalResearchEventClaim)) {
+    throw new Error('WebCrypto accepted a mutated Rust project research event')
+  }
+}
 const serialized = JSON.stringify(output).toLowerCase()
 if (['privatekey', 'private_key', 'pkcs8', 'secret'].some((term) => serialized.includes(term))) {
   throw new Error('Rust identity harness exposed private-material naming')
@@ -445,6 +506,8 @@ console.log(JSON.stringify({
   rejectedRelayAdminDecisionMutations: relayAdminDecisionMutations.length,
   relayAdminApprovalVerified: true,
   rejectedRelayAdminApprovalMutations: relayAdminApprovalMutations.length,
+  researchEventVerified: true,
+  rejectedResearchEventMutations: researchEventMutations.length,
   privateMaterialExposed: false,
   exactSameSessionReplayRejected: false,
   replayBoundary: 'presence proof binds project, document, participant, awareness client, and random session nonce but remains replayable in that exact awareness context; relay access uses a separate fresh-proof boundary',

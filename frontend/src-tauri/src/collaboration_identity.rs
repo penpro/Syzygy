@@ -1,7 +1,7 @@
 //! Native cryptographic installation identity for collaboration attribution.
 //!
 //! The private Ed25519 PKCS#8 document stays in the operating-system credential store. The webview
-//! can request only typed live-presence, durable project-registration, relay access/admin,
+//! can request only typed live-presence, durable project-registration/research-event, relay access/admin,
 //! post-mutation decision, or pre-mutation approval signatures; there is no arbitrary signing
 //! command and no command returns the private material. A valid signature proves possession of this
 //! installation key, not a person's legal or organizational identity.
@@ -31,6 +31,8 @@ const RELAY_ADMIN_DECISION_SCHEMA_VERSION: u8 = 1;
 const RELAY_ADMIN_DECISION_DOMAIN: &str = "syzygy-project-relay-admin-decision-v1";
 const RELAY_ADMIN_APPROVAL_SCHEMA_VERSION: u8 = 1;
 const RELAY_ADMIN_APPROVAL_DOMAIN: &str = "syzygy-project-relay-admin-approval-v1";
+const RESEARCH_EVENT_SCHEMA_VERSION: u8 = 1;
+const RESEARCH_EVENT_DOMAIN: &str = "syzygy-project-research-event-v1";
 const MAX_RELAY_ADMIN_APPROVAL_LIFETIME_MS: u64 = 7 * 24 * 60 * 60 * 1_000;
 const MAX_STORED_IDENTITY_BYTES: usize = 1_024;
 static IDENTITY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -121,6 +123,19 @@ pub struct ProjectRelayAdminApprovalClaim {
     pub approval_nonce: String,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectResearchEventClaim {
+    pub schema_version: u8,
+    pub project_id: String,
+    pub participant_id: String,
+    pub event_kind: String,
+    pub event_id: String,
+    pub event_sha256: String,
+    pub recorded_at_ms: u64,
+    pub attestation_nonce: String,
+}
+
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CollaborationIdentityReport {
@@ -197,6 +212,17 @@ pub struct ProjectRelayAdminApprovalProof {
     pub signature: String,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectResearchEventProof {
+    pub schema_version: u8,
+    pub algorithm: String,
+    pub key_id: String,
+    pub public_key: String,
+    pub claim: ProjectResearchEventClaim,
+    pub signature: String,
+}
+
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CollaborationIdentityInteropProofs {
@@ -206,6 +232,7 @@ pub struct CollaborationIdentityInteropProofs {
     pub relay_admin: RelayAdminIdentityProof,
     pub relay_admin_decision: ProjectRelayAdminDecisionProof,
     pub relay_admin_approval: ProjectRelayAdminApprovalProof,
+    pub research_event: ProjectResearchEventProof,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -491,6 +518,53 @@ fn validate_relay_admin_approval_claim(
     Ok(())
 }
 
+fn research_event_kind(value: &str) -> bool {
+    matches!(
+        value,
+        "scenario"
+            | "scenario-turn"
+            | "scenario-vote"
+            | "scenario-annotation"
+            | "scenario-label"
+            | "suggestion"
+            | "policy-version"
+            | "adversarial-review"
+            | "heuristic"
+            | "scenario-rerun"
+    )
+}
+
+fn research_event_id(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 512
+        && bytes[0].is_ascii_alphanumeric()
+        && bytes.iter().all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'@' | b'-')
+        })
+}
+
+fn validate_research_event_claim(claim: &ProjectResearchEventClaim) -> Result<(), IdentityError> {
+    if claim.schema_version != RESEARCH_EVENT_SCHEMA_VERSION
+        || !stable_id(&claim.project_id)
+        || !stable_id(&claim.participant_id)
+        || !research_event_kind(&claim.event_kind)
+        || !research_event_id(&claim.event_id)
+        || claim.recorded_at_ms == 0
+    {
+        return Err(IdentityError::InvalidClaim);
+    }
+    for value in [&claim.event_sha256, &claim.attestation_nonce] {
+        let decoded = URL_SAFE_NO_PAD
+            .decode(value)
+            .map_err(|_| IdentityError::InvalidClaim)?;
+        if decoded.len() != 32 || URL_SAFE_NO_PAD.encode(&decoded) != *value {
+            return Err(IdentityError::InvalidClaim);
+        }
+    }
+    Ok(())
+}
+
 pub fn canonical_presence_claim(claim: &PresenceIdentityClaim) -> Result<Vec<u8>, String> {
     validate_claim(claim).map_err(|error| error.to_string())?;
     Ok(format!(
@@ -576,6 +650,23 @@ pub fn canonical_relay_admin_approval_claim(
         claim.approved_at_ms,
         claim.expires_at_ms,
         claim.approval_nonce,
+    )
+    .into_bytes())
+}
+
+pub fn canonical_research_event_claim(
+    claim: &ProjectResearchEventClaim,
+) -> Result<Vec<u8>, String> {
+    validate_research_event_claim(claim).map_err(|error| error.to_string())?;
+    Ok(format!(
+        "{RESEARCH_EVENT_DOMAIN}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+        claim.project_id,
+        claim.participant_id,
+        claim.event_kind,
+        claim.event_id,
+        claim.event_sha256,
+        claim.recorded_at_ms,
+        claim.attestation_nonce,
     )
     .into_bytes())
 }
@@ -690,6 +781,25 @@ fn sign_relay_admin_approval(
     })
 }
 
+fn sign_research_event(
+    identity: &StoredIdentity,
+    claim: ProjectResearchEventClaim,
+) -> Result<ProjectResearchEventProof, IdentityError> {
+    let message =
+        canonical_research_event_claim(&claim).map_err(|_| IdentityError::InvalidClaim)?;
+    let key_pair = key_pair(identity)?;
+    let public_key = key_pair.public_key().as_ref();
+    let fingerprint = fingerprint(public_key);
+    Ok(ProjectResearchEventProof {
+        schema_version: RESEARCH_EVENT_SCHEMA_VERSION,
+        algorithm: "Ed25519".into(),
+        key_id: format!("ed25519-sha256:{fingerprint}"),
+        public_key: URL_SAFE_NO_PAD.encode(public_key),
+        claim,
+        signature: URL_SAFE_NO_PAD.encode(key_pair.sign(&message).as_ref()),
+    })
+}
+
 pub fn validate_relay_device_identity(key_id: &str, public_key: &str) -> Result<Vec<u8>, String> {
     let decoded = URL_SAFE_NO_PAD
         .decode(public_key)
@@ -779,6 +889,25 @@ pub fn verify_project_relay_admin_approval_proof(
         .map_err(|_| "Project relay administrator approval signature did not verify".to_string())
 }
 
+pub fn verify_project_research_event_proof(
+    proof: &ProjectResearchEventProof,
+) -> Result<(), String> {
+    if proof.schema_version != RESEARCH_EVENT_SCHEMA_VERSION || proof.algorithm != "Ed25519" {
+        return Err("Project research event proof header is invalid".into());
+    }
+    let public_key = validate_relay_device_identity(&proof.key_id, &proof.public_key)?;
+    let signature = URL_SAFE_NO_PAD
+        .decode(&proof.signature)
+        .map_err(|_| "Project research event signature is invalid".to_string())?;
+    if signature.len() != 64 || URL_SAFE_NO_PAD.encode(&signature) != proof.signature {
+        return Err("Project research event signature is invalid".into());
+    }
+    let message = canonical_research_event_claim(&proof.claim)?;
+    UnparsedPublicKey::new(&ED25519, public_key)
+        .verify(&message, &signature)
+        .map_err(|_| "Project research event signature did not verify".to_string())
+}
+
 pub fn verify_presence_proof(proof: &DevicePresenceProof) -> Result<(), String> {
     if proof.schema_version != PRESENCE_SCHEMA_VERSION || proof.algorithm != "Ed25519" {
         return Err("Collaboration device proof header is invalid".into());
@@ -844,6 +973,13 @@ pub fn ephemeral_relay_admin_approval_proof(
     sign_relay_admin_approval(&identity, claim).map_err(|error| error.to_string())
 }
 
+pub fn ephemeral_research_event_proof(
+    claim: ProjectResearchEventClaim,
+) -> Result<ProjectResearchEventProof, String> {
+    let identity = generate_identity().map_err(|error| error.to_string())?;
+    sign_research_event(&identity, claim).map_err(|error| error.to_string())
+}
+
 pub fn ephemeral_identity_interop_proofs(
     presence_claim: PresenceIdentityClaim,
     registration_claim: ProjectDeviceRegistrationClaim,
@@ -851,6 +987,7 @@ pub fn ephemeral_identity_interop_proofs(
     relay_admin_claim: RelayAdminIdentityClaim,
     relay_admin_decision_claim: ProjectRelayAdminDecisionClaim,
     relay_admin_approval_claim: ProjectRelayAdminApprovalClaim,
+    research_event_claim: ProjectResearchEventClaim,
 ) -> Result<CollaborationIdentityInteropProofs, String> {
     let identity = generate_identity().map_err(|error| error.to_string())?;
     Ok(CollaborationIdentityInteropProofs {
@@ -864,6 +1001,8 @@ pub fn ephemeral_identity_interop_proofs(
         relay_admin_decision: sign_relay_admin_decision(&identity, relay_admin_decision_claim)
             .map_err(|error| error.to_string())?,
         relay_admin_approval: sign_relay_admin_approval(&identity, relay_admin_approval_claim)
+            .map_err(|error| error.to_string())?,
+        research_event: sign_research_event(&identity, research_event_claim)
             .map_err(|error| error.to_string())?,
     })
 }
@@ -941,6 +1080,17 @@ pub fn collaboration_identity_sign_relay_admin_approval(
         .map_err(|_| "OS collaboration identity storage is unavailable".to_string())?;
     let identity = load_or_create(&OsIdentityStore).map_err(|error| error.to_string())?;
     sign_relay_admin_approval(&identity, claim).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn collaboration_identity_sign_research_event(
+    claim: ProjectResearchEventClaim,
+) -> Result<ProjectResearchEventProof, String> {
+    let _guard = IDENTITY_LOCK
+        .lock()
+        .map_err(|_| "OS collaboration identity storage is unavailable".to_string())?;
+    let identity = load_or_create(&OsIdentityStore).map_err(|error| error.to_string())?;
+    sign_research_event(&identity, claim).map_err(|error| error.to_string())
 }
 
 #[cfg(test)]
@@ -1036,6 +1186,19 @@ mod tests {
             approved_at_ms: 1_700_000_000_100,
             expires_at_ms: 1_700_086_400_100,
             approval_nonce: "a4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
+        }
+    }
+
+    fn research_event_claim() -> ProjectResearchEventClaim {
+        ProjectResearchEventClaim {
+            schema_version: 1,
+            project_id: "project-research-event".into(),
+            participant_id: "participant-1".into(),
+            event_kind: "scenario-vote".into(),
+            event_id: "vote-event-1".into(),
+            event_sha256: "e4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
+            recorded_at_ms: 1_700_000_000_300,
+            attestation_nonce: "t4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
         }
     }
 
@@ -1217,6 +1380,34 @@ mod tests {
         too_long.expires_at_ms = too_long.approved_at_ms + MAX_RELAY_ADMIN_APPROVAL_LIFETIME_MS + 1;
         assert_eq!(
             validate_relay_admin_approval_claim(&too_long),
+            Err(IdentityError::InvalidClaim)
+        );
+    }
+
+    #[test]
+    fn durable_research_event_binds_project_participant_kind_identity_hash_time_and_nonce() {
+        let identity = generate_identity().unwrap();
+        let proof = sign_research_event(&identity, research_event_claim()).unwrap();
+        verify_project_research_event_proof(&proof).unwrap();
+
+        for mutate in [
+            |claim: &mut ProjectResearchEventClaim| claim.project_id.push('x'),
+            |claim: &mut ProjectResearchEventClaim| claim.participant_id.push('x'),
+            |claim: &mut ProjectResearchEventClaim| claim.event_kind = "scenario-label".into(),
+            |claim: &mut ProjectResearchEventClaim| claim.event_id.push('x'),
+            |claim: &mut ProjectResearchEventClaim| claim.event_sha256.replace_range(..1, "f"),
+            |claim: &mut ProjectResearchEventClaim| claim.recorded_at_ms += 1,
+            |claim: &mut ProjectResearchEventClaim| claim.attestation_nonce.replace_range(..1, "u"),
+        ] {
+            let mut changed = proof.clone();
+            mutate(&mut changed.claim);
+            assert!(verify_project_research_event_proof(&changed).is_err());
+        }
+
+        let mut unsupported = research_event_claim();
+        unsupported.event_kind = "arbitrary".into();
+        assert_eq!(
+            validate_research_event_claim(&unsupported),
             Err(IdentityError::InvalidClaim)
         );
     }

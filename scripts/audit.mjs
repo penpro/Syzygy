@@ -165,6 +165,12 @@ const relayAdminApprovalTauriSource = text('frontend/src/tauri.ts')
 const relayAdminApprovalResearchInspection = text('frontend/src/workspace/researchStateInspection.ts')
 const relayAdminRecoveryUiTest = text('frontend/src/workspace/WorkspaceView.ui.test.ts')
 const relayAdminRecoveryEvidence = text('docs/audits/runs/MANAGED-RELAY-ADMIN-RECOVERY-2026-08-11.json')
+const researchEventAttestationSource = text('frontend/src/workspace/projectResearchEventAttestation.ts')
+const researchEventAttributionSource = text('frontend/src/workspace/researchEventAttribution.ts')
+const researchEventAttestationTest = text('frontend/src/workspace/projectResearchEventAttestation.test.ts')
+const researchEventInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
+const researchEventMcpSource = text('frontend/src-tauri/src/mcp.rs')
+const researchEventEvidence = text('docs/audits/runs/SIGNED-PROJECT-RESEARCH-EVENT-ATTESTATIONS-2026-08-11.json')
 record(
   'app-managed collaboration relay remains private, bounded, durable, reaped, and identity-honest',
   collaborationRelayCargo.includes('tungstenite = "=0.21.0"') &&
@@ -347,6 +353,37 @@ record(
   'registered-device exact action/revision/expiry signatures, offline convergence, host policy lifecycle, strict v3/v4 clients, configured exact-bundle enforcement, adversarial/replay denial, emergency-host and human-identity nonclaims are present',
 )
 record(
+  'durable research-event attribution remains exact-hash, registered-device-bound, convergent, and identity-honest',
+  collaborationIdentitySource.includes('syzygy-project-research-event-v1') &&
+    collaborationIdentitySource.includes('collaboration_identity_sign_research_event') &&
+    collaborationIdentitySource.includes('"scenario-vote"') &&
+    relayAdminApprovalTauriSource.includes('collaborationIdentitySignResearchEvent') &&
+    relayAdminApprovalTauriSource.includes('this proves installation-key possession, not human identity') &&
+    researchEventAttestationSource.includes('MAX_PROJECT_RESEARCH_EVENT_ATTESTATIONS = 2_000') &&
+    researchEventAttestationSource.includes('MAX_RESEARCH_EVENT_ATTESTATION_SETTINGS_SCAN = 5_000') &&
+    researchEventAttestationSource.includes('MAX_RESEARCH_EVENT_ATTESTATION_VERIFICATION_CONCURRENCY = 8') &&
+    researchEventAttestationSource.includes('device.participantIds.includes(record.proof.claim.participantId)') &&
+    researchEventAttestationSource.includes('sameDeviceEvent') &&
+    researchEventAttributionSource.includes('Failure never rolls back') &&
+    researchEventAttributionSource.includes("status: 'unsigned'") &&
+    researchEventAttestationTest.includes('converges independent installation attestations') &&
+    researchEventAttestationTest.includes('resignedLeftRecord') &&
+    researchEventAttestationTest.includes('without hiding unsigned fallback') &&
+    researchEventAttestationTest.includes("not.toContain('signature')") &&
+    collaborationIdentityInterop.includes('researchEventVerified: true') &&
+    collaborationIdentityInterop.includes('rejectedResearchEventMutations: researchEventMutations.length') &&
+    researchEventInspectionSource.includes('proofBodiesReturned: false') &&
+    researchEventMcpSource.includes('best-effort exact-event-hash installation signature') &&
+    researchEventEvidence.includes('"resignedSameDeviceEventIdempotent": true') &&
+    researchEventEvidence.includes('"supervisedRunId": "20260811-172318-534cac"') &&
+    researchEventEvidence.includes('"frontendTestsPassed": 542') &&
+    researchEventEvidence.includes('"rustAppRecompiled": true') &&
+    researchEventEvidence.includes('"repositoryAuditPassed": true') &&
+    researchEventEvidence.includes('"fullValidationPending": false') &&
+    researchEventEvidence.includes('"status": "implemented_unverified"'),
+  'closed typed native signing, exact project/participant/kind/event/hash/time/nonce binding, live-event resolution, registered-device matching, bounded merge/replay/poison gates, explicit unsigned fallback, body-free inspection, and human-identity nonclaims are present',
+)
+record(
   'surviving-administrator recovery remains exact, replacement-bound, and escrow-free',
   relayRemoteAdminSoak.includes('survivingAdministratorRecovery: true') &&
     relayRemoteAdminSoak.includes('lostAdministratorDenied: true') &&
@@ -411,7 +448,8 @@ record(
     collaborationIdentitySource.includes('IDENTITY_LOCK') &&
     collaborationIdentitySource.includes('collaboration_identity_sign_presence') &&
     collaborationIdentitySource.includes('collaboration_identity_sign_registration') &&
-    (collaborationIdentitySource.match(/#\[tauri::command\]/g)?.length ?? 0) === 7 &&
+    collaborationIdentitySource.includes('collaboration_identity_sign_research_event') &&
+    (collaborationIdentitySource.match(/#\[tauri::command\]/g)?.length ?? 0) === 8 &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_status') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_presence') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_registration') &&
@@ -437,9 +475,9 @@ record(
     collaborationIdentityEvidence.includes('"rustToWebCryptoVerified": true') &&
     collaborationIdentityEvidence.includes('"exactSameSessionReplayRejected": false') &&
     collaborationIdentityEvidence.includes('"humanIdentityAuthenticated": false') &&
-    collaborationIdentityEvidence.includes('"durableResearchEventsSigned": false') &&
+    researchEventEvidence.includes('"status": "implemented_unverified"') &&
     collaborationIdentityEvidence.includes('"status": "implemented_unverified"'),
-  'OS-vault private key, typed canonical signing only, strict WebCrypto parsing, focus-proof restoration, bounded interop mutation proof, and explicit enrollment/replay/human/durable-event nonclaims are present',
+  'OS-vault private key, typed canonical signing only, strict WebCrypto parsing, focus-proof restoration, bounded interop mutation proof, and explicit enrollment/replay/human-identity nonclaims are present; durable event signing is separately scoped',
 )
 
 const collaborationTrustSource = text('frontend/src-tauri/src/collaboration_device_trust.rs')

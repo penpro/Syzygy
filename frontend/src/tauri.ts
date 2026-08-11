@@ -291,6 +291,38 @@ export interface ProjectRelayAdminApprovalProof {
   signature: string
 }
 
+export type ProjectResearchEventKind =
+  | 'scenario'
+  | 'scenario-turn'
+  | 'scenario-vote'
+  | 'scenario-annotation'
+  | 'scenario-label'
+  | 'suggestion'
+  | 'policy-version'
+  | 'adversarial-review'
+  | 'heuristic'
+  | 'scenario-rerun'
+
+export interface ProjectResearchEventClaim {
+  schemaVersion: 1
+  projectId: string
+  participantId: string
+  eventKind: ProjectResearchEventKind
+  eventId: string
+  eventSha256: string
+  recordedAtMs: number
+  attestationNonce: string
+}
+
+export interface ProjectResearchEventProof {
+  schemaVersion: 1
+  algorithm: 'Ed25519'
+  keyId: string
+  publicKey: string
+  claim: ProjectResearchEventClaim
+  signature: string
+}
+
 export type DeviceTrustStatus = 'unapproved' | 'approved' | 'revoked'
 export type DeviceTrustAction = 'approve' | 'revoke'
 
@@ -1018,6 +1050,12 @@ export const collaborationIdentitySignRelayAdminApproval = (
   claim: ProjectRelayAdminApprovalClaim,
 ): Promise<ProjectRelayAdminApprovalProof> =>
   invoke('collaboration_identity_sign_relay_admin_approval', { claim })
+
+/** Sign one exact durable research-event digest; this proves installation-key possession, not human identity. */
+export const collaborationIdentitySignResearchEvent = (
+  claim: ProjectResearchEventClaim,
+): Promise<ProjectResearchEventProof> =>
+  invoke('collaboration_identity_sign_research_event', { claim })
 
 /** Local project-scoped device-key decisions. This does not return or grant relay authorization. */
 export const collaborationDeviceTrustStatus = (projectId: string): Promise<DeviceTrustReport> =>

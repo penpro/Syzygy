@@ -61,6 +61,38 @@ function validEvent(value: unknown): value is ScenarioVoteEvent {
     typeof event.choice === 'string' && choices.has(event.choice as ScenarioVoteChoice) && validTimestamp(event.timestamp)
 }
 
+function asArrayBuffer(value: Uint8Array): ArrayBuffer {
+  const copy = new ArrayBuffer(value.byteLength)
+  new Uint8Array(copy).set(value)
+  return copy
+}
+
+function encodeBase64Url(value: Uint8Array): string {
+  let binary = ''
+  for (const byte of value) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+export function canonicalScenarioVoteEvent(event: ScenarioVoteEvent): Uint8Array {
+  if (!validEvent(event)) throw new Error('Scenario vote event is invalid')
+  return new TextEncoder().encode(JSON.stringify({
+    schemaVersion: event.schemaVersion,
+    eventId: event.eventId,
+    scenarioId: event.scenarioId,
+    participantId: event.participantId,
+    displayName: event.displayName,
+    choice: event.choice,
+    timestamp: event.timestamp,
+  }))
+}
+
+export async function scenarioVoteEventSha256(event: ScenarioVoteEvent): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest(
+    'SHA-256', asArrayBuffer(canonicalScenarioVoteEvent(event)),
+  ))
+  return encodeBase64Url(digest)
+}
+
 function bucketsFor(collection: Y.Map<unknown>, scenarioId: string): Array<[string, Y.Map<unknown>]> {
   return Array.from(collection.entries()).filter(([key, value]) =>
     key.startsWith(VOTE_BUCKET_PREFIX) && value instanceof Y.Map && value.get('scenarioId') === scenarioId,
@@ -147,6 +179,15 @@ export function readScenarioVotes(discussions: Y.Map<unknown>, scenarioId: strin
   const counts = { support: 0, oppose: 0, abstain: 0 }
   activeVotes.forEach((event) => { counts[event.choice as keyof typeof counts] += 1 })
   return { scenarioId, counts, activeVotes, history }
+}
+
+export function readScenarioVoteEvent(
+  discussions: Y.Map<unknown>,
+  scenarioId: string,
+  eventId: string,
+): ScenarioVoteEvent | null {
+  if (!stableId(scenarioId) || !stableId(eventId)) return null
+  return eventsFor(discussions, scenarioId)?.find((event) => event.eventId === eventId) ?? null
 }
 
 export function listScenarioVoteSummaries(discussions: Y.Map<unknown>): ScenarioVoteSummary[] {

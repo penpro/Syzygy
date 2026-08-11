@@ -102,8 +102,9 @@ export function CollaborationRelaySettings() {
         Syzygy and does not require Node.js or PowerShell.
       </em>
       <em className="hint">
-        Room invitations are bearer access keys; participant names are still self-reported. Use a
-        private LAN address only. Public hosting requires a separately managed TLS/WSS proxy.
+        Managed rooms issue separate bearer member capabilities with relay-enforced roles and
+        revocation. Legacy rooms still use the room ID as one read/edit key. Participant names are
+        self-reported. Use a private LAN address only; public hosting needs a separate TLS/WSS proxy.
       </em>
       <div className="row gap">
         <label className="field grow">

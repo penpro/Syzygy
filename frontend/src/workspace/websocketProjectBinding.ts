@@ -1,9 +1,21 @@
 const MAX_ENDPOINT_LENGTH = 2_048
 const ROOM_ID_PATTERN = /^[A-Za-z0-9_-]{32,128}$/
+const MEMBER_ID_PATTERN = /^[A-Za-z0-9_-]{16,128}$/
+const CAPABILITY_PATTERN = /^[A-Za-z0-9_-]{32,128}$/
+
+export type RelayMemberRole = 'admin' | 'editor' | 'viewer'
+
+export interface ManagedRelayAccess {
+  schemaVersion: 1
+  memberId: string
+  capability: string
+  role: RelayMemberRole
+}
 
 export interface WebsocketProjectBinding {
   endpoint: string
   roomId: string
+  access?: ManagedRelayAccess
 }
 
 export interface NormalizedWebsocketProjectBinding extends WebsocketProjectBinding {
@@ -27,6 +39,17 @@ function isPrivateHostname(hostname: string): boolean {
     || normalized === '[::1]'
     || normalized.endsWith('.local')
     || isPrivateIpv4(normalized)
+}
+
+function normalizeManagedRelayAccess(value: ManagedRelayAccess | undefined): ManagedRelayAccess | undefined {
+  if (value === undefined) return undefined
+  if (!value || typeof value !== 'object' ||
+    Object.keys(value).sort().join(',') !== 'capability,memberId,role,schemaVersion' ||
+    value.schemaVersion !== 1 || !MEMBER_ID_PATTERN.test(value.memberId) ||
+    !CAPABILITY_PATTERN.test(value.capability) || !['admin', 'editor', 'viewer'].includes(value.role)) {
+    throw new Error('Managed relay member access is malformed')
+  }
+  return { ...value }
 }
 
 /**
@@ -60,9 +83,11 @@ export function normalizeWebsocketProjectBinding(
   if (!ROOM_ID_PATTERN.test(value.roomId)) {
     throw new Error('WebSocket collaboration room ID must be 32-128 URL-safe characters')
   }
+  const access = normalizeManagedRelayAccess(value.access)
   return {
     endpoint: endpoint.origin,
     roomId: value.roomId,
+    ...(access ? { access } : {}),
   }
 }
 

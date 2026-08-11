@@ -6,7 +6,11 @@ import { safeStorage } from './storage'
 import { mergePersisted, migratePersistedVersion, PERSISTED_STORE_VERSION } from './migrations'
 import { defaultSettings, defaultExperts } from './seed'
 import { createProjectManifest, parseProjectManifest, type ResearchProjectManifest } from './workspace/schema'
-import { normalizeWebsocketProjectBinding, type WebsocketProjectBinding } from './workspace/websocketProjectBinding'
+import {
+  normalizeWebsocketProjectBinding,
+  type ManagedRelayAccess,
+  type WebsocketProjectBinding,
+} from './workspace/websocketProjectBinding'
 
 interface AppState {
   settings: Settings
@@ -35,6 +39,7 @@ interface AppState {
   bindProjectToDrive: (id: string, workspaceId: string) => void
   addSharedProject: (project: ResearchProjectManifest) => void
   bindProjectToWebsocket: (id: string, binding: WebsocketProjectBinding) => void
+  setSelfHostedProjectAccess: (id: string, access: ManagedRelayAccess) => void
   addSelfHostedProject: (project: ResearchProjectManifest) => void
   leaveSelfHostedProject: (id: string) => void
 
@@ -171,6 +176,19 @@ export const useStore = create<AppState>()(
         if (project.transport.kind !== 'local') {
           throw new Error('Only an active local project can start self-hosted collaboration')
         }
+        set({
+          projects: state.projects.map((candidate) => candidate.id === id
+            ? { ...candidate, transport: { kind: 'websocket', ...binding }, updatedAt: now() }
+            : candidate),
+        })
+      },
+      setSelfHostedProjectAccess: (id, access) => {
+        const state = get()
+        const project = state.projects.find((candidate) => candidate.id === id)
+        if (!project || project.archivedAt !== undefined || project.transport.kind !== 'websocket') {
+          throw new Error('Project is not connected to a self-hosted relay')
+        }
+        const binding = normalizeWebsocketProjectBinding({ ...project.transport, access })
         set({
           projects: state.projects.map((candidate) => candidate.id === id
             ? { ...candidate, transport: { kind: 'websocket', ...binding }, updatedAt: now() }

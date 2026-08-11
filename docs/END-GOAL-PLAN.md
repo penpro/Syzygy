@@ -428,8 +428,10 @@ key signs a typed ephemeral presence claim, and Rust-to-WebCrypto interop reject
 project/document/participant/client fields. The first fingerprint approval/revocation increment is
 implemented only as a local project-scoped current-state label and never changes relay access. A
 signed durable self-registration directory now makes fingerprints inspectable offline but grants no
-authority and is replayable/deletable by bearer peers. The next identity increment must define
-trusted shared enrollment, project-scoped roles, revocation propagation, durable research-event
+authority and is replayable/deletable by bearer peers. The bundled relay separately enforces
+digest-backed bearer viewer/editor/admin roles and host-local revocation; these credentials are not
+bound to the signed device directory. The next identity increment must define trusted shared
+enrollment, signed identity-to-role binding and shared administration, durable research-event
 signatures, key rotation/recovery, and a replay policy before the product may say authenticated.
 
 Gate: five-client rapid-edit soak converges; stale presence disappears; restart/partition loses
@@ -441,15 +443,17 @@ remote-persistence/attachment capabilities, and the first stable-Yjs-13
 automation registration, and ephemeral presence. A real loopback relay harness proves two-client
 updates, awareness, stale-presence cleanup, relay termination/restart, and partition convergence.
 The harness rejected the current Yjs-14 relay line and pins the compatible MIT 0.1.1 test server.
-The next product slice now persists a strict WebSocket transport through store v4, exposes explicit
-advanced create/join/leave controls, uses a bounded bearer-invitation codec, shows connection state,
+The next product slice now persists a strict WebSocket transport through store v5, exposes explicit
+advanced create/join/leave/member controls, uses bounded legacy-v1 and managed-v2 bearer invitation codecs, shows connection state,
 activates disclosed WS/WSS CSP access, strips the binding from offline archives, and headlessly proves
 invite-to-provider reopen through separate IndexedDB stores. Syzygy now also owns an opt-in bundled
 private-LAN relay child: Settings starts/supervises it without Node/PowerShell, shutdown reaps it and
 verifies port release, and a bounded crash-tail-repairing sync-update log recovers a document into a
 new empty client after every source client and relay process exit. Frames/rooms/clients are capped;
-awareness is never persisted. This advances the phase but does not complete it: authenticated
-identity/authorization and revocation, public WSS operation, compaction/export/backups, broader abuse
+awareness is never persisted. Managed rooms now store capability digests, enforce viewer versus
+writer protocol frames, and restart under exact-revision issue/revoke operations; legacy rooms remain
+explicitly compatible. This advances the phase but does not complete it: authenticated human
+identity, signed device-to-role binding/shared administration, public WSS operation, compaction/export/backups, broader abuse
 controls, packaged physical two-install use, and five-client soak remain open.
 
 ### Phase 6 — scenario workflow (`XL`)

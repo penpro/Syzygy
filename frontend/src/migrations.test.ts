@@ -25,10 +25,10 @@ const current = {
 describe('persisted-store migrations', () => {
   it('rewrites older saves for the current transport-capable store and rejects future versions', () => {
     const saved = { settings: defaultSettings }
-    expect(PERSISTED_STORE_VERSION).toBe(4)
+    expect(PERSISTED_STORE_VERSION).toBe(5)
     expect(migratePersistedVersion(saved, 2)).toBe(saved)
     expect(migratePersistedVersion(null, 2)).toEqual({})
-    expect(() => migratePersistedVersion(saved, 5)).toThrow('unsupported persisted store version')
+    expect(() => migratePersistedVersion(saved, 6)).toThrow('unsupported persisted store version')
   })
 
   it('defaults legacy saves to local AI on but preserves an explicit opt-out', () => {
@@ -62,7 +62,7 @@ describe('persisted-store migrations', () => {
     expect(twice.activeProjectId).toBe(once.activeProjectId)
   })
 
-  it('preserves a canonical self-hosted binding through the v4 merge idempotently', () => {
+  it('preserves legacy and managed self-hosted bindings through the v5 merge idempotently', () => {
     const project = {
       ...createProjectManifest({ id: 'self-hosted', documentId: 'self-hosted-doc', timestamp: 1 }),
       transport: {
@@ -78,6 +78,29 @@ describe('persisted-store migrations', () => {
     expect(once.projects).toEqual([project])
     expect(once.activeProjectId).toBe(project.id)
     expect(twice.projects).toEqual(once.projects)
+
+    const managed = {
+      ...project,
+      id: 'managed-self-hosted',
+      documentId: 'managed-self-hosted-doc',
+      transport: {
+        ...project.transport,
+        access: {
+          schemaVersion: 1 as const,
+          memberId: 'member_' + 'b'.repeat(24),
+          capability: 'c'.repeat(43),
+          role: 'editor' as const,
+        },
+      },
+    }
+    const managedOnce = mergePersisted({
+      settings: defaultSettings, experts: [], asks: [], projects: [managed], activeProjectId: managed.id,
+    }, current)
+    expect(managedOnce.projects).toEqual([managed])
+    const malformed = { ...managed, transport: { ...managed.transport, access: { role: 'editor' } } }
+    expect(mergePersisted({
+      settings: defaultSettings, experts: [], asks: [], projects: [malformed], activeProjectId: malformed.id,
+    }, current).projects).toEqual([])
   })
 
   it('migrates local policy content atomically and idempotently before sharing', () => {

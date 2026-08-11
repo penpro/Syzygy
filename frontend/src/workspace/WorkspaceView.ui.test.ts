@@ -38,6 +38,22 @@ const websocketProject: ResearchProjectManifest = {
     roomId: 'room_' + 'a'.repeat(40),
   },
 }
+const managedWebsocketProject: ResearchProjectManifest = {
+  ...websocketProject,
+  id: 'workspace-managed-relay-project',
+  documentId: 'workspace-managed-relay-document',
+  transport: {
+    kind: 'websocket',
+    endpoint: 'ws://192.168.1.20:1234',
+    roomId: 'room_' + 'a'.repeat(40),
+    access: {
+      schemaVersion: 1,
+      memberId: 'member_' + 'b'.repeat(24),
+      capability: 'c'.repeat(43),
+      role: 'viewer',
+    },
+  },
+}
 
 let previousProjects: ResearchProjectManifest[]
 let previousActiveProjectId: string | null
@@ -84,11 +100,11 @@ describe('workspace collaboration entry points', () => {
     const localHtml = renderToStaticMarkup(createElement(SelfHostedProjectControls, { project: localProject }))
     expect(localHtml).toContain('Self-hosted relay (advanced)')
     expect(localHtml).toContain('The relay is not a backup')
-    expect(localHtml).toContain('invitation is the access key')
+    expect(localHtml).toContain('managed invitations enforce their assigned role')
     expect(localHtml).toContain('Create invitation and connect')
 
     const sharedHtml = renderToStaticMarkup(createElement(SelfHostedProjectControls, { project: websocketProject }))
-    expect(sharedHtml).toContain('Anyone with this invitation can read and edit')
+    expect(sharedHtml).toContain('Anyone with this legacy invitation can read and edit')
     expect(sharedHtml).toContain('Leave relay · keep local copy')
     expect(sharedHtml).toContain('Local IndexedDB remains the durable copy')
   })
@@ -104,13 +120,22 @@ describe('workspace collaboration entry points', () => {
     expect(html).not.toContain('Shared project titles are fixed')
   })
 
-  it('offers a running app-managed relay without weakening bearer disclosure', () => {
+  it('offers the app-managed relay with role and legacy bearer disclosure', () => {
     const html = renderToStaticMarkup(createElement(SelfHostedProjectControls, {
       project: localProject,
       managedRelayEndpoint: 'ws://192.168.1.20:37665',
     }))
     expect(html).toContain('Use this app’s relay · ws://192.168.1.20:37665')
-    expect(html).toContain('invitation is the access key')
+    expect(html).toContain('adds member roles and revocation')
+    expect(html).toContain('legacy invitations grant read and edit')
+
+    const viewer = renderToStaticMarkup(createElement(SelfHostedProjectControls, {
+      project: managedWebsocketProject,
+    }))
+    expect(viewer).toContain('Member access')
+    expect(viewer).toContain('viewer')
+    expect(viewer).toContain('Viewer document updates are rejected by the relay')
+    expect(viewer).not.toContain('Legacy read/edit bearer invitation')
   })
 
   it('retains the exact revision guards captured when a shared-title draft became dirty', () => {

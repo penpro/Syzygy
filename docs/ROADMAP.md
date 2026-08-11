@@ -84,8 +84,10 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   Memory transport. Its headless suite proves bidirectional live document/domain updates,
   partition isolation, offline edits, reconnect merging, awareness cleanup, and identical final
   state. Drive adds append-only selected-workspace updates; WebSocket now adds live awareness, a
-  persisted bearer-invite product binding, and an app-managed private-LAN relay with bounded native
-  lifecycle and recovery storage. Authenticated identity and packaged multi-install proof remain open.
+  persisted legacy or role-specific bearer-invite product binding, and an app-managed private-LAN
+  relay with bounded native lifecycle, recovery storage, digest-only member capabilities, enforced
+  viewer/editor/admin writes, and host-local revocation. Authenticated human identity, signed
+  identity-to-role binding, and packaged multi-install proof remain open.
 - The first original product node is now implemented but not yet interaction-verified: a Lexical
   `PolicyBlockNode` with stable
   identity, editable text, draft/review/approved state, strict JSON import, theme-token UI, and a
@@ -601,22 +603,28 @@ collaborators are not required to download large project folders.
    convergence, awareness propagation, stale-presence cleanup, and process reaping without claiming
    relay persistence. Next: run and record the packaged two-install Drive convergence/reconciliation/
    title harness, large-account catalog latency, and real-Drive update/title compaction plus
-   interruption repair. WebSocket bindings now persist through store v4; explicit advanced product
-   controls create/join/leave bounded bearer invitations, connection state is visible, offline
+   interruption repair. WebSocket bindings now persist through store v5; explicit advanced product
+   controls create/join/leave bounded v1 legacy and v2 managed-member bearer invitations, connection state is visible, offline
    archives redact the live binding, CSP/network copy is activated, and a real relay harness proves
    two provider instances plus one IndexedDB destroy/reopen. The app-managed private-LAN relay is now
    a bundled Syzygy child with saved enable/listen/port settings, supervised restart, graceful
    shutdown plus listener-release verification, and bounded document-sync recovery logs that exclude
    awareness. A native-executable harness proves all-source-client exit, process restart, server-only
-   recovery into an empty client, product-provider compatibility, and listener reuse. A first
+   recovery into an empty client, product-provider compatibility, and listener reuse. Managed rooms
+   now store only member-capability SHA-256 digests, enforce viewer/editor/admin document writes,
+   require exact-revision issue/revoke operations, restart to reauthenticate every connection, and
+   leave unregistered rooms in explicit legacy mode. The native harness rejects missing, wrong, and
+   revoked credentials, proves viewer updates neither propagate nor persist, and runs the managed
+   invitation/provider flow. A first
    identity foundation now gives each installation an OS-vault Ed25519 key and signs only bounded
    ephemeral presence. Cross-language mutation tests pass, and a local project-scoped registry now
-   labels verified fingerprints approved or revoked without changing relay access. Keys remain
+   labels verified fingerprints approved or revoked without changing relay access. Managed member
+   credentials remain independent bearer authorization and are not bound to these signed keys. Keys remain
    self-issued; an explicit signed project directory now keeps device registrations available
    offline and exposes participant-claim conflicts, but local decisions are neither shared nor
    authoritative, exact same-session replay and participant-ID impersonation remain possible, and
    durable research events are unsigned. Next: add
-   trusted project-shared enrollment, roles and revocation propagation, signed durable-event
+   trusted project-shared enrollment, signed identity-to-role binding and shared administration, signed durable-event
    envelopes, key rotation/recovery, public WSS operations, compaction/export/backups
    and broader abuse controls, then run packaged physical two-install and five-client soak gates.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.

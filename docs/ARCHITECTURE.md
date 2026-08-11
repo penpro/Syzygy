@@ -219,12 +219,14 @@ fixture. `WebsocketProjectProvider` is the first non-Drive implementation: it co
 IndexedDB/automation lifecycle with the stable Yjs 13 `y-websocket` protocol, live awareness,
 15-second initial-readiness bound, and reconnect backoff. Binding validation permits plaintext only
 for loopback/private-LAN hosts and rejects credentials, queries, fragments, prefilled room paths, and
-weak room IDs. The product can persist that binding, create or accept a strict bounded bearer
-invitation, reopen through IndexedDB, show owned connection status, and leave the relay while keeping
-the local copy. Store v4 is the idempotent persistence boundary; offline archives deliberately redact
-the endpoint and bearer room. The webview CSP permits dynamic WS/WSS connections because endpoints
-are user-configured, while the application parser retains the private-plaintext boundary. The room
-identifier grants project access but does not authenticate participant identity.
+weak room IDs. The product can persist that binding, create or accept a strict bounded invitation,
+reopen through IndexedDB, show owned connection status, and leave the relay while keeping the local
+copy. Store v5 is the idempotent persistence boundary. A v1 third-party/legacy invitation uses the
+room ID as one read/edit bearer. A v2 app-managed invitation adds an exact member ID, role, and random
+capability without putting credentials in the canonical endpoint or room path. Offline archives
+deliberately redact the entire live binding. The webview CSP permits dynamic WS/WSS connections
+because endpoints are user-configured, while the application parser retains the private-plaintext
+boundary. These bearer credentials authorize relay operations but do not authenticate a person.
 
 Live WebSocket awareness can add a schema-v2 self-signed installation proof. Rust creates one
 Ed25519 key per installation and persists its PKCS#8 private bytes only in the operating-system
@@ -261,11 +263,12 @@ This remains a device-key continuity foundation, not participant authentication.
 self-issued, and local approval is a user-editable label rather than trusted enrollment or an access
 control. Durable registration is replayable by design, can be deleted or flooded by a bearer peer,
 and exposes a stable cross-project-correlatable public fingerprint only after explicit action. There
-is no project-shared approval, role, propagated revocation list, trusted clock, key
+is no project-shared device approval, signed role binding, trusted clock, key
 rotation/recovery, or binding from a fingerprint to a person or organization. A holder can claim any
 participant ID, a rotated key appears unapproved, and an exact captured proof can still be replayed
 for the same project/document/client/nonce context. Durable Yjs research events are not signed. The
-relay continues to authorize rooms only by bearer ID, including for locally revoked fingerprints.
+managed relay member capability is not bound to that signed key, and local fingerprint decisions do
+not issue or revoke relay access.
 
 The optional app-managed relay is a separate child mode of the installed Syzygy executable. Its
 saved native configuration contains only enabled/listen/port; room IDs never appear in process
@@ -277,9 +280,18 @@ rooms at 32 clients, 256 total connections and 256 active rooms, 512 MiB total s
 append-only document-sync log at 64 MiB/8,192 records. Awareness is broadcast but never written. Complete log records are synced before relay,
 and one partial crash tail is repaired without discarding earlier complete records. This is bounded
 recovery storage, not an independently administered backup. Node.js and PowerShell are not runtime
-dependencies for this research relay. Public WSS termination, authenticated human identity/roles,
-invitation revocation, log compaction/export/backup, broader abuse controls, and physical packaged
-multi-install proof remain gates. The
+dependencies for this research relay. Its separate, strict `members-v1.json` registry caps 256 rooms
+and 64 members per room, stores only SHA-256 capability digests, and requires one active admin.
+Managed WebSocket queries carry a random member ID and 256-bit capability. Admin/editor roles may
+send Yjs step-two/update frames; viewers may receive retained state, send sync-step-one and awareness,
+but document writes close their connection before broadcast or persistence. Local issue/revoke
+commands require an exact registry revision, stop the owned child, durably replace the registry, and
+restart the relay so existing connections reauthenticate. Admin credentials do not expose a remote
+management endpoint; only the relay-host installation controls membership. Rooms absent from the
+registry retain explicit legacy room-bearer compatibility. Public WSS termination, authenticated
+human identity or signed identity-to-role binding, capability recovery/rotation UX, log
+compaction/export/backup, broader abuse controls, and physical packaged multi-install proof remain
+gates. The
 Drive provider publishes to the UI/MCP automation registry only after local reopen plus its initial
 remote pull, and a live canary proves the underlying Google create/list/readback/cleanup path.
 Drive project titles are a second, metadata-only append path rather than a mutable manifest field.

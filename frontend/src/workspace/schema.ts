@@ -1,11 +1,14 @@
-import { normalizeWebsocketProjectBinding } from './websocketProjectBinding'
+import {
+  normalizeWebsocketProjectBinding,
+  type ManagedRelayAccess,
+} from './websocketProjectBinding'
 
 export const PROJECT_SCHEMA_VERSION = 1 as const
 
 export type ProjectTransportBinding =
   | { kind: 'local' }
   | { kind: 'drive'; workspaceId: string }
-  | { kind: 'websocket'; endpoint: string; roomId: string }
+  | { kind: 'websocket'; endpoint: string; roomId: string; access?: ManagedRelayAccess }
 
 export interface ResearchProjectManifest {
   schemaVersion: typeof PROJECT_SCHEMA_VERSION
@@ -54,8 +57,14 @@ export function isResearchProjectManifest(value: unknown): value is ResearchProj
     const roomId = (transport as { roomId?: unknown }).roomId
     if (typeof endpoint === 'string' && typeof roomId === 'string') {
       try {
-        const normalized = normalizeWebsocketProjectBinding({ endpoint, roomId })
-        validTransport = normalized.endpoint === endpoint && normalized.roomId === roomId
+        const access = (transport as { access?: ManagedRelayAccess }).access
+        const normalized = normalizeWebsocketProjectBinding({ endpoint, roomId, access })
+        const expectedKeys = access === undefined
+          ? ['endpoint', 'kind', 'roomId']
+          : ['access', 'endpoint', 'kind', 'roomId']
+        validTransport = Object.keys(transport).sort().join(',') === expectedKeys.sort().join(',') &&
+          normalized.endpoint === endpoint && normalized.roomId === roomId &&
+          JSON.stringify(normalized.access) === JSON.stringify(access)
       } catch {
         validTransport = false
       }

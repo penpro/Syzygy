@@ -103,16 +103,18 @@ const selfHostedCspSource = text('frontend/src-tauri/tauri.conf.json')
 const selfHostedNetworkManifestSource = text('docs/audits/NETWORK-BOUNDARIES.json')
 record(
   'self-hosted product collaboration remains persisted, explicit, live-tested, and bearer-honest',
-  projectSchemaSource.includes("{ kind: 'websocket'; endpoint: string; roomId: string }") &&
-    migrationSourceForWebsocket.includes('PERSISTED_STORE_VERSION = 4') &&
+  projectSchemaSource.includes("{ kind: 'websocket'; endpoint: string; roomId: string; access?: ManagedRelayAccess }") &&
+    migrationSourceForWebsocket.includes('PERSISTED_STORE_VERSION = 5') &&
     projectStoreSourceForWebsocket.includes('bindProjectToWebsocket: (id, bindingValue) =>') &&
+    projectStoreSourceForWebsocket.includes('setSelfHostedProjectAccess: (id, access) =>') &&
     projectStoreSourceForWebsocket.includes('addSelfHostedProject: (value) =>') &&
     projectStoreSourceForWebsocket.includes('leaveSelfHostedProject: (id) =>') &&
     websocketInviteSource.includes("WEBSOCKET_PROJECT_INVITE_PREFIX = 'syzygy-websocket-invite-v1.'") &&
+    websocketInviteSource.includes("MANAGED_WEBSOCKET_PROJECT_INVITE_PREFIX = 'syzygy-websocket-invite-v2.'") &&
     websocketInviteSource.includes('MAX_WEBSOCKET_PROJECT_INVITE_LENGTH = 6_000') &&
     websocketInviteSource.includes("exactKeys(manifest.transport, ['kind', 'endpoint', 'roomId'])") &&
     websocketInviteTestSource.includes('rejects malformed, oversized, archived, non-WebSocket, and extra-field invitations') &&
-    websocketControlsSource.includes('Anyone with this invitation can read and edit') &&
+    websocketControlsSource.includes('Anyone with this legacy invitation can read and edit') &&
     websocketControlsSource.includes('The relay is not a backup') &&
     websocketControlsSource.includes('Leave relay · keep local copy') &&
     websocketStatusSource.includes("entries.get(projectId)?.owner !== owner") &&
@@ -128,7 +130,7 @@ record(
     websocketProductEvidence.includes('"productManifestBindingUsed": true') &&
     websocketProductEvidence.includes('"packagedTwoInstallUsed": false') &&
     websocketProductEvidence.includes('"status": "implemented_unverified"'),
-  'store-v4 manifest binding, strict invite, explicit bearer disclosure, stale-safe status, archive redaction, CSP/network inventory, real provider reopen, and physical/auth/public-hosting nonclaims are present',
+  'store-v5 legacy/managed binding, strict v1/v2 invites, explicit bearer/role disclosure, stale-safe status, archive redaction, CSP/network inventory, real provider reopen, and physical/identity/public-hosting nonclaims are present',
 )
 
 const collaborationRelayCargo = text('frontend/src-tauri/Cargo.toml')
@@ -137,9 +139,13 @@ const collaborationRelayMain = text('frontend/src-tauri/src/main.rs')
 const collaborationRelayLib = text('frontend/src-tauri/src/lib.rs')
 const collaborationRelayRuntime = text('frontend/src-tauri/src/collaboration_relay_runtime.rs')
 const collaborationRelayServer = text('frontend/src-tauri/src/collaboration_relay_server.rs')
+const collaborationRelayMembership = text('frontend/src-tauri/src/collaboration_relay_membership.rs')
+const collaborationRelayProvider = text('frontend/src/workspace/websocketProjectProvider.ts')
+const collaborationRelayTauri = text('frontend/src/tauri.ts')
 const collaborationRelaySettings = text('frontend/src/components/CollaborationRelaySettings.tsx')
 const collaborationRelayHarness = text('scripts/bundled-collaboration-relay-harness.mjs')
 const collaborationRelayEvidence = text('docs/audits/runs/APP-MANAGED-COLLABORATION-RELAY-2026-08-11.json')
+const collaborationRelayMembershipEvidence = text('docs/audits/runs/MANAGED-RELAY-MEMBERSHIP-2026-08-11.json')
 record(
   'app-managed collaboration relay remains private, bounded, durable, reaped, and identity-honest',
   collaborationRelayCargo.includes('tungstenite = "=0.21.0"') &&
@@ -164,7 +170,8 @@ record(
     collaborationRelayServer.includes('is_persistable_sync_frame') &&
     collaborationRelayServer.includes('partial tail record') &&
     collaborationRelaySettings.includes('does not require Node.js or PowerShell') &&
-    collaborationRelaySettings.includes('participant names are still self-reported') &&
+    collaborationRelaySettings.includes('Participant names are') &&
+    collaborationRelaySettings.includes('self-reported') &&
     collaborationRelaySettings.includes('Awareness is never written') &&
     frontendPackage.scripts?.['test:collaboration:bundled-relay']?.includes('bundled-collaboration-relay-harness.mjs') &&
     collaborationRelayHarness.includes('server-only document recovery') &&
@@ -174,7 +181,33 @@ record(
     collaborationRelayEvidence.includes('"awarenessPersisted": false') &&
     collaborationRelayEvidence.includes('"packagedTwoInstallUsed": false') &&
     collaborationRelayEvidence.includes('"status": "implemented_unverified"'),
-  'same-executable child mode, private bind, bounded synced document log, awareness exclusion, crash-tail repair, lifecycle verification, real empty-client recovery, and explicit auth/backup nonclaims are present',
+  'same-executable child mode, private bind, bounded synced document log, awareness exclusion, crash-tail repair, lifecycle verification, real empty-client recovery, and explicit identity/backup nonclaims are present',
+)
+
+record(
+  'managed relay membership remains digest-only, revision-guarded, role-enforced, revocable, and legacy-compatible',
+  collaborationRelayMembership.includes('MAX_MEMBERS_PER_ROOM: usize = 64') &&
+    collaborationRelayMembership.includes('capability_sha256') &&
+    collaborationRelayMembership.includes('Relay room must retain one active administrator') &&
+    collaborationRelayMembership.includes('Relay membership changed; refresh and try again') &&
+    collaborationRelayMembership.includes('constant_time_eq') &&
+    collaborationRelayServer.includes('Relay member role does not permit document updates') &&
+    collaborationRelayServer.includes('EMPTY_UPDATE_SYNC_STEP_TWO') &&
+    collaborationRelayRuntime.includes('stop_for_membership_change') &&
+    collaborationRelayRuntime.includes('collaboration_relay_member_revoke') &&
+    collaborationRelayTauri.includes('collaborationRelayMemberIssue') &&
+    collaborationRelayProvider.includes('capability: binding.access.capability') &&
+    websocketInviteSource.includes('createManagedWebsocketProjectInvite') &&
+    websocketControlsSource.includes('Issue separate invitation') &&
+    websocketControlsSource.includes('Viewer document updates are rejected by the relay') &&
+    collaborationRelayHarness.includes('managedViewerWriteRejectedAndNotPersisted: true') &&
+    collaborationRelayHarness.includes('managedRevocationAppliedAfterRestart: true') &&
+    collaborationRelayHarness.includes('legacyRoomCompatibleBesideManagedRooms: true') &&
+    collaborationRelayMembershipEvidence.includes('"capabilitiesHashedAtRest": true') &&
+    collaborationRelayMembershipEvidence.includes('"viewerWritePropagated": false') &&
+    collaborationRelayMembershipEvidence.includes('"packagedTwoInstallUsed": false') &&
+    collaborationRelayMembershipEvidence.includes('"status": "verified"'),
+  'strict bounded registry, digest-only random capabilities, exact revision mutations, forced reauthentication, protocol-aware viewer enforcement, managed product flow, legacy coexistence, and human-identity nonclaims are present',
 )
 
 const collaborationIdentitySource = text('frontend/src-tauri/src/collaboration_identity.rs')
@@ -1176,7 +1209,7 @@ record(
       ) &&
     localProjectProviderTestSource.includes("expect(automationProjectDocumentReady('document-1')).toBe(false)") &&
     localProjectProviderTestSource.includes("expect(automationProjectDocumentReady('document-1')).toBe(true)") &&
-    migrationSource.includes('PERSISTED_STORE_VERSION = 4') &&
+    migrationSource.includes('PERSISTED_STORE_VERSION = 5') &&
     migrationSource.includes('storedVersion > PERSISTED_STORE_VERSION'),
   'post-IndexedDB publication, exact draft/head guards, rollback-aware semantic replacement, two-step UI, one-update two-peer Yjs proof, durable attribution, and truthful P-28 status are present',
 )

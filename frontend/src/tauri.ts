@@ -109,6 +109,38 @@ export interface CollaborationRelayReport {
   lastError: string | null
 }
 
+export type RelayMemberRole = 'admin' | 'editor' | 'viewer'
+
+export interface RelayMemberCredential {
+  schemaVersion: 1
+  roomId: string
+  memberId: string
+  role: RelayMemberRole
+  capability: string
+  registryRevision: number
+}
+
+export interface RelayMemberSummary {
+  memberId: string
+  role: RelayMemberRole
+  createdAtMs: number
+  revokedAtMs: number | null
+}
+
+export interface RelayRoomMembershipReport {
+  schemaVersion: 1
+  registryRevision: number
+  roomId: string
+  projectId: string
+  protected: true
+  members: RelayMemberSummary[]
+}
+
+export interface RelayRoomCredentialResult {
+  credential: RelayMemberCredential
+  room: RelayRoomMembershipReport
+}
+
 export interface CollaborationIdentityReport {
   schemaVersion: 1
   algorithm: 'Ed25519'
@@ -773,6 +805,38 @@ export const collaborationRelaySettings = (): Promise<CollaborationRelayReport> 
 export const collaborationRelayConfigure = (
   config: CollaborationRelayConfig,
 ): Promise<CollaborationRelayReport> => invoke('collaboration_relay_configure', { config })
+
+/** Inspect public member metadata for one room operated here; no digest or token is returned. */
+export const collaborationRelayRoomStatus = (roomId: string): Promise<RelayRoomMembershipReport> =>
+  invoke('collaboration_relay_room_status', { roomId })
+
+/** Protect one local relay room and return its initial admin credential exactly once. */
+export const collaborationRelayRoomCreate = (
+  projectId: string,
+  roomId: string,
+): Promise<RelayRoomCredentialResult> => invoke('collaboration_relay_room_create', { projectId, roomId })
+
+/** Issue a separate bearer member credential; only its SHA-256 digest remains in relay storage. */
+export const collaborationRelayMemberIssue = (
+  roomId: string,
+  expectedRevision: number,
+  role: RelayMemberRole,
+): Promise<RelayRoomCredentialResult> => invoke('collaboration_relay_member_issue', {
+  roomId,
+  expectedRevision,
+  role,
+})
+
+/** Revoke one member under an exact registry revision; the native runtime restarts the relay. */
+export const collaborationRelayMemberRevoke = (
+  roomId: string,
+  memberId: string,
+  expectedRevision: number,
+): Promise<RelayRoomMembershipReport> => invoke('collaboration_relay_member_revoke', {
+  roomId,
+  memberId,
+  expectedRevision,
+})
 
 /** Public installation-key metadata. The private Ed25519 key never crosses this boundary. */
 export const collaborationIdentityStatus = (): Promise<CollaborationIdentityReport> =>

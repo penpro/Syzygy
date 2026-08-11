@@ -975,11 +975,14 @@ node scripts\run-with-heartbeat.mjs `
     --relay-executable frontend\src-tauri\target\debug\collaboration-relay.exe
 ```
 
-The second harness starts the same relay server used by the installed executable, proves live
-two-client convergence, exits every source client, gracefully stops and restarts the process, then
-recovers the document into a brand-new empty client from the server log. It also proves awareness
-was not persisted, the listener is reusable after shutdown, and the exact invitation/provider/
-IndexedDB product flow passes. Rust unit tests cover private binding, secret-free child arguments,
-message-class persistence, bounds, damaged-header denial, and partial-tail repair. This does not
-prove authenticated humans, public TLS/WSS, backup restoration, hostile-frame fuzzing, physical
-packaged clients, or five-client soak.
+The second harness starts the same relay server used by the installed executable, proves legacy
+two-client convergence, exits every source client, gracefully stops/restarts the process, and
+recovers the document into a new empty client. It then writes the exact digest-only membership
+registry, proves missing/wrong credentials receive no protected frame, admin/editor convergence,
+viewer read and awareness, viewer write rejection before broadcast/persistence, revocation after
+restart, managed v2 invitation/provider/IndexedDB reopen, and legacy-room compatibility beside
+protected rooms. Awareness is not persisted and the listener is reusable after shutdown. Rust unit
+tests cover strict registry recovery/bounds/revisions, private binding, secret-free child arguments,
+protocol message classes, damaged-header denial, and partial-tail repair. This does not prove
+authenticated humans or signed identity-to-role binding, public TLS/WSS, backup restoration,
+hostile-frame fuzzing, physical packaged clients, or five-client soak.

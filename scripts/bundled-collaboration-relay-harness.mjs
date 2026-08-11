@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
-import { mkdtemp, rm, stat } from 'node:fs/promises'
+import { createHash, randomBytes } from 'node:crypto'
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
@@ -84,7 +85,43 @@ async function assertPortReleased(port) {
   await new Promise((resolvePromise, reject) => server.close((error) => error ? reject(error) : resolvePromise()))
 }
 
-async function runProductProviderFlow(endpoint, roomId) {
+const token = (bytes = 32) => randomBytes(bytes).toString('base64url')
+const digest = (value) => createHash('sha256').update(value).digest('hex')
+
+function storedMember(memberId, capability, role, createdAtMs, revokedAtMs) {
+  return {
+    memberId,
+    role,
+    capabilitySha256: digest(capability),
+    createdAtMs,
+    ...(revokedAtMs ? { revokedAtMs } : {}),
+  }
+}
+
+function providerOptions(access) {
+  return {
+    WebSocketPolyfill: WebSocket,
+    disableBc: true,
+    params: { member: access.memberId, capability: access.capability },
+  }
+}
+
+async function assertAuthorizationDenied(endpoint, roomId, access, label) {
+  const query = new URLSearchParams(access ?? {}).toString()
+  const socket = new WebSocket(`${endpoint}/${roomId}${query ? `?${query}` : ''}`)
+  let frames = 0
+  socket.addEventListener('message', () => { frames += 1 })
+  await Promise.race([
+    new Promise((resolvePromise) => socket.addEventListener('close', resolvePromise, { once: true })),
+    sleep(3_000).then(() => {
+      socket.close()
+      throw new Error(`${label} was not denied within 3000 ms`)
+    }),
+  ])
+  if (frames !== 0) throw new Error(`${label} received protected relay data before denial`)
+}
+
+async function runProductProviderFlow(endpoint, roomId, access = null) {
   const child = spawn(process.execPath, [
     vitestEntry,
     'run',
@@ -95,6 +132,12 @@ async function runProductProviderFlow(endpoint, roomId) {
       ...process.env,
       VITE_SYZYGY_WEBSOCKET_TEST_ENDPOINT: endpoint,
       VITE_SYZYGY_WEBSOCKET_TEST_ROOM: roomId,
+      ...(access ? {
+        VITE_SYZYGY_WEBSOCKET_TEST_HOST_MEMBER: access.host.memberId,
+        VITE_SYZYGY_WEBSOCKET_TEST_HOST_CAPABILITY: access.host.capability,
+        VITE_SYZYGY_WEBSOCKET_TEST_GUEST_MEMBER: access.guest.memberId,
+        VITE_SYZYGY_WEBSOCKET_TEST_GUEST_CAPABILITY: access.guest.capability,
+      } : {}),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
@@ -121,6 +164,40 @@ const dataDirectory = await mkdtemp(join(tmpdir(), 'syzygy-bundled-relay-'))
 const port = await freePort()
 const endpoint = `ws://127.0.0.1:${port}`
 const persistedRoom = `room_${crypto.randomUUID().replaceAll('-', '')}`
+const protectedRoom = `protected_${crypto.randomUUID().replaceAll('-', '')}`
+const productRoom = `product_${crypto.randomUUID().replaceAll('-', '')}`
+const createdAtMs = Date.now()
+const adminAccess = { memberId: token(24), capability: token(), role: 'admin' }
+const editorAccess = { memberId: token(24), capability: token(), role: 'editor' }
+const viewerAccess = { memberId: token(24), capability: token(), role: 'viewer' }
+const productAdminAccess = { memberId: token(24), capability: token(), role: 'admin' }
+const productGuestAccess = { memberId: token(24), capability: token(), role: 'editor' }
+const membershipPath = join(dataDirectory, 'members-v1.json')
+const registry = {
+  schemaVersion: 1,
+  revision: 1,
+  rooms: [
+    {
+      roomId: protectedRoom,
+      projectId: 'protected-project',
+      createdAtMs,
+      members: [
+        storedMember(adminAccess.memberId, adminAccess.capability, adminAccess.role, createdAtMs),
+        storedMember(editorAccess.memberId, editorAccess.capability, editorAccess.role, createdAtMs),
+        storedMember(viewerAccess.memberId, viewerAccess.capability, viewerAccess.role, createdAtMs),
+      ],
+    },
+    {
+      roomId: productRoom,
+      projectId: `product-project-${productRoom}`,
+      createdAtMs,
+      members: [
+        storedMember(productAdminAccess.memberId, productAdminAccess.capability, productAdminAccess.role, createdAtMs),
+        storedMember(productGuestAccess.memberId, productGuestAccess.capability, productGuestAccess.role, createdAtMs),
+      ],
+    },
+  ],
+}
 let relay = null
 let providerA = null
 let providerB = null
@@ -128,8 +205,10 @@ let providerC = null
 let docA = null
 let docB = null
 let docC = null
+let viewerWriteRejected = false
 
 try {
+  // A room absent from the registry remains explicitly compatible with v1 bearer invitations.
   relay = await startRelay(executable, port, dataDirectory)
   docA = new Y.Doc()
   docB = new Y.Doc()
@@ -178,6 +257,115 @@ try {
   relay = null
   await assertPortReleased(port)
 
+  await writeFile(membershipPath, JSON.stringify(registry, null, 2), { encoding: 'utf8', flag: 'wx' })
+  const storedRegistry = await readFile(membershipPath, 'utf8')
+  for (const access of [adminAccess, editorAccess, viewerAccess, productAdminAccess, productGuestAccess]) {
+    if (storedRegistry.includes(access.capability)) throw new Error('relay registry retained a plaintext capability')
+  }
+
+  relay = await startRelay(executable, port, dataDirectory)
+  await assertAuthorizationDenied(endpoint, protectedRoom, null, 'missing protected-room authorization')
+  await assertAuthorizationDenied(endpoint, protectedRoom, {
+    member: editorAccess.memberId,
+    capability: token(),
+  }, 'incorrect protected-room capability')
+
+  docA = new Y.Doc()
+  docB = new Y.Doc()
+  providerA = new WebsocketProvider(endpoint, protectedRoom, docA, providerOptions(adminAccess))
+  providerB = new WebsocketProvider(endpoint, protectedRoom, docB, providerOptions(editorAccess))
+  await waitFor(() => providerA.synced && providerB.synced, 'authorized member synchronization')
+  docA.getMap('membership').set('authorized-baseline', 'retained')
+  await waitFor(
+    () => docB.getMap('membership').get('authorized-baseline') === 'retained',
+    'authorized editor propagation',
+  )
+
+  docC = new Y.Doc()
+  providerC = new WebsocketProvider(endpoint, protectedRoom, docC, providerOptions(viewerAccess))
+  providerC.on('connection-close', () => { viewerWriteRejected = true })
+  await waitFor(() => providerC.synced, 'authorized viewer synchronization')
+  await waitFor(
+    () => docC.getMap('membership').get('authorized-baseline') === 'retained',
+    'viewer readback',
+  )
+  providerC.awareness.setLocalStateField('member-role-proof', { role: 'viewer' })
+  await waitFor(
+    () => Array.from(providerA.awareness.getStates().values())
+      .some((state) => state['member-role-proof']?.role === 'viewer'),
+    'viewer awareness propagation',
+  )
+  docC.getMap('membership').set('viewer-write', 'must-not-propagate')
+  await waitFor(() => viewerWriteRejected, 'viewer write rejection')
+  providerC.destroy()
+  docC.destroy()
+  providerC = null
+  docC = null
+  await sleep(250)
+  if (docA.getMap('membership').has('viewer-write') || docB.getMap('membership').has('viewer-write')) {
+    throw new Error('viewer document update reached an authorized writer')
+  }
+
+  providerA.destroy()
+  providerB.destroy()
+  docA.destroy()
+  docB.destroy()
+  providerA = null
+  providerB = null
+  docA = null
+  docB = null
+  await stopRelay(relay)
+  relay = null
+  await assertPortReleased(port)
+
+  registry.revision += 1
+  registry.rooms[0].members[1].revokedAtMs = Date.now()
+  await writeFile(membershipPath, JSON.stringify(registry, null, 2), 'utf8')
+  relay = await startRelay(executable, port, dataDirectory)
+  await assertAuthorizationDenied(endpoint, protectedRoom, {
+    member: editorAccess.memberId,
+    capability: editorAccess.capability,
+  }, 'revoked protected-room member')
+
+  docA = new Y.Doc()
+  providerA = new WebsocketProvider(endpoint, protectedRoom, docA, providerOptions(adminAccess))
+  await waitFor(() => providerA.synced, 'authorized restart recovery')
+  await waitFor(
+    () => docA.getMap('membership').get('authorized-baseline') === 'retained',
+    'protected document restart recovery',
+  )
+  if (docA.getMap('membership').has('viewer-write')) {
+    throw new Error('rejected viewer update was persisted')
+  }
+
+  docB = new Y.Doc()
+  providerB = new WebsocketProvider(endpoint, persistedRoom, docB, {
+    WebSocketPolyfill: WebSocket,
+    disableBc: true,
+  })
+  await waitFor(() => providerB.synced, 'legacy room compatibility with a membership registry')
+  await waitFor(
+    () => docB.getMap('durability').get('server-only-recovery') === 'retained',
+    'legacy room recovery with a membership registry',
+  )
+
+  await runProductProviderFlow(endpoint, productRoom, {
+    host: productAdminAccess,
+    guest: productGuestAccess,
+  })
+
+  providerA.destroy()
+  providerB.destroy()
+  docA.destroy()
+  docB.destroy()
+  providerA = null
+  providerB = null
+  docA = null
+  docB = null
+  await stopRelay(relay)
+  relay = null
+  await assertPortReleased(port)
+
   console.log(JSON.stringify({
     passed: true,
     executable: basename(executable),
@@ -190,6 +378,14 @@ try {
     awarenessPersisted: false,
     productInviteRoundTrip: true,
     productProviderReopenRestored: true,
+    managedMemberCapabilitiesHashedAtRest: true,
+    managedMissingAndIncorrectCredentialsDenied: true,
+    managedAdminEditorConvergence: true,
+    managedViewerReadAndAwarenessAllowed: true,
+    managedViewerWriteRejectedAndNotPersisted: true,
+    managedRevocationAppliedAfterRestart: true,
+    managedProductInvitationAndProviderAuthentication: true,
+    legacyRoomCompatibleBesideManagedRooms: true,
   }, null, 2))
 } finally {
   providerA?.destroy()

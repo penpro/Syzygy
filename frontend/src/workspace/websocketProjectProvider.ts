@@ -84,6 +84,10 @@ export class WebsocketProjectProvider implements ProjectCollaborationProvider {
       connect: false,
       disableBc: true,
       maxBackoffTime: 2_500,
+      params: binding.access ? {
+        member: binding.access.memberId,
+        capability: binding.access.capability,
+      } : {},
     })
     this.remote.on('status', this.forwardStatus)
     this.remote.on('sync', this.forwardSync)

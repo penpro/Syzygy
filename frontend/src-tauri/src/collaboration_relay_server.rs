@@ -4,6 +4,9 @@
 //! distinguish document sync from ephemeral awareness. It never interprets Syzygy domain data.
 //! Document sync frames are stored in a bounded append-only room log; awareness is memory-only.
 
+use crate::collaboration_relay_membership::{
+    authorize, load_registry, registry_path, RelayAuthorization, RelayMembershipRegistry,
+};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, OpenOptions};
@@ -30,6 +33,9 @@ const SOCKET_POLL: Duration = Duration::from_millis(50);
 const HANDSHAKE_DEADLINE: Duration = Duration::from_secs(5);
 const REPLAY_DEADLINE: Duration = Duration::from_secs(15);
 const EMPTY_STATE_VECTOR_SYNC_STEP_ONE: &[u8] = &[0, 0, 1, 0];
+// y-protocol sync step two containing Yjs's canonical empty update. This completes a viewer's
+// handshake after retained frames without asking the viewer to send document state to the relay.
+const EMPTY_UPDATE_SYNC_STEP_TWO: &[u8] = &[0, 1, 2, 0, 0];
 
 type PeerId = u64;
 struct Peer {
@@ -59,6 +65,7 @@ impl Room {
 
 struct RelayState {
     data_dir: PathBuf,
+    membership: RelayMembershipRegistry,
     rooms: HashMap<String, Room>,
     total_bytes: usize,
     next_peer_id: AtomicU64,
@@ -125,8 +132,46 @@ fn frame_hash(frame: &[u8]) -> [u8; 32] {
     Sha256::digest(frame).into()
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FrameClass {
+    SyncStepOne,
+    DocumentWrite,
+    NonDocument,
+}
+
+fn read_var_uint(frame: &[u8], offset: &mut usize) -> Option<u64> {
+    let mut value = 0u64;
+    let mut shift = 0u32;
+    loop {
+        let byte = *frame.get(*offset)?;
+        *offset += 1;
+        value |= u64::from(byte & 0x7f).checked_shl(shift)?;
+        if byte & 0x80 == 0 {
+            return Some(value);
+        }
+        shift = shift.checked_add(7)?;
+        if shift >= 64 {
+            return None;
+        }
+    }
+}
+
+fn classify_frame(frame: &[u8]) -> Result<FrameClass, String> {
+    let mut offset = 0usize;
+    let outer = read_var_uint(frame, &mut offset)
+        .ok_or_else(|| "Relay frame has a malformed message tag".to_string())?;
+    if outer != 0 {
+        return Ok(FrameClass::NonDocument);
+    }
+    match read_var_uint(frame, &mut offset) {
+        Some(0) => Ok(FrameClass::SyncStepOne),
+        Some(1 | 2) => Ok(FrameClass::DocumentWrite),
+        _ => Err("Relay frame has an unsupported sync message".into()),
+    }
+}
+
 fn is_persistable_sync_frame(frame: &[u8]) -> bool {
-    frame.len() >= 2 && frame[0] == 0 && matches!(frame[1], 1 | 2)
+    classify_frame(frame) == Ok(FrameClass::DocumentWrite)
 }
 
 fn encode_log(frames: &[Vec<u8>]) -> Result<Vec<u8>, String> {
@@ -372,11 +417,12 @@ fn handle_connection(
     stream
         .set_write_timeout(Some(HANDSHAKE_DEADLINE))
         .map_err(|error| format!("Could not bound relay handshake writes: {error}"))?;
-    let path = Arc::new(Mutex::new(None::<String>));
-    let captured_path = path.clone();
+    let target = Arc::new(Mutex::new((None::<String>, None::<String>)));
+    let captured_target = target.clone();
     let mut socket = accept_hdr(stream, move |request: &Request, response: Response| {
-        if let Ok(mut path) = captured_path.lock() {
-            *path = Some(request.uri().path().to_string());
+        if let Ok(mut target) = captured_target.lock() {
+            target.0 = Some(request.uri().path().to_string());
+            target.1 = request.uri().query().map(str::to_string);
         }
         Ok(response)
     })
@@ -389,12 +435,23 @@ fn handle_connection(
         .get_mut()
         .set_write_timeout(Some(HANDSHAKE_DEADLINE))
         .map_err(|error| format!("Could not configure relay write deadline: {error}"))?;
-    let room_id = path
+    let (path, query) = target
         .lock()
-        .ok()
-        .and_then(|path| path.clone())
+        .map(|target| target.clone())
+        .map_err(|_| "Relay handshake target lock was poisoned".to_string())?;
+    let room_id = path
         .and_then(|path| room_from_path(&path))
         .ok_or_else(|| "WebSocket relay room path is invalid".to_string())?;
+    let authorization = {
+        let state = shared
+            .lock()
+            .map_err(|_| "Relay state lock was poisoned".to_string())?;
+        authorize(&state.membership, &room_id, query.as_deref())?
+    };
+    let can_write = match authorization {
+        RelayAuthorization::LegacyBearer => true,
+        RelayAuthorization::Member { role, .. } => role.can_write(),
+    };
     let (peer_id, outgoing, evicted, retained) = register_peer(&shared, &room_id)?;
     let result = (|| {
         let replay_deadline = Instant::now() + REPLAY_DEADLINE;
@@ -404,9 +461,15 @@ fn handle_connection(
             }
             send_binary(&mut socket, frame)?;
         }
-        // Ask this client for its full state. This lets a locally durable client seed or repair the
-        // server log without the relay interpreting Yjs updates.
-        send_binary(&mut socket, EMPTY_STATE_VECTOR_SYNC_STEP_ONE.to_vec())?;
+        if can_write {
+            // Ask writable clients for full state. This lets a locally durable editor seed or
+            // repair the server log without the relay interpreting Yjs updates.
+            send_binary(&mut socket, EMPTY_STATE_VECTOR_SYNC_STEP_ONE.to_vec())?;
+        } else {
+            // A viewer must never be asked for document state. Retained frames were sent first;
+            // this empty step-two only completes y-websocket's sync handshake.
+            send_binary(&mut socket, EMPTY_UPDATE_SYNC_STEP_TWO.to_vec())?;
+        }
         while !stopping.load(Ordering::Relaxed) && !evicted.load(Ordering::Relaxed) {
             while let Ok(frame) = outgoing.try_recv() {
                 send_binary(&mut socket, frame)?;
@@ -416,10 +479,21 @@ fn handle_connection(
                     if frame.len() > MAX_FRAME_BYTES {
                         return Err("Relay frame exceeds the 12 MiB limit".into());
                     }
+                    let class = classify_frame(&frame)?;
+                    if class == FrameClass::DocumentWrite && !can_write {
+                        return Err("Relay member role does not permit document updates".into());
+                    }
                     persist_if_new(&shared, &room_id, &frame)?;
                     broadcast(&shared, &room_id, peer_id, &frame);
-                    if frame.starts_with(&[0, 0]) {
-                        send_binary(&mut socket, EMPTY_STATE_VECTOR_SYNC_STEP_ONE.to_vec())?;
+                    if class == FrameClass::SyncStepOne {
+                        send_binary(
+                            &mut socket,
+                            if can_write {
+                                EMPTY_STATE_VECTOR_SYNC_STEP_ONE.to_vec()
+                            } else {
+                                EMPTY_UPDATE_SYNC_STEP_TWO.to_vec()
+                            },
+                        )?;
                     }
                 }
                 Ok(Message::Ping(payload)) => socket
@@ -453,11 +527,13 @@ pub fn run_server(
     fs::create_dir_all(&data_dir)
         .map_err(|error| format!("Could not create relay storage directory: {error}"))?;
     let total_bytes = storage_bytes(&data_dir)?;
+    let membership = load_registry(&registry_path(&data_dir))?;
     listener
         .set_nonblocking(true)
         .map_err(|error| format!("Could not configure relay listener: {error}"))?;
     let shared = Arc::new(Mutex::new(RelayState {
         data_dir,
+        membership,
         rooms: HashMap::new(),
         total_bytes,
         next_peer_id: AtomicU64::new(1),
@@ -565,6 +641,21 @@ mod tests {
         assert!(is_persistable_sync_frame(&[0, 2, 2]));
         assert!(!is_persistable_sync_frame(&[0, 0, 1, 0]));
         assert!(!is_persistable_sync_frame(&[1, 2, 3]));
+        assert_eq!(
+            classify_frame(&[0, 0, 1, 0]).unwrap(),
+            FrameClass::SyncStepOne
+        );
+        assert_eq!(
+            classify_frame(&[0, 1, 2]).unwrap(),
+            FrameClass::DocumentWrite
+        );
+        assert_eq!(
+            classify_frame(&[0, 2, 2]).unwrap(),
+            FrameClass::DocumentWrite
+        );
+        assert_eq!(classify_frame(&[1, 2, 3]).unwrap(), FrameClass::NonDocument);
+        assert!(classify_frame(&[0, 3]).is_err());
+        assert!(classify_frame(&[0x80]).is_err());
         assert_eq!(MAX_ACTIVE_ROOMS, 256);
         assert_eq!(MAX_SERVER_BYTES, 512 * 1024 * 1024);
         assert_eq!(MAX_SERVER_CONNECTIONS, 256);

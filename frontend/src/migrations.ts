@@ -20,7 +20,7 @@ import {
   type StablePolicyStatus,
 } from './workspace/policyContentModel'
 
-export const PERSISTED_STORE_VERSION = 4
+export const PERSISTED_STORE_VERSION = 5
 
 export interface LegacyPolicyContentSeed {
   policyId: string
@@ -95,9 +95,10 @@ export function migrateLocalPolicyContentDocument(
 }
 
 /**
- * Zustand rewrites storage only when its numbered migration runs. Version 4 records the expanded
- * project-transport union; existing local/Drive manifests are already canonical and pass through
- * unchanged, while mergePersisted continues to reject unknown or malformed bindings.
+ * Zustand rewrites storage only when its numbered migration runs. Version 5 permits an optional,
+ * strictly validated managed-relay member credential on WebSocket transports. Version 4 bearer
+ * transports remain explicit legacy bindings and pass through unchanged; mergePersisted rejects
+ * partial, unknown, or malformed managed-member shapes.
  */
 export function migratePersistedVersion(persisted: unknown, storedVersion: number): unknown {
   if (!Number.isInteger(storedVersion) || storedVersion < 0 || storedVersion > PERSISTED_STORE_VERSION) {

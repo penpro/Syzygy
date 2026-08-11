@@ -174,22 +174,29 @@ inspection. Successful copy says to reopen a project if the earlier provider ini
 already blocked. The surface never displays repair record names or Drive IDs, calls quarantined data
 trusted, adjudicates title conflicts, or suggests authenticated provenance.
 Self-hosted collaboration is an advanced, explicit flow. A local project accepts a canonical WS/WSS
-relay endpoint only after the user acknowledges that its generated invitation is a bearer access key.
-The empty workspace can join only from the complete bounded invitation. Active relay projects show
-the configured endpoint, live/connecting/offline/error state, a manually copyable invitation, and
-**Leave relay · keep local copy**. Copy must say that anyone with the invitation can read and edit,
-participant names are self-reported, local IndexedDB is the durable copy, and the relay is not a
-backup. Public plaintext, embedded credentials, queries, fragments, room paths, and weak room IDs
-fail before persistence. Offline archive export strips the endpoint and bearer room.
+relay endpoint only after the user acknowledges bearer access. The empty workspace can join only from
+a complete bounded invitation. A third-party or unprotected legacy room exposes one v1 read/edit
+bearer invitation. A room hosted by this app creates an admin credential and issues a distinct v2
+viewer/editor/admin invitation per collaborator. Active relay projects show the configured endpoint,
+live/connecting/offline/error state, actual assigned role, and **Leave relay · keep local copy**.
+Legacy copy must say anyone with that invitation can read and edit. Managed host controls list only
+public member ID/role/status, use exact revisions, show each newly issued capability once, and explain
+that revocation restarts the relay. Viewer copy must say relay writes are rejected while local edits
+remain local. Participant names remain self-reported, IndexedDB is the durable local copy, and the
+relay log is not a backup. Public plaintext, endpoint credentials/query/fragment/path, weak rooms,
+partial access objects, and extra invitation fields fail before persistence. Offline archive export
+strips the entire endpoint/room/member binding.
 
 Settings includes **App-managed research relay**, visibly separate from the developer MCP network.
 The control owns enablement, one explicit private/loopback IP, port, real process status, storage
 path, bounded-persistence label, and a copyable endpoint. It says the relay is bundled and requires
-neither Node.js nor PowerShell, but also says invitations remain bearer keys, participant names are
-self-reported, public hosting needs a separately managed TLS/WSS proxy, awareness is never stored,
-and the bounded update log is not a backup. A local project may fill its endpoint from a running
-app-managed relay, but the existing acknowledgement remains mandatory. Do not imply that Syzygy
-authenticates people, provides roles/revocation, or administers public hosting/backups.
+neither Node.js nor PowerShell. It distinguishes managed role-specific bearer capabilities from
+legacy room-bearer access, keeps participant names self-reported, requires a separately managed
+TLS/WSS proxy for public hosting, never stores awareness, and calls the bounded update log recovery
+storage rather than a backup. A local project may fill its endpoint from a running app-managed relay,
+but acknowledgement remains mandatory. Do not imply that bearer roles authenticate people, bind to
+the signed-device directory, expose remote membership administration, or administer public
+hosting/backups.
 If any owned LAN or research-relay child does not release its process/listener during shutdown,
 Syzygy remains open and the native dialog names the failing service instead of disappearing.
 The UI must not describe polling as real-time presence.
@@ -220,9 +227,10 @@ trust actions but not editing. Existing registrations remain readable if the loc
 is unavailable. Copy must say that registration does not verify a person or assign a role and that
 local approval/revocation does not grant or remove relay access. Local-only projects do not show the
 shared directory action.
-Self-hosted WS/WSS synchronization and an app-managed private-LAN relay are implemented. Trusted or
-project-shared device enrollment, roles, propagated revocation, durable-event signatures, public WSS
-hosting, and backup administration remain open. The portable archive is still a separate
+Self-hosted WS/WSS synchronization, an app-managed private-LAN relay, and relay-enforced bearer
+viewer/editor/admin roles with host-local revocation are implemented. Trusted project-shared device
+enrollment, signed identity-to-role binding, remote administration, durable-event signatures, public
+WSS hosting, and backup administration remain open. The portable archive is still a separate
 handoff that creates independent local state after import and contains no relay invitation.
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,
 empty, integrity-error, and mutation-error states; creates and selects stable scenarios; edits title,

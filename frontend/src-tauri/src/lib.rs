@@ -3,6 +3,7 @@
 mod automation;
 pub mod collaboration_device_trust;
 pub mod collaboration_identity;
+pub mod collaboration_relay_membership;
 mod collaboration_relay_runtime;
 pub mod collaboration_relay_server;
 pub mod credential_vault;
@@ -224,6 +225,10 @@ pub fn run() {
             lan_dev_coordinator::lan_dev_coordinator_configure,
             collaboration_relay_runtime::collaboration_relay_settings,
             collaboration_relay_runtime::collaboration_relay_configure,
+            collaboration_relay_runtime::collaboration_relay_room_status,
+            collaboration_relay_runtime::collaboration_relay_room_create,
+            collaboration_relay_runtime::collaboration_relay_member_issue,
+            collaboration_relay_runtime::collaboration_relay_member_revoke,
             collaboration_identity::collaboration_identity_status,
             collaboration_identity::collaboration_identity_sign_presence,
             collaboration_identity::collaboration_identity_sign_registration,

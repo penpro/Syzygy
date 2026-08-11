@@ -3,12 +3,21 @@ import { describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
 import { createProjectDocument } from './projectModel'
 import type { ResearchProjectManifest } from './schema'
-import { createWebsocketProjectInvite, parseWebsocketProjectInvite } from './websocketProjectInvite'
+import {
+  createManagedWebsocketProjectInvite,
+  createWebsocketProjectInvite,
+  parseWebsocketProjectInvite,
+} from './websocketProjectInvite'
 import { WebsocketProjectProvider } from './websocketProjectProvider'
 import { getWebsocketProjectStatus } from './websocketProjectStatus'
 
 const endpoint = import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_ENDPOINT ?? ''
 const roomId = import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_ROOM ?? ''
+const hostMember = import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_HOST_MEMBER ?? ''
+const hostCapability = import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_HOST_CAPABILITY ?? ''
+const guestMember = import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_GUEST_MEMBER ?? ''
+const guestCapability = import.meta.env.VITE_SYZYGY_WEBSOCKET_TEST_GUEST_CAPABILITY ?? ''
+const managed = Boolean(hostMember && hostCapability && guestMember && guestCapability)
 
 const waitFor = async (predicate: () => boolean, label: string, timeoutMilliseconds = 10_000) => {
   const deadline = Date.now() + timeoutMilliseconds
@@ -28,10 +37,38 @@ describe.skipIf(!endpoint || !roomId)('self-hosted product binding against a rea
       title: 'Headless self-hosted product flow',
       createdAt: 1,
       updatedAt: 1,
-      transport: { kind: 'websocket', endpoint, roomId },
+      transport: {
+        kind: 'websocket', endpoint, roomId,
+        ...(managed ? {
+          access: {
+            schemaVersion: 1 as const,
+            memberId: hostMember,
+            capability: hostCapability,
+            role: 'admin' as const,
+          },
+        } : {}),
+      },
     }
-    const joinedManifest = parseWebsocketProjectInvite(createWebsocketProjectInvite(hostManifest))
-    expect(joinedManifest).toEqual(hostManifest)
+    const invite = managed
+      ? createManagedWebsocketProjectInvite(hostManifest, {
+          schemaVersion: 1,
+          roomId,
+          memberId: guestMember,
+          capability: guestCapability,
+          role: 'editor',
+        })
+      : createWebsocketProjectInvite(hostManifest)
+    const joinedManifest = parseWebsocketProjectInvite(invite)
+    expect(joinedManifest.id).toBe(hostManifest.id)
+    expect(joinedManifest.transport).toEqual(managed ? {
+      kind: 'websocket', endpoint, roomId,
+      access: {
+        schemaVersion: 1,
+        memberId: guestMember,
+        capability: guestCapability,
+        role: 'editor',
+      },
+    } : hostManifest.transport)
     if (hostManifest.transport.kind !== 'websocket' || joinedManifest.transport.kind !== 'websocket') {
       throw new Error('Product-flow invitation transport changed')
     }

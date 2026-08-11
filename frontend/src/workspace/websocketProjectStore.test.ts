@@ -24,6 +24,16 @@ describe('self-hosted project store binding', () => {
     expect(useStore.getState().projects[0].transport).toEqual({
       kind: 'websocket', endpoint: 'ws://192.168.1.20:1234', roomId: 'room_' + 'a'.repeat(40),
     })
+    const access = {
+      schemaVersion: 1 as const,
+      memberId: 'member_' + 'b'.repeat(24),
+      capability: 'c'.repeat(43),
+      role: 'admin' as const,
+    }
+    useStore.getState().setSelfHostedProjectAccess(project.id, access)
+    expect(useStore.getState().projects[0].transport).toEqual({
+      kind: 'websocket', endpoint: 'ws://192.168.1.20:1234', roomId: 'room_' + 'a'.repeat(40), access,
+    })
     useStore.getState().leaveSelfHostedProject(project.id)
     expect(useStore.getState().projects[0].transport).toEqual({ kind: 'local' })
   })

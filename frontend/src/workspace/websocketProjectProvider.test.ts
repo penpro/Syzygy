@@ -26,6 +26,25 @@ describe('self-hosted WebSocket project binding', () => {
       .toEqual({ endpoint: 'ws://localhost:1234', roomId })
   })
 
+  it('keeps a strict member credential separate from the endpoint and room path', () => {
+    const access = {
+      schemaVersion: 1 as const,
+      memberId: 'member_' + 'b'.repeat(24),
+      capability: 'c'.repeat(43),
+      role: 'viewer' as const,
+    }
+    expect(normalizeWebsocketProjectBinding({
+      endpoint: 'ws://192.168.10.24:1234/', roomId, access,
+    })).toEqual({ endpoint: 'ws://192.168.10.24:1234', roomId, access })
+    expect(() => normalizeWebsocketProjectBinding({
+      endpoint: 'ws://192.168.10.24:1234', roomId, access: { ...access, capability: 'short' },
+    })).toThrow('member access')
+    expect(() => normalizeWebsocketProjectBinding({
+      endpoint: 'ws://192.168.10.24:1234', roomId,
+      access: { ...access, unexpected: true } as typeof access,
+    })).toThrow('member access')
+  })
+
   it('rejects public plaintext, embedded authority, and weak room identities', () => {
     for (const endpoint of [
       'http://localhost:1234',

@@ -5,6 +5,10 @@
 //! Node.js or PowerShell prerequisite. Project invitations remain bearer credentials; this runtime
 //! does not claim authenticated human identity.
 
+use crate::collaboration_relay_membership::{
+    create_room, issue_member, registry_path, report_room, revoke_member, RelayMemberCredential,
+    RelayMemberRole, RelayRoomMembershipReport,
+};
 use crate::collaboration_relay_server::is_private_listen_address;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -59,6 +63,13 @@ pub struct CollaborationRelayReport {
     pub storage_path: String,
     pub persistence: String,
     pub last_error: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RelayRoomCredentialResult {
+    pub credential: RelayMemberCredential,
+    pub room: RelayRoomMembershipReport,
 }
 
 struct CollaborationRelayInner {
@@ -447,6 +458,95 @@ pub fn collaboration_relay_configure(
     inner.next_restart_at = Instant::now();
     reconcile(&app, &mut inner);
     report(&app, &mut inner)
+}
+
+fn stop_for_membership_change(inner: &mut CollaborationRelayInner) -> Result<(), String> {
+    let config = inner
+        .config
+        .clone()
+        .filter(|config| config.enabled)
+        .ok_or_else(|| {
+            "Enable this installation's collaboration relay before managing members".to_string()
+        })?;
+    if let Some(mut child) = inner.child.take() {
+        let address = socket_address(&config)?;
+        if let Err(error) = stop_child(&mut child, address) {
+            inner.child = Some(child);
+            return Err(error);
+        }
+    }
+    Ok(())
+}
+
+fn resume_after_membership_change(app: &AppHandle, inner: &mut CollaborationRelayInner) {
+    inner.restart_index = 0;
+    inner.next_restart_at = Instant::now();
+    inner.last_error = None;
+    reconcile(app, inner);
+}
+
+#[tauri::command]
+pub fn collaboration_relay_room_status(
+    app: AppHandle,
+    room_id: String,
+) -> Result<RelayRoomMembershipReport, String> {
+    report_room(&registry_path(&storage_path(&app)?), &room_id)
+}
+
+#[tauri::command]
+pub fn collaboration_relay_room_create(
+    app: AppHandle,
+    state: State<'_, CollaborationRelayRuntime>,
+    project_id: String,
+    room_id: String,
+) -> Result<RelayRoomCredentialResult, String> {
+    let membership_path = registry_path(&storage_path(&app)?);
+    let mut inner = state
+        .0
+        .lock()
+        .map_err(|_| "Collaboration relay state lock was poisoned".to_string())?;
+    stop_for_membership_change(&mut inner)?;
+    let result = create_room(&membership_path, &project_id, &room_id);
+    resume_after_membership_change(&app, &mut inner);
+    result.map(|(credential, room)| RelayRoomCredentialResult { credential, room })
+}
+
+#[tauri::command]
+pub fn collaboration_relay_member_issue(
+    app: AppHandle,
+    state: State<'_, CollaborationRelayRuntime>,
+    room_id: String,
+    expected_revision: u64,
+    role: RelayMemberRole,
+) -> Result<RelayRoomCredentialResult, String> {
+    let membership_path = registry_path(&storage_path(&app)?);
+    let mut inner = state
+        .0
+        .lock()
+        .map_err(|_| "Collaboration relay state lock was poisoned".to_string())?;
+    stop_for_membership_change(&mut inner)?;
+    let result = issue_member(&membership_path, &room_id, expected_revision, role);
+    resume_after_membership_change(&app, &mut inner);
+    result.map(|(credential, room)| RelayRoomCredentialResult { credential, room })
+}
+
+#[tauri::command]
+pub fn collaboration_relay_member_revoke(
+    app: AppHandle,
+    state: State<'_, CollaborationRelayRuntime>,
+    room_id: String,
+    member_id: String,
+    expected_revision: u64,
+) -> Result<RelayRoomMembershipReport, String> {
+    let membership_path = registry_path(&storage_path(&app)?);
+    let mut inner = state
+        .0
+        .lock()
+        .map_err(|_| "Collaboration relay state lock was poisoned".to_string())?;
+    stop_for_membership_change(&mut inner)?;
+    let result = revoke_member(&membership_path, &room_id, &member_id, expected_revision);
+    resume_after_membership_change(&app, &mut inner);
+    result
 }
 
 pub fn shutdown(app: &AppHandle) -> Result<(), String> {

@@ -986,6 +986,7 @@ const scenarioRerunRunnerSource = text('frontend/src/workspace/scenarioRerunRunn
 const scenarioRerunRunnerTestSource = text('frontend/src/workspace/scenarioRerunRunner.test.ts')
 const scenarioRerunPanelSource = text('frontend/src/workspace/ScenarioRerunQueuePanel.tsx')
 const scenarioRerunPanelTestSource = text('frontend/src/workspace/ScenarioRerunQueuePanel.ui.test.tsx')
+const scenarioRerunAttributionEvidence = text('docs/audits/runs/SIGNED-SCENARIO-RERUN-EVENTS-2026-08-11.json')
 const scenarioComparisonSource = text('frontend/src/workspace/scenarioComparison.ts')
 const scenarioComparisonTestSource = text('frontend/src/workspace/scenarioComparison.test.ts')
 const scenarioComparisonPanelSource = text('frontend/src/workspace/ScenarioComparisonPanel.tsx')
@@ -1317,6 +1318,34 @@ record(
     editorLedgerSource.includes('"id": "P-30", "phase": 8, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-RERUN-QUEUE-2026-07-19.json')),
   'exact immutable inputs, strict route/result contract, untrusted-source adapters, bounded persistent event queue, begin-before-send, atomic completion, sequential heartbeat/deadline runner, crash resume, product controls, body-free MCP inspection, and truthful P-30 status are present',
+)
+
+record(
+  'scenario-rerun definitions, controls, item transitions, and results have exact retained-device attribution',
+  scenarioRerunQueueSource.includes('canonicalScenarioRerunResearchEvent') &&
+    scenarioRerunQueueSource.includes('scenarioRerunResearchEventSha256') &&
+    scenarioRerunQueueSource.includes('readScenarioRerunDefinition') &&
+    scenarioRerunQueueSource.includes('readScenarioRerunControlEvent') &&
+    scenarioRerunQueueSource.includes('readScenarioRerunItemEvent') &&
+    scenarioRerunQueueSource.includes('readScenarioEvaluationResult') &&
+    researchEventAttributionSource.includes('parseScenarioRerunAttestationEventId') &&
+    researchEventAttributionSource.includes('attestScenarioRerunResearchEvent') &&
+    researchEventAttestationTest.includes('signs every retained scenario-rerun record class') &&
+    scenarioRerunRunnerSource.includes("await attribute({ recordType: 'item', event })") &&
+    scenarioRerunRunnerSource.includes("await attribute({ recordType: 'result', result })") &&
+    scenarioRerunRunnerTestSource.includes('attributes each transition only after exact state commits') &&
+    scenarioRerunPanelSource.includes('Queue history saved. Saving device signature') &&
+    scenarioRerunPanelSource.includes('attributionOperation.current === operation') &&
+    scenarioRerunPanelTestSource.includes('installation signing from explicit unsigned persistence') &&
+    scenarioRerunAttributionEvidence.includes('"signedEventDomains": 10') &&
+    scenarioRerunAttributionEvidence.includes('"remainingUnsignedDomains": []') &&
+    scenarioRerunAttributionEvidence.includes('"newMcpMutationAuthority": false') &&
+    scenarioRerunAttributionEvidence.includes('"testsPassed": 29') &&
+    scenarioRerunAttributionEvidence.includes('"supervisedRunId": "2026') &&
+    scenarioRerunAttributionEvidence.includes('"frontendTestsPassed": 570') &&
+    scenarioRerunAttributionEvidence.includes('"repositoryAuditPassed": true') &&
+    scenarioRerunAttributionEvidence.includes('"pending": false'),
+  'four exact record families, typed locators, retained-author resolution, commit-first runner/product status, cross-author and tamper rejection, no widened MCP authority, and evidence are present',
 )
 
 record(

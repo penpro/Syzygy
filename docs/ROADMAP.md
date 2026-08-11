@@ -190,12 +190,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   explicitly enrolled installation key, rejects stale/replayed connection proofs, and permits only
   that device-bound admin role to execute one fresh action-bound exact-revision room-management
   request. A repeatable five-client binary soak covers 60 rapid writes, two-client partition/rejoin,
-  awareness cleanup/recovery, forced reauthentication, and remote issue/rotate/revoke. Nine of ten
+  awareness cleanup/recovery, forced reauthentication, and remote issue/rotate/revoke. All ten
   named durable research-event domains now have exact retained-device attribution, including full
   adversarial archives and decisions, suggestion proposals/decisions, and heuristic definition,
-  example, and check-result events. Human identity,
-  shared-directory approval, propagated identity revocation, key rotation/recovery, the remaining
-  scenario-rerun adoption, and physical two-install product proof remain
+  example, and check-result events plus scenario-rerun definitions, controls, item transitions, and
+  completed results. Human identity, shared-directory approval, propagated identity revocation,
+  key rotation/recovery, and physical two-install product proof remain
   open, so P-11 remains
   `implemented_unverified`. Evidence:
   `docs/audits/runs/PRESENCE-LIFECYCLE-2026-07-18.json` and
@@ -206,6 +206,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   `docs/audits/runs/SIGNED-SUGGESTION-EVENTS-2026-08-11.json`.
   Signed heuristic definition/example/check-result adoption is recorded in
   `docs/audits/runs/SIGNED-HEURISTIC-EVENTS-2026-08-11.json`.
+  Signed scenario-rerun adoption is recorded in
+  `docs/audits/runs/SIGNED-SCENARIO-RERUN-EVENTS-2026-08-11.json`.
 - P-16 now connects selected scenarios to one bounded provider-neutral response contract. Local
   generation uses the optional loopback model; OpenAI, Anthropic, Gemini, and xAI reuse the native
   Send once boundary. Output enters the existing collaborative response lineage only when the exact

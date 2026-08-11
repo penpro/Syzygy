@@ -15,8 +15,13 @@ import {
   createScenarioRerunJob,
   failScenarioRerunItem,
   inspectScenarioRerunQueues,
+  readScenarioEvaluationResult,
+  readScenarioRerunControlEvent,
+  readScenarioRerunDefinition,
+  readScenarioRerunItemEvent,
   readScenarioRerunJob,
   retryScenarioRerunItem,
+  scenarioRerunResearchEventSha256,
 } from './scenarioRerunQueue'
 import { createScenario, readScenario, updateScenario } from './scenarioModel'
 import { createProjectManifest } from './schema'
@@ -133,6 +138,43 @@ describe('persistent scenario rerun queue', () => {
       eventId: 'item-complete-stale', resultId: 'queue-result', authorId: 'alice', authorDisplayName: 'Alice', timestamp: 9,
     })).rejects.toThrow('Scenario changed')
     expect(readScenarioRerunJob(stale.shared.settings, stale.shared.discussions, 'queue-job')?.items[0].status).toBe('interrupted')
+  })
+
+  it('reads and hashes exact detached records only through a valid complete queue', async () => {
+    const value = await fixture(); start(value); begin(value)
+    const completed = await completeScenarioRerunItem(value.doc, request(value), output(), {
+      eventId: 'item-complete-hash', resultId: 'queue-result', authorId: 'alice',
+      authorDisplayName: 'Alice', timestamp: 9,
+    })
+    const definition = readScenarioRerunDefinition(value.shared.settings, value.shared.discussions, 'queue-job')!
+    const control = readScenarioRerunControlEvent(
+      value.shared.settings, value.shared.discussions, 'queue-job', 'control-start',
+    )!
+    const item = readScenarioRerunItemEvent(
+      value.shared.settings, value.shared.discussions, 'queue-job', 'queue-item', 'item-complete-hash',
+    )!
+    const result = readScenarioEvaluationResult(
+      value.shared.settings, value.shared.discussions, 'queue-job', 'queue-result',
+    )!
+    const records = [
+      { recordType: 'definition' as const, definition },
+      { recordType: 'control' as const, event: control },
+      { recordType: 'item' as const, event: item },
+      { recordType: 'result' as const, result },
+    ]
+    const hashes = await Promise.all(records.map(scenarioRerunResearchEventSha256))
+    expect(hashes.every((hash) => /^[A-Za-z0-9_-]{43}$/.test(hash))).toBe(true)
+    expect(new Set(hashes).size).toBe(4)
+    expect(await scenarioRerunResearchEventSha256({
+      recordType: 'result', result: { ...result, rationale: `${result.rationale} changed` },
+    })).not.toBe(hashes[3])
+
+    definition.createdByDisplayName = 'Detached mutation'
+    result.response = 'Detached mutation'
+    expect(readScenarioRerunDefinition(value.shared.settings, value.shared.discussions, 'queue-job')?.createdByDisplayName)
+      .toBe('Alice')
+    expect(readScenarioEvaluationResult(value.shared.settings, value.shared.discussions, 'queue-job', 'queue-result')?.response)
+      .toBe(completed.items[0].result?.response)
   })
 
   it('reopens an interrupted begin and completes once with the same attempt identity', async () => {

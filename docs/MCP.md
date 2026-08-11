@@ -231,11 +231,11 @@ MCP host
   inspection returns event/key/participant/hash metadata but omits public keys, signatures, display
   names, and vote bodies. A stale call fails before adding an event. Installation signatures improve
   attribution continuity but are self-issued device claims, so the tool is not an authenticated
-  election, person/organization identity, or Sybil-resistant consensus. Nine of ten named event
-  kinds now have production resolvers; scenario-rerun remains unsigned
-  until its domain and product/MCP mutation paths adopt the same ledger. Suggestion proposal/decision
-  tools and product heuristic definition/example/check-result mutations follow the same commit-first
-  exact-retained-event pattern.
+  election, person/organization identity, or Sybil-resistant consensus. All ten named event kinds
+  now have production resolvers. Suggestion proposal/decision tools and product heuristic
+  definition/example/check-result and scenario-rerun definition/control/item/result mutations follow
+  the same commit-first exact-retained-event pattern. Scenario-rerun adds no new MCP mutation route;
+  broad read-only research inspection validates its product-authored attestations.
 - Scenario-turn add, revise, and reconcile retain an exact immutable revision before best-effort
   registered-device signing. The canonical hash binds edit ID, role, body, participant, caller time,
   complete parent set, and create/edit/reconcile source; a length-prefixed locator binds the scenario

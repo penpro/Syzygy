@@ -381,6 +381,12 @@ attribution, and run identity. Collaborators can inspect results but installatio
 is not authentication. Copy must not imply that evaluation is truth, consensus, a baseline
 comparison, or an automatic policy edit.
 
+Every queue definition, control, item transition, and completed result commits before best-effort
+device signing. The surface separately shows **Saving device signature…**, a shortened
+installation-key confirmation, or an explicit unsigned reason. A later queue/run operation suppresses
+stale signature status from an earlier operation. Copy must never imply that the signature is a
+person, organization, role, approval, or that signing failure discarded the already-saved queue event.
+
 The nested **Baseline comparison** surface lists completed queues only. **Baseline queue** and
 **Candidate queue** remain explicit; **Compare exact runs** fails closed unless project, document,
 prompt, scenario IDs, and exact revisions match. The matrix labels baseline rows and candidate

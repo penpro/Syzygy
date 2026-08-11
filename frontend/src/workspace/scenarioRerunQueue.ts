@@ -119,6 +119,129 @@ export interface ScenarioRerunJob {
   items: ScenarioRerunItemState[]
 }
 
+export type ScenarioRerunResearchEvent = {
+  recordType: 'definition'
+  definition: ScenarioRerunJobDefinition
+} | {
+  recordType: 'control'
+  event: ScenarioRerunControlEvent
+} | {
+  recordType: 'item'
+  event: ScenarioRerunItemEvent
+} | {
+  recordType: 'result'
+  result: ScenarioEvaluationResult
+}
+
+function canonicalScenarioRerunResearchEvent(record: ScenarioRerunResearchEvent): string {
+  if (record.recordType === 'definition') {
+    const value = record.definition
+    return JSON.stringify({
+      schemaVersion: SCENARIO_RERUN_QUEUE_SCHEMA_VERSION,
+      recordType: record.recordType,
+      definition: {
+        schemaVersion: value.schemaVersion,
+        jobId: value.jobId,
+        projectId: value.projectId,
+        documentId: value.documentId,
+        policyVersionId: value.policyVersionId,
+        providerId: value.providerId,
+        requestedModelId: value.requestedModelId,
+        promptVersion: value.promptVersion,
+        maxAttempts: value.maxAttempts,
+        items: value.items.map((item) => ({
+          itemId: item.itemId,
+          scenarioId: item.scenarioId,
+          scenarioRevision: item.scenarioRevision,
+          runIdBase: item.runIdBase,
+          resultId: item.resultId,
+        })),
+        createdBy: value.createdBy,
+        createdByDisplayName: value.createdByDisplayName,
+        createdAt: value.createdAt,
+      },
+    })
+  }
+  if (record.recordType === 'control') {
+    const value = record.event
+    return JSON.stringify({
+      schemaVersion: SCENARIO_RERUN_QUEUE_SCHEMA_VERSION,
+      recordType: record.recordType,
+      event: {
+        schemaVersion: value.schemaVersion,
+        eventId: value.eventId,
+        jobId: value.jobId,
+        action: value.action,
+        parentEventId: value.parentEventId,
+        authorId: value.authorId,
+        timestamp: value.timestamp,
+      },
+    })
+  }
+  if (record.recordType === 'item') {
+    const value = record.event
+    return JSON.stringify({
+      schemaVersion: SCENARIO_RERUN_QUEUE_SCHEMA_VERSION,
+      recordType: record.recordType,
+      event: {
+        schemaVersion: value.schemaVersion,
+        eventId: value.eventId,
+        jobId: value.jobId,
+        itemId: value.itemId,
+        action: value.action,
+        parentEventId: value.parentEventId,
+        attempt: value.attempt,
+        resultId: value.resultId,
+        errorCode: value.errorCode,
+        errorMessage: value.errorMessage,
+        authorId: value.authorId,
+        timestamp: value.timestamp,
+      },
+    })
+  }
+  const value = record.result
+  return JSON.stringify({
+    schemaVersion: SCENARIO_RERUN_QUEUE_SCHEMA_VERSION,
+    recordType: record.recordType,
+    result: {
+      schemaVersion: value.schemaVersion,
+      resultId: value.resultId,
+      jobId: value.jobId,
+      itemId: value.itemId,
+      attempt: value.attempt,
+      runId: value.runId,
+      projectId: value.projectId,
+      documentId: value.documentId,
+      policyVersionId: value.policyVersionId,
+      scenarioId: value.scenarioId,
+      scenarioRevision: value.scenarioRevision,
+      promptVersion: value.promptVersion,
+      providerId: value.providerId,
+      requestedModelId: value.requestedModelId,
+      executedModelId: value.executedModelId,
+      outcome: value.outcome,
+      response: value.response,
+      rationale: value.rationale,
+      uncertainty: value.uncertainty,
+      authorId: value.authorId,
+      authorDisplayName: value.authorDisplayName,
+      timestamp: value.timestamp,
+    },
+  })
+}
+
+function bytesToBase64Url(value: Uint8Array): string {
+  let binary = ''
+  for (const byte of value) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+/** Exact digest for one validated, retained queue record. */
+export async function scenarioRerunResearchEventSha256(record: ScenarioRerunResearchEvent): Promise<string> {
+  const bytes = new TextEncoder().encode(canonicalScenarioRerunResearchEvent(record))
+  return bytesToBase64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
+}
+
 const providers = new Set<ScenarioEvaluationProviderId>(['local', 'openai', 'anthropic', 'gemini', 'xai'])
 const stableId = (value: unknown, max = 200): value is string =>
   typeof value === 'string' && value.length <= max && /^[A-Za-z0-9][A-Za-z0-9._:@-]*$/.test(value)
@@ -393,6 +516,44 @@ export function readScenarioRerunJob(
   if (!stableId(jobId)) return null
   const raw = rawJob(settings, discussions, jobId)
   return raw ? project(raw) : null
+}
+
+/** Read one exact retained definition only when the complete queue remains valid. */
+export function readScenarioRerunDefinition(
+  settings: Y.Map<unknown>, discussions: Y.Map<unknown>, jobId: string,
+): ScenarioRerunJobDefinition | null {
+  const job = readScenarioRerunJob(settings, discussions, jobId)
+  return job ? structuredClone(job.definition) : null
+}
+
+/** Read one exact retained control event only when the complete queue remains valid. */
+export function readScenarioRerunControlEvent(
+  settings: Y.Map<unknown>, discussions: Y.Map<unknown>, jobId: string, eventId: string,
+): ScenarioRerunControlEvent | null {
+  if (!stableId(eventId)) return null
+  const event = readScenarioRerunJob(settings, discussions, jobId)?.controls.find((value) => value.eventId === eventId)
+  return event ? { ...event } : null
+}
+
+/** Read one exact retained item event only when the complete queue remains valid. */
+export function readScenarioRerunItemEvent(
+  settings: Y.Map<unknown>, discussions: Y.Map<unknown>, jobId: string, itemId: string, eventId: string,
+): ScenarioRerunItemEvent | null {
+  if (!stableId(itemId) || !stableId(eventId)) return null
+  const event = readScenarioRerunJob(settings, discussions, jobId)?.itemEvents.find((value) =>
+    value.itemId === itemId && value.eventId === eventId)
+  return event ? { ...event } : null
+}
+
+/** Read one exact retained evaluation result only when the complete queue remains valid. */
+export function readScenarioEvaluationResult(
+  settings: Y.Map<unknown>, discussions: Y.Map<unknown>, jobId: string, resultId: string,
+): ScenarioEvaluationResult | null {
+  if (!stableId(resultId)) return null
+  const result = readScenarioRerunJob(settings, discussions, jobId)?.items
+    .map((item) => item.result)
+    .find((value) => value?.resultId === resultId)
+  return result ? structuredClone(result) : null
 }
 
 export function listScenarioRerunJobs(settings: Y.Map<unknown>, discussions: Y.Map<unknown>) {

@@ -170,7 +170,8 @@ relay separately has explicit operator enrollment, signed installation-key roles
 connection proofs, and a second action-bound signature for device-administered exact-revision room
 membership. A repeatable exact-binary five-client partition/reconnect soak passes. Shared-directory
 approval, propagated identity revocation, device-key rotation/recovery, presence-proof replay
-rejection, signed adoption for the remaining scenario-rerun event domain, and physical two-install product proof remain open, so
+rejection, and physical two-install product proof remain open. Exact retained-event signing now
+covers all ten named research-event domains, so
 P-11 is `implemented_unverified`.
 
 
@@ -464,11 +465,11 @@ retains emergency local authority. Product controls publish partial approvals an
 bundle automatically. A parallel bounded attestation ledger now binds exact event hashes to the
 same installation key and registered participant claim without changing every event schema; the
 production adopters are scenario lifecycle edits, scenario-turn revisions, scenario voting,
-annotation lifecycle, label lifecycle/assignment, immutable policy-version events, and exact
-adversarial archive/decision events through product and MCP, with explicit unsigned fallback and
-body-free inspection. Suggestion, heuristic, and scenario-rerun remain the three unadopted
-research-event domains. The next identity increments are adoption across those remaining domains,
-device-key rotation/recovery, authenticated human/organizational enrollment, trusted time, and
+annotation lifecycle, label lifecycle/assignment, immutable policy-version events, exact
+adversarial archive/decision events, suggestion proposal/decision events, heuristic
+definition/example/check-result events, and scenario-rerun definition/control/item/result records,
+with explicit unsigned fallback and body-free inspection. All ten named domains are adopted. The
+next identity increments are device-key rotation/recovery, authenticated human/organizational enrollment, trusted time, and
 policy/approval withdrawal or relay attestation before the product may say authenticated consent.
 
 Gate: five-client rapid-edit soak converges; stale presence disappears; restart/partition loses

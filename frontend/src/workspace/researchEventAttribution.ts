@@ -74,6 +74,18 @@ import {
   readHeuristicCheckResult,
   type HeuristicCheckResult,
 } from './heuristicCheckResultModel'
+import {
+  readScenarioEvaluationResult,
+  readScenarioRerunControlEvent,
+  readScenarioRerunDefinition,
+  readScenarioRerunItemEvent,
+  scenarioRerunResearchEventSha256,
+  type ScenarioEvaluationResult,
+  type ScenarioRerunControlEvent,
+  type ScenarioRerunItemEvent,
+  type ScenarioRerunJobDefinition,
+  type ScenarioRerunResearchEvent,
+} from './scenarioRerunQueue'
 
 export type ResearchEventAttributionResult = {
   status: 'signed-device'
@@ -194,6 +206,22 @@ export function heuristicExampleAttestationEventId(event: HeuristicExampleEvent)
 
 export function heuristicCheckResultAttestationEventId(result: HeuristicCheckResult): string {
   return `r:${result.heuristicId.length}:${result.heuristicId}${result.resultId}`
+}
+
+export function scenarioRerunDefinitionAttestationEventId(definition: ScenarioRerunJobDefinition): string {
+  return `d:${definition.jobId.length}:${definition.jobId}`
+}
+
+export function scenarioRerunControlAttestationEventId(event: ScenarioRerunControlEvent): string {
+  return `c:${event.jobId.length}:${event.jobId}${event.eventId}`
+}
+
+export function scenarioRerunItemAttestationEventId(event: ScenarioRerunItemEvent): string {
+  return `i:${event.jobId.length}:${event.jobId}${event.itemId.length}:${event.itemId}${event.eventId}`
+}
+
+export function scenarioEvaluationResultAttestationEventId(result: ScenarioEvaluationResult): string {
+  return `r:${result.jobId.length}:${result.jobId}${result.resultId}`
 }
 
 function parseLengthPrefixed(
@@ -323,6 +351,47 @@ function parseHeuristicAttestationEventId(value: string): HeuristicAttestationId
   } : null
 }
 
+type ScenarioRerunAttestationIdentity = {
+  recordType: 'definition'
+  jobId: string
+} | {
+  recordType: 'control'
+  jobId: string
+  eventId: string
+} | {
+  recordType: 'item'
+  jobId: string
+  itemId: string
+  eventId: string
+} | {
+  recordType: 'result'
+  jobId: string
+  resultId: string
+}
+
+function parseScenarioRerunAttestationEventId(value: string): ScenarioRerunAttestationIdentity | null {
+  if (value.startsWith('d:')) {
+    const job = parseLengthPrefixed(value, 2)
+    return job && job.cursor === value.length ? { recordType: 'definition', jobId: job.segment } : null
+  }
+  if (!/^[cir]:/.test(value)) return null
+  const job = parseLengthPrefixed(value, 2)
+  if (!job) return null
+  if (value.startsWith('i:')) {
+    const item = parseLengthPrefixed(value, job.cursor)
+    if (!item) return null
+    const eventId = value.slice(item.cursor)
+    return eventId ? {
+      recordType: 'item', jobId: job.segment, itemId: item.segment, eventId,
+    } : null
+  }
+  const retainedId = value.slice(job.cursor)
+  if (!retainedId) return null
+  return value.startsWith('c:')
+    ? { recordType: 'control', jobId: job.segment, eventId: retainedId }
+    : { recordType: 'result', jobId: job.segment, resultId: retainedId }
+}
+
 export function researchEventAttestationResolver(
   discussions: Y.Map<unknown>,
   settings?: Y.Map<unknown>,
@@ -335,11 +404,40 @@ export function researchEventAttestationResolver(
     if (eventKind !== 'scenario' && eventKind !== 'scenario-vote' && eventKind !== 'scenario-annotation' &&
       eventKind !== 'scenario-label' && eventKind !== 'policy-version' &&
       eventKind !== 'scenario-turn' && eventKind !== 'adversarial-review' &&
-      eventKind !== 'suggestion' && eventKind !== 'heuristic') return null
+      eventKind !== 'suggestion' && eventKind !== 'heuristic' && eventKind !== 'scenario-rerun') return null
     const cacheKey = `${eventKind}:${attestationEventId}`
     const cached = cache.get(cacheKey)
     if (cached) return cached
     const resolved = (async () => {
+      if (eventKind === 'scenario-rerun') {
+        if (!settings) return null
+        const identity = parseScenarioRerunAttestationEventId(attestationEventId)
+        if (!identity) return null
+        let record: ScenarioRerunResearchEvent | null = null
+        if (identity.recordType === 'definition') {
+          const definition = readScenarioRerunDefinition(settings, discussions, identity.jobId)
+          record = definition ? { recordType: 'definition', definition } : null
+        } else if (identity.recordType === 'control') {
+          const event = readScenarioRerunControlEvent(
+            settings, discussions, identity.jobId, identity.eventId,
+          )
+          record = event ? { recordType: 'control', event } : null
+        } else if (identity.recordType === 'item') {
+          const event = readScenarioRerunItemEvent(
+            settings, discussions, identity.jobId, identity.itemId, identity.eventId,
+          )
+          record = event ? { recordType: 'item', event } : null
+        } else {
+          const result = readScenarioEvaluationResult(
+            settings, discussions, identity.jobId, identity.resultId,
+          )
+          record = result ? { recordType: 'result', result } : null
+        }
+        if (!record) return null
+        const participantId = record.recordType === 'definition' ? record.definition.createdBy
+          : record.recordType === 'result' ? record.result.authorId : record.event.authorId
+        return { eventSha256: await scenarioRerunResearchEventSha256(record), participantId }
+      }
       if (eventKind === 'heuristic') {
         const identity = parseHeuristicAttestationEventId(attestationEventId)
         if (!identity) return null
@@ -460,7 +558,7 @@ async function attestResearchEvent(
   document: Y.Doc,
   projectId: string,
   eventKind: 'scenario' | 'scenario-vote' | 'scenario-annotation' | 'scenario-label' |
-    'policy-version' | 'scenario-turn' | 'adversarial-review' | 'suggestion' | 'heuristic',
+    'policy-version' | 'scenario-turn' | 'adversarial-review' | 'suggestion' | 'heuristic' | 'scenario-rerun',
   eventId: string,
   participantId: string,
   eventHash: () => Promise<string>,
@@ -551,6 +649,33 @@ export async function attestHeuristicCheckResultEvent(
   return attestResearchEvent(document, projectId, 'heuristic',
     heuristicCheckResultAttestationEventId(result), result.authorId,
     () => heuristicCheckResultSha256(result), dependencies)
+}
+
+/** Best-effort device attribution after one validated queue record has committed. */
+export async function attestScenarioRerunResearchEvent(
+  document: Y.Doc,
+  projectId: string,
+  record: ScenarioRerunResearchEvent,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<ResearchEventAttributionResult> {
+  const eventId = record.recordType === 'definition'
+    ? scenarioRerunDefinitionAttestationEventId(record.definition)
+    : record.recordType === 'control'
+      ? scenarioRerunControlAttestationEventId(record.event)
+      : record.recordType === 'item'
+        ? scenarioRerunItemAttestationEventId(record.event)
+        : scenarioEvaluationResultAttestationEventId(record.result)
+  const participantId = record.recordType === 'definition' ? record.definition.createdBy
+    : record.recordType === 'result' ? record.result.authorId : record.event.authorId
+  return attestResearchEvent(
+    document,
+    projectId,
+    'scenario-rerun',
+    eventId,
+    participantId,
+    () => scenarioRerunResearchEventSha256(record),
+    dependencies,
+  )
 }
 
 /** Best-effort device attribution after an immutable suggestion proposal or decision commits. */

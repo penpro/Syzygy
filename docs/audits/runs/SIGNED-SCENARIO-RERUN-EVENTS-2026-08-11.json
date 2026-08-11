@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "capability": "signed-scenario-rerun-events",
+  "generatedAt": "2026-08-11",
+  "baseCheckpoint": "8d9e5c1",
+  "status": "implemented_unverified",
+  "implementation": {
+    "signedEventDomains": 10,
+    "totalNamedEventDomains": 10,
+    "remainingUnsignedDomains": [],
+    "scenarioRerunRecordFamilies": ["definition", "control", "item-transition", "evaluation-result"],
+    "newMcpMutationAuthority": false
+  },
+  "invariants": [
+    "Every scenario-rerun record family has an exact versioned canonical SHA-256 envelope.",
+    "Type-tagged length-prefixed locators prevent definition, control, item, and result identity ambiguity.",
+    "Verification re-resolves the exact retained record only through a completely valid queue and uses its retained author.",
+    "Cross-author and changed-body records fail verification.",
+    "Definitions, controls, retries, runner transitions, and completed results commit before best-effort signing.",
+    "A completed item event and its evaluation result receive separate exact attestations.",
+    "Signing failure cannot roll back or convert an already-retained queue mutation into a provider failure.",
+    "Product status suppresses stale async attribution after a later queue or run operation.",
+    "Installation signatures do not authenticate a person, organization, role, approval, or model conclusion.",
+    "No new MCP mutation authority was introduced; broad read-only research inspection validates the new attestations."
+  ],
+  "focusedValidation": {
+    "command": "npm test -- --run src/workspace/scenarioRerunQueue.test.ts src/workspace/scenarioRerunRunner.test.ts src/workspace/projectResearchEventAttestation.test.ts src/workspace/ScenarioRerunQueuePanel.ui.test.tsx",
+    "filesPassed": 4,
+    "testsPassed": 29
+  },
+  "fullValidation": {
+    "supervisedRunId": "20260811-202248-c32823",
+    "frontendFilesPassed": 129,
+    "frontendFilesSkipped": 3,
+    "frontendTestsPassed": 570,
+    "frontendTestsSkipped": 3,
+    "frontendModulesTransformed": 1268,
+    "repositoryAuditPassed": true,
+    "rustAppRecompiled": true,
+    "pending": false
+  },
+  "limits": [
+    "The exact packaged two-install scenario-rerun interaction has not been physically replayed.",
+    "The signature proves possession of a self-issued registered installation key, not research authority or result correctness.",
+    "A bearer Yjs peer can still delete or flood shared directory and attestation records.",
+    "Completing the ten-domain attribution ledger does not complete broader PolicyPad parity."
+  ]
+}

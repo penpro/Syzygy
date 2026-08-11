@@ -11,11 +11,16 @@ import {
   completeScenarioRerunItem,
   failScenarioRerunItem,
   readScenarioRerunJob,
+  type ScenarioRerunResearchEvent,
   type ScenarioRerunJobStatus,
 } from './scenarioRerunQueue'
 import { scenarioGenerationRevision } from './scenarioGeneration'
 import { readScenario } from './scenarioModel'
 import type { ResearchProjectManifest } from './schema'
+import {
+  attestScenarioRerunResearchEvent,
+  type ResearchEventAttributionResult,
+} from './researchEventAttribution'
 
 export const SCENARIO_RERUN_ITEM_TIMEOUT_MS = 120_000
 export const SCENARIO_RERUN_HEARTBEAT_MS = 30_000
@@ -57,6 +62,8 @@ export interface ScenarioRerunRunnerOptions {
   itemTimeoutMs?: number
   heartbeatMs?: number
   onProgress?: (progress: ScenarioRerunRunnerProgress) => void
+  attribution?: (record: ScenarioRerunResearchEvent) => Promise<ResearchEventAttributionResult>
+  onAttribution?: (record: ScenarioRerunResearchEvent, result: ResearchEventAttributionResult) => void
 }
 
 const active = new WeakMap<Y.Doc, Set<string>>()
@@ -99,6 +106,17 @@ export async function runScenarioRerunQueue(options: ScenarioRerunRunnerOptions)
   const heartbeatMs = Math.max(1, Math.min(options.heartbeatMs ?? SCENARIO_RERUN_HEARTBEAT_MS, SCENARIO_RERUN_HEARTBEAT_MS))
   const startedAt = now()
   const shared = getProjectSharedTypes(options.doc)
+
+  const attribute = async (record: ScenarioRerunResearchEvent) => {
+    try {
+      const result = await (options.attribution
+        ? options.attribution(record)
+        : attestScenarioRerunResearchEvent(options.doc, options.project.id, record))
+      options.onAttribution?.(record, result)
+    } catch {
+      // The queue mutation is authoritative. Device attribution is explicit and best-effort.
+    }
+  }
 
   const progress = (phase: ScenarioRerunRunnerPhase, itemId: string | null, attempt: number | null) => {
     const current = readScenarioRerunJob(shared.settings, shared.discussions, options.jobId)
@@ -144,11 +162,15 @@ export async function runScenarioRerunQueue(options: ScenarioRerunRunnerOptions)
         scenario,
       })
       if (item.status === 'pending') {
-        beginScenarioRerunItem(shared.settings, shared.discussions, {
-          eventId: id(), jobId: job.definition.jobId, itemId: item.definition.itemId,
+        const eventId = id()
+        const begun = beginScenarioRerunItem(shared.settings, shared.discussions, {
+          eventId, jobId: job.definition.jobId, itemId: item.definition.itemId,
           expectedCurrentEventId: item.currentEventId, attempt: item.attempt,
           authorId: options.authorId, timestamp: now(),
         })
+        const event = begun.itemEvents.find((value) => value.eventId === eventId)
+        if (!event) throw new Error('Scenario rerun begin event failed post-write verification')
+        await attribute({ recordType: 'item', event })
       }
       progress('starting', item.definition.itemId, item.attempt)
 
@@ -162,10 +184,16 @@ export async function runScenarioRerunQueue(options: ScenarioRerunRunnerOptions)
       controller.signal.addEventListener('abort', cancelProvider, { once: true })
       try {
         const output = await runScenarioEvaluation(options.adapter, request, controller.signal)
-        await completeScenarioRerunItem(options.doc, request, output, {
-          eventId: id(), resultId: item.definition.resultId,
+        const eventId = id()
+        const completed = await completeScenarioRerunItem(options.doc, request, output, {
+          eventId, resultId: item.definition.resultId,
           authorId: options.authorId, authorDisplayName: options.authorDisplayName, timestamp: now(),
         })
+        const event = completed.itemEvents.find((value) => value.eventId === eventId)
+        const result = completed.items.find((value) => value.definition.itemId === item.definition.itemId)?.result
+        if (!event || !result) throw new Error('Scenario rerun completion failed post-write verification')
+        await attribute({ recordType: 'item', event })
+        await attribute({ recordType: 'result', result })
         progress('completed-item', item.definition.itemId, item.attempt)
       } catch (error) {
         if (options.signal.aborted || (isAbort(error) && !timedOut)) {
@@ -178,12 +206,16 @@ export async function runScenarioRerunQueue(options: ScenarioRerunRunnerOptions)
         const currentItem = current?.items.find(({ definition }) => definition.itemId === item.definition.itemId)
         if (current?.status === 'running' && currentItem?.status === 'interrupted') {
           const safe = safeError(error, timedOut)
-          failScenarioRerunItem(shared.settings, shared.discussions, {
-            eventId: id(), jobId: current.definition.jobId, itemId: currentItem.definition.itemId,
+          const eventId = id()
+          const failed = failScenarioRerunItem(shared.settings, shared.discussions, {
+            eventId, jobId: current.definition.jobId, itemId: currentItem.definition.itemId,
             expectedCurrentEventId: currentItem.currentEventId!, attempt: currentItem.attempt,
             errorCode: safe.code, errorMessage: safe.message,
             authorId: options.authorId, timestamp: now(),
           })
+          const event = failed.itemEvents.find((value) => value.eventId === eventId)
+          if (!event) throw new Error('Scenario rerun failure event failed post-write verification')
+          await attribute({ recordType: 'item', event })
           progress('failed-item', item.definition.itemId, item.attempt)
         }
       } finally {

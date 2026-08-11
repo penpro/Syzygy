@@ -9,6 +9,8 @@ import {
 import {
   controlScenarioRerunJob,
   createScenarioRerunJob,
+  readScenarioEvaluationResult,
+  readScenarioRerunItemEvent,
   readScenarioRerunJob,
 } from './scenarioRerunQueue'
 import { runScenarioRerunQueue } from './scenarioRerunRunner'
@@ -84,6 +86,36 @@ describe('supervised scenario rerun runner', () => {
     expect(maxActive).toBe(1)
     expect(readScenarioRerunJob(value.shared.settings, value.shared.discussions, 'runner-job')?.itemEvents)
       .toHaveLength(4)
+  })
+
+  it('attributes each transition only after exact state commits and never rolls back on signer failure', async () => {
+    const value = await fixture(1)
+    const adapter: ScenarioEvaluationAdapter = {
+      providerId: 'local', async evaluate(request) { return output(request) },
+    }
+    const recordTypes: string[] = []
+    const result = await runScenarioRerunQueue({
+      ...options(value, adapter),
+      attribution: async (record) => {
+        recordTypes.push(record.recordType)
+        if (record.recordType === 'item') {
+          expect(readScenarioRerunItemEvent(
+            value.shared.settings, value.shared.discussions,
+            record.event.jobId, record.event.itemId, record.event.eventId,
+          )).toEqual(record.event)
+        } else if (record.recordType === 'result') {
+          expect(readScenarioEvaluationResult(
+            value.shared.settings, value.shared.discussions,
+            record.result.jobId, record.result.resultId,
+          )).toEqual(record.result)
+        }
+        throw new Error('device signer unavailable')
+      },
+    })
+    expect(result).toMatchObject({ status: 'complete', completedItems: 1 })
+    expect(recordTypes).toEqual(['item', 'item', 'result'])
+    expect(readScenarioRerunJob(value.shared.settings, value.shared.discussions, 'runner-job'))
+      .toMatchObject({ status: 'complete', items: [{ status: 'complete' }] })
   })
 
   it('records a sanitized failure and continues independent items', async () => {

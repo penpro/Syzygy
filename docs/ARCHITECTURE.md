@@ -302,8 +302,9 @@ fingerprint to a person or organization. A holder can claim any
 participant ID, a rotated key appears unapproved, and an exact captured proof can still be replayed
 for the same project/document/client/nonce context. A parallel bounded ledger can sign exact retained
 scenario lifecycle, turn, vote, annotation, label, suggestion proposal/decision, heuristic
-definition/example/check-result, policy-version, and adversarial archive/decision events after
-commit, but it covers only nine of ten named domains, can be deleted by a bearer Yjs
+definition/example/check-result, policy-version, adversarial archive/decision, and scenario-rerun
+definition/control/item/result events after commit. All ten named domains have exact retained-state
+resolvers, but the parallel ledger can be deleted by a bearer Yjs
 writer, and proves only that one self-issued registered installation key signed the re-resolved
 event—not that its participant claim is a person or organization. Signing failure leaves the event
 committed and explicit unsigned. The local fingerprint decisions do not issue or revoke relay access. Separately, an explicit public

@@ -13,6 +13,7 @@ import {
   readScenarioRerunJob,
   retryScenarioRerunItem,
   type ScenarioRerunJob,
+  type ScenarioRerunResearchEvent,
 } from './scenarioRerunQueue'
 import { runScenarioRerunQueue, type ScenarioRerunRunnerProgress } from './scenarioRerunRunner'
 import {
@@ -24,8 +25,22 @@ import { listScenarios } from './scenarioModel'
 import { ScenarioComparisonPanel } from './ScenarioComparisonPanel'
 import type { ResearchProjectManifest } from './schema'
 import type { ScenarioEvaluationProviderId } from './scenarioEvaluation'
+import {
+  attestScenarioRerunResearchEvent,
+  type ResearchEventAttributionResult,
+} from './researchEventAttribution'
 
 type QueuePhase = 'idle' | 'checking' | 'running' | 'cancelling' | 'complete' | 'error'
+
+export function scenarioRerunAttributionMessage(result: ResearchEventAttributionResult): string {
+  return result.status === 'signed-device'
+    ? `Queue history saved with this installation’s signature · ${result.keyId.replace('ed25519-sha256:', '').slice(0, 12)}…`
+    : `Queue history saved without a device signature · ${result.reason}`
+}
+
+export function ScenarioRerunAttributionStatus({ message }: { message: string }) {
+  return message ? <p className="scenario-generation-note" role="status">{message}</p> : null
+}
 
 export function ScenarioRerunQueuePanel({ project, doc }: { project: ResearchProjectManifest; doc: Y.Doc }) {
   const settings = useStore((state) => state.settings)
@@ -40,13 +55,21 @@ export function ScenarioRerunQueuePanel({ project, doc }: { project: ResearchPro
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [phase, setPhase] = useState<QueuePhase>('idle')
   const [message, setMessage] = useState('Create a queue to rerun exact scenario revisions against one immutable policy version.')
+  const [attributionMessage, setAttributionMessage] = useState('')
   const active = useRef<{ jobId: string; controller: AbortController } | null>(null)
+  const attributionOperation = useRef(0)
 
   useEffect(() => {
     const update = () => setRevision((value) => value + 1)
     doc.on('update', update)
     return () => doc.off('update', update)
   }, [doc])
+
+  useEffect(() => {
+    attributionOperation.current += 1
+    setAttributionMessage('')
+    return () => { attributionOperation.current += 1 }
+  }, [project.id, doc])
 
   const shared = getProjectSharedTypes(doc)
   const scenarios = listScenarios(shared.scenarios).filter(({ status }) => status !== 'archived')
@@ -93,6 +116,26 @@ export function ScenarioRerunQueuePanel({ project, doc }: { project: ResearchPro
     return { authorId: researcherId, authorDisplayName: researcherName }
   }
 
+  const showAttribution = (operation: number, result: ResearchEventAttributionResult) => {
+    if (attributionOperation.current === operation) {
+      setAttributionMessage(scenarioRerunAttributionMessage(result))
+    }
+  }
+
+  const publishAttribution = (record: ScenarioRerunResearchEvent) => {
+    const operation = attributionOperation.current + 1
+    attributionOperation.current = operation
+    setAttributionMessage('Queue history saved. Saving device signature…')
+    void attestScenarioRerunResearchEvent(doc, project.id, record).then(
+      (result) => showAttribution(operation, result),
+      () => {
+        if (attributionOperation.current === operation) {
+          setAttributionMessage('Queue history saved without a device signature · signing unavailable')
+        }
+      },
+    )
+  }
+
   const create = () => {
     setPhase('idle')
     try {
@@ -103,7 +146,7 @@ export function ScenarioRerunQueuePanel({ project, doc }: { project: ResearchPro
       const selected = scenarios.filter(({ id }) => selectedIds.has(id))
       if (!selected.length) throw new Error('Select at least one scenario.')
       const jobId = `scenario-rerun-${uid()}`
-      createScenarioRerunJob(shared.settings, {
+      const created = createScenarioRerunJob(shared.settings, {
         jobId, project, policyVersion: version, providerId: provider, requestedModelId: model.trim(),
         items: selected.map((scenario) => ({
           itemId: `scenario-item-${uid()}`, scenario,
@@ -111,6 +154,7 @@ export function ScenarioRerunQueuePanel({ project, doc }: { project: ResearchPro
         })),
         ...author, timestamp: now(),
       })
+      publishAttribution({ recordType: 'definition', definition: created.definition })
       setMessage(`Paused queue created for ${selected.length} exact scenario revision${selected.length === 1 ? '' : 's'}.`)
     } catch (error) {
       setPhase('error')
@@ -124,6 +168,8 @@ export function ScenarioRerunQueuePanel({ project, doc }: { project: ResearchPro
     if (!job) { setPhase('error'); setMessage('The rerun queue failed integrity checks.'); return }
     const controller = new AbortController()
     active.current = { jobId, controller }
+    const runAttributionOperation = attributionOperation.current + 1
+    attributionOperation.current = runAttributionOperation
     setPhase(job.definition.providerId === 'local' ? 'running' : 'checking')
     setMessage(job.definition.providerId === 'local' ? 'Running the queue locally…' : 'Checking the provider key…')
     try {
@@ -145,6 +191,13 @@ export function ScenarioRerunQueuePanel({ project, doc }: { project: ResearchPro
         : createRemoteScenarioEvaluationAdapter(job.definition.providerId as RemoteProviderId)
       const result = await runScenarioRerunQueue({
         doc, project, jobId, ...author, adapter, signal: controller.signal,
+        attribution: (record) => {
+          if (attributionOperation.current === runAttributionOperation) {
+            setAttributionMessage('Queue history saved. Saving device signature…')
+          }
+          return attestScenarioRerunResearchEvent(doc, project.id, record)
+        },
+        onAttribution: (_record, attribution) => showAttribution(runAttributionOperation, attribution),
         onProgress: (progress: ScenarioRerunRunnerProgress) => {
           setPhase('running')
           setMessage(`${progress.completedItems}/${progress.totalItems} complete · ${progress.failedItems} failed · ${progress.phase === 'heartbeat' ? 'provider still working' : progress.phase.replace(/-/g, ' ')}`)
@@ -180,10 +233,14 @@ export function ScenarioRerunQueuePanel({ project, doc }: { project: ResearchPro
           throw new Error(`Add a ${name} key in Settings first. The paused queue is preserved.`)
         }
       }
-      controlScenarioRerunJob(shared.settings, shared.discussions, {
-        eventId: `scenario-control-${uid()}`, jobId: job.definition.jobId, action: 'start',
+      const eventId = `scenario-control-${uid()}`
+      const started = controlScenarioRerunJob(shared.settings, shared.discussions, {
+        eventId, jobId: job.definition.jobId, action: 'start',
         parentEventId: job.currentControlEventId, authorId: author.authorId, timestamp: now(),
       })
+      const event = started.controls.find((value) => value.eventId === eventId)
+      if (!event) throw new Error('Scenario rerun start event failed post-write verification')
+      publishAttribution({ recordType: 'control', event })
       void execute(job.definition.jobId)
     } catch (error) {
       setPhase('error'); setMessage(error instanceof Error ? error.message : 'Could not start the queue.')
@@ -194,10 +251,14 @@ export function ScenarioRerunQueuePanel({ project, doc }: { project: ResearchPro
     try {
       const author = identity()
       setPhase('cancelling')
-      controlScenarioRerunJob(shared.settings, shared.discussions, {
-        eventId: `scenario-control-${uid()}`, jobId: job.definition.jobId, action,
+      const eventId = `scenario-control-${uid()}`
+      const controlled = controlScenarioRerunJob(shared.settings, shared.discussions, {
+        eventId, jobId: job.definition.jobId, action,
         parentEventId: job.currentControlEventId, authorId: author.authorId, timestamp: now(),
       })
+      const event = controlled.controls.find((value) => value.eventId === eventId)
+      if (!event) throw new Error(`Scenario rerun ${action} event failed post-write verification`)
+      publishAttribution({ recordType: 'control', event })
       if (active.current?.jobId === job.definition.jobId) active.current.controller.abort()
       setMessage(`${action === 'pause' ? 'Paused' : 'Cancelled'} queue; completed results remain shared.`)
     } catch (error) {
@@ -210,11 +271,15 @@ export function ScenarioRerunQueuePanel({ project, doc }: { project: ResearchPro
       const author = identity()
       const item = job.items.find(({ definition }) => definition.itemId === itemId)
       if (!item) throw new Error('Queue item changed; reload and retry.')
-      retryScenarioRerunItem(shared.settings, shared.discussions, {
-        eventId: `scenario-item-${uid()}`, jobId: job.definition.jobId, itemId,
+      const eventId = `scenario-item-${uid()}`
+      const retried = retryScenarioRerunItem(shared.settings, shared.discussions, {
+        eventId, jobId: job.definition.jobId, itemId,
         expectedCurrentEventId: item.currentEventId!, attempt: item.attempt,
         authorId: author.authorId, timestamp: now(),
       })
+      const event = retried.itemEvents.find((value) => value.eventId === eventId)
+      if (!event) throw new Error('Scenario rerun retry event failed post-write verification')
+      publishAttribution({ recordType: 'item', event })
       setPhase('idle'); setMessage('Failed item is ready for its next bounded attempt.')
     } catch (error) {
       setPhase('error'); setMessage(error instanceof Error ? error.message : 'Could not retry the item.')
@@ -262,6 +327,7 @@ export function ScenarioRerunQueuePanel({ project, doc }: { project: ResearchPro
       {provider === 'local' && !localAvailable && <p className="scenario-generation-note">Local AI is off or no text model is loaded. Existing shared queues and results remain available.</p>}
       {provider !== 'local' && <p className="scenario-generation-note">Only the exact policy version and one exact scenario revision are prepared for each native Send once approval.</p>}
       <div className={`scenario-generation-status ${phase}`} role="status">{message}</div>
+      <ScenarioRerunAttributionStatus message={attributionMessage} />
       {!inspection.healthy && <div className="scenario-state error" role="alert">Queue integrity: {inspection.issues.join('; ')}</div>}
       {jobs.length > 0 && <ol className="scenario-responses" aria-label="Shared scenario rerun queues">
         {[...jobs].reverse().map((job) => {

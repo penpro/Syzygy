@@ -28,6 +28,7 @@ import {
   attestScenarioAnnotationEvent,
   attestScenarioEditEvent,
   attestScenarioLabelEvent,
+  attestScenarioRerunResearchEvent,
   attestScenarioTurnRevisionEvent,
   castScenarioVoteWithAttribution,
   commitScenarioAnnotationWithAttribution,
@@ -37,6 +38,7 @@ import {
   researchEventAttestationResolver,
   scenarioEditAttestationEventId,
   scenarioLabelAttestationEventId,
+  scenarioRerunDefinitionAttestationEventId,
   scenarioTurnAttestationEventId,
   suggestionAttestationEventId,
   heuristicEditAttestationEventId,
@@ -80,6 +82,19 @@ import { commitHeuristicCheckResult } from './heuristicCheckResultModel'
 import { createHeuristicExample } from './heuristicExampleModel'
 import { createHeuristic, heuristicEditSha256 } from './heuristicsModel'
 import type { ResearchProjectManifest } from './schema'
+import {
+  buildScenarioEvaluationRequest,
+  SCENARIO_EVALUATION_CONTRACT_VERSION,
+  SCENARIO_EVALUATION_PROMPT_VERSION,
+} from './scenarioEvaluation'
+import {
+  beginScenarioRerunItem,
+  completeScenarioRerunItem,
+  controlScenarioRerunJob,
+  createScenarioRerunJob,
+  readScenarioRerunJob,
+  scenarioRerunResearchEventSha256,
+} from './scenarioRerunQueue'
 
 const projectId = 'project-research-event-attestations'
 const participantA = 'participant-a'
@@ -205,6 +220,116 @@ async function make(
 }
 
 describe('project research event attestations', () => {
+  it('signs every retained scenario-rerun record class, rejects cross-author proofs, and detects tampering', async () => {
+    const signer = await identity(participantA)
+    const other = await identity(participantB)
+    const document = createProjectDocument(manifest)
+    const { discussions, heuristics, metadata, scenarios, settings, versions } = getProjectSharedTypes(document)
+    const scenario = createScenario(scenarios, {
+      id: 'scenario-rerun-signed', title: 'Signed rerun', background: 'A resident needs an appeal.',
+      status: 'ready', authorId: participantA, timestamp: 1, editId: 'scenario-rerun-create',
+      turns: [{ id: 'scenario-rerun-turn', role: 'user', content: 'How do I appeal?', editId: 'scenario-rerun-turn-create' }],
+    })
+    const version = await commitPolicyVersion(versions, metadata, {
+      projectId, expectedHeadVersionId: null,
+      blocks: [{ kind: 'policy', policyId: 'appeal', status: 'approved', text: 'Give written appeal instructions.' }],
+      scenarioIds: [scenario.id], participantId: participantA, displayName: 'Alice', createdAt: 2,
+    })
+    const created = createScenarioRerunJob(settings, {
+      jobId: 'scenario-rerun-job-signed', project: manifest, policyVersion: version,
+      providerId: 'local', requestedModelId: 'local-fixture',
+      items: [{
+        itemId: 'scenario-rerun-item-signed', scenario,
+        runIdBase: 'scenario-rerun-run-signed', resultId: 'scenario-rerun-result-signed',
+      }],
+      authorId: participantA, authorDisplayName: 'Alice', timestamp: 3,
+    })
+    const definitionRecord = { recordType: 'definition' as const, definition: created.definition }
+    await expect(attestScenarioRerunResearchEvent(document, projectId, definitionRecord, {
+      inspectDirectory: async () => directory([signer, other]),
+      create: async () => { throw new Error('device vault unavailable') },
+    })).resolves.toEqual({
+      status: 'unsigned', reason: 'signing-or-registration-unavailable',
+      authority: 'installation-device-not-human-identity',
+    })
+    expect(readScenarioRerunJob(settings, discussions, created.definition.jobId)?.status).toBe('paused')
+
+    const started = controlScenarioRerunJob(settings, discussions, {
+      eventId: 'scenario-rerun-control-signed', jobId: created.definition.jobId, action: 'start',
+      parentEventId: null, authorId: participantA, timestamp: 4,
+    })
+    const begun = beginScenarioRerunItem(settings, discussions, {
+      eventId: 'scenario-rerun-begin-signed', jobId: created.definition.jobId,
+      itemId: 'scenario-rerun-item-signed', expectedCurrentEventId: null,
+      attempt: 1, authorId: participantA, timestamp: 5,
+    })
+    const request = buildScenarioEvaluationRequest({
+      jobId: created.definition.jobId, itemId: 'scenario-rerun-item-signed', attempt: 1,
+      runId: 'scenario-rerun-run-signed-a1', providerId: 'local', requestedModelId: 'local-fixture',
+      project: manifest, policyVersion: version, scenario,
+    })
+    const completed = await completeScenarioRerunItem(document, request, {
+      contractVersion: SCENARIO_EVALUATION_CONTRACT_VERSION,
+      promptVersion: SCENARIO_EVALUATION_PROMPT_VERSION,
+      jobId: request.jobId, itemId: request.itemId, attempt: request.attempt, runId: request.runId,
+      providerId: request.providerId, requestedModelId: request.requestedModelId,
+      executedModelId: 'local-fixture', outcome: 'handled', response: 'Use the written appeal path.',
+      rationale: 'The policy expressly requires instructions.', uncertainty: 'No deadline is specified.',
+    }, {
+      eventId: 'scenario-rerun-complete-signed', resultId: 'scenario-rerun-result-signed',
+      authorId: participantA, authorDisplayName: 'Alice', timestamp: 6,
+    })
+    const records = [
+      definitionRecord,
+      { recordType: 'control' as const, event: started.controls[0] },
+      { recordType: 'item' as const, event: begun.itemEvents[0] },
+      { recordType: 'item' as const, event: completed.itemEvents.find(({ action }) => action === 'complete')! },
+      { recordType: 'result' as const, result: completed.items[0].result! },
+    ]
+    const dependenciesFor = (value: TestIdentity) => ({
+      inspectDirectory: async () => directory([signer, other]),
+      create: (id: string, participantId: string, kind: ProjectResearchEventKind, eventId: string, hash: string) =>
+        createProjectResearchEventAttestation(id, participantId, kind, eventId, hash, dependencies(value, nonceA)),
+    })
+    for (const record of records) {
+      await expect(attestScenarioRerunResearchEvent(
+        document, projectId, record, dependenciesFor(signer),
+      )).resolves.toEqual(expect.objectContaining({ status: 'signed-device', eventKind: 'scenario-rerun' }))
+    }
+    const resolver = researchEventAttestationResolver(discussions, settings, versions, scenarios, heuristics)
+    await expect(inspectProjectResearchEventAttestations(
+      settings, projectId, directory([signer, other]), resolver,
+    )).resolves.toEqual(expect.objectContaining({ healthy: true, attestationCount: 5 }))
+
+    const definitionEventId = scenarioRerunDefinitionAttestationEventId(created.definition)
+    const forged = await make(
+      other, 'scenario-rerun', definitionEventId,
+      await scenarioRerunResearchEventSha256(definitionRecord), nonceB,
+    )
+    await expect(publishProjectResearchEventAttestation(
+      settings, projectId, directory([signer, other]), resolver, forged,
+    )).rejects.toThrow('proof is invalid')
+
+    const resultBucket = Array.from(discussions.values()).find((value) =>
+      value instanceof Y.Map && value.get('jobId') === created.definition.jobId,
+    )
+    if (!(resultBucket instanceof Y.Map)) throw new Error('Scenario rerun result bucket fixture missing')
+    const resultMap = resultBucket.get('results')
+    if (!(resultMap instanceof Y.Map)) throw new Error('Scenario rerun result map fixture missing')
+    const resultEntry = Array.from(resultMap.entries()).find(([, value]) =>
+      typeof value === 'object' && value !== null &&
+      (value as { resultId?: unknown }).resultId === 'scenario-rerun-result-signed',
+    )
+    if (!resultEntry) throw new Error('Scenario rerun result fixture missing')
+    resultMap.set(resultEntry[0], {
+      ...(resultEntry[1] as Record<string, unknown>), rationale: 'Tampered retained rationale.',
+    })
+    await expect(inspectProjectResearchEventAttestations(
+      settings, projectId, directory([signer, other]),
+      researchEventAttestationResolver(discussions, settings, versions, scenarios, heuristics),
+    )).resolves.toEqual(expect.objectContaining({ healthy: false, invalidRecords: 1 }))
+  })
+
   it('signs retained heuristic edits, examples, and check results and rejects a cross-author edit', async () => {
     const signer = await identity(participantA)
     const other = await identity(participantB)

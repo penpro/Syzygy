@@ -1,9 +1,16 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { applyProviderStreamEvent, initialProviderStreamState } from '../providerStream'
-import { RemoteResearchReviewResult } from './RemoteResearchReview'
+import { providerUsesNativeStreaming, RemoteResearchReviewResult } from './RemoteResearchReview'
 
 describe('remote research streaming result', () => {
+  it('routes OpenAI and Anthropic through the native streaming channel only', () => {
+    expect(providerUsesNativeStreaming('openai')).toBe(true)
+    expect(providerUsesNativeStreaming('anthropic')).toBe(true)
+    expect(providerUsesNativeStreaming('gemini')).toBe(false)
+    expect(providerUsesNativeStreaming('xai')).toBe(false)
+  })
+
   it('renders incremental text as a transient review without implying a shared-draft mutation', () => {
     let streamState = initialProviderStreamState()
     streamState = applyProviderStreamEvent(streamState, {

@@ -1,9 +1,9 @@
 # Model provider API
 
 **Contract version:** 1. **Runtime status:** local inference remains available; OpenAI Responses
-request and stream controls are at `request-and-stream-control-conformance`; Anthropic Messages,
-Gemini Interactions, and xAI Responses one-shot requests are at
-`request-control-conformance`. Ordinary remote review and content-bound adversarial execution
+and Anthropic Messages request and stream controls are at
+`request-and-stream-control-conformance`; Gemini Interactions and xAI Responses one-shot requests
+are at `request-control-conformance`. Ordinary remote review and content-bound adversarial execution
 use registered Rust commands, OS-vault credentials, fixed built-in endpoints, native disclosure,
 bounded timeout/cancellation, normalized results, and content-free run records. Tests use
 loopback providers only; no live-provider compatibility or quality claim is made. Custom remote
@@ -118,11 +118,11 @@ enforces start/finish/end order and a 32 MiB aggregate ceiling, serially dispatc
 events, distinguishes sanitized provider failure, and cancels between events. The product
 runtime now routes that stream through one ordered per-call Tauri channel, accumulates the same
 bounded normalized response in Rust, removes the cancellation registration on every terminal path,
-and marks the authoritative content-free run record as streamed. The workspace renders OpenAI text,
-usage, and warnings incrementally as a transient review; it never applies the response to the shared
-draft automatically. Anthropic, Gemini, and xAI still use the one-shot path. No live service has been
-contacted, and streamed tools are not handled. `syzygy_platform_contracts` reports aggregate status
-as `native-disclosure-openai-stream-review-ui-no-live-proof`.
+and marks the authoritative content-free run record as streamed. The workspace renders OpenAI or
+Anthropic text, usage, and warnings incrementally as a transient review; it never applies the
+response to the shared draft automatically. Gemini and xAI still use the one-shot path. No live
+service has been contacted, and streamed tools are not handled. `syzygy_platform_contracts` reports
+aggregate status as `native-disclosure-openai-anthropic-stream-review-ui-no-live-proof`.
 
 The incremental OpenAI SSE decoder accepts arbitrary byte fragmentation, including split Unicode;
 joins multiline `data:` fields; ignores keepalives; validates optional SSE event labels against
@@ -145,14 +145,19 @@ before the asynchronous write completes. Saving does not transmit research. macO
 evidence, transient DOM/heap leak tests, and live provider workflow proof remain open. Dependency provenance is
 recorded in `docs/audits/EXTENSION-PROVENANCE.md`.
 
-The first Anthropic Messages slice is also Rust-owned and fake-server-only. It proves the exact
+The Anthropic Messages slice is Rust-owned and fake-server-only. One-shot evidence proves the exact
 `/v1/messages` endpoint, `x-api-key`, `anthropic-version: 2023-06-01`, content type, separate system
-text blocks, user messages, `max_tokens`, and `stream:false`. The normalizer requires a complete
-assistant message, retains text blocks, reports other block types without storing their contents,
-computes overflow-safe total usage, maps refusal to a sanitized marker, bounds response bytes, and
-shares the disclosure, timeout, cancellation, TLS/loopback, and error-redaction gates. Anthropic
-streaming, tool blocks, beta headers, request IDs, live policy validation, UI, and opt-in live proof
-remain open.
+text blocks, user messages, `max_tokens`, and `stream:false`. The native SSE path sends
+`stream:true`, requires `text/event-stream`, bounds aggregate bytes, and normalizes
+`message_start`, text deltas, cumulative usage, stop reason, warnings, sanitized errors, and
+`message_stop` through the same ordered runtime channel used by the product review. Ping and
+content-stop events are harmless; unknown event types remain visible warnings. Thinking, signature,
+and partial-tool bodies are never copied into normalized events or run records. The decoder rejects
+label/type mismatch, decreasing cumulative usage, malformed/truncated lifecycle, and missing
+terminal events. The normalizer computes overflow-safe total usage, maps refusal to a sanitized
+marker, and shares the disclosure, timeout, cancellation, TLS/loopback, and error-redaction gates.
+Tool assembly/execution, beta headers, upstream request IDs beyond the message ID, live policy
+validation, packaged native-dialog interaction, and opt-in live proof remain open.
 
 The Gemini slice targets the stable `/v1/interactions` API rather than silently following an SDK's
 preview default. Its Rust fake server proves `x-goog-api-key`, content type, model, joined local

@@ -1,18 +1,18 @@
 //! Product boundary for opt-in remote model tasks.
 //!
 //! This is intentionally narrower than the transport module: built-in endpoints only, one default
-//! OS-vault credential per provider, explicit disclosure approval, one-shot execution plus a
-//! scoped OpenAI event channel, caller cancellation, sanitized output, and a content-free
+//! OS-vault credential per provider, explicit disclosure approval, one-shot execution plus scoped
+//! OpenAI and Anthropic event channels, caller cancellation, sanitized output, and a content-free
 //! provenance record authored in Rust.
 
 use crate::credential_vault::{CredentialId, CredentialVault, OsCredentialVault};
 use crate::model_provider::{
-    execute_anthropic_response_controlled, execute_gemini_response_controlled,
-    execute_openai_response_controlled, execute_openai_stream_controlled,
-    execute_xai_response_controlled, provider_execution, GenerationRequest, InputRole,
-    NormalizedResponse, NormalizedUsage, ProviderCancellation, ProviderError, ProviderInput,
-    RemoteProviderId, TransmissionApproval, ANTHROPIC_ADAPTER_STATUS, GEMINI_ADAPTER_STATUS,
-    OPENAI_ADAPTER_STATUS, XAI_ADAPTER_STATUS,
+    execute_anthropic_response_controlled, execute_anthropic_stream_controlled,
+    execute_gemini_response_controlled, execute_openai_response_controlled,
+    execute_openai_stream_controlled, execute_xai_response_controlled, provider_execution,
+    GenerationRequest, InputRole, NormalizedResponse, NormalizedUsage, ProviderCancellation,
+    ProviderError, ProviderInput, RemoteProviderId, TransmissionApproval, ANTHROPIC_ADAPTER_STATUS,
+    GEMINI_ADAPTER_STATUS, OPENAI_ADAPTER_STATUS, XAI_ADAPTER_STATUS,
 };
 use crate::provider_stream::NormalizedStreamEvent;
 use chrono::{SecondsFormat, Utc};
@@ -1387,13 +1387,17 @@ impl ProviderStreamAccumulator {
         self,
         request: &ProviderTaskRequest,
     ) -> Result<NormalizedResponse, ProviderError> {
+        let status = self.status.ok_or(ProviderError::MalformedResponse)?;
         Ok(NormalizedResponse {
-            provider: RemoteProviderId::OpenAi,
+            provider: request.provider,
             id: self.response_id.ok_or(ProviderError::MalformedResponse)?,
-            status: self.status.ok_or(ProviderError::MalformedResponse)?,
+            status: status.clone(),
             model: Some(request.generation.model.clone()),
             text: self.text,
-            refusals: Vec::new(),
+            refusals: (request.provider == RemoteProviderId::Anthropic && status == "refusal")
+                .then(|| "provider-refusal".to_owned())
+                .into_iter()
+                .collect(),
             unknown_output_types: self.warnings,
             usage: self.usage,
         })
@@ -1438,8 +1442,13 @@ where
     F: FnMut(NormalizedStreamEvent) -> Result<(), ProviderError>,
 {
     validate_task(&request)?;
-    if request.provider != RemoteProviderId::OpenAi {
-        return Err("Native streaming is currently available only for OpenAI".to_owned());
+    if !matches!(
+        request.provider,
+        RemoteProviderId::OpenAi | RemoteProviderId::Anthropic
+    ) {
+        return Err(
+            "Native streaming is currently available only for OpenAI and Anthropic".to_owned(),
+        );
     }
     let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     if !disclosure_accepted {
@@ -1483,19 +1492,39 @@ where
         accepted: true,
     };
     let mut accumulator = ProviderStreamAccumulator::default();
-    let result = execute_openai_stream_controlled(
-        client,
-        &endpoint,
-        &secret,
-        &request.generation,
-        &approval,
-        execution,
-        |event| {
-            accumulator.apply(&event)?;
-            on_event(event)
-        },
-    )
-    .await
+    let result = match request.provider {
+        RemoteProviderId::OpenAi => {
+            execute_openai_stream_controlled(
+                client,
+                &endpoint,
+                &secret,
+                &request.generation,
+                &approval,
+                execution,
+                |event| {
+                    accumulator.apply(&event)?;
+                    on_event(event)
+                },
+            )
+            .await
+        }
+        RemoteProviderId::Anthropic => {
+            execute_anthropic_stream_controlled(
+                client,
+                &endpoint,
+                &secret,
+                &request.generation,
+                &approval,
+                execution,
+                |event| {
+                    accumulator.apply(&event)?;
+                    on_event(event)
+                },
+            )
+            .await
+        }
+        RemoteProviderId::Gemini | RemoteProviderId::Xai => Err(ProviderError::InvalidRequest),
+    }
     .and_then(|()| accumulator.into_response(&request));
     if let Ok(mut calls) = state.calls.lock() {
         calls.remove(&request.call_id);
@@ -1705,8 +1734,13 @@ pub async fn provider_generate_stream(
     request: ProviderResearchTaskRequest,
     on_event: tauri::ipc::Channel<NormalizedStreamEvent>,
 ) -> Result<ProviderTaskOutcome, String> {
-    if request.provider != RemoteProviderId::OpenAi {
-        return Err("Native streaming is currently available only for OpenAI".to_owned());
+    if !matches!(
+        request.provider,
+        RemoteProviderId::OpenAi | RemoteProviderId::Anthropic
+    ) {
+        return Err(
+            "Native streaming is currently available only for OpenAI and Anthropic".to_owned(),
+        );
     }
     let endpoint = Url::parse(profile(request.provider).endpoint)
         .map_err(|_| "Built-in provider endpoint is invalid".to_owned())?;
@@ -2299,6 +2333,99 @@ mod tests {
         assert!(!serialized_events.contains("response_id"));
         let serialized = serde_json::to_string(&outcome).unwrap();
         assert!(!serialized.contains("runtime-stream-secret-canary"));
+        assert!(!serialized.contains("fixture question"));
+        assert!(!serialized.contains("selected research excerpts"));
+        assert!(state.calls.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn runtime_streams_anthropic_and_keeps_secrets_and_research_out_of_records() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener");
+        let endpoint = Url::parse(&format!(
+            "http://{}/v1/messages",
+            listener.local_addr().unwrap()
+        ))
+        .unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = vec![0_u8; 16 * 1024];
+            let read = stream.read(&mut request).unwrap();
+            let request = String::from_utf8_lossy(&request[..read]);
+            let lower = request.to_ascii_lowercase();
+            assert!(lower.contains("x-api-key: runtime-anthropic-stream-secret-canary"));
+            assert!(lower.contains("anthropic-version: 2023-06-01"));
+            assert!(!lower.contains("authorization:"));
+            assert!(request.contains("\"stream\":true"));
+            let body = concat!(
+                "event: message_start\n",
+                "data: {\"type\":\"message_start\",\"message\":{\"id\":\"runtime-anthropic-message\",\"type\":\"message\",\"role\":\"assistant\",\"usage\":{\"input_tokens\":6,\"output_tokens\":1}}}\n\n",
+                "event: content_block_start\n",
+                "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\",\"signature\":\"\"}}\n\n",
+                "event: content_block_delta\n",
+                "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"runtime-private-thinking-canary\"}}\n\n",
+                "event: content_block_start\n",
+                "data: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
+                "event: content_block_delta\n",
+                "data: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"bounded Anthropic answer\"}}\n\n",
+                "event: message_delta\n",
+                "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":5}}\n\n",
+                "event: message_stop\n",
+                "data: {\"type\":\"message_stop\"}\n\n"
+            );
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+            .unwrap();
+        });
+        let vault = MemoryVault::default();
+        let id =
+            CredentialId::new(RemoteProviderId::Anthropic, DEFAULT_PROFILE.to_owned()).unwrap();
+        vault
+            .set(
+                &id,
+                &ProviderSecret::new("runtime-anthropic-stream-secret-canary".to_owned()).unwrap(),
+            )
+            .unwrap();
+        let mut request = task();
+        request.provider = RemoteProviderId::Anthropic;
+        request.generation.model = "claude-fixture".to_owned();
+        let mut events = Vec::new();
+        let state = ProviderRuntimeState::default();
+        let outcome = tauri::async_runtime::block_on(execute_stream_with(
+            &vault,
+            &state,
+            &Client::new(),
+            endpoint,
+            request,
+            true,
+            |event| {
+                events.push(event);
+                Ok(())
+            },
+        ))
+        .expect("Anthropic stream runtime outcome");
+        server.join().unwrap();
+        let response = outcome.response.as_ref().expect("normalized response");
+        assert_eq!(response.provider, RemoteProviderId::Anthropic);
+        assert_eq!(response.text, "bounded Anthropic answer");
+        assert_eq!(response.status, "end_turn");
+        assert_eq!(response.usage.as_ref().unwrap().total_tokens, 11);
+        assert_eq!(
+            response.unknown_output_types,
+            [
+                "anthropic-content-block-thinking".to_owned(),
+                "anthropic-thinking_delta".to_owned(),
+            ]
+        );
+        assert_eq!(outcome.run_record["request"]["stream"], true);
+        assert_eq!(outcome.run_record["provider"]["id"], "anthropic");
+        assert_eq!(events.len(), 7);
+        let serialized = serde_json::to_string(&outcome).unwrap();
+        assert!(!serialized.contains("runtime-anthropic-stream-secret-canary"));
+        assert!(!serialized.contains("runtime-private-thinking-canary"));
         assert!(!serialized.contains("fixture question"));
         assert!(!serialized.contains("selected research excerpts"));
         assert!(state.calls.lock().unwrap().is_empty());

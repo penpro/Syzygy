@@ -225,8 +225,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   fixtures. Bounded request and stalled-body deadlines plus idempotent in-flight/inter-event
   cancellation now have fake-server evidence. Real HTTP SSE chunks are incrementally normalized,
   terminal order and aggregate size are enforced, and sanitized provider errors remain distinct.
-  The adapter is labeled `request-and-stream-control-conformance`; tools, the frontend streaming
-  event bridge, and opt-in live-provider proof remain gates before broader availability.
+  The adapter is labeled `request-and-stream-control-conformance`; its scoped frontend streaming
+  bridge has landed. Tools, slow-consumer stress, and opt-in live-provider proof remain gates before
+  broader availability.
 - The provider credential vault now has a collapsed product Settings caller. Its provider-neutral
   trait passes an in-memory set/read/delete/error-redaction suite; secret strings zeroize on drop;
   and a Windows Credential Manager harness created, read, deleted, and independently proved absence
@@ -287,10 +288,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   the later collaborative-history and product-workflow slices below close it. Packaged native-dialog
   proof, live provider evidence, public fixtures/statistics, and any superiority claim remain open.
   Evidence: `docs/audits/runs/ADVERSARIAL-NATIVE-EXECUTION-2026-07-29.json`.
-- Anthropic Messages now has a one-shot `request-control-conformance` slice. A fake server
-  proves the current `/v1/messages` path, `x-api-key`, pinned API version, system/user mapping,
-  bounds, normalized text/usage, thinking-block non-retention, sanitized failure, timeout, and
-  cancellation. Anthropic streaming, tool-specific UI, and live proof remain open; the shared adversarial product workflow can route Anthropic one-shot calls.
+- Anthropic Messages now has `request-and-stream-control-conformance`. Fake servers prove the
+  current `/v1/messages` path, `x-api-key`, pinned API version, system/user mapping, bounds,
+  normalized text/cumulative usage, thinking-body non-retention, sanitized failure, timeout,
+  cancellation, SSE lifecycle/terminal ordering, and product review routing. Streamed tool
+  assembly/execution, packaged-dialog interaction, and live proof remain open; the shared
+  adversarial product workflow continues to route bounded Anthropic calls.
 - Gemini Interactions now has a stable-v1 `request-control-conformance` slice. Its fake
   server proves header auth, storage/background/stream off, thought-summary suppression, system and
   user mapping, output bounds, text-only retention, consistent aggregate usage, sanitized failure,
@@ -540,8 +543,8 @@ collaborators are not required to download large project folders.
      evaluation panel, mono metadata stamps).
 3. **Certify the open research platform boundary** — the first OpenAI fake-server/key-canary
    request/stream/control gates, Windows credential-vault canary, native disclosure, provider
-   settings/task workflow, and scoped OpenAI streaming event bridge have landed; next add equivalent
-   provider-native streams/tools and opt-in live/provider-policy evidence.
+   settings/task workflow, and scoped OpenAI/Anthropic streaming event bridge have landed; next add
+   Gemini/xAI provider-native streams, provider tool normalization, and opt-in live/provider-policy evidence.
    Build the adversarial benchmark before
    claiming panel quality; implement a no-authority WASI host before loading third-party code.
 4. **Harden collaboration beyond the first Drive transport** — append-only Yjs Drive sharing,

@@ -544,11 +544,14 @@ enforces terminal order and a total-byte ceiling, distinguishes sanitized provid
 cancels between dispatched events. Passing this is request/stream/control conformance, not live
 availability; streamed product delivery and an opt-in live canary are separate gates.
 
-The same command certifies the unwired Anthropic Messages one-shot boundary. Its fake server checks
+The same command certifies the Anthropic Messages one-shot and streaming boundary. Its fake server checks
 `POST /v1/messages`, `x-api-key`, `anthropic-version: 2023-06-01`, developer-to-system and user-to-
-message mapping, `max_tokens`, `stream:false`, normalized text/usage, unknown thinking-block
-non-retention, error-body redaction, timeout, and cancellation. This does not prove Anthropic SSE,
-tools, a live credential, or product availability.
+message mapping, `max_tokens`, and one-shot `stream:false`. Its SSE fixture separately checks
+`stream:true`, the event-stream media type, message/content lifecycle, cumulative usage, terminal
+order, fragmented delivery, sanitized errors/warnings, and omission of private thinking bodies.
+`npm run test:provider-runtime` also routes that stream through the product task accumulator and
+proves secrets, prompts, categories, and private-thinking canaries stay out of serialized outcomes.
+This does not prove tools, a live credential/provider, or packaged native-dialog interaction.
 
 It also certifies the stable-v1 Gemini Interactions one-shot boundary. The fake server checks
 `POST /v1/interactions`, `x-goog-api-key`, `store:false`, `background:false`, `stream:false`,
@@ -623,10 +626,11 @@ cannot overspend per-route or total ceilings, call IDs cannot be reused across r
 run/source/route identity consumes nothing, and expired capability is removed. Reservation has no
 public command, credential read, network access, or prompt/content binding.
 
-`npm run test:provider-streams` separately feeds the OpenAI decoder byte-by-byte and with
+`npm run test:provider-streams` separately feeds the OpenAI and Anthropic decoders fragmented,
 multiline, unknown, malformed, mismatched, oversized, and truncated SSE fixtures. It proves parser
-normalization in isolation. `test:providers` separately proves the parser is fed through fake HTTP
-streaming and that the same controls wrap both one-shot and streamed transport.
+normalization and private-body omission in isolation. `test:providers` separately proves each
+parser is fed through fake HTTP streaming and that the same controls wrap both one-shot and streamed
+transport.
 
 Run the explicit OS-store canary only when validating a desktop environment:
 

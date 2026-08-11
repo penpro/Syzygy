@@ -1,14 +1,14 @@
 //! Rust-owned remote model transport and normalization boundary.
 //!
 //! The webview must never construct provider HTTP requests or receive provider credentials.
-//! Executable slices certify OpenAI Responses request/stream plus Anthropic Messages, Gemini
-//! Interactions, and xAI Responses one-shot contracts against fake loopback servers. The native
-//! task command now owns credentials, disclosure, cancellation, and one-shot delivery; product UI,
-//! streaming event delivery, and live-provider certification remain separate gates.
+//! Executable slices certify OpenAI Responses and Anthropic Messages request/stream contracts plus
+//! Gemini Interactions and xAI Responses one-shot contracts against fake loopback servers. The
+//! native task command owns credentials, disclosure, cancellation, and bounded event delivery;
+//! live-provider certification remains a separate gate.
 
 #![allow(dead_code)] // Conformance-only helpers remain alongside the product task boundary.
 
-use crate::provider_stream::{NormalizedStreamEvent, OpenAiSseDecoder};
+use crate::provider_stream::{AnthropicSseDecoder, NormalizedStreamEvent, OpenAiSseDecoder};
 use futures_util::{
     future::{AbortHandle, AbortRegistration, Abortable},
     StreamExt,
@@ -20,7 +20,7 @@ use std::{fmt, time::Duration};
 use zeroize::Zeroize;
 
 pub const OPENAI_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
-pub const ANTHROPIC_ADAPTER_STATUS: &str = "request-control-conformance";
+pub const ANTHROPIC_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
 pub const GEMINI_ADAPTER_STATUS: &str = "request-control-conformance";
 pub const XAI_ADAPTER_STATUS: &str = "request-control-conformance";
 pub const DEFAULT_PROVIDER_TIMEOUT: Duration = Duration::from_secs(60);
@@ -269,6 +269,66 @@ fn checked_stream_total(received_bytes: usize, chunk_bytes: usize) -> Result<usi
         .ok_or(ProviderError::ResponseTooLarge)
 }
 
+#[derive(Default)]
+struct StreamSequence {
+    saw_start: bool,
+    saw_finish: bool,
+    saw_end: bool,
+    saw_provider_error: bool,
+}
+
+impl StreamSequence {
+    fn observe(&mut self, event: &NormalizedStreamEvent) -> Result<(), ProviderError> {
+        match event {
+            NormalizedStreamEvent::MessageStart { .. } => {
+                if self.saw_start || self.saw_finish || self.saw_end {
+                    return Err(ProviderError::MalformedResponse);
+                }
+                self.saw_start = true;
+            }
+            NormalizedStreamEvent::TextDelta { .. } | NormalizedStreamEvent::Usage { .. } => {
+                if !self.saw_start || self.saw_finish || self.saw_end {
+                    return Err(ProviderError::MalformedResponse);
+                }
+            }
+            NormalizedStreamEvent::Finish { .. } => {
+                if !self.saw_start || self.saw_finish || self.saw_end {
+                    return Err(ProviderError::MalformedResponse);
+                }
+                self.saw_finish = true;
+            }
+            NormalizedStreamEvent::StreamEnd => {
+                if !self.saw_finish || self.saw_end {
+                    return Err(ProviderError::MalformedResponse);
+                }
+                self.saw_end = true;
+            }
+            NormalizedStreamEvent::ProviderWarning { .. } => {
+                if self.saw_end {
+                    return Err(ProviderError::MalformedResponse);
+                }
+            }
+            NormalizedStreamEvent::ProviderError { .. } => {
+                if self.saw_end || self.saw_provider_error {
+                    return Err(ProviderError::MalformedResponse);
+                }
+                self.saw_provider_error = true;
+            }
+        }
+        Ok(())
+    }
+
+    fn finish(self) -> Result<(), ProviderError> {
+        if self.saw_provider_error {
+            Err(ProviderError::RemoteStreamFailed)
+        } else if !self.saw_start || !self.saw_finish || !self.saw_end {
+            Err(ProviderError::MalformedResponse)
+        } else {
+            Ok(())
+        }
+    }
+}
+
 fn validate_endpoint(endpoint: &Url, expected_path: &str) -> Result<(), ProviderError> {
     let literal_loopback = matches!(endpoint.host_str(), Some("127.0.0.1" | "::1"));
     let allowed_scheme =
@@ -298,7 +358,7 @@ fn openai_body(request: &GenerationRequest, stream: bool) -> Value {
     })
 }
 
-fn anthropic_body(request: &GenerationRequest) -> Result<Value, ProviderError> {
+fn anthropic_body(request: &GenerationRequest, stream: bool) -> Result<Value, ProviderError> {
     let messages = request
         .input
         .iter()
@@ -318,7 +378,7 @@ fn anthropic_body(request: &GenerationRequest) -> Result<Value, ProviderError> {
         "model": request.model,
         "messages": messages,
         "max_tokens": request.max_output_tokens,
-        "stream": false,
+        "stream": stream,
     });
     if !system.is_empty() {
         body["system"] = Value::Array(system);
@@ -709,66 +769,17 @@ where
         let mut decoder = OpenAiSseDecoder::new();
         let mut stream = response.bytes_stream();
         let mut received_bytes = 0_usize;
-        let mut saw_start = false;
-        let mut saw_finish = false;
-        let mut saw_end = false;
-        let mut saw_provider_error = false;
+        let mut sequence = StreamSequence::default();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.map_err(|error| classify_transport_error(&error))?;
             received_bytes = checked_stream_total(received_bytes, chunk.len())?;
             for event in decoder.push(&chunk)? {
-                match &event {
-                    NormalizedStreamEvent::MessageStart { .. } => {
-                        if saw_start || saw_finish || saw_end {
-                            return Err(ProviderError::MalformedResponse);
-                        }
-                        saw_start = true;
-                    }
-                    NormalizedStreamEvent::TextDelta { .. } => {
-                        if !saw_start || saw_finish || saw_end {
-                            return Err(ProviderError::MalformedResponse);
-                        }
-                    }
-                    NormalizedStreamEvent::Usage { .. } => {
-                        if !saw_start || saw_finish || saw_end {
-                            return Err(ProviderError::MalformedResponse);
-                        }
-                    }
-                    NormalizedStreamEvent::Finish { .. } => {
-                        if !saw_start || saw_finish || saw_end {
-                            return Err(ProviderError::MalformedResponse);
-                        }
-                        saw_finish = true;
-                    }
-                    NormalizedStreamEvent::StreamEnd => {
-                        if !saw_finish || saw_end {
-                            return Err(ProviderError::MalformedResponse);
-                        }
-                        saw_end = true;
-                    }
-                    NormalizedStreamEvent::ProviderWarning { .. } => {
-                        if saw_end {
-                            return Err(ProviderError::MalformedResponse);
-                        }
-                    }
-                    NormalizedStreamEvent::ProviderError { .. } => {
-                        if saw_end || saw_provider_error {
-                            return Err(ProviderError::MalformedResponse);
-                        }
-                        saw_provider_error = true;
-                    }
-                }
+                sequence.observe(&event)?;
                 on_event(event)?;
             }
         }
         decoder.finish()?;
-        if saw_provider_error {
-            return Err(ProviderError::RemoteStreamFailed);
-        }
-        if !saw_start || !saw_finish || !saw_end {
-            return Err(ProviderError::MalformedResponse);
-        }
-        Ok(())
+        sequence.finish()
     };
     Abortable::new(operation, execution.cancellation)
         .await
@@ -798,7 +809,7 @@ pub async fn execute_anthropic_response_controlled(
     validate_endpoint(endpoint, "/v1/messages")?;
     request.validate()?;
     approval.validate_for(RemoteProviderId::Anthropic)?;
-    let body = anthropic_body(request)?;
+    let body = anthropic_body(request, false)?;
     let operation = async {
         let response = client
             .post(endpoint.clone())
@@ -816,6 +827,66 @@ pub async fn execute_anthropic_response_controlled(
         let body = bounded_body(response).await?;
         let value = serde_json::from_slice(&body).map_err(|_| ProviderError::MalformedResponse)?;
         normalize_anthropic(value)
+    };
+    Abortable::new(operation, execution.cancellation)
+        .await
+        .map_err(|_| ProviderError::Cancelled)?
+}
+
+pub async fn execute_anthropic_stream_controlled<F>(
+    client: &Client,
+    endpoint: &Url,
+    secret: &ProviderSecret,
+    request: &GenerationRequest,
+    approval: &TransmissionApproval,
+    execution: ProviderExecution,
+    mut on_event: F,
+) -> Result<(), ProviderError>
+where
+    F: FnMut(NormalizedStreamEvent) -> Result<(), ProviderError>,
+{
+    validate_endpoint(endpoint, "/v1/messages")?;
+    request.validate()?;
+    approval.validate_for(RemoteProviderId::Anthropic)?;
+    let body = anthropic_body(request, true)?;
+    let operation = async {
+        let response = client
+            .post(endpoint.clone())
+            .timeout(execution.timeout)
+            .header("x-api-key", secret.expose())
+            .header("anthropic-version", "2023-06-01")
+            .header("content-type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|error| classify_transport_error(&error))?;
+        if !response.status().is_success() {
+            return Err(ProviderError::HttpStatus(response.status().as_u16()));
+        }
+        let is_event_stream = response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.split(';').next())
+            .is_some_and(|value| value.trim().eq_ignore_ascii_case("text/event-stream"));
+        if !is_event_stream {
+            return Err(ProviderError::MalformedResponse);
+        }
+
+        let mut decoder = AnthropicSseDecoder::new();
+        let mut stream = response.bytes_stream();
+        let mut received_bytes = 0_usize;
+        let mut sequence = StreamSequence::default();
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|error| classify_transport_error(&error))?;
+            received_bytes = checked_stream_total(received_bytes, chunk.len())?;
+            for event in decoder.push(&chunk)? {
+                sequence.observe(&event)?;
+                on_event(event)?;
+            }
+        }
+        decoder.finish()?;
+        sequence.finish()
     };
     Abortable::new(operation, execution.cancellation)
         .await
@@ -1082,6 +1153,7 @@ mod tests {
     }
 
     fn fake_stream_server(
+        path: &str,
         content_type: &str,
         chunks: Vec<(Duration, Vec<u8>)>,
     ) -> (Url, mpsc::Receiver<String>) {
@@ -1112,7 +1184,7 @@ mod tests {
             }
         });
         (
-            Url::parse(&format!("http://{address}/v1/responses")).expect("stream fake URL"),
+            Url::parse(&format!("http://{address}{path}")).expect("stream fake URL"),
             receiver,
         )
     }
@@ -1410,7 +1482,8 @@ mod tests {
             (Duration::ZERO, fixture[..split].to_vec()),
             (Duration::from_millis(5), fixture[split..].to_vec()),
         ];
-        let (endpoint, captured) = fake_stream_server("text/event-stream; charset=utf-8", chunks);
+        let (endpoint, captured) =
+            fake_stream_server("/v1/responses", "text/event-stream; charset=utf-8", chunks);
         let (execution, _cancellation) =
             provider_execution(Duration::from_secs(2)).expect("execution controls");
         let mut events = Vec::new();
@@ -1461,8 +1534,11 @@ mod tests {
     fn fake_network_stream_rejects_wrong_media_type_and_missing_terminal_events() {
         let complete =
             b"data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp\"}}\n\n".to_vec();
-        let (endpoint, _captured) =
-            fake_stream_server("application/json", vec![(Duration::ZERO, complete.clone())]);
+        let (endpoint, _captured) = fake_stream_server(
+            "/v1/responses",
+            "application/json",
+            vec![(Duration::ZERO, complete.clone())],
+        );
         let (execution, _cancellation) =
             provider_execution(Duration::from_secs(2)).expect("execution controls");
         let wrong_type = tauri::async_runtime::block_on(execute_openai_stream_controlled(
@@ -1476,8 +1552,11 @@ mod tests {
         ));
         assert_eq!(wrong_type, Err(ProviderError::MalformedResponse));
 
-        let (endpoint, _captured) =
-            fake_stream_server("text/event-stream", vec![(Duration::ZERO, complete)]);
+        let (endpoint, _captured) = fake_stream_server(
+            "/v1/responses",
+            "text/event-stream",
+            vec![(Duration::ZERO, complete)],
+        );
         let (execution, _cancellation) =
             provider_execution(Duration::from_secs(2)).expect("execution controls");
         let truncated = tauri::async_runtime::block_on(execute_openai_stream_controlled(
@@ -1498,8 +1577,11 @@ mod tests {
         )
         .as_bytes()
         .to_vec();
-        let (endpoint, _captured) =
-            fake_stream_server("text/event-stream", vec![(Duration::ZERO, wrong_order)]);
+        let (endpoint, _captured) = fake_stream_server(
+            "/v1/responses",
+            "text/event-stream",
+            vec![(Duration::ZERO, wrong_order)],
+        );
         let (execution, _cancellation) =
             provider_execution(Duration::from_secs(2)).expect("execution controls");
         let out_of_order = tauri::async_runtime::block_on(execute_openai_stream_controlled(
@@ -1545,6 +1627,7 @@ mod tests {
         .as_bytes()
         .to_vec();
         let (endpoint, _captured) = fake_stream_server(
+            "/v1/responses",
             "text/event-stream",
             vec![
                 (Duration::ZERO, first),
@@ -1586,8 +1669,11 @@ mod tests {
             "data: {{\"type\":\"error\",\"code\":\"rate_limit\",\"message\":\"{canary}\"}}\n\n"
         )
         .into_bytes();
-        let (endpoint, _captured) =
-            fake_stream_server("text/event-stream", vec![(Duration::ZERO, fixture)]);
+        let (endpoint, _captured) = fake_stream_server(
+            "/v1/responses",
+            "text/event-stream",
+            vec![(Duration::ZERO, fixture)],
+        );
         let (execution, _cancellation) =
             provider_execution(Duration::from_secs(2)).expect("execution controls");
         let mut events = Vec::new();
@@ -1664,6 +1750,105 @@ mod tests {
         assert_eq!(body["messages"][0]["role"], "user");
         assert_eq!(body["max_tokens"], 700);
         assert_eq!(body["stream"], false);
+        assert!(body.get("store").is_none());
+    }
+
+    #[test]
+    fn anthropic_fake_stream_proves_wire_shape_lifecycle_and_private_body_omission() {
+        let fixture = concat!(
+            "event: message_start\n",
+            "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_stream\",\"type\":\"message\",\"role\":\"assistant\",\"usage\":{\"input_tokens\":8,\"output_tokens\":1}}}\n\n",
+            "event: ping\n",
+            "data: {\"type\":\"ping\"}\n\n",
+            "event: content_block_start\n",
+            "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\",\"signature\":\"\"}}\n\n",
+            "event: content_block_delta\n",
+            "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"private-stream-canary\"}}\n\n",
+            "event: content_block_stop\n",
+            "data: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+            "event: content_block_start\n",
+            "data: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
+            "event: content_block_delta\n",
+            "data: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"Bounded finding.\"}}\n\n",
+            "event: content_block_stop\n",
+            "data: {\"type\":\"content_block_stop\",\"index\":1}\n\n",
+            "event: message_delta\n",
+            "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":4}}\n\n",
+            "event: message_stop\n",
+            "data: {\"type\":\"message_stop\"}\n\n"
+        )
+        .as_bytes()
+        .to_vec();
+        let split = fixture.len() / 2;
+        let chunks = vec![
+            (Duration::ZERO, fixture[..split].to_vec()),
+            (Duration::from_millis(5), fixture[split..].to_vec()),
+        ];
+        let (endpoint, captured) =
+            fake_stream_server("/v1/messages", "text/event-stream; charset=utf-8", chunks);
+        let (execution, _cancellation) =
+            provider_execution(Duration::from_secs(2)).expect("execution controls");
+        let secret_canary = "anthropic-stream-secret-canary";
+        let mut events = Vec::new();
+        tauri::async_runtime::block_on(execute_anthropic_stream_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new(secret_canary.to_owned()).expect("secret"),
+            &request(),
+            &anthropic_approval(),
+            execution,
+            |event| {
+                events.push(event);
+                Ok(())
+            },
+        ))
+        .expect("normalized Anthropic network stream");
+
+        assert_eq!(
+            events,
+            vec![
+                NormalizedStreamEvent::MessageStart {
+                    provider: RemoteProviderId::Anthropic,
+                    response_id: "msg_stream".to_owned(),
+                },
+                NormalizedStreamEvent::ProviderWarning {
+                    event_type: "anthropic-content-block-thinking".to_owned(),
+                },
+                NormalizedStreamEvent::ProviderWarning {
+                    event_type: "anthropic-thinking_delta".to_owned(),
+                },
+                NormalizedStreamEvent::TextDelta {
+                    text: "Bounded finding.".to_owned(),
+                },
+                NormalizedStreamEvent::Usage {
+                    usage: NormalizedUsage {
+                        input_tokens: 8,
+                        output_tokens: 4,
+                        total_tokens: 12,
+                    },
+                },
+                NormalizedStreamEvent::Finish {
+                    status: "end_turn".to_owned(),
+                },
+                NormalizedStreamEvent::StreamEnd,
+            ]
+        );
+        assert!(!serde_json::to_string(&events)
+            .expect("serialized normalized events")
+            .contains("private-stream-canary"));
+
+        let raw = captured.recv().expect("captured Anthropic stream request");
+        let (headers, body) = raw.split_once("\r\n\r\n").expect("HTTP request");
+        let headers = headers.to_ascii_lowercase();
+        assert!(headers.starts_with("post /v1/messages http/1.1"));
+        assert!(headers.contains(&format!("x-api-key: {secret_canary}")));
+        assert!(headers.contains("anthropic-version: 2023-06-01"));
+        assert!(!headers.contains("authorization:"));
+        let body: Value = serde_json::from_str(body).expect("Anthropic stream request JSON");
+        assert_eq!(body["stream"], true);
+        assert_eq!(body["model"], "research-model");
+        assert_eq!(body["messages"][0]["role"], "user");
+        assert_eq!(body["max_tokens"], 700);
         assert!(body.get("store").is_none());
     }
 

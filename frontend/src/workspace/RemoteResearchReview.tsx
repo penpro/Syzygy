@@ -28,6 +28,10 @@ export type RemoteResearchReviewResultProps = {
   streamState: ProviderStreamState | null
 }
 
+export function providerUsesNativeStreaming(provider: RemoteProviderId): boolean {
+  return provider === 'openai' || provider === 'anthropic'
+}
+
 export function RemoteResearchReviewResult({ provider, model, outcome, streamState }: RemoteResearchReviewResultProps) {
   const response = outcome?.response
   const text = response?.text ?? streamState?.text ?? ''
@@ -91,13 +95,14 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
       setMessage('Native approval or the provider response is pending. Research leaves only after Send once.')
       let observedStream = initialProviderStreamState()
       let streamProtocolError: Error | null = null
-      const result = provider === 'openai'
+      const providerLabel = REMOTE_REVIEW_PROVIDERS.find(({ id }) => id === provider)?.name ?? provider
+      const result = providerUsesNativeStreaming(provider)
         ? await providerGenerateStream(request, (event) => {
             if (streamProtocolError) return
             try {
               observedStream = applyProviderStreamEvent(observedStream, event)
               setStreamState(observedStream)
-              if (event.type === 'message-start') setMessage('OpenAI approved and connected. The response is streaming into this transient review.')
+              if (event.type === 'message-start') setMessage(`${providerLabel} approved and connected. The response is streaming into this transient review.`)
             } catch (error) {
               streamProtocolError = error instanceof Error ? error : new Error(String(error))
               void providerCancel(callId)

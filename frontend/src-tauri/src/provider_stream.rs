@@ -1,8 +1,8 @@
 //! Incremental normalization for provider server-sent event streams.
 //!
-//! Input can be split at any byte boundary. Unknown future OpenAI event types are surfaced as
-//! warnings instead of crashing or disappearing; malformed JSON, mismatched SSE event labels, and
-//! unbounded frames fail closed.
+//! Input can be split at any byte boundary. Unknown future OpenAI or Anthropic event types are
+//! surfaced as warnings instead of crashing or disappearing; malformed JSON, mismatched SSE event
+//! labels, unbounded frames, and incomplete terminal sequences fail closed.
 
 use crate::model_provider::{normalized_usage, NormalizedUsage, ProviderError, RemoteProviderId};
 use serde::{Deserialize, Serialize};
@@ -41,6 +41,18 @@ pub enum NormalizedStreamEvent {
 
 #[derive(Default)]
 pub struct OpenAiSseDecoder {
+    frames: SseFrameDecoder,
+}
+
+#[derive(Default)]
+pub struct AnthropicSseDecoder {
+    frames: SseFrameDecoder,
+    input_tokens: Option<u64>,
+    output_tokens: Option<u64>,
+}
+
+#[derive(Default)]
+struct SseFrameDecoder {
     pending: Vec<u8>,
 }
 
@@ -50,6 +62,42 @@ impl OpenAiSseDecoder {
     }
 
     pub fn push(&mut self, bytes: &[u8]) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
+        let mut events = Vec::new();
+        for event in self.frames.push(bytes)? {
+            events.extend(normalize_openai_event(event)?);
+        }
+        Ok(events)
+    }
+
+    pub fn finish(self) -> Result<(), ProviderError> {
+        self.frames.finish()
+    }
+}
+
+impl AnthropicSseDecoder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn push(&mut self, bytes: &[u8]) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
+        let mut events = Vec::new();
+        for event in self.frames.push(bytes)? {
+            events.extend(normalize_anthropic_event(
+                &mut self.input_tokens,
+                &mut self.output_tokens,
+                event,
+            )?);
+        }
+        Ok(events)
+    }
+
+    pub fn finish(self) -> Result<(), ProviderError> {
+        self.frames.finish()
+    }
+}
+
+impl SseFrameDecoder {
+    fn push(&mut self, bytes: &[u8]) -> Result<Vec<SseEvent>, ProviderError> {
         if self.pending.len() + bytes.len() > MAX_PENDING_BYTES {
             return Err(ProviderError::ResponseTooLarge);
         }
@@ -59,18 +107,18 @@ impl OpenAiSseDecoder {
             let frame = self.pending.drain(..end).collect::<Vec<_>>();
             self.pending.drain(..delimiter_length);
             if let Some(event) = parse_sse_frame(&frame)? {
-                events.extend(normalize_openai_event(event)?);
+                events.push(event);
             }
         }
         Ok(events)
     }
 
-    pub fn finish(self) -> Result<(), ProviderError> {
-        if self.pending.iter().all(u8::is_ascii_whitespace) {
-            Ok(())
-        } else {
-            Err(ProviderError::MalformedResponse)
-        }
+    fn finish(self) -> Result<(), ProviderError> {
+        self.pending
+            .iter()
+            .all(u8::is_ascii_whitespace)
+            .then_some(())
+            .ok_or(ProviderError::MalformedResponse)
     }
 }
 
@@ -184,6 +232,148 @@ fn normalize_openai_event(event: SseEvent) -> Result<Vec<NormalizedStreamEvent>,
     }
 }
 
+fn normalize_anthropic_event(
+    input_tokens: &mut Option<u64>,
+    output_tokens: &mut Option<u64>,
+    event: SseEvent,
+) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
+    let value: Value =
+        serde_json::from_str(&event.data).map_err(|_| ProviderError::MalformedResponse)?;
+    let event_type = value
+        .get("type")
+        .and_then(Value::as_str)
+        .filter(|kind| !kind.is_empty())
+        .ok_or(ProviderError::MalformedResponse)?;
+    if event
+        .label
+        .as_deref()
+        .is_some_and(|label| label != event_type)
+    {
+        return Err(ProviderError::MalformedResponse);
+    }
+    match event_type {
+        "message_start" => {
+            if input_tokens.is_some() {
+                return Err(ProviderError::MalformedResponse);
+            }
+            let message = value
+                .get("message")
+                .filter(|message| {
+                    message.get("type").and_then(Value::as_str) == Some("message")
+                        && message.get("role").and_then(Value::as_str) == Some("assistant")
+                })
+                .ok_or(ProviderError::MalformedResponse)?;
+            let response_id = message
+                .get("id")
+                .and_then(Value::as_str)
+                .filter(|id| !id.is_empty())
+                .ok_or(ProviderError::MalformedResponse)?;
+            let usage = message
+                .get("usage")
+                .ok_or(ProviderError::MalformedResponse)?;
+            *input_tokens = Some(
+                usage
+                    .get("input_tokens")
+                    .and_then(Value::as_u64)
+                    .ok_or(ProviderError::MalformedResponse)?,
+            );
+            *output_tokens = Some(
+                usage
+                    .get("output_tokens")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0),
+            );
+            Ok(vec![NormalizedStreamEvent::MessageStart {
+                provider: RemoteProviderId::Anthropic,
+                response_id: response_id.to_owned(),
+            }])
+        }
+        "content_block_start" => {
+            let block_type = value
+                .get("content_block")
+                .and_then(|block| block.get("type"))
+                .and_then(Value::as_str)
+                .filter(|kind| !kind.is_empty())
+                .ok_or(ProviderError::MalformedResponse)?;
+            if block_type == "text" {
+                Ok(Vec::new())
+            } else {
+                Ok(vec![NormalizedStreamEvent::ProviderWarning {
+                    event_type: format!("anthropic-content-block-{block_type}"),
+                }])
+            }
+        }
+        "content_block_delta" => {
+            let delta = value.get("delta").ok_or(ProviderError::MalformedResponse)?;
+            let delta_type = delta
+                .get("type")
+                .and_then(Value::as_str)
+                .filter(|kind| !kind.is_empty())
+                .ok_or(ProviderError::MalformedResponse)?;
+            if delta_type == "text_delta" {
+                Ok(vec![NormalizedStreamEvent::TextDelta {
+                    text: delta
+                        .get("text")
+                        .and_then(Value::as_str)
+                        .ok_or(ProviderError::MalformedResponse)?
+                        .to_owned(),
+                }])
+            } else {
+                Ok(vec![NormalizedStreamEvent::ProviderWarning {
+                    event_type: format!("anthropic-{delta_type}"),
+                }])
+            }
+        }
+        "content_block_stop" | "ping" => Ok(Vec::new()),
+        "message_delta" => {
+            let usage = value.get("usage").ok_or(ProviderError::MalformedResponse)?;
+            if let Some(current_output_tokens) = usage.get("output_tokens").and_then(Value::as_u64)
+            {
+                if output_tokens.is_some_and(|prior| current_output_tokens < prior) {
+                    return Err(ProviderError::MalformedResponse);
+                }
+                *output_tokens = Some(current_output_tokens);
+            }
+            let Some(status) = value
+                .get("delta")
+                .and_then(|delta| delta.get("stop_reason"))
+                .and_then(Value::as_str)
+                .filter(|status| !status.is_empty())
+            else {
+                return Ok(Vec::new());
+            };
+            let input_tokens = input_tokens.ok_or(ProviderError::MalformedResponse)?;
+            let output_tokens = output_tokens.ok_or(ProviderError::MalformedResponse)?;
+            let total_tokens = input_tokens
+                .checked_add(output_tokens)
+                .ok_or(ProviderError::MalformedResponse)?;
+            Ok(vec![
+                NormalizedStreamEvent::Usage {
+                    usage: NormalizedUsage {
+                        input_tokens,
+                        output_tokens,
+                        total_tokens,
+                    },
+                },
+                NormalizedStreamEvent::Finish {
+                    status: status.to_owned(),
+                },
+            ])
+        }
+        "message_stop" => Ok(vec![NormalizedStreamEvent::StreamEnd]),
+        "error" => Ok(vec![NormalizedStreamEvent::ProviderError {
+            code: value
+                .get("error")
+                .and_then(|error| error.get("type"))
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+        }]),
+        unknown => Ok(vec![NormalizedStreamEvent::ProviderWarning {
+            event_type: unknown.to_owned(),
+        }]),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -269,6 +459,98 @@ mod tests {
             }]
         );
         assert!(!format!("{events:?}").contains(canary));
+    }
+
+    #[test]
+    fn anthropic_lifecycle_normalizes_usage_and_omits_private_thinking() {
+        let fixture = concat!(
+            "event: message_start\n",
+            "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg-stream\",\"type\":\"message\",\"role\":\"assistant\",\"usage\":{\"input_tokens\":5,\"output_tokens\":1}}}\n\n",
+            "event: content_block_start\n",
+            "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\",\"signature\":\"\"}}\n\n",
+            "event: content_block_delta\n",
+            "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"private-reasoning-canary\"}}\n\n",
+            "event: content_block_start\n",
+            "data: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
+            "event: content_block_delta\n",
+            "data: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"bounded answer\"}}\n\n",
+            "event: message_delta\n",
+            "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":4}}\n\n",
+            "event: message_stop\n",
+            "data: {\"type\":\"message_stop\"}\n\n"
+        );
+        let mut decoder = AnthropicSseDecoder::new();
+        let mut events = Vec::new();
+        for byte in fixture.as_bytes() {
+            events.extend(decoder.push(std::slice::from_ref(byte)).expect("fragment"));
+        }
+        decoder.finish().expect("complete stream");
+        assert_eq!(
+            events,
+            vec![
+                NormalizedStreamEvent::MessageStart {
+                    provider: RemoteProviderId::Anthropic,
+                    response_id: "msg-stream".to_owned(),
+                },
+                NormalizedStreamEvent::ProviderWarning {
+                    event_type: "anthropic-content-block-thinking".to_owned(),
+                },
+                NormalizedStreamEvent::ProviderWarning {
+                    event_type: "anthropic-thinking_delta".to_owned(),
+                },
+                NormalizedStreamEvent::TextDelta {
+                    text: "bounded answer".to_owned(),
+                },
+                NormalizedStreamEvent::Usage {
+                    usage: NormalizedUsage {
+                        input_tokens: 5,
+                        output_tokens: 4,
+                        total_tokens: 9,
+                    },
+                },
+                NormalizedStreamEvent::Finish {
+                    status: "end_turn".to_owned(),
+                },
+                NormalizedStreamEvent::StreamEnd,
+            ]
+        );
+        assert!(!format!("{events:?}").contains("private-reasoning-canary"));
+    }
+
+    #[test]
+    fn anthropic_stream_errors_are_sanitized_and_usage_cannot_decrease() {
+        let canary = "anthropic-error-body-canary";
+        let mut failed = AnthropicSseDecoder::new();
+        let events = failed
+            .push(
+                format!(
+                    "event: error\ndata: {{\"type\":\"error\",\"error\":{{\"type\":\"overloaded_error\",\"message\":\"{canary}\"}}}}\n\n"
+                )
+                .as_bytes(),
+            )
+            .expect("sanitized error");
+        assert_eq!(
+            events,
+            vec![NormalizedStreamEvent::ProviderError {
+                code: Some("overloaded_error".to_owned()),
+            }]
+        );
+        assert!(!format!("{events:?}").contains(canary));
+
+        let mut decreasing = AnthropicSseDecoder::new();
+        decreasing
+            .push(concat!(
+                "event: message_start\n",
+                "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg-usage\",\"type\":\"message\",\"role\":\"assistant\",\"usage\":{\"input_tokens\":2,\"output_tokens\":3}}}\n\n"
+            ).as_bytes())
+            .expect("start");
+        assert_eq!(
+            decreasing.push(concat!(
+                "event: message_delta\n",
+                "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":2}}\n\n"
+            ).as_bytes()),
+            Err(ProviderError::MalformedResponse)
+        );
     }
 
     #[test]

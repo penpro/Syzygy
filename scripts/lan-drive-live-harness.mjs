@@ -195,6 +195,10 @@ const evidence = {
   secondaryToPrimary: false,
   concurrentMerge: false,
   staleRevisionRejected: false,
+  sharedTitlePrimaryToSecondary: false,
+  sharedTitleSecondaryToPrimary: false,
+  sharedTitleStaleRevisionRejected: false,
+  sharedTitleRestored: false,
   scenarioPrimaryToSecondary: false,
   scenarioIndexReadback: false,
   scenarioSiblingMerge: false,
@@ -241,6 +245,90 @@ try {
   } else {
     const { project, primaryRead } = await ensureProofProject(session)
     const runId = `run-${Date.now().toString(36)}`
+    const titleBaseline = await waitFor(
+      async () => Promise.all([
+        lanCall(session, primaryNode, 'read_active_project'),
+        lanCall(session, secondaryNode, 'read_active_project'),
+      ]),
+      ([primary, secondary]) => Boolean(primary.sharedTitle && secondary.sharedTitle)
+        && primary.sharedTitle.conflict === false && secondary.sharedTitle.conflict === false
+        && primary.sharedTitle.title === secondary.sharedTitle.title
+        && JSON.stringify(primary.sharedTitle.revisionGuards) === JSON.stringify(secondary.sharedTitle.revisionGuards),
+      45_000,
+      'shared project title baseline on both installations',
+    )
+    const originalSharedTitle = titleBaseline[0].sharedTitle.title
+    const primarySharedTitle = `LAN primary title ${runId}`
+    await lanCall(session, primaryNode, 'rename_project', {
+      projectId: project.id,
+      title: primarySharedTitle,
+      expectedTitleRevisionGuards: titleBaseline[0].sharedTitle.revisionGuards,
+    }, 40_000)
+    const afterPrimaryTitle = await waitFor(
+      async () => Promise.all([
+        lanCall(session, primaryNode, 'read_active_project'),
+        lanCall(session, secondaryNode, 'read_active_project'),
+      ]),
+      ([primary, secondary]) => primary.sharedTitle?.title === primarySharedTitle
+        && secondary.sharedTitle?.title === primarySharedTitle
+        && primary.project.title === primarySharedTitle
+        && secondary.project.title === primarySharedTitle
+        && JSON.stringify(primary.sharedTitle.revisionGuards) === JSON.stringify(secondary.sharedTitle.revisionGuards),
+      60_000,
+      'primary shared-title rename on the secondary installation',
+    )
+    evidence.sharedTitlePrimaryToSecondary = true
+
+    const staleSharedTitle = `Stale shared title ${runId}`
+    try {
+      await lanCall(session, secondaryNode, 'rename_project', {
+        projectId: project.id,
+        title: staleSharedTitle,
+        expectedTitleRevisionGuards: titleBaseline[1].sharedTitle.revisionGuards,
+      }, 40_000)
+    } catch {
+      evidence.sharedTitleStaleRevisionRejected = true
+    }
+    const afterStaleTitle = await lanCall(session, primaryNode, 'read_active_project')
+    assert.notEqual(afterStaleTitle.sharedTitle.title, staleSharedTitle)
+
+    const secondarySharedTitle = `LAN secondary title ${runId}`
+    await lanCall(session, secondaryNode, 'rename_project', {
+      projectId: project.id,
+      title: secondarySharedTitle,
+      expectedTitleRevisionGuards: afterPrimaryTitle[1].sharedTitle.revisionGuards,
+    }, 40_000)
+    const afterSecondaryTitle = await waitFor(
+      async () => Promise.all([
+        lanCall(session, primaryNode, 'read_active_project'),
+        lanCall(session, secondaryNode, 'read_active_project'),
+      ]),
+      ([primary, secondary]) => primary.sharedTitle?.title === secondarySharedTitle
+        && secondary.sharedTitle?.title === secondarySharedTitle
+        && JSON.stringify(primary.sharedTitle.revisionGuards) === JSON.stringify(secondary.sharedTitle.revisionGuards),
+      60_000,
+      'secondary shared-title rename on the primary installation',
+    )
+    evidence.sharedTitleSecondaryToPrimary = true
+
+    await lanCall(session, primaryNode, 'rename_project', {
+      projectId: project.id,
+      title: originalSharedTitle,
+      expectedTitleRevisionGuards: afterSecondaryTitle[0].sharedTitle.revisionGuards,
+    }, 40_000)
+    await waitFor(
+      async () => Promise.all([
+        lanCall(session, primaryNode, 'read_active_project'),
+        lanCall(session, secondaryNode, 'read_active_project'),
+      ]),
+      ([primary, secondary]) => primary.sharedTitle?.title === originalSharedTitle
+        && secondary.sharedTitle?.title === originalSharedTitle
+        && primary.project.title === originalSharedTitle
+        && secondary.project.title === originalSharedTitle,
+      60_000,
+      'restored shared title on both installations',
+    )
+    evidence.sharedTitleRestored = true
     const baseline = `# Syzygy two-install collaboration proof\n\nBaseline ${runId}`
     const reset = await lanCall(session, primaryNode, 'replace_active_document', {
       expectedRevision: primaryRead.document.revision,
@@ -437,6 +525,10 @@ try {
       && evidence.secondaryToPrimary
       && evidence.concurrentMerge
       && evidence.staleRevisionRejected
+      && evidence.sharedTitlePrimaryToSecondary
+      && evidence.sharedTitleSecondaryToPrimary
+      && evidence.sharedTitleStaleRevisionRejected
+      && evidence.sharedTitleRestored
       && evidence.scenarioPrimaryToSecondary
       && evidence.scenarioIndexReadback
       && evidence.scenarioSiblingMerge

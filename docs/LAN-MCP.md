@@ -153,7 +153,10 @@ Both harnesses reserve agent and control ports independently, wait for both list
 only their owned child handles before a checked `taskkill` fallback, wait for agent exit, and close
 the coordinator through stdin. A discarded Windows termination failure is a test failure; success
 must return to the command prompt rather than merely printing JSON and leaving a process alive.
-The physical `--mutate` gate additionally creates one proof scenario and turn, makes simultaneous
+The physical `--mutate` gate first reads the exact shared-title guards, renames from the primary and
+waits for the secondary projection, proves an old guard is rejected, renames back through the
+secondary and waits for the primary, then restores the original title. It additionally creates one
+proof scenario and turn, makes simultaneous
 exact-revision edits on both installations, explicitly reads both immutable sibling bodies back
 from both nodes, requires the same selected head and complete two-tip set on each, invokes
 `reconcile_scenario_turn` with those exact guards, and requires one four-revision merge head whose
@@ -166,7 +169,8 @@ deadline; individual polling waits heartbeat every 15 seconds and never exceed o
 The deterministic component gates pass, but the decisive packaged two-install run must be rerun and
 recorded after both profiles install a build exposing all 38 native tools. The physical harness fails
 unless the exact two nodes connect, expose guarded catalog/share/join plus explicit scenario index and
-turn-revision readback, discover the same turn identity/head on both nodes, converge the document
+turn-revision readback, propagate guarded title changes both ways, reject a stale title guard,
+restore the original title, discover the same turn identity/head on both nodes, converge the document
 baseline and concurrent appends, retain both simultaneous scenario revision bodies on both
 installations, project the same selected head and complete tip set, converge the explicit all-parent
 merge revision, and reject stale document and scenario writes

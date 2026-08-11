@@ -5,9 +5,13 @@ import {
   googleDriveProjectCompact,
   googleDriveProjectPull,
   googleDriveProjectPush,
+  googleDriveProjectTitleState,
+  googleDriveProjectTitleUpdate,
   type DriveProjectCompactionResult,
   type DriveProjectPullResult,
+  type DriveProjectTitleState,
 } from '../tauri'
+import { useStore } from '../store'
 import type {
   ProjectCollaborationProvider,
   ProjectProviderEvent,
@@ -21,6 +25,7 @@ import { registerAutomationProjectDocument } from './workspaceAutomationRegistry
 import { publishDriveProjectStatus, type DriveProjectSyncStatus } from './driveProjectStatus'
 import { registerProjectPresence } from './presenceRegistry'
 import { registerDriveProjectMaintenance } from './driveProjectMaintenanceRegistry'
+import { clearDriveProjectTitleState, publishDriveProjectTitleState } from './driveProjectTitleStatus'
 
 const POLL_INTERVAL_MS = 3_000
 const PUSH_DEBOUNCE_MS = 750
@@ -35,12 +40,24 @@ export interface DriveProjectRemote {
     snapshotUpdateBase64: string,
     includedUpdateIds: string[],
   ): Promise<DriveProjectCompactionResult>
+  readTitle(projectId: string, documentId: string): Promise<DriveProjectTitleState>
+  updateTitle(
+    projectId: string,
+    documentId: string,
+    title: string,
+    expectedRevisionGuards: string[],
+    participantId: string,
+    displayName: string,
+    timestamp: number,
+  ): Promise<DriveProjectTitleState>
 }
 
 const tauriRemote: DriveProjectRemote = {
   pull: googleDriveProjectPull,
   push: googleDriveProjectPush,
   compact: googleDriveProjectCompact,
+  readTitle: googleDriveProjectTitleState,
+  updateTitle: googleDriveProjectTitleUpdate,
 }
 
 export function bytesToBase64(bytes: Uint8Array): string {
@@ -139,6 +156,7 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
     this.unregisterAutomation = null
     this.unregisterMaintenance?.()
     this.unregisterMaintenance = null
+    clearDriveProjectTitleState(this.manifest.id, this)
     this.local.disconnect()
     this.awareness.setLocalState(null)
     this.unregisterPresence?.()
@@ -194,6 +212,27 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
     return result
   }
 
+  async updateTitle(
+    title: string,
+    expectedRevisionGuards: string[],
+    participantId: string,
+    displayName: string,
+  ): Promise<DriveProjectTitleState> {
+    if (!this.connected) throw new Error('Drive project is disconnected')
+    await this.syncNow()
+    const state = await this.remote.updateTitle(
+      this.manifest.id,
+      this.manifest.documentId,
+      title,
+      [...expectedRevisionGuards].sort(),
+      participantId,
+      displayName,
+      Date.now(),
+    )
+    this.applyTitleState(state)
+    return state
+  }
+
   private async initialize(generation: number): Promise<void> {
     try {
       await this.local.whenReady()
@@ -201,6 +240,7 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
       this.doc.on('update', this.forwardUpdate)
       this.updatesAttached = true
       await this.pullRemote()
+      await this.pullTitleState()
       migrateScenarioDocument(this.doc)
       await this.pushUpdate(Y.encodeStateAsUpdate(this.doc))
       await this.flushPending()
@@ -222,6 +262,7 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
 
   private async performSync(): Promise<void> {
     await this.pullRemote()
+    await this.pullTitleState()
     await this.flushPending()
     this.emit('reload', { transport: 'drive', syncedAt: Date.now() })
     this.reportStatus({ state: 'synced', syncedAt: Date.now() })
@@ -239,6 +280,19 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
       Y.applyUpdate(this.doc, bytes, this)
       this.seenUpdateIds.add(update.id)
     }
+  }
+
+  private async pullTitleState(): Promise<void> {
+    const state = await this.remote.readTitle(this.manifest.id, this.manifest.documentId)
+    this.applyTitleState(state)
+  }
+
+  private applyTitleState(state: DriveProjectTitleState): void {
+    if (state.projectId !== this.manifest.id || state.documentId !== this.manifest.documentId) {
+      throw new Error('Drive project title state identity does not match the active project')
+    }
+    publishDriveProjectTitleState(this.manifest.id, this, state)
+    useStore.getState().applySharedProjectTitle(this.manifest.id, state.title)
   }
 
   private schedulePush(): void {

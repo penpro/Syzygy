@@ -195,6 +195,9 @@ export function DriveProjectControls({ project }: { project?: ResearchProjectMan
             <div>
               <strong>{descriptor.title}</strong>
               <span className="mono">{driveWorkspaceLabel({ id: descriptor.workspaceId, name: descriptor.workspaceName })}</span>
+              {descriptor.titleConflict && (
+                <span role="alert">{descriptor.titleTipCount} simultaneous titles need reconciliation after joining.</span>
+              )}
             </div>
             <button className="btn sm" type="button" disabled={busy || alreadyAdded} onClick={() => void join(descriptor)}>
               {alreadyAdded ? 'Already added' : 'Join'}

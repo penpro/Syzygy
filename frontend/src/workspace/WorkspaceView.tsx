@@ -8,6 +8,7 @@ import { PolicyVersionRail } from './PolicyVersionRail'
 import { ProjectArchiveControls } from './ProjectArchiveControls'
 import { ScenarioWorkspace } from './ScenarioWorkspace'
 import type { ResearchProjectManifest } from './schema'
+import { SharedProjectTitleControl } from './SharedProjectTitleControl'
 
 export function LocalProjectSharingPanel({ project }: { project: ResearchProjectManifest }) {
   return (
@@ -71,14 +72,16 @@ export function WorkspaceView() {
       <header className="workspace-header">
         <div>
           <div className="workspace-kicker mono">{shared ? 'Drive shared project' : 'Local project'} · schema v{project.schemaVersion}</div>
-          <input
-            className="workspace-title-input"
-            aria-label="Project title"
-            value={project.title}
-            readOnly={shared}
-            title={shared ? 'Shared project titles are fixed in this transport version.' : undefined}
-            onChange={(event) => renameProject(project.id, event.target.value)}
-          />
+          {shared ? (
+            <SharedProjectTitleControl key={project.id} project={project} />
+          ) : (
+            <input
+              className="workspace-title-input"
+              aria-label="Project title"
+              value={project.title}
+              onChange={(event) => renameProject(project.id, event.target.value)}
+            />
+          )}
         </div>
         <div className="workspace-header-actions">
           {shared ? (

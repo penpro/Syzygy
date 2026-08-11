@@ -86,7 +86,7 @@ packaged MCP surface before succeeding.
 | `knowledge.rs` | Folder knowledge: chunking granted folders, relevance retrieval. |
 | `google_auth.rs` | OAuth loopback + PKCE, collaboration-scope gate, token storage/refresh, cancel. See `GOOGLE-DRIVE.md`. |
 | `google_drive.rs` | Selected-workspace boundary, recursive direct retrieval/native export, confirmed native-Sheet value writes, and optional mirror sync. See `GOOGLE-DRIVE.md`. |
-| `drive_projects.rs` | Immutable active Drive project updates, snapshot-first bounded archival into a recoverable sibling folder, strict identity/integrity bounds, and the live cleanup canary. |
+| `drive_projects.rs` | Immutable active Drive project updates, content-addressed shared-title event graphs, snapshot-first bounded archival into a recoverable sibling folder, strict identity/integrity bounds, and the live cleanup canary. |
 | `downloads.rs` | Resumable model downloads. |
 | `updates.rs` | App version for the in-app updater. |
 | `state.rs` | Shared state types (`Engine`, `Granted`, `KnowledgeCache`, …). |
@@ -203,6 +203,18 @@ remote provider that polls immutable coalesced Yjs updates in the selected works
 them through Yjs. A deterministic Memory provider remains the fast provider-contract fixture. The
 Drive provider publishes to the UI/MCP automation registry only after local reopen plus its initial
 remote pull, and a live canary proves the underlying Google create/list/readback/cleanup path.
+Drive project titles are a second, metadata-only append path rather than a mutable manifest field.
+Each zero-body `title-event-<sha256>.json` record carries its strict event envelope in Drive
+description metadata, names zero or more exact parent event hashes, and is rehashed on every read.
+The immutable manifest supplies the initial `base-<sha256>` guard. One tip projects the current
+title; simultaneous root or child events remain visible as multiple tips; one explicit event naming
+the complete current tip set reconciles them without deleting history. The native boundary rejects
+wrong project/document identity, missing parents, malformed or tampered hashes, stale/incomplete
+tip sets, more than 20 parents, reads beyond 200 events, and any new event at the 200-event ceiling
+before writing. The provider pulls
+title state during normal synchronization, publishes it through an identity-safe registry, and only
+updates the local Drive-bound manifest projection. A dirty product draft keeps the guards captured
+when editing began, so a later peer title cannot be overwritten by silently adopting newer guards.
 The local provider publishes its document to the UI/MCP automation registry only after IndexedDB
 synchronization and uses a connection generation guard so stale lifecycle continuations fail closed.
 `presenceRegistry.ts` separately publishes the active provider awareness object and an explicit

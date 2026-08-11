@@ -16,6 +16,9 @@ function descriptor(index: number, workspaceId = workspace.id): DriveProjectDesc
     createdAt: index,
     workspaceId,
     workspaceName: workspace.name,
+    titleRevisionGuards: ['base-revision'],
+    titleConflict: false,
+    titleTipCount: 0,
   }
 }
 

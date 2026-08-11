@@ -24,6 +24,9 @@ function dependencies(overrides: Partial<DriveProjectActionDependencies> = {}): 
       createdAt: project.createdAt,
       workspaceId: 'workspace-1',
       workspaceName: 'Research',
+      titleRevisionGuards: ['base-revision'],
+      titleConflict: false,
+      titleTipCount: 0,
     })),
     discover: vi.fn(async () => ({
       projects: [{
@@ -34,6 +37,9 @@ function dependencies(overrides: Partial<DriveProjectActionDependencies> = {}): 
         createdAt: project.createdAt,
         workspaceId: 'workspace-1',
         workspaceName: 'Research',
+        titleRevisionGuards: ['base-revision'],
+        titleConflict: false,
+        titleTipCount: 0,
       }],
       workspaceCount: 1,
       skippedRootCount: 0,

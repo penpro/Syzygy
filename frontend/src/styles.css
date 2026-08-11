@@ -2371,6 +2371,30 @@ input.workspace-title-input:focus {
   border-color: var(--border-2);
   outline: none;
 }
+.shared-title-control {
+  display: grid;
+  max-width: min(720px, 68vw);
+  gap: 6px;
+}
+.workspace-title-row,
+.workspace-inline-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.workspace-inline-alert {
+  max-width: 720px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--text-2);
+  font-size: 0.78rem;
+}
+.workspace-inline-alert p {
+  margin: 4px 0 6px;
+}
 .workspace-header-actions {
   display: flex;
   align-items: center;

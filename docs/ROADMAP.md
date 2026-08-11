@@ -454,8 +454,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   appends one exact all-parent reconciliation, requires the four-revision merge on both nodes, and
   rejects stale document and scenario writes with boolean-only output. Component, Rust, MCP, and synthetic host gates pass;
   S-07 stays `implemented_unverified` until this build is installed on both profiles and the physical
-  harness produces its evidence record. Presence, bounded compaction, shared rename, and non-Drive
-  transports remain open.
+  harness produces its evidence record. Conflict-safe shared-project rename now appends
+  content-addressed parent-linked title events, retains simultaneous siblings, exposes exact product
+  and MCP reconciliation, and extends the physical harness with two-way propagation, stale rejection,
+  and restoration. Its deterministic gates pass; packaged two-install execution remains open.
+  Presence and non-Drive transports remain open.
 
 - The app-owned LAN developer-host slice removes the primary PowerShell babysitting requirement. A
   Settings toggle now persists and supervises the embedded coordinator, starts it before the local
@@ -541,8 +544,11 @@ collaborators are not required to download large project folders.
    agents, guarded MCP catalog/share/join tooling, and exact scenario sibling reconciliation have
    landed. Snapshot-first bounded compaction is now an explicit product and MCP action: it archives
    only applied records into a recoverable Drive folder, keeps concurrent/partial records active,
-   and has clean-install convergence and retry fixtures. Next: run and record the packaged two-install
-   convergence/reconciliation and real-Drive compaction harnesses, then conflict-safe shared rename.
+   and has clean-install convergence and retry fixtures. Conflict-safe shared rename has also landed
+   as a bounded append-only event graph with visible siblings, stale-draft refusal, exact all-tip
+   reconciliation, product/MCP controls, and a two-way physical harness extension. Next: run and
+   record the packaged two-install convergence/reconciliation/title harness and real-Drive compaction,
+   then add title-history retention/repair and the first self-hosted non-Drive transport.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.
    v0.1.14 added same-name folder codes and the bounded MCP/LAN diagnostic; the two-physical-install
    run then proved the client had no selected workspace rather than a failed project upload.

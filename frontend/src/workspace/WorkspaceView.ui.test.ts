@@ -4,6 +4,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { useStore } from '../store'
 import type { ResearchProjectManifest } from './schema'
 import { LocalProjectSharingPanel, WorkspaceView } from './WorkspaceView'
+import {
+  editSharedProjectTitleDraft,
+  SharedProjectTitleControl,
+  syncSharedProjectTitleDraft,
+} from './SharedProjectTitleControl'
 
 const localProject: ResearchProjectManifest = {
   schemaVersion: 1,
@@ -13,6 +18,13 @@ const localProject: ResearchProjectManifest = {
   createdAt: 1,
   updatedAt: 1,
   transport: { kind: 'local' },
+}
+const driveProject: ResearchProjectManifest = {
+  ...localProject,
+  id: 'workspace-shared-project',
+  documentId: 'workspace-shared-document',
+  title: 'Shared collaboration draft',
+  transport: { kind: 'drive', workspaceId: 'workspace-drive' },
 }
 
 let previousProjects: ResearchProjectManifest[]
@@ -51,5 +63,43 @@ describe('workspace collaboration entry points', () => {
     expect(html).toContain('Offline copies do not keep syncing')
     expect(html).toContain('Share this project')
     expect(html).toContain('Export offline copy')
+  })
+
+  it('makes a Drive-shared title an explicit synchronized action instead of a read-only field', () => {
+    const html = renderToStaticMarkup(createElement(SharedProjectTitleControl, { project: driveProject }))
+
+    expect(html).toContain('aria-label="Shared project title"')
+    expect(html).toContain('Rename shared project')
+    expect(html).toContain('Loading shared title')
+    expect(html).not.toContain('Shared project titles are fixed')
+  })
+
+  it('retains the exact revision guards captured when a shared-title draft became dirty', () => {
+    const original = {
+      schemaVersion: 1 as const,
+      projectId: driveProject.id,
+      documentId: driveProject.documentId,
+      baseTitle: driveProject.title,
+      title: driveProject.title,
+      revisionGuards: ['a'.repeat(64)],
+      conflict: false,
+      eventCount: 0,
+      tips: [],
+    }
+    const changed = editSharedProjectTitleDraft(
+      { title: original.title, revisionGuards: original.revisionGuards, dirty: false },
+      'Offline draft title',
+      original,
+    )
+    const peerUpdate = {
+      ...original,
+      title: 'Peer title',
+      revisionGuards: ['b'.repeat(64)],
+      eventCount: 1,
+    }
+
+    expect(syncSharedProjectTitleDraft(changed, peerUpdate)).toEqual(changed)
+    expect(changed.revisionGuards).toEqual(original.revisionGuards)
+    expect(changed.revisionGuards).not.toEqual(peerUpdate.revisionGuards)
   })
 })

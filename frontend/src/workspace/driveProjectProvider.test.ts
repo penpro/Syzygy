@@ -15,6 +15,8 @@ import {
 import { getProjectSharedTypes } from './projectModel'
 import { createScenario, readScenario, updateScenarioTurn } from './scenarioModel'
 import type { ResearchProjectManifest } from './schema'
+import type { DriveProjectTitleState } from '../tauri'
+import { currentDriveProjectTitleState } from './driveProjectTitleStatus'
 
 class ImmediateLocalProvider implements ProjectCollaborationProvider {
   readonly awareness: Awareness
@@ -35,6 +37,18 @@ class FakeDriveHub implements DriveProjectRemote {
   pendingConcurrentUpdateBase64: string | null = null
   failNextArchiveCount = 0
   compactCallCount = 0
+  titleUpdateCallCount = 0
+  private nextTitleId = 1
+  private titleState: DriveProjectTitleState = {
+    projectId: 'drive-project-test',
+    documentId: 'drive-document-test',
+    baseTitle: 'Drive convergence test',
+    title: 'Drive convergence test',
+    revisionGuards: ['base-fixture'],
+    conflict: false,
+    eventCount: 0,
+    tips: [],
+  }
 
   get activeUpdateCount() {
     return this.updates.length
@@ -87,6 +101,57 @@ class FakeDriveHub implements DriveProjectRemote {
       remainingIncludedUpdateCount: failedArchiveCount,
       retainedConcurrentUpdateCount,
       complete: failedArchiveCount === 0,
+    }
+  }
+
+  async readTitle(_projectId: string, _documentId: string) {
+    return structuredClone(this.titleState)
+  }
+
+  async updateTitle(
+    _projectId: string,
+    _documentId: string,
+    title: string,
+    expectedRevisionGuards: string[],
+    participantId: string,
+    displayName: string,
+    timestamp: number,
+  ) {
+    this.titleUpdateCallCount += 1
+    if (JSON.stringify(expectedRevisionGuards) !== JSON.stringify(this.titleState.revisionGuards)) {
+      if (!this.titleState.conflict && this.titleState.title === title) return structuredClone(this.titleState)
+      throw new Error('Drive project title changed or gained a concurrent sibling')
+    }
+    const revision = `title-${this.nextTitleId++}`
+    this.titleState = {
+      ...this.titleState,
+      title,
+      revisionGuards: [revision],
+      conflict: false,
+      eventCount: this.titleState.eventCount + 1,
+      tips: [{
+        revision,
+        parentRevisions: expectedRevisionGuards.filter((guard) => !guard.startsWith('base-')),
+        title,
+        participantId,
+        displayName,
+        timestamp,
+      }],
+    }
+    return structuredClone(this.titleState)
+  }
+
+  setConcurrentTitleTips(leftTitle: string, rightTitle: string) {
+    this.titleState = {
+      ...this.titleState,
+      title: leftTitle,
+      revisionGuards: ['tip-left', 'tip-right'],
+      conflict: true,
+      eventCount: this.titleState.eventCount + 2,
+      tips: [
+        { revision: 'tip-left', parentRevisions: [], title: leftTitle, participantId: 'alice', displayName: 'Alice', timestamp: 10 },
+        { revision: 'tip-right', parentRevisions: [], title: rightTitle, participantId: 'bob', displayName: 'Bob', timestamp: 11 },
+      ],
     }
   }
 }
@@ -258,6 +323,54 @@ describe('DriveProjectProvider', () => {
     expect(hub.compactCallCount).toBe(0)
   })
 
+  it('publishes shared-title state, exposes siblings, and reconciles the exact tip set', async () => {
+    const hub = new FakeDriveHub()
+    const doc = new Y.Doc({ guid: manifest.documentId })
+    const value = provider(doc, hub)
+    value.connect()
+    await value.whenReady()
+    expect(currentDriveProjectTitleState(manifest.id)).toMatchObject({
+      title: 'Drive convergence test', conflict: false, revisionGuards: ['base-fixture'],
+    })
+
+    const renamed = await value.updateTitle('Shared title', ['base-fixture'], 'alice', 'Alice')
+    expect(renamed).toMatchObject({ title: 'Shared title', conflict: false, eventCount: 1 })
+
+    hub.setConcurrentTitleTips('Left sibling', 'Right sibling')
+    await value.syncNow()
+    const conflicted = currentDriveProjectTitleState(manifest.id)
+    expect(conflicted).toMatchObject({
+      conflict: true,
+      revisionGuards: ['tip-left', 'tip-right'],
+      tips: [{ title: 'Left sibling' }, { title: 'Right sibling' }],
+    })
+
+    const reconciled = await value.updateTitle(
+      'Reconciled title',
+      conflicted?.revisionGuards ?? [],
+      'carol',
+      'Carol',
+    )
+    expect(reconciled).toMatchObject({ title: 'Reconciled title', conflict: false })
+    expect(reconciled.tips[0].parentRevisions).toEqual(['tip-left', 'tip-right'])
+  })
+
+  it('refreshes title siblings before rejecting a stale rename without hiding either tip', async () => {
+    const hub = new FakeDriveHub()
+    const doc = new Y.Doc({ guid: manifest.documentId })
+    const value = provider(doc, hub)
+    value.connect()
+    await value.whenReady()
+    hub.setConcurrentTitleTips('Peer A', 'Peer B')
+
+    await expect(value.updateTitle('Stale overwrite', ['base-fixture'], 'alice', 'Alice'))
+      .rejects.toThrow(/concurrent sibling/)
+    expect(currentDriveProjectTitleState(manifest.id)).toMatchObject({
+      conflict: true,
+      revisionGuards: ['tip-left', 'tip-right'],
+    })
+  })
+
   it('fails readiness closed when Drive returns malformed update bytes', async () => {
     const remote: DriveProjectRemote = {
       async pull() {
@@ -268,6 +381,12 @@ describe('DriveProjectProvider', () => {
       },
       async compact() {
         throw new Error('compact should not run')
+      },
+      async readTitle() {
+        throw new Error('title read should not run')
+      },
+      async updateTitle() {
+        throw new Error('title update should not run')
       },
     }
     const doc = new Y.Doc({ guid: manifest.documentId })

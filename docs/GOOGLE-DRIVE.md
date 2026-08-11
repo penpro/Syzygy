@@ -87,6 +87,19 @@ and before the document is exposed to UI/MCP automation. A valid v1 scenario his
 deterministic heads and revision parents and is republished as an ordinary append-only v2 Yjs update;
 malformed or future records fail provider readiness without a partial migration write.
 
+The immutable manifest remains the initial title; renames do not patch it. The current Drive v3
+[`files.update`](https://developers.google.com/workspace/drive/api/reference/rest/v3/files/update)
+contract and [Drive discovery document](https://www.googleapis.com/discovery/v1/apis/drive/v3/rest)
+do not expose a documented conditional ETag compare-and-swap contract for this path, so Syzygy uses
+an append-only title event graph instead of last-writer-wins metadata. Each metadata-only
+`title-event-<sha256>.json` file stores one strict project/document/title/author/time/parent envelope
+in its Drive description. Reads rehash it, reject missing parents and malformed identity, and derive
+the complete sorted tip set. The first rename consumes the immutable manifest's `base-<sha256>`
+guard. A normal rename names the current event tip; simultaneous writers can append sibling tips;
+an explicit reconciliation names every current tip as a parent and preserves every earlier title.
+The product and MCP both require the exact 1-20 current guards, and stale drafts add nothing. History
+is bounded to 200 events and fails before mutation when full; retention/archival remains open.
+
 Explicit **Compact Drive history** maintenance first performs a normal pull/flush, checks any MCP
 document and research revision guards, and appends one complete content-addressed Yjs snapshot. Only
 active update file IDs that this live provider has already applied are then moved, in batches of at
@@ -129,9 +142,10 @@ Drive editor to become ready. These explicit calls use the live product boundary
 ambient Drive authority.
 
 `scripts/lan-drive-live-harness.mjs` drives those tools through two exact physical node labels. Its
-mutating mode proves guarded share/join, bidirectional and concurrent document convergence, stale-
-write rejection, simultaneous scenario-turn siblings, explicit reads of both bodies on both nodes,
-and one exact-head/complete-tip reconciliation whose merge revision retains both siblings as parents.
+mutating mode proves guarded share/join; shared-title propagation from each node, stale-title guard
+rejection, and restoration; bidirectional and concurrent document convergence; stale-document
+rejection; simultaneous scenario-turn siblings; explicit reads of both bodies on both nodes; and
+one exact-head/complete-tip reconciliation whose merge revision retains both siblings as parents.
 The bounded harness must observe that four-revision merged head on both installations. This remains
 pending physical packaged execution for each new build; component or single-profile tests do not
 substitute for it.
@@ -206,8 +220,8 @@ typed Sheet action is exposed by v0.1.7.
 - Drive project delivery is polling-based (currently three seconds), not presence or sub-second
   real-time collaboration.
 - One selected workspace at a time. Each project binding records that workspace ID and fails closed
-  if code attempts to rebind it silently. Shared manifest rename is not yet exposed. Compacted update
-  records remain recoverable in Drive; automated retention/deletion is intentionally not implemented.
+  if code attempts to rebind it silently. Shared-title history currently stops safely at 200 retained
+  events; title-event and compacted-update retention/deletion are intentionally not automated.
 - Native Google Docs and Slides remain read-only research sources in Ask. Native Sheet support is
   currently literal rectangular value replacement from one starting cell; formatting, formulas,
   named-tab selection, structural edits, and conflict-aware revision controls are not yet exposed.

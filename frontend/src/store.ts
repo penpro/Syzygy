@@ -26,6 +26,7 @@ interface AppState {
   activeProjectId: string | null
   createProject: (title?: string) => string
   renameProject: (id: string, title: string) => void
+  applySharedProjectTitle: (id: string, title: string) => void
   openProject: (id: string) => void
   browseSharedProjects: () => void
   archiveProject: (id: string) => void
@@ -85,6 +86,18 @@ export const useStore = create<AppState>()(
             project.id === id ? { ...project, title, updatedAt: now() } : project,
           ),
         })),
+      applySharedProjectTitle: (id, title) => {
+        const normalized = title.trim()
+        if (!normalized || [...normalized].length > 200) throw new Error('Shared project title is invalid')
+        set((state) => ({
+          projects: state.projects.map((project) => {
+            if (project.id !== id || project.transport.kind !== 'drive' || project.title === normalized) {
+              return project
+            }
+            return { ...project, title: normalized, updatedAt: now() }
+          }),
+        }))
+      },
       openProject: (id) => set({ activeProjectId: id, view: 'workspace' }),
       browseSharedProjects: () => set({ activeProjectId: null, view: 'workspace' }),
       archiveProject: (id) =>

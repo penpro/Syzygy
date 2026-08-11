@@ -95,6 +95,13 @@ async function proveStdioContract() {
   for (const field of ['expectedDocumentRevision', 'expectedResearchRevision']) {
     if (!compactDriveProject.inputSchema?.required?.includes(field)) throw new Error(`Drive compaction schema omits ${field}`)
   }
+  const renameProject = tools.find((tool) => tool.name === 'rename_project')
+  if (!renameProject) throw new Error('project rename tool is missing')
+  if (renameProject.inputSchema?.additionalProperties !== false) throw new Error('project rename schema is not strict')
+  const titleGuards = renameProject.inputSchema?.properties?.expectedTitleRevisionGuards
+  if (titleGuards?.type !== 'array' || titleGuards?.minItems !== 1 || titleGuards?.maxItems !== 20 || titleGuards?.uniqueItems !== true) {
+    throw new Error('shared-project rename guards are not exact and bounded')
+  }
   if (!tools.some((tool) => tool.name === 'create_scenario')) throw new Error('scenario creation tool is missing')
   if (!tools.some((tool) => tool.name === 'add_scenario_turn')) throw new Error('scenario turn-add tool is missing')
   if (!tools.some((tool) => tool.name === 'revise_scenario_turn')) throw new Error('scenario turn-revision tool is missing')

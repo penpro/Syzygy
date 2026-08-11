@@ -45,4 +45,20 @@ describe('Drive project store binding', () => {
     expect(useStore.getState().view).toBe('workspace')
     expect(() => useStore.getState().addSharedProject(shared)).toThrow('already exists')
   })
+
+  it('applies a synchronized title only to the matching Drive-bound manifest', () => {
+    const shared: ResearchProjectManifest = {
+      ...localProject,
+      id: 'shared-project',
+      documentId: 'shared-document',
+      transport: { kind: 'drive', workspaceId: 'workspace-1' },
+    }
+    useStore.setState({ projects: [localProject, shared] })
+
+    useStore.getState().applySharedProjectTitle(localProject.id, 'Must not replace local metadata')
+    useStore.getState().applySharedProjectTitle(shared.id, '  Shared title from Drive  ')
+
+    expect(useStore.getState().projects.find((project) => project.id === localProject.id)?.title).toBe('Research')
+    expect(useStore.getState().projects.find((project) => project.id === shared.id)?.title).toBe('Shared title from Drive')
+  })
 })

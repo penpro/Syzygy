@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "runId": "DRIVE-PROJECT-SHARED-TITLE-2026-08-10",
+  "date": "2026-08-10",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "5909797",
+  "capabilities": ["P-12", "P-13", "S-05", "S-07"],
+  "status": "implemented_unverified",
+  "claim": "Drive-shared project titles use a bounded content-addressed append-only event graph: stale writes add nothing, simultaneous renames remain visible siblings, and explicit all-tip reconciliation preserves history through product and MCP controls.",
+  "commands": [
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend test -- --run src/workspace/driveProjectProvider.test.ts src/workspace/driveProjectTitleStatus.test.ts src/workspace/driveProjectMaintenanceRegistry.test.ts src/workspace/driveProjectStore.test.ts src/workspace/WorkspaceView.ui.test.ts src/workspace/driveProjectActions.test.ts src/workspace/driveProjectDiscovery.test.ts",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend/src-tauri/Cargo.toml --locked",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/mcp-harness.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node --test scripts/lan-bridge.test.mjs scripts/lan-agent-supervisor.test.mjs scripts/lan-dev-mode.test.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/lan-mcp-harness.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/lan-packaged-agent-harness.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/audit.mjs",
+    "npm --prefix frontend run check:supervised",
+    "npm --prefix frontend run build:status -- 20260811-055905-ccbf05"
+  ],
+  "result": {
+    "focusedFrontendTestFilesPassed": 7,
+    "focusedFrontendTestsPassed": 26,
+    "rustDriveProjectTestsPassed": 7,
+    "rustMcpTestsPassed": 19,
+    "compiledMcpToolCount": 38,
+    "fullRustTestsPassed": 106,
+    "fullFrontendTestFilesPassed": 109,
+    "fullFrontendTestsPassed": 455,
+    "frontendBuildPassed": true,
+    "structuralAuditPassed": true,
+    "fullSupervisedValidationPassed": true,
+    "supervisedRunId": "20260811-055905-ccbf05",
+    "pendingFullValidation": false,
+    "lanLifecycleUnitTestsPassed": 8,
+    "syntheticLanHarnessPassed": true,
+    "packagedAgentHarnessPassed": true,
+    "compiledMcpHarnessPassed": true,
+    "physicalTwoInstallTitlePassed": false,
+    "realDriveTitlePassed": false,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "Rust unit tests derive and retain two simultaneous title tips, then append one reconciliation event whose parents are the complete tip set.",
+    "Rust unit tests reject tampered event descriptions, missing parents, and histories beyond the 200-event read ceiling.",
+    "The provider performs a final sync before title update, rejects a stale guard after discovering injected sibling tips, and retains both tips for explicit reconciliation.",
+    "A dirty product draft retains the exact guards captured when editing began instead of silently adopting a peer update.",
+    "MCP advertises one strict rename route with a unique bounded shared-title guard array and returns bounded sibling metadata without Drive file IDs.",
+    "The physical two-install harness source requires two-way title propagation, stale-guard rejection, and restoration before its mutating result can pass.",
+    "The complete frontend suite, production frontend build, structural audit, Rust check, 106-test Rust suite, 38-tool stdio MCP harness, eight LAN lifecycle tests, synthetic two-node bridge, and packaged agent harness pass under bounded supervision."
+  ],
+  "notProved": [
+    "Two packaged physical installations executed the new title checks against the same real Drive project.",
+    "Two real Drive writers created simultaneous sibling title records at the same request boundary and reconciled them.",
+    "Quota, rate-limit, offline interruption, description limits, and 200-event retention/repair behavior passed real-Drive canaries.",
+    "A release/updater artifact contains this development checkpoint."
+  ]
+}

@@ -12,7 +12,7 @@ import {
   type AdversarialReviewArchive,
   type AdversarialReviewDecisionSummary,
 } from './extensions/adversarialHistory'
-import { appVersion, automationReady, automationRespond } from './tauri'
+import { appVersion, automationReady, automationRespond, type DriveProjectTitleState } from './tauri'
 import { useStore } from './store'
 import {
   automationEditorReady,
@@ -37,7 +37,8 @@ import {
   listSharedDriveProjects,
   shareProjectToSelectedDrive,
 } from './workspace/driveProjectActions'
-import { compactDriveProject } from './workspace/driveProjectMaintenanceRegistry'
+import { compactDriveProject, updateDriveProjectTitle } from './workspace/driveProjectMaintenanceRegistry'
+import { currentDriveProjectTitleState } from './workspace/driveProjectTitleStatus'
 import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
 import { projectStateFingerprint } from './workspace/projectModel'
 import { restoreAutomationPolicyVersion, saveAutomationPolicyVersion } from './workspace/versionAutomation'
@@ -185,6 +186,30 @@ export async function dispatchAutomationRequest(
       if (!title) throw new Error('Project title cannot be empty')
       const project = state.projects.find((candidate) => candidate.id === projectId && !candidate.archivedAt)
       if (!project) throw new Error(`No active research project has ID ${projectId}`)
+      if (project.transport.kind === 'drive') {
+        const expectedRevisionGuards = requiredStringArray(
+          params,
+          'expectedTitleRevisionGuards',
+          1,
+          20,
+        ).sort()
+        const latest = useStore.getState()
+        if (!latest.settings.researcherId || !latest.settings.researcherName.trim()) {
+          throw new Error('Set a researcher name in Settings before renaming a shared project')
+        }
+        const titleState = await updateDriveProjectTitle(
+          projectId,
+          title,
+          expectedRevisionGuards,
+          latest.settings.researcherId,
+          latest.settings.researcherName.trim(),
+        )
+        const renamed = useStore.getState().projects.find((candidate) => candidate.id === projectId)
+        return {
+          project: renamed ? summarizeProject(renamed, useStore.getState().activeProjectId) : null,
+          sharedTitle: summarizeDriveTitle(titleState),
+        }
+      }
       state.renameProject(projectId, title)
       const renamed = useStore.getState().projects.find((candidate) => candidate.id === projectId)
       return { project: renamed ? summarizeProject(renamed, useStore.getState().activeProjectId) : null }
@@ -195,7 +220,14 @@ export async function dispatchAutomationRequest(
         (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
       )
       if (!project) throw new Error('No research project is active; list or create a project first')
-      return { project: summarizeProject(project, latest.activeProjectId), document: getAutomationEditorController(project.id).read() }
+      const titleState = project.transport.kind === 'drive'
+        ? currentDriveProjectTitleState(project.id)
+        : null
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        document: getAutomationEditorController(project.id).read(),
+        sharedTitle: titleState ? summarizeDriveTitle(titleState) : null,
+      }
     }
     case 'project.readResearchState': {
       const latest = useStore.getState()
@@ -739,6 +771,23 @@ function summarizeProject(
     archivedAt: project.archivedAt ?? null,
     transport: project.transport,
     active: project.id === activeProjectId,
+  }
+}
+
+function summarizeDriveTitle(state: DriveProjectTitleState) {
+  return {
+    title: state.title,
+    revisionGuards: [...state.revisionGuards],
+    conflict: state.conflict,
+    eventCount: state.eventCount,
+    tips: state.tips.map((tip) => ({
+      revision: tip.revision,
+      parentRevisions: [...tip.parentRevisions],
+      title: tip.title,
+      participantId: tip.participantId,
+      displayName: tip.displayName,
+      timestamp: tip.timestamp,
+    })),
   }
 }
 

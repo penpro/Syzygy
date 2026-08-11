@@ -1,8 +1,9 @@
-//! Snapshot-first Google Drive transport for collaborative Yjs project updates.
-//! Active updates are immutable files. Explicit bounded compaction first appends a complete Yjs
-//! snapshot, then moves only records the live caller has applied into a recoverable archive folder.
-//! Concurrent writers therefore never replace one another; Yjs remains the merge authority and
-//! local IndexedDB remains the offline durability layer.
+//! Append-only Google Drive transport for collaborative Yjs project updates and shared titles.
+//! Active updates are immutable files. Shared titles are a bounded content-addressed parent graph,
+//! so concurrent renames remain visible until an explicit all-tip reconciliation. Explicit bounded
+//! compaction first appends a complete Yjs snapshot, then moves only records the live caller has
+//! applied into a recoverable archive folder. Concurrent writers never replace one another; Yjs
+//! remains the document merge authority and local IndexedDB remains the offline durability layer.
 
 use crate::google_drive::{
     collaboration_access, folder_metadata, selected_workspace_access, DriveWorkspace,
@@ -20,6 +21,7 @@ const PROJECTS_FOLDER: &str = ".syzygy-projects";
 const MANIFEST_FILE: &str = "manifest.json";
 const UPDATES_FOLDER: &str = "updates";
 const COMPACTED_UPDATES_FOLDER: &str = "compacted-updates";
+const TITLE_EVENT_PREFIX: &str = "title-event-";
 const MAX_UPDATE_BYTES: usize = 4 * 1024 * 1024;
 const MAX_PULL_BYTES: usize = 32 * 1024 * 1024;
 const MAX_UPDATE_FILES: usize = 5_000;
@@ -29,6 +31,8 @@ const MAX_COMPACTION_BATCH: usize = 200;
 const COMPACTION_CONCURRENCY: usize = 8;
 const DRIVE_REQUEST_TIMEOUT_SECONDS: u64 = 30;
 const COMPACTION_ARCHIVE_DEADLINE_SECONDS: u64 = 60;
+const MAX_TITLE_EVENTS: usize = 200;
+const MAX_TITLE_PARENTS: usize = 20;
 const MAX_PROJECT_ROOTS: usize = 200;
 const MAX_DISCOVERED_PROJECTS: usize = 1_000;
 
@@ -206,6 +210,34 @@ async fn create_text_file(
         .ok_or_else(|| "Drive project record creation returned no file id.".to_string())
 }
 
+async fn create_metadata_record(
+    token: &str,
+    parent_id: &str,
+    name: &str,
+    description: &str,
+) -> Result<String, String> {
+    let response = drive_client()?
+        .post(FILES_ENDPOINT)
+        .bearer_auth(token)
+        .query(&[("fields", "id"), ("supportsAllDrives", "true")])
+        .json(&serde_json::json!({
+            "name": name,
+            "mimeType": "application/json",
+            "description": description,
+            "parents": [parent_id],
+        }))
+        .send()
+        .await
+        .map_err(|error| {
+            format!("Drive project metadata creation failed before Google responded: {error}")
+        })?;
+    let value = response_json(response, "metadata creation").await?;
+    value["id"]
+        .as_str()
+        .map(str::to_string)
+        .ok_or_else(|| "Drive project metadata creation returned no file id.".to_string())
+}
+
 async fn read_text_file(token: &str, file_id: &str) -> Result<String, String> {
     let response = drive_client()?
         .get(format!("{FILES_ENDPOINT}/{file_id}"))
@@ -256,6 +288,7 @@ struct ListedFile {
     id: String,
     name: String,
     size: usize,
+    description: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -308,7 +341,46 @@ fn plan_compaction(
 }
 
 async fn list_children(token: &str, parent_id: &str) -> Result<Vec<ListedFile>, String> {
-    let query = format!("'{}' in parents and trashed = false", esc(parent_id));
+    list_children_filtered(
+        token,
+        parent_id,
+        None,
+        false,
+        MAX_LISTED_FILES,
+        "Drive folder contains too many records to inspect safely.",
+    )
+    .await
+}
+
+async fn list_title_event_files(token: &str, parent_id: &str) -> Result<Vec<ListedFile>, String> {
+    list_children_filtered(
+        token,
+        parent_id,
+        Some(TITLE_EVENT_PREFIX),
+        true,
+        MAX_TITLE_EVENTS,
+        "Drive project contains too many shared title events to inspect safely.",
+    )
+    .await
+}
+
+async fn list_children_filtered(
+    token: &str,
+    parent_id: &str,
+    name_contains: Option<&str>,
+    include_description: bool,
+    max_files: usize,
+    limit_error: &str,
+) -> Result<Vec<ListedFile>, String> {
+    let mut query = format!("'{}' in parents and trashed = false", esc(parent_id));
+    if let Some(fragment) = name_contains {
+        query.push_str(&format!(" and name contains '{}'", esc(fragment)));
+    }
+    let fields = if include_description {
+        "nextPageToken,files(id,name,size,description)"
+    } else {
+        "nextPageToken,files(id,name,size)"
+    };
     let mut page_token: Option<String> = None;
     let mut files = Vec::new();
     loop {
@@ -317,7 +389,7 @@ async fn list_children(token: &str, parent_id: &str) -> Result<Vec<ListedFile>, 
             .bearer_auth(token)
             .query(&[
                 ("q", query.as_str()),
-                ("fields", "nextPageToken,files(id,name,size)"),
+                ("fields", fields),
                 ("pageSize", "1000"),
                 ("supportsAllDrives", "true"),
                 ("includeItemsFromAllDrives", "true"),
@@ -345,9 +417,12 @@ async fn list_children(token: &str, parent_id: &str) -> Result<Vec<ListedFile>, 
                     id: id.to_string(),
                     name: name.to_string(),
                     size,
+                    description: include_description
+                        .then(|| file["description"].as_str().map(str::to_string))
+                        .flatten(),
                 });
-                if files.len() > MAX_LISTED_FILES {
-                    return Err("Drive folder contains too many records to inspect safely.".into());
+                if files.len() > max_files {
+                    return Err(limit_error.into());
                 }
             }
         }
@@ -383,6 +458,191 @@ impl StoredProjectManifest {
     }
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct StoredProjectTitleEvent {
+    schema_version: u8,
+    project_id: String,
+    document_id: String,
+    parent_revisions: Vec<String>,
+    title: String,
+    participant_id: String,
+    display_name: String,
+    timestamp: u64,
+}
+
+impl StoredProjectTitleEvent {
+    fn validate_for(&self, manifest: &StoredProjectManifest) -> Result<(), String> {
+        if self.schema_version != 1 {
+            return Err("Drive project title event uses an unsupported schema version.".into());
+        }
+        if self.project_id != manifest.project_id || self.document_id != manifest.document_id {
+            return Err("Drive project title event identity does not match its manifest.".into());
+        }
+        validate_identity("title participant id", &self.participant_id)?;
+        if self.title.trim().is_empty() || self.title.chars().count() > 200 {
+            return Err("Drive project shared title is invalid.".into());
+        }
+        if self.display_name.trim().is_empty() || self.display_name.chars().count() > 200 {
+            return Err("Drive project title author name is invalid.".into());
+        }
+        if self.timestamp == 0
+            || self.parent_revisions.len() > MAX_TITLE_PARENTS
+            || self
+                .parent_revisions
+                .iter()
+                .any(|revision| !valid_sha256(revision))
+        {
+            return Err("Drive project title event metadata is invalid or too large.".into());
+        }
+        let mut canonical_parents = self.parent_revisions.clone();
+        canonical_parents.sort();
+        canonical_parents.dedup();
+        if canonical_parents != self.parent_revisions {
+            return Err("Drive project title event parents must be unique and sorted.".into());
+        }
+        Ok(())
+    }
+}
+
+fn valid_sha256(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn title_event_revision(event: &StoredProjectTitleEvent) -> Result<String, String> {
+    let bytes = serde_json::to_vec(event)
+        .map_err(|error| format!("Drive project title event could not be encoded: {error}"))?;
+    Ok(format!("{:x}", Sha256::digest(bytes)))
+}
+
+fn base_title_revision(manifest: &StoredProjectManifest) -> String {
+    let bytes = serde_json::to_vec(manifest)
+        .expect("StoredProjectManifest contains no fallible serialization types");
+    format!("base-{:x}", Sha256::digest(bytes))
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DriveProjectTitleTip {
+    revision: String,
+    parent_revisions: Vec<String>,
+    title: String,
+    participant_id: String,
+    display_name: String,
+    timestamp: u64,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DriveProjectTitleState {
+    project_id: String,
+    document_id: String,
+    base_title: String,
+    title: String,
+    revision_guards: Vec<String>,
+    conflict: bool,
+    event_count: usize,
+    tips: Vec<DriveProjectTitleTip>,
+}
+
+fn project_title_state(
+    manifest: &StoredProjectManifest,
+    listed: &[ListedFile],
+) -> Result<DriveProjectTitleState, String> {
+    let mut events = HashMap::<String, StoredProjectTitleEvent>::new();
+    let mut matching_files = 0usize;
+    for file in listed
+        .iter()
+        .filter(|file| file.name.starts_with(TITLE_EVENT_PREFIX))
+    {
+        matching_files += 1;
+        if matching_files > MAX_TITLE_EVENTS {
+            return Err(
+                "Drive project contains too many shared title events to inspect safely.".into(),
+            );
+        }
+        let revision = file
+            .name
+            .strip_prefix(TITLE_EVENT_PREFIX)
+            .and_then(|value| value.strip_suffix(".json"))
+            .ok_or("Drive project title event filename is malformed.")?;
+        if !valid_sha256(revision) {
+            return Err("Drive project title event revision is malformed.".into());
+        }
+        let description = file
+            .description
+            .as_deref()
+            .ok_or("Drive project title event has no immutable description.")?;
+        let event: StoredProjectTitleEvent = serde_json::from_str(description)
+            .map_err(|_| "Drive project title event is malformed.".to_string())?;
+        event.validate_for(manifest)?;
+        if title_event_revision(&event)? != revision {
+            return Err(
+                "Drive project title event content hash does not match its filename.".into(),
+            );
+        }
+        if let Some(existing) = events.insert(revision.to_string(), event.clone()) {
+            if existing != event {
+                return Err(
+                    "Drive project title revision is duplicated with different content.".into(),
+                );
+            }
+        }
+    }
+
+    for event in events.values() {
+        if event
+            .parent_revisions
+            .iter()
+            .any(|parent| !events.contains_key(parent))
+        {
+            return Err("Drive project title history references a missing parent.".into());
+        }
+    }
+    let referenced = events
+        .values()
+        .flat_map(|event| event.parent_revisions.iter().cloned())
+        .collect::<HashSet<_>>();
+    let mut tip_revisions = events
+        .keys()
+        .filter(|revision| !referenced.contains(*revision))
+        .cloned()
+        .collect::<Vec<_>>();
+    tip_revisions.sort();
+    let tips = tip_revisions
+        .iter()
+        .filter_map(|revision| {
+            events.get(revision).map(|event| DriveProjectTitleTip {
+                revision: revision.clone(),
+                parent_revisions: event.parent_revisions.clone(),
+                title: event.title.clone(),
+                participant_id: event.participant_id.clone(),
+                display_name: event.display_name.clone(),
+                timestamp: event.timestamp,
+            })
+        })
+        .collect::<Vec<_>>();
+    let title = tips
+        .first()
+        .map(|tip| tip.title.clone())
+        .unwrap_or_else(|| manifest.title.clone());
+    let revision_guards = if tip_revisions.is_empty() {
+        vec![base_title_revision(manifest)]
+    } else {
+        tip_revisions
+    };
+    Ok(DriveProjectTitleState {
+        project_id: manifest.project_id.clone(),
+        document_id: manifest.document_id.clone(),
+        base_title: manifest.title.clone(),
+        title,
+        conflict: tips.len() > 1,
+        event_count: events.len(),
+        revision_guards,
+        tips,
+    })
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DriveProjectDescriptor {
@@ -393,10 +653,14 @@ pub struct DriveProjectDescriptor {
     created_at: u64,
     workspace_id: String,
     workspace_name: String,
+    title_revision_guards: Vec<String>,
+    title_conflict: bool,
+    title_tip_count: usize,
 }
 
 impl DriveProjectDescriptor {
     fn from_manifest(manifest: StoredProjectManifest, workspace: &DriveWorkspace) -> Self {
+        let title_revision_guards = vec![base_title_revision(&manifest)];
         Self {
             schema_version: manifest.schema_version,
             project_id: manifest.project_id,
@@ -405,6 +669,28 @@ impl DriveProjectDescriptor {
             created_at: manifest.created_at,
             workspace_id: workspace.id.clone(),
             workspace_name: workspace.name.clone(),
+            title_revision_guards,
+            title_conflict: false,
+            title_tip_count: 0,
+        }
+    }
+
+    fn from_title_state(
+        manifest: StoredProjectManifest,
+        workspace: &DriveWorkspace,
+        state: &DriveProjectTitleState,
+    ) -> Self {
+        Self {
+            schema_version: manifest.schema_version,
+            project_id: manifest.project_id,
+            document_id: manifest.document_id,
+            title: state.title.clone(),
+            created_at: manifest.created_at,
+            workspace_id: workspace.id.clone(),
+            workspace_name: workspace.name.clone(),
+            title_revision_guards: state.revision_guards.clone(),
+            title_conflict: state.conflict,
+            title_tip_count: state.tips.len(),
         }
     }
 }
@@ -524,7 +810,12 @@ async fn projects_in_root(
             serde_json::from_str(&read_text_file(token, &manifest_id).await?)
                 .map_err(|_| "A Drive project manifest is malformed.".to_string())?;
         manifest.validate()?;
-        projects.push(DriveProjectDescriptor::from_manifest(manifest, workspace));
+        let title_state = load_project_title_state(token, &folder.id, &manifest).await?;
+        projects.push(DriveProjectDescriptor::from_title_state(
+            manifest,
+            workspace,
+            &title_state,
+        ));
     }
     Ok(projects)
 }
@@ -674,6 +965,89 @@ async fn require_project_manifest(
     Ok((folder, manifest))
 }
 
+async fn load_project_title_state(
+    token: &str,
+    project_folder_id: &str,
+    manifest: &StoredProjectManifest,
+) -> Result<DriveProjectTitleState, String> {
+    let listed = list_title_event_files(token, project_folder_id).await?;
+    project_title_state(manifest, &listed)
+}
+
+async fn append_project_title_event(
+    token: &str,
+    project_folder_id: &str,
+    manifest: &StoredProjectManifest,
+    title: String,
+    expected_revision_guards: Vec<String>,
+    participant_id: String,
+    display_name: String,
+    timestamp: u64,
+) -> Result<DriveProjectTitleState, String> {
+    if expected_revision_guards.is_empty()
+        || expected_revision_guards.len() > MAX_TITLE_PARENTS
+        || {
+            let mut canonical = expected_revision_guards.clone();
+            canonical.sort();
+            canonical.dedup();
+            canonical != expected_revision_guards
+        }
+    {
+        return Err(
+            "Drive project title revision guards must be non-empty, unique, sorted, and bounded."
+                .into(),
+        );
+    }
+    let before = load_project_title_state(token, project_folder_id, manifest).await?;
+    if before.revision_guards != expected_revision_guards {
+        if !before.conflict && before.title == title.trim() {
+            return Ok(before);
+        }
+        return Err(
+            "Drive project title changed or gained a concurrent sibling; refresh before renaming."
+                .into(),
+        );
+    }
+    if !before.conflict && before.title == title.trim() {
+        return Ok(before);
+    }
+    if before.event_count >= MAX_TITLE_EVENTS {
+        return Err(
+            "Drive project shared-title history reached its safe limit; no rename was written."
+                .into(),
+        );
+    }
+    let parent_revisions = if expected_revision_guards.len() == 1
+        && expected_revision_guards[0].starts_with("base-")
+    {
+        Vec::new()
+    } else {
+        expected_revision_guards
+    };
+    let event = StoredProjectTitleEvent {
+        schema_version: 1,
+        project_id: manifest.project_id.clone(),
+        document_id: manifest.document_id.clone(),
+        parent_revisions,
+        title: title.trim().to_string(),
+        participant_id: participant_id.trim().to_string(),
+        display_name: display_name.trim().to_string(),
+        timestamp,
+    };
+    event.validate_for(manifest)?;
+    let revision = title_event_revision(&event)?;
+    let name = format!("{TITLE_EVENT_PREFIX}{revision}.json");
+    let description = serde_json::to_string(&event)
+        .map_err(|error| format!("Drive project title event could not be encoded: {error}"))?;
+    if find_child(token, project_folder_id, &name, None)
+        .await?
+        .is_none()
+    {
+        create_metadata_record(token, project_folder_id, &name, &description).await?;
+    }
+    load_project_title_state(token, project_folder_id, manifest).await
+}
+
 async fn push_update(
     token: &str,
     project_folder_id: &str,
@@ -770,7 +1144,12 @@ pub async fn google_drive_project_list(
             serde_json::from_str(&read_text_file(&token, &manifest_id).await?)
                 .map_err(|_| "A Drive project manifest is malformed.".to_string())?;
         manifest.validate()?;
-        projects.push(DriveProjectDescriptor::from_manifest(manifest, &workspace));
+        let title_state = load_project_title_state(&token, &folder.id, &manifest).await?;
+        projects.push(DriveProjectDescriptor::from_title_state(
+            manifest,
+            &workspace,
+            &title_state,
+        ));
     }
     projects.sort_by(|left, right| {
         left.title
@@ -825,6 +1204,49 @@ pub async fn google_drive_project_discover(
         skipped_root_count,
     })
 }
+
+#[tauri::command]
+pub async fn google_drive_project_title_state(
+    app: tauri::AppHandle,
+    project_id: String,
+    document_id: String,
+) -> Result<DriveProjectTitleState, String> {
+    let (token, workspace) = selected_workspace_access(&app).await?;
+    let (folder, manifest) =
+        require_project_manifest(&token, &workspace, project_id.trim(), document_id.trim()).await?;
+    load_project_title_state(&token, &folder, &manifest).await
+}
+
+/// Append a content-addressed shared-title event against the exact current tip set. Concurrent
+/// writers can still append siblings, but neither title is overwritten; the next read exposes the
+/// conflict and the same command reconciles it by naming every current tip as a parent.
+#[tauri::command]
+pub async fn google_drive_project_title_update(
+    app: tauri::AppHandle,
+    project_id: String,
+    document_id: String,
+    title: String,
+    expected_revision_guards: Vec<String>,
+    participant_id: String,
+    display_name: String,
+    timestamp: u64,
+) -> Result<DriveProjectTitleState, String> {
+    let (token, workspace) = selected_workspace_access(&app).await?;
+    let (folder, manifest) =
+        require_project_manifest(&token, &workspace, project_id.trim(), document_id.trim()).await?;
+    append_project_title_event(
+        &token,
+        &folder,
+        &manifest,
+        title,
+        expected_revision_guards,
+        participant_id,
+        display_name,
+        timestamp,
+    )
+    .await
+}
+
 #[tauri::command]
 pub async fn google_drive_project_push(
     app: tauri::AppHandle,
@@ -1181,6 +1603,111 @@ mod tests {
         };
         assert!(manifest.validate().is_err());
     }
+
+    fn title_manifest() -> StoredProjectManifest {
+        StoredProjectManifest {
+            schema_version: 1,
+            project_id: "project-title".into(),
+            document_id: "document-title".into(),
+            title: "Original title".into(),
+            created_at: 1,
+        }
+    }
+
+    fn title_event(
+        title: &str,
+        participant_id: &str,
+        timestamp: u64,
+        mut parent_revisions: Vec<String>,
+    ) -> StoredProjectTitleEvent {
+        parent_revisions.sort();
+        StoredProjectTitleEvent {
+            schema_version: 1,
+            project_id: "project-title".into(),
+            document_id: "document-title".into(),
+            parent_revisions,
+            title: title.into(),
+            participant_id: participant_id.into(),
+            display_name: participant_id.into(),
+            timestamp,
+        }
+    }
+
+    fn title_event_file(event: &StoredProjectTitleEvent) -> ListedFile {
+        let revision = title_event_revision(event).expect("title revision");
+        ListedFile {
+            id: format!("file-{revision}"),
+            name: format!("{TITLE_EVENT_PREFIX}{revision}.json"),
+            size: 0,
+            description: Some(serde_json::to_string(event).expect("title event JSON")),
+        }
+    }
+
+    #[test]
+    fn shared_title_graph_retains_siblings_and_reconciles_every_tip() {
+        let manifest = title_manifest();
+        let base = project_title_state(&manifest, &[]).expect("base title");
+        assert_eq!(base.title, "Original title");
+        assert_eq!(base.revision_guards, vec![base_title_revision(&manifest)]);
+        assert!(!base.conflict);
+
+        let left = title_event("Left rename", "alice", 10, vec![]);
+        let right = title_event("Right rename", "bob", 11, vec![]);
+        let mut sibling_files = vec![title_event_file(&right), title_event_file(&left)];
+        let siblings = project_title_state(&manifest, &sibling_files).expect("sibling titles");
+        assert!(siblings.conflict);
+        assert_eq!(siblings.event_count, 2);
+        assert_eq!(siblings.tips.len(), 2);
+        assert_eq!(siblings.revision_guards.len(), 2);
+        assert!(siblings.tips.iter().any(|tip| tip.title == "Left rename"));
+        assert!(siblings.tips.iter().any(|tip| tip.title == "Right rename"));
+
+        let merged = title_event(
+            "Reconciled title",
+            "carol",
+            12,
+            siblings.revision_guards.clone(),
+        );
+        sibling_files.push(title_event_file(&merged));
+        let reconciled = project_title_state(&manifest, &sibling_files).expect("reconciled title");
+        assert!(!reconciled.conflict);
+        assert_eq!(reconciled.event_count, 3);
+        assert_eq!(reconciled.title, "Reconciled title");
+        assert_eq!(reconciled.tips.len(), 1);
+        assert_eq!(reconciled.tips[0].parent_revisions.len(), 2);
+    }
+
+    #[test]
+    fn shared_title_graph_rejects_tampering_missing_parents_and_excess_history() {
+        let manifest = title_manifest();
+        let orphan = title_event("Orphan", "alice", 10, vec!["a".repeat(64)]);
+        assert!(project_title_state(&manifest, &[title_event_file(&orphan)]).is_err());
+
+        let event = title_event("Untampered", "alice", 11, vec![]);
+        let mut tampered = title_event_file(&event);
+        tampered.description = Some(
+            serde_json::to_string(&title_event("Tampered", "alice", 11, vec![]))
+                .expect("tampered JSON"),
+        );
+        assert!(project_title_state(&manifest, &[tampered]).is_err());
+
+        let mut oversized_author = title_event("Valid title", "alice", 12, vec![]);
+        oversized_author.display_name = "a".repeat(201);
+        assert!(project_title_state(&manifest, &[title_event_file(&oversized_author)]).is_err());
+
+        let too_many = (0..=MAX_TITLE_EVENTS)
+            .map(|index| {
+                title_event_file(&title_event(
+                    &format!("Title {index}"),
+                    "alice",
+                    index as u64 + 1,
+                    vec![],
+                ))
+            })
+            .collect::<Vec<_>>();
+        assert!(project_title_state(&manifest, &too_many).is_err());
+    }
+
     #[test]
     fn cross_workspace_discovery_rejects_ambiguous_or_orphan_roots() {
         let (roots, skipped) = unique_roots_by_workspace(vec![
@@ -1212,22 +1739,26 @@ mod tests {
                 id: format!("known-{index:03}"),
                 name: format!("update-known-{index:03}.json"),
                 size: 100,
+                description: None,
             })
             .collect::<Vec<_>>();
         listed.push(ListedFile {
             id: "snapshot".into(),
             name: "update-snapshot.json".into(),
             size: 100,
+            description: None,
         });
         listed.push(ListedFile {
             id: "concurrent".into(),
             name: "update-concurrent.json".into(),
             size: 100,
+            description: None,
         });
         listed.push(ListedFile {
             id: "manifest-like".into(),
             name: "notes.txt".into(),
             size: 100,
+            description: None,
         });
         let mut included = (0..205)
             .map(|index| format!("known-{index:03}"))
@@ -1257,6 +1788,7 @@ mod tests {
             id: "snapshot".into(),
             name: "update-snapshot.json".into(),
             size: 100,
+            description: None,
         }];
         let included = HashSet::from(["snapshot".to_string(), "already-archived".to_string()]);
         assert_eq!(

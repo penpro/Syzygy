@@ -142,6 +142,19 @@ a 60-second deadline around the post-snapshot validation/archive phase. A phase 
 explicit safe-retry result: the snapshot already exists and moved records remain recoverable.
 These remain distinct from a real-Drive compaction canary and two-physical-install packaged gate.
 
+The shared-project title gate spans `drive_projects::tests`, `driveProjectProvider.test.ts`,
+`driveProjectTitleStatus.test.ts`, `driveProjectMaintenanceRegistry.test.ts`,
+`driveProjectStore.test.ts`, and `WorkspaceView.ui.test.ts`. Rust rehashes strict description-backed
+events, rejects missing parents/tampering/excess history, derives every sibling tip, and proves an
+all-tip merge. Provider tests inject disconnected siblings, retain both, reconcile their exact tip
+set, and reject a stale rename after a final pull. The product draft test proves that an edit keeps
+the guards captured when it became dirty rather than adopting a peer update. MCP schema/routing and
+the stdio harness require a unique 1-20 guard array for Drive projects. The physical LAN mutating
+harness additionally renames from each installation, waits for the other local manifest projection,
+rejects the old guard, and restores the original title; its boolean evidence does not print titles.
+Those deterministic gates do not substitute for rerunning that physical harness on a packaged build
+or for real-Drive quota, interruption, and 200-event retention evidence.
+
 Portable archives are covered by `projectArchive.test.ts` and
 `ProjectArchiveControls.ui.test.ts`. The domain fixture exports the exact Yjs state, reopens every
 reserved shared collection through IndexedDB without a network provider, and rejects corrupted

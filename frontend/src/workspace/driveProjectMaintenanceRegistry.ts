@@ -1,7 +1,13 @@
-import type { DriveProjectCompactionResult } from '../tauri'
+import type { DriveProjectCompactionResult, DriveProjectTitleState } from '../tauri'
 
 export interface DriveProjectMaintenance {
   compactNow(assertSnapshotReady?: () => void): Promise<DriveProjectCompactionResult>
+  updateTitle(
+    title: string,
+    expectedRevisionGuards: string[],
+    participantId: string,
+    displayName: string,
+  ): Promise<DriveProjectTitleState>
 }
 
 const maintenanceByProject = new Map<string, DriveProjectMaintenance>()
@@ -29,4 +35,16 @@ export async function compactDriveProject(
   const maintenance = maintenanceByProject.get(projectId)
   if (!maintenance) throw new Error(`Drive project ${projectId} is not ready for maintenance`)
   return maintenance.compactNow(assertSnapshotReady)
+}
+
+export async function updateDriveProjectTitle(
+  projectId: string,
+  title: string,
+  expectedRevisionGuards: string[],
+  participantId: string,
+  displayName: string,
+): Promise<DriveProjectTitleState> {
+  const maintenance = maintenanceByProject.get(projectId)
+  if (!maintenance) throw new Error(`Drive project ${projectId} is not ready for maintenance`)
+  return maintenance.updateTitle(title, expectedRevisionGuards, participantId, displayName)
 }

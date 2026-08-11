@@ -428,6 +428,29 @@ export interface DriveProjectDescriptor {
   createdAt: number
   workspaceId: string
   workspaceName: string
+  titleRevisionGuards: string[]
+  titleConflict: boolean
+  titleTipCount: number
+}
+
+export interface DriveProjectTitleTip {
+  revision: string
+  parentRevisions: string[]
+  title: string
+  participantId: string
+  displayName: string
+  timestamp: number
+}
+
+export interface DriveProjectTitleState {
+  projectId: string
+  documentId: string
+  baseTitle: string
+  title: string
+  revisionGuards: string[]
+  conflict: boolean
+  eventCount: number
+  tips: DriveProjectTitleTip[]
 }
 
 export interface DriveProjectCatalog {
@@ -473,6 +496,29 @@ export const googleDriveProjectList = (): Promise<DriveProjectDescriptor[]> =>
 /** Explicitly browse Syzygy-owned project roots across Drive folders visible to this account. */
 export const googleDriveProjectDiscover = (): Promise<DriveProjectCatalog> =>
   invoke('google_drive_project_discover')
+
+export const googleDriveProjectTitleState = (
+  projectId: string,
+  documentId: string,
+): Promise<DriveProjectTitleState> => invoke('google_drive_project_title_state', { projectId, documentId })
+
+export const googleDriveProjectTitleUpdate = (
+  projectId: string,
+  documentId: string,
+  title: string,
+  expectedRevisionGuards: string[],
+  participantId: string,
+  displayName: string,
+  timestamp: number,
+): Promise<DriveProjectTitleState> => invoke('google_drive_project_title_update', {
+  projectId,
+  documentId,
+  title,
+  expectedRevisionGuards,
+  participantId,
+  displayName,
+  timestamp,
+})
 
 export const googleDriveProjectPull = (
   projectId: string,

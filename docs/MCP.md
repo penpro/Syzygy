@@ -60,8 +60,8 @@ Recommended first instruction to an MCP-capable model:
 | `compact_drive_project` | Drive maintenance | After a final sync and exact `expectedDocumentRevision` plus `expectedResearchRevision` checks, appends a complete snapshot and recoverably archives only applied update records; reports partial/concurrent counts and returns no Drive file IDs |
 | `create_project` | yes | Creates and opens a local project with a non-empty title |
 | `open_project` | navigation | Opens a non-archived project by stable ID |
-| `rename_project` | yes | Changes project metadata only |
-| `read_active_project` | no | Returns the manifest plus structured blocks, plain text, and a revision |
+| `rename_project` | local metadata or Drive title event | Local projects change local metadata. Drive projects require the complete exact `sharedTitle.revisionGuards`; stale calls fail, simultaneous siblings remain visible, and an all-tip rename reconciles without deleting history |
+| `read_active_project` | no | Returns the manifest plus structured blocks, plain text, and a revision; Drive projects also return bounded shared-title tips and exact rename guards |
 | `inspect_research_state` | no | Validates bounded live scenario/vote/flag/note/label/heuristic/adversarial-review/version/head/lineage state and returns metadata summaries without policy, adversarial question/source/result/decision-note, scenario, annotation, voter, label-event, guidance, edit-value, or version-note bodies |
 | `read_scenario` | explicit scenario content | Reads one validated scenario background plus at most 1,000 ordered turn identities, roles, immutable-revision counts, selected heads, complete tip sets, and reconciliation state; turn bodies remain omitted |
 | `read_scenario_turn_revision` | explicit scenario content | Reads exactly one selected-head, named, or zero-based indexed immutable turn revision body plus bounded head/tip metadata and the current research revision; no mutation or model authority |
@@ -101,6 +101,10 @@ Drive compaction additionally requires the exact research revision returned by
 `inspect_research_state`. Both guards are checked after the provider's final pull and before snapshot
 encoding/upload. Compaction does not change project content: the snapshot is appended first, unknown
 concurrent records remain active, and interrupted archive moves are safe to retry.
+For Drive-shared titles, callers must pass the complete `sharedTitle.revisionGuards` returned by
+`read_active_project`. The guard array is unique and bounded to 20. A stale set writes nothing; a
+simultaneous append can still create visible siblings; one later call naming all current tips appends
+an attributed merge event. The MCP response includes bounded title/tip metadata but no Drive file IDs.
 
 ## Local bridge and security boundary
 
@@ -243,7 +247,7 @@ It fails unless:
 2. replace/append operations change the same editor and reject a stale revision;
 3. the loopback parser accepts an authenticated request and rejects browser origins;
 4. MCP initialization negotiates the current `2025-11-25` protocol revision;
-5. all thirty-seven semantic tools are discoverable and route to their intended live operation, including bounded Drive project catalog/share/join, exact scenario sibling reconciliation, and adversarial archive/decision actions;
+5. all thirty-eight semantic tools are discoverable and route to their intended live operation, including bounded Drive project catalog/share/join, exact shared-title guards, exact scenario sibling reconciliation, and adversarial archive/decision actions;
 6. self-description returns absolute paths and copy-ready configuration without a GUI;
 7. platform contracts parse, keep provider-run/adversarial/plugin schemas strict, and do not
    overstate unimplemented runtimes; and

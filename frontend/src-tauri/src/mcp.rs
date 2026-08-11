@@ -92,7 +92,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Compact Drive history only on explicit request and only with the latest exact revisions from both read_active_project and inspect_research_state; compaction appends a snapshot before recoverably archiving applied records and reports partial work. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, adversarial review archives/decisions, and immutable history. Use read_scenario for one explicit scenario background and its bounded turn identity/head index, then read_scenario_turn_revision for one current, named, or indexed revision body; both are content-disclosing reads. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. When a scenario turn reports sibling tips, read the candidate revisions and call reconcile_scenario_turn with the exact research revision, selected head, and complete tip set; ordinary revision writes fail closed until reconciliation. Adversarial model review starts with start_adversarial_review followed by inspect_adversarial_review or cancel_adversarial_review; it requires configured built-in provider credentials and one native disclosure approval, and its result remains transient and pending human review. Call save_adversarial_review only with explicit authority to make the full question, selected source excerpts, and results shared project content that can synchronize through Drive. Call decide_adversarial_review separately to append an immutable accept/reject event; it never edits the draft. Never claim real-time collaborator presence is available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Compact Drive history only on explicit request and only with the latest exact revisions from both read_active_project and inspect_research_state; compaction appends a snapshot before recoverably archiving applied records and reports partial work. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, adversarial review archives/decisions, and immutable history. Use read_scenario for one explicit scenario background and its bounded turn identity/head index, then read_scenario_turn_revision for one current, named, or indexed revision body; both are content-disclosing reads. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. For a Drive-shared project, read_active_project also returns sharedTitle and its complete revisionGuards; pass those exact guards to rename_project. A stale rename fails closed, simultaneous sibling titles remain visible, and an explicit rename with every current sibling guard reconciles them without deleting history. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. When a scenario turn reports sibling tips, read the candidate revisions and call reconcile_scenario_turn with the exact research revision, selected head, and complete tip set; ordinary revision writes fail closed until reconciliation. Adversarial model review starts with start_adversarial_review followed by inspect_adversarial_review or cancel_adversarial_review; it requires configured built-in provider credentials and one native disclosure approval, and its result remains transient and pending human review. Call save_adversarial_review only with explicit authority to make the full question, selected source excerpts, and results shared project content that can synchronize through Drive. Call decide_adversarial_review separately to append an immutable accept/reject event; it never edits the draft. Never claim real-time collaborator presence is available."
             })
         }
         "ping" => json!({}),
@@ -266,18 +266,19 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "rename_project",
-            "Rename an existing research project. This changes project metadata, not document content.",
+            "Rename an existing research project. Local projects update local metadata. Drive-shared projects require the complete exact expectedTitleRevisionGuards from read_active_project; simultaneous renames remain visible as siblings, and supplying every sibling guard explicitly reconciles them without deleting history.",
             object_schema(
                 &[
                     ("projectId", string_schema("Stable project ID returned by list_projects.")),
                     ("title", string_schema("New non-empty project title.")),
+                    ("expectedTitleRevisionGuards", json!({ "type": "array", "minItems": 1, "maxItems": 20, "uniqueItems": true, "items": { "type": "string" }, "description": "For a Drive-shared project, the complete exact sharedTitle.revisionGuards returned by read_active_project. Omit only for a local project." })),
                 ],
                 &["projectId", "title"],
             ),
         ),
         tool(
             "read_active_project",
-            "Read the active live project's manifest and collaborative document as structured blocks and plain text. Always call this before a document write and retain its revision.",
+            "Read the active live project's manifest and collaborative document as structured blocks and plain text. Always call this before a document write and retain its revision. Drive-shared projects also return bounded sharedTitle state, including every current sibling tip and the complete exact revisionGuards required by rename_project.",
             object_schema(&[], &[]),
         ),
         tool(
@@ -819,6 +820,21 @@ mod tests {
             compact["inputSchema"]["required"],
             json!(["expectedDocumentRevision", "expectedResearchRevision"])
         );
+        let rename = tools["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|tool| tool["name"] == "rename_project")
+            .unwrap();
+        assert_eq!(
+            rename["inputSchema"]["properties"]["expectedTitleRevisionGuards"]["minItems"],
+            1
+        );
+        assert_eq!(
+            rename["inputSchema"]["properties"]["expectedTitleRevisionGuards"]["maxItems"],
+            20
+        );
+        assert_eq!(rename["inputSchema"]["additionalProperties"], false);
     }
 
     #[test]
@@ -845,6 +861,35 @@ mod tests {
             "project-123"
         );
         assert_eq!(response["result"]["isError"], false);
+    }
+
+    #[test]
+    fn routes_shared_project_rename_with_exact_title_guards() {
+        let response = dispatch_message(
+            &json!({
+                "jsonrpc": "2.0",
+                "id": "shared-rename-1",
+                "method": "tools/call",
+                "params": {
+                    "name": "rename_project",
+                    "arguments": {
+                        "projectId": "project-123",
+                        "title": "Reconciled title",
+                        "expectedTitleRevisionGuards": ["tip-left", "tip-right"]
+                    }
+                }
+            }),
+            &fake_live,
+        )
+        .unwrap();
+        assert_eq!(
+            response["result"]["structuredContent"]["method"],
+            "project.rename"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["params"]["expectedTitleRevisionGuards"],
+            json!(["tip-left", "tip-right"])
+        );
     }
 
     #[test]

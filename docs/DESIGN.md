@@ -143,7 +143,14 @@ Drive-shared project offers **Compact Drive history** as an explicit maintenance
 states that a complete snapshot is appended before only already-applied records are archived, while
 concurrent records remain active. Success and partial results report archived, remaining, and
 concurrent counts; a partial run is safe to repeat and is never described as data deletion. Shared
-titles are read-only in this transport slice because manifest rename has not been given a conflict-safe contract.
+titles use an explicit **Rename shared project** action. The field becomes editable only after the
+current title state is loaded. Editing captures the exact shared revision guards at that moment;
+an incoming rename leaves the draft visible but makes the save fail stale instead of silently
+overwriting the peer. Simultaneous renames display every current title and author in an accessible
+alert. **Reconcile shared title** requires choosing or editing a title against the complete current
+tip set, while copy states that every competing title remains in history. The deterministic title
+shown while conflicted is a stable projection, not an adjudication. Researcher names and timestamps
+remain self-reported, and the 200-event retention ceiling fails closed rather than hiding history.
 The UI must not describe polling as real-time presence.
 A compact **Presence** strip below the editor toolbar always names the actual capability. Local
 projects say that no remote editing session is connected. Drive-shared projects say edits sync

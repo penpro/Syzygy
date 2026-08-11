@@ -1075,6 +1075,47 @@ record(
     existsSync(join(root, 'docs/audits/runs/DRIVE-PROJECT-COMPACTION-2026-08-10.json')),
   'full snapshot precedes recoverable bounded archival; only applied IDs move, concurrent/partial records remain active, stale MCP guards fail before upload, and headless clean-install convergence passes',
 )
+const driveProviderTitleUpdate = driveProjectProviderSource.slice(
+  driveProjectProviderSource.indexOf('async updateTitle'),
+  driveProjectProviderSource.indexOf('private async initialize'),
+)
+const driveTitleStatusSource = text('frontend/src/workspace/driveProjectTitleStatus.ts')
+const sharedTitleControlSource = text('frontend/src/workspace/SharedProjectTitleControl.tsx')
+const sharedTitleUiTestSource = text('frontend/src/workspace/WorkspaceView.ui.test.ts')
+const driveProjectStoreTestSource = text('frontend/src/workspace/driveProjectStore.test.ts')
+const sharedTitleLanHarnessSource = text('scripts/lan-drive-live-harness.mjs')
+record(
+  'Drive shared-project titles remain append-only, conflict-visible, stale-safe, bounded, and MCP-drivable',
+  driveProjectNativeSource.includes('TITLE_EVENT_PREFIX: &str = "title-event-"') &&
+    driveProjectNativeSource.includes('MAX_TITLE_EVENTS: usize = 200') &&
+    driveProjectNativeSource.includes('MAX_TITLE_PARENTS: usize = 20') &&
+    driveProjectNativeSource.includes('Some(TITLE_EVENT_PREFIX)') &&
+    driveProjectNativeSource.includes('"nextPageToken,files(id,name,size,description)"') &&
+    driveProjectNativeSource.includes('Drive project title event content hash does not match its filename') &&
+    driveProjectNativeSource.includes('Drive project title history references a missing parent') &&
+    driveProjectNativeSource.includes('before.revision_guards != expected_revision_guards') &&
+    driveProjectNativeSource.includes('before.event_count >= MAX_TITLE_EVENTS') &&
+    driveProjectNativeSource.includes('create_metadata_record(token, project_folder_id, &name, &description)') &&
+    driveProjectNativeSource.includes('shared_title_graph_retains_siblings_and_reconciles_every_tip') &&
+    driveProviderTitleUpdate.indexOf('await this.syncNow()') < driveProviderTitleUpdate.indexOf('this.remote.updateTitle(') &&
+    driveProjectProviderTestSource.includes('publishes shared-title state, exposes siblings, and reconciles the exact tip set') &&
+    driveProjectProviderTestSource.includes('refreshes title siblings before rejecting a stale rename') &&
+    driveTitleStatusSource.includes('if (states.get(projectId)?.source !== source) return') &&
+    sharedTitleControlSource.includes('draft.dirty ? draft.revisionGuards') &&
+    sharedTitleControlSource.includes('Reconcile shared title') &&
+    text('frontend/src/workspace/WorkspaceView.tsx').includes('<SharedProjectTitleControl key={project.id}') &&
+    sharedTitleUiTestSource.includes('retains the exact revision guards captured') &&
+    driveProjectStoreTestSource.includes('applies a synchronized title only to the matching Drive-bound manifest') &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.rename'") &&
+    text('frontend/src/automationBridge.ts').includes('expectedTitleRevisionGuards') &&
+    mcpSource.includes('"rename_project" => live("project.rename"') &&
+    text('scripts/mcp-harness.mjs').includes('shared-project rename guards are not exact and bounded') &&
+    sharedTitleLanHarnessSource.includes('sharedTitlePrimaryToSecondary') &&
+    sharedTitleLanHarnessSource.includes('sharedTitleStaleRevisionRejected') &&
+    sharedTitleLanHarnessSource.includes('sharedTitleRestored') &&
+    existsSync(join(root, 'docs/audits/runs/DRIVE-PROJECT-SHARED-TITLE-2026-08-10.json')),
+  'content-addressed parent graphs retain sibling titles; exact dirty-draft/MCP guards refuse stale writes; explicit all-tip reconciliation and two-way packaged-harness checks are present',
+)
 const researchInspectionSource = text('frontend/src/workspace/researchStateInspection.ts')
 const automationRegistrySource = text('frontend/src/workspace/workspaceAutomationRegistry.ts')
 record(

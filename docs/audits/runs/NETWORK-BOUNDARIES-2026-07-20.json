@@ -1,18 +1,19 @@
 {
   "format": "syzygy-network-boundary-proof",
   "schemaVersion": 1,
-  "generatedAt": "2026-07-20T22:10:05.680Z",
-  "manifestDigest": "a321ac1a2572bed86c71e6d19f098f63396bbc467d80fd9c40a0537114cc8f82",
-  "sourceDigest": "4e455260ff2e4e8a8b9008b21b24a7b6b7824915421b96338e1965d1ca44cd62",
+  "generatedAt": "2026-08-11T10:16:54.673Z",
+  "manifestDigest": "8f44284d22ffe29e9b0edd10ddadb78d267c391b64d4f651e1a894ae13fbb15e",
+  "sourceDigest": "0b7eafc0ac4973bfbe83ea3c1fb4f62248fcdfe48ba29610a69a8c30bcf1c60a",
   "summary": {
-    "boundaryCount": 8,
-    "productionSourceCount": 158,
+    "boundaryCount": 9,
+    "productionSourceCount": 181,
     "observedLiteralCount": 51,
     "boundaryLiteralCounts": {
       "local-model": 0,
       "remote-providers": 16,
       "google-drive": 12,
       "model-downloads": 8,
+      "self-hosted-collaboration": 0,
       "updates": 1,
       "crash-reports": 1,
       "mcp": 0,
@@ -22,14 +23,14 @@
   "observations": [
     {
       "path": "frontend/src-tauri/src/drive_projects.rs",
-      "line": 13,
+      "line": 19,
       "origin": "https://www.googleapis.com",
       "boundaryId": "google-drive",
       "classification": "feature-destination"
     },
     {
       "path": "frontend/src-tauri/src/drive_projects.rs",
-      "line": 14,
+      "line": 20,
       "origin": "https://www.googleapis.com",
       "boundaryId": "google-drive",
       "classification": "feature-destination"
@@ -120,56 +121,56 @@
     },
     {
       "path": "frontend/src-tauri/src/provider_runtime.rs",
-      "line": 186,
+      "line": 232,
       "origin": "https://api.openai.com",
       "boundaryId": "remote-providers",
       "classification": "feature-destination"
     },
     {
       "path": "frontend/src-tauri/src/provider_runtime.rs",
-      "line": 190,
+      "line": 236,
       "origin": "https://platform.openai.com",
       "boundaryId": "remote-providers",
       "classification": "disclosed-policy-link"
     },
     {
       "path": "frontend/src-tauri/src/provider_runtime.rs",
-      "line": 196,
+      "line": 242,
       "origin": "https://api.anthropic.com",
       "boundaryId": "remote-providers",
       "classification": "feature-destination"
     },
     {
       "path": "frontend/src-tauri/src/provider_runtime.rs",
-      "line": 199,
+      "line": 245,
       "origin": "https://platform.claude.com",
       "boundaryId": "remote-providers",
       "classification": "disclosed-policy-link"
     },
     {
       "path": "frontend/src-tauri/src/provider_runtime.rs",
-      "line": 205,
+      "line": 251,
       "origin": "https://generativelanguage.googleapis.com",
       "boundaryId": "remote-providers",
       "classification": "feature-destination"
     },
     {
       "path": "frontend/src-tauri/src/provider_runtime.rs",
-      "line": 208,
+      "line": 254,
       "origin": "https://ai.google.dev",
       "boundaryId": "remote-providers",
       "classification": "disclosed-policy-link"
     },
     {
       "path": "frontend/src-tauri/src/provider_runtime.rs",
-      "line": 214,
+      "line": 260,
       "origin": "https://api.x.ai",
       "boundaryId": "remote-providers",
       "classification": "feature-destination"
     },
     {
       "path": "frontend/src-tauri/src/provider_runtime.rs",
-      "line": 217,
+      "line": 263,
       "origin": "https://docs.x.ai",
       "boundaryId": "remote-providers",
       "classification": "disclosed-policy-link"
@@ -382,6 +383,7 @@
     "This source-and-copy trace is not an operating-system packet capture on every supported platform.",
     "Dynamic DNS and CDN addresses are not pinned; the contract records service origins and route prefixes.",
     "Third-party updater and crash SDK internals are checked through configuration, origin inventory, and product disclosure rather than payload packet capture.",
-    "Paid remote-provider live calls remain unverified; native request and streaming behavior use deterministic fake-network conformance tests."
+    "Paid remote-provider live calls remain unverified; native request and streaming behavior use deterministic fake-network conformance tests.",
+    "Configured self-hosted relay destinations are dynamic; source validation and product disclosure do not substitute for packaged packet capture, authenticated identity, or relay policy review."
   ]
 }

@@ -585,8 +585,12 @@ collaborators are not required to download large project folders.
    convergence, awareness propagation, stale-presence cleanup, and process reaping without claiming
    relay persistence. Next: run and record the packaged two-install Drive convergence/reconciliation/
    title harness, large-account catalog latency, and real-Drive update/title compaction plus
-   interruption repair; then add persisted project binding, product share/join, authentication,
-   durable relay deployment/backups, CSP activation, and five-client soak for WebSocket transport.
+   interruption repair. WebSocket bindings now persist through store v4; explicit advanced product
+   controls create/join/leave bounded bearer invitations, connection state is visible, offline
+   archives redact the live binding, CSP/network copy is activated, and a real relay harness proves
+   two provider instances plus one IndexedDB destroy/reopen. Next: bundle or one-click provision the
+   relay, add authenticated identity/authorization, durable relay deployment/backups and abuse
+   controls, then run packaged physical two-install and five-client soak gates.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.
    v0.1.14 added same-name folder codes and the bounded MCP/LAN diagnostic; the two-physical-install
    run then proved the client had no selected workspace rather than a failed project upload.

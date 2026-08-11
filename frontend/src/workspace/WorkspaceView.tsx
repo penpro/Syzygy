@@ -9,6 +9,7 @@ import { ProjectArchiveControls } from './ProjectArchiveControls'
 import { ScenarioWorkspace } from './ScenarioWorkspace'
 import type { ResearchProjectManifest } from './schema'
 import { SharedProjectTitleControl } from './SharedProjectTitleControl'
+import { SelfHostedProjectControls } from './SelfHostedProjectControls'
 
 export function LocalProjectSharingPanel({ project }: { project: ResearchProjectManifest }) {
   return (
@@ -18,7 +19,8 @@ export function LocalProjectSharingPanel({ project }: { project: ResearchProject
         <strong>This project is private on this computer.</strong>
         <p>
           Share it through Drive for ongoing collaboration, or export an offline copy that another
-          person can import independently. Offline copies do not keep syncing.
+          person can import independently. You can also connect an advanced self-hosted relay.
+          Offline copies do not keep syncing.
         </p>
       </div>
       <div className="project-sharing-actions">
@@ -44,7 +46,7 @@ export function WorkspaceView() {
         <h1 id="workspace-empty-title">Create locally. Share when you're ready.</h1>
         <p>
           Projects begin private on this computer. Connect Drive here to share one for live
-          collaboration or to join a project someone else shared.
+          collaboration, or use a bearer invitation for an advanced self-hosted relay.
         </p>
         <div className="workspace-connection-card" aria-label="Google Drive collaboration connection">
           <div>
@@ -60,42 +62,58 @@ export function WorkspaceView() {
           <ProjectArchiveControls />
         </div>
         <DriveProjectControls />
+        <SelfHostedProjectControls />
       </section>
     )
   }
 
-  const shared = project.transport.kind === 'drive'
-  const editorKey = project.transport.kind === 'drive' ? project.documentId + ':drive:' + project.transport.workspaceId : project.documentId + ':local'
+  const transport = project.transport
+  const driveShared = transport.kind === 'drive'
+  const websocketShared = transport.kind === 'websocket'
+  const shared = driveShared || websocketShared
+  const editorKey = transport.kind === 'drive'
+    ? project.documentId + ':drive:' + transport.workspaceId
+    : transport.kind === 'websocket'
+      ? project.documentId + ':websocket:' + transport.endpoint + ':' + transport.roomId
+      : project.documentId + ':local'
 
   return (
     <section className="workspace-shell">
       <header className="workspace-header">
         <div>
-          <div className="workspace-kicker mono">{shared ? 'Drive shared project' : 'Local project'} · schema v{project.schemaVersion}</div>
-          {shared ? (
+          <div className="workspace-kicker mono">{driveShared ? 'Drive shared project' : websocketShared ? 'Self-hosted shared project' : 'Local project'} · schema v{project.schemaVersion}</div>
+          {driveShared ? (
             <SharedProjectTitleControl key={project.id} project={project} />
           ) : (
             <input
               className="workspace-title-input"
-              aria-label="Project title"
+              aria-label={websocketShared ? 'Project label on this installation' : 'Project title'}
               value={project.title}
               onChange={(event) => renameProject(project.id, event.target.value)}
             />
           )}
         </div>
         <div className="workspace-header-actions">
-          {shared ? (
+          {driveShared ? (
             <>
               <DriveProjectControls project={project} />
               <ProjectArchiveControls project={project} />
             </>
+          ) : websocketShared ? (
+            <span className="workspace-status mono">Bearer-invite collaboration · local copy persists</span>
           ) : (
             <span className="workspace-status mono">Private local project · immutable history</span>
           )}
         </div>
       </header>
 
-      {!shared && <LocalProjectSharingPanel project={project} />}
+      {!shared && (
+        <>
+          <LocalProjectSharingPanel project={project} />
+          <div className="self-hosted-project-strip"><SelfHostedProjectControls project={project} /></div>
+        </>
+      )}
+      {websocketShared && <SelfHostedProjectControls project={project} />}
 
       <div className="workspace-grid">
         <PolicyVersionRail project={project} />

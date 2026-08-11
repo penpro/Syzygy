@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "runId": "SELF-HOSTED-PRODUCT-COLLABORATION-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "9f8b1b7",
+  "capabilities": ["P-11", "P-12", "S-05", "S-06"],
+  "status": "implemented_unverified",
+  "claim": "Syzygy can persist, create, join, reopen, and leave an explicitly disclosed bring-your-own WebSocket relay project while retaining local IndexedDB durability, but the bearer invitation does not authenticate people and Syzygy does not yet bundle or persist the relay.",
+  "commands": [
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend run test:collaboration:websocket",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend run test:network-boundaries",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend test -- --run",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run check:supervised"
+  ],
+  "result": {
+    "productManifestBindingUsed": true,
+    "bearerInviteRoundTripPassed": true,
+    "twoRealProductProvidersUsed": true,
+    "separateIndexeddbStoresUsed": true,
+    "oneClientDestroyReopenPassed": true,
+    "bidirectionalPostReopenSyncPassed": true,
+    "relayRestartPartitionConvergencePassed": true,
+    "staleAwarenessRemoved": true,
+    "offlineArchiveBindingRedacted": true,
+    "networkBoundaryManifestPassed": true,
+    "networkBoundaryCount": 9,
+    "fullFrontendFilesPassed": 115,
+    "fullFrontendFilesSkipped": 3,
+    "fullFrontendTestsPassed": 481,
+    "fullFrontendTestsSkipped": 3,
+    "frontendProductionBuildPassed": true,
+    "structuralAuditPassed": true,
+    "rustCheckPassed": true,
+    "supervisedCheckRunId": "20260811-101719-fed649",
+    "supervisedCheckElapsedSeconds": 15,
+    "packagedTwoInstallUsed": false
+  },
+  "proved": [
+    "The persisted manifest accepts only canonical WS/WSS endpoints and strong URL-safe bearer rooms; store v4 preserves the binding idempotently.",
+    "Product create/join controls require explicit acknowledgement that the invitation grants read/edit access and identities are self-reported.",
+    "A strict bounded invitation round-trips exact project/document/title/endpoint/room identity and rejects unsupported fields, oversize input, inactive projects, and malformed transports.",
+    "Offline project archives remove the endpoint and bearer room and reopen as independent local projects.",
+    "Two real WebsocketProjectProvider instances exchange updates through the pinned relay; one logical installation destroys and recreates its document/provider, restores from its own IndexedDB store, and synchronizes a new edit back.",
+    "Raw clients additionally converge partitioned edits after relay process replacement and remove disconnected awareness.",
+    "Dynamic WS/WSS CSP activation has matching source, copy, payload, and credential disclosure in the strict network-boundary manifest."
+  ],
+  "notProved": [
+    "Authenticated participant identity, authorization roles, invitation revocation, or protection after an invitation leaks.",
+    "A bundled or one-click relay, durable server persistence, backup/restore, quotas, abuse controls, or hosted deployment operations.",
+    "Packaged CSP behavior, physical two-install use, five-client rapid-edit soak, hostile binary-frame fuzzing, cross-platform packet capture, or public WSS policy behavior.",
+    "A shipped updater artifact containing this implementation."
+  ],
+  "implementationAnchors": [
+    "frontend/src/workspace/websocketProjectBinding.ts",
+    "frontend/src/workspace/websocketProjectInvite.ts",
+    "frontend/src/workspace/websocketProjectProvider.ts",
+    "frontend/src/workspace/SelfHostedProjectControls.tsx",
+    "frontend/src/workspace/ResearchEditor.tsx",
+    "frontend/src/store.ts",
+    "frontend/src/migrations.ts",
+    "frontend/src-tauri/tauri.conf.json",
+    "scripts/websocket-collaboration-harness.mjs"
+  ]
+}

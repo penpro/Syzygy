@@ -25,6 +25,7 @@ import { useStore } from '../store'
 import type { ResearchProjectManifest } from './schema'
 import { createLocalProviderFactory } from './localProvider'
 import { createDriveProviderFactory } from './driveProjectProvider'
+import { createWebsocketProviderFactory } from './websocketProjectProvider'
 import { registerAutomationEditor } from './editorAutomation'
 import { getAutomationEditorController } from './editorAutomationRegistry'
 import {
@@ -68,7 +69,8 @@ const editorTheme = {
   },
 }
 
-function Toolbar({ shared }: { shared: boolean }) {
+function Toolbar({ sharedMode }: { sharedMode: 'drive' | 'websocket' | null }) {
+  const shared = sharedMode !== null
   const [editor] = useLexicalComposerContext()
   const policyContentState = usePolicyContentBridgeState()
   const reorderSafety = policyReorderSafety(shared ? 'drive' : 'local', policyContentState
@@ -231,7 +233,13 @@ function Toolbar({ shared }: { shared: boolean }) {
       {!reorderSafety.allowed ? <span className="research-reorder-note">{reorderSafety.reason}</span> : null}
       <span className="research-toolbar-rule" aria-hidden="true" />
       <button type="button" disabled={!canRedo} onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}>Redo</button>
-      <span className="research-save-state mono">{shared ? 'Drive shared · local copy persists' : 'Local changes persist automatically'}</span>
+      <span className="research-save-state mono">{
+        sharedMode === 'drive'
+          ? 'Drive shared · local copy persists'
+          : sharedMode === 'websocket'
+            ? 'Self-hosted live · local copy persists'
+            : 'Local changes persist automatically'
+      }</span>
     </div>
   )
 }
@@ -249,9 +257,17 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
   const awarenessData = useMemo(() => ({
     syzygy: { schemaVersion: 1, participantId: researcherId },
   }), [researcherId])
-  const transportKey = project.transport.kind === 'drive' ? `drive:${project.transport.workspaceId}` : 'local'
+  const transportKey = project.transport.kind === 'drive'
+    ? `drive:${project.transport.workspaceId}`
+    : project.transport.kind === 'websocket'
+      ? `websocket:${project.transport.endpoint}:${project.transport.roomId}`
+      : 'local'
   const providerFactory = useMemo(
-    () => project.transport.kind === 'drive' ? createDriveProviderFactory(project) : createLocalProviderFactory(project),
+    () => project.transport.kind === 'drive'
+      ? createDriveProviderFactory(project)
+      : project.transport.kind === 'websocket'
+        ? createWebsocketProviderFactory(project, project.transport)
+        : createLocalProviderFactory(project),
     [project.documentId, project.id, transportKey],
   )
   const initialConfig = useMemo(
@@ -274,7 +290,7 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
         <ScenarioReferenceProvider projectId={project.id}>
           <SuggestionProvider projectId={project.id}>
           <AutomationEditorRegistration projectId={project.id} />
-          <Toolbar shared={project.transport.kind === 'drive'} />
+          <Toolbar sharedMode={project.transport.kind === 'local' ? null : project.transport.kind} />
           <ResearchPresence projectId={project.id} />
           <ResearchTableOfContents />
           <div className="research-paper">

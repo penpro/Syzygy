@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path'
 const repository = join(dirname(fileURLToPath(import.meta.url)), '..')
 const frontend = join(repository, 'frontend')
 const serverEntry = join(frontend, 'node_modules', '@y', 'websocket-server', 'src', 'server.js')
+const vitestEntry = join(frontend, 'node_modules', 'vitest', 'vitest.mjs')
 const yjsEntry = pathToFileURL(join(frontend, 'node_modules', 'yjs', 'dist', 'yjs.mjs')).href
 const websocketEntry = pathToFileURL(join(frontend, 'node_modules', 'y-websocket', 'src', 'y-websocket.js')).href
 const Y = await import(yjsEntry)
@@ -70,6 +71,62 @@ async function stopRelay(child) {
   )
 }
 
+async function runProductProviderFlow(endpoint, roomId) {
+  const child = spawn(process.execPath, [
+    vitestEntry,
+    'run',
+    'src/workspace/websocketProjectProductFlow.integration.test.ts',
+  ], {
+    cwd: frontend,
+    env: {
+      ...process.env,
+      VITE_SYZYGY_WEBSOCKET_TEST_ENDPOINT: endpoint,
+      VITE_SYZYGY_WEBSOCKET_TEST_ROOM: roomId,
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,
+  })
+  let output = ''
+  child.stdout.setEncoding('utf8')
+  child.stderr.setEncoding('utf8')
+  child.stdout.on('data', (chunk) => { output = (output + chunk).slice(-16_384) })
+  child.stderr.on('data', (chunk) => { output = (output + chunk).slice(-16_384) })
+  const exited = new Promise((resolve) => {
+    child.once('exit', (exitCode, exitSignal) => resolve({ code: exitCode, signal: exitSignal }))
+  })
+  let deadline
+  const timedOut = new Promise((resolve) => {
+    deadline = setTimeout(() => {
+      void (async () => {
+        let cleanupError = null
+        try {
+          await stopRelay(child)
+        } catch (error) {
+          cleanupError = error instanceof Error ? error.message : String(error)
+        }
+        resolve({
+          timedOut: true,
+          result: { code: child.exitCode, signal: child.signalCode },
+          cleanupError,
+        })
+      })()
+    }, 30_000)
+  })
+  const outcome = await Promise.race([
+    exited.then((result) => ({ timedOut: false, result })),
+    timedOut,
+  ])
+  clearTimeout(deadline)
+  const { code, signal } = outcome.result
+  if (outcome.timedOut) {
+    const cleanup = outcome.cleanupError ? `; cleanup failed: ${outcome.cleanupError}` : ''
+    throw new Error(`product provider flow exceeded its 30-second deadline${cleanup}: ${output}`)
+  }
+  if (code !== 0) {
+    throw new Error(`product provider flow failed (code=${code}, signal=${signal ?? 'none'}): ${output}`)
+  }
+}
+
 const port = await freePort()
 const endpoint = `ws://127.0.0.1:${port}`
 const room = `syzygy-harness-${crypto.randomUUID()}`
@@ -103,6 +160,8 @@ try {
     'two-client awareness propagation',
   )
 
+  await runProductProviderFlow(endpoint, `product_${crypto.randomUUID().replace(/-/g, '')}`)
+
   await stopRelay(relay)
   relay = null
   await waitFor(() => !providerA.wsconnected && !providerB.wsconnected, 'relay disconnect observation')
@@ -129,6 +188,8 @@ try {
     awarenessPropagated: true,
     staleAwarenessRemoved: true,
     serverRetainedDocumentState: false,
+    productInviteRoundTrip: true,
+    productProviderReopenRestored: true,
   }, null, 2))
 } finally {
   providerA.destroy()

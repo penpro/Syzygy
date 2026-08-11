@@ -54,6 +54,14 @@
 | `frontend/src/workspace/driveProjectProvider.ts` | Penumbra original | Immutable-update Drive-backed Yjs provider with IndexedDB durability, partition/reconnect merge, post-pull migration, shared-title pull/projection/exact-guard append, and final-sync snapshot-first compaction |
 | `frontend/src/workspace/websocketProjectProvider.ts` | Penumbra original | Stable-Yjs-13 y-websocket provider composed with local IndexedDB, live awareness, bounded initial readiness, strict endpoint/room validation, and honest no-relay-persistence capabilities |
 | `frontend/src/workspace/websocketProjectProvider.test.ts` | Penumbra original | Hostile endpoint/room validation and exact provider-capability non-claim fixtures |
+| `frontend/src/workspace/websocketProjectBinding.ts` | Penumbra original | Canonical WS/WSS endpoint boundary, private-plaintext enforcement, and 256-bit bearer-room generation |
+| `frontend/src/workspace/websocketProjectInvite.ts` | Penumbra original | Strict bounded bearer-invitation codec for exact project and relay identity |
+| `frontend/src/workspace/websocketProjectInvite.test.ts` | Penumbra original | Unicode round-trip, detached decode, unsupported-field, size, and inactive-transport denial fixtures |
+| `frontend/src/workspace/websocketProjectStatus.ts` | Penumbra original | Detached live connection status with stale-provider teardown protection |
+| `frontend/src/workspace/websocketProjectStatus.test.ts` | Penumbra original | Status replacement ownership and detached-read fixtures |
+| `frontend/src/workspace/websocketProjectStore.test.ts` | Penumbra original | Persisted bind/join/leave state, collision, normalization, and transport-authority fixtures |
+| `frontend/src/workspace/SelfHostedProjectControls.tsx` | Penumbra original | Explicit advanced create/join/leave product controls with bearer-access and non-backup disclosure |
+| `frontend/src/workspace/websocketProjectProductFlow.integration.test.ts` | Penumbra original | Real-relay invite, two-provider, separate-IndexedDB, destroy/reopen, and return-sync product fixture |
 | `frontend/src/workspace/driveTitleRepairJobs.ts` | Penumbra original | Content-minimized bounded background jobs for exact-inventory Drive shared-title inspection and recoverable repair, with 30-second heartbeats and one-hour terminal retention |
 | `frontend/src/workspace/driveProjectMaintenanceRegistry.ts` | Penumbra original | Identity-safe lifecycle registry exposing explicit compaction/title maintenance only for the currently ready Drive provider without stale-disconnect teardown |
 | `frontend/src/workspace/driveProjectActions.ts` | Penumbra original | Exact-revision Drive publish and refetched exact-identity Join actions shared by product UI and MCP automation |

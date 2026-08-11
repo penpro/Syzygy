@@ -99,6 +99,24 @@ describe('portable project archive', () => {
     expect(restored.versions.size).toBe(1)
   })
 
+  it('strips a self-hosted bearer invitation from an independent offline archive', async () => {
+    const { project, doc } = await fixture('self-hosted-redaction')
+    const websocketProject: ResearchProjectManifest = {
+      ...project,
+      transport: {
+        kind: 'websocket',
+        endpoint: 'ws://192.168.1.20:1234',
+        roomId: 'room_' + 's'.repeat(40),
+      },
+    }
+    const archive = await createProjectArchive(websocketProject, doc, 40)
+    const decoded = await decodeProjectArchive(archive)
+    expect(decoded.sourceManifest.transport).toEqual({ kind: 'local' })
+    expect(decoded.manifest.transport).toEqual({ kind: 'local' })
+    expect(archive).not.toContain('192.168.1.20')
+    expect(archive).not.toContain('room_')
+  })
+
   it('rejects envelope corruption, future schemas, unknown fields, and identity mismatch', async () => {
     const { project, doc } = await fixture('corruption')
     const archive = await createProjectArchive(project, doc, 40)

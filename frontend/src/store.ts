@@ -6,6 +6,7 @@ import { safeStorage } from './storage'
 import { mergePersisted, migratePersistedVersion, PERSISTED_STORE_VERSION } from './migrations'
 import { defaultSettings, defaultExperts } from './seed'
 import { createProjectManifest, parseProjectManifest, type ResearchProjectManifest } from './workspace/schema'
+import { normalizeWebsocketProjectBinding, type WebsocketProjectBinding } from './workspace/websocketProjectBinding'
 
 interface AppState {
   settings: Settings
@@ -33,6 +34,9 @@ interface AppState {
   addImportedProject: (project: ResearchProjectManifest) => void
   bindProjectToDrive: (id: string, workspaceId: string) => void
   addSharedProject: (project: ResearchProjectManifest) => void
+  bindProjectToWebsocket: (id: string, binding: WebsocketProjectBinding) => void
+  addSelfHostedProject: (project: ResearchProjectManifest) => void
+  leaveSelfHostedProject: (id: string) => void
 
   // experts (rule sets for the Ask view)
   experts: Expert[]
@@ -157,6 +161,48 @@ export const useStore = create<AppState>()(
           projects: [project, ...state.projects],
           activeProjectId: project.id,
           view: 'workspace',
+        })
+      },
+      bindProjectToWebsocket: (id, bindingValue) => {
+        const binding = normalizeWebsocketProjectBinding(bindingValue)
+        const state = get()
+        const project = state.projects.find((candidate) => candidate.id === id)
+        if (!project || project.archivedAt !== undefined) throw new Error('Project is not available to share')
+        if (project.transport.kind !== 'local') {
+          throw new Error('Only an active local project can start self-hosted collaboration')
+        }
+        set({
+          projects: state.projects.map((candidate) => candidate.id === id
+            ? { ...candidate, transport: { kind: 'websocket', ...binding }, updatedAt: now() }
+            : candidate),
+        })
+      },
+      addSelfHostedProject: (value) => {
+        const project = parseProjectManifest(value)
+        if (project.transport.kind !== 'websocket' || project.archivedAt !== undefined) {
+          throw new Error('Self-hosted invitations must describe active WebSocket projects')
+        }
+        const state = get()
+        if (state.projects.some((candidate) =>
+          candidate.id === project.id || candidate.documentId === project.documentId)) {
+          throw new Error('This project already exists on this installation')
+        }
+        set({
+          projects: [project, ...state.projects],
+          activeProjectId: project.id,
+          view: 'workspace',
+        })
+      },
+      leaveSelfHostedProject: (id) => {
+        const state = get()
+        const project = state.projects.find((candidate) => candidate.id === id)
+        if (!project || project.archivedAt !== undefined || project.transport.kind !== 'websocket') {
+          throw new Error('Project is not connected to a self-hosted relay')
+        }
+        set({
+          projects: state.projects.map((candidate) => candidate.id === id
+            ? { ...candidate, transport: { kind: 'local' }, updatedAt: now() }
+            : candidate),
         })
       },
 

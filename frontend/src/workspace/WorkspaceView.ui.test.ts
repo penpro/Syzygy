@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { useStore } from '../store'
 import type { ResearchProjectManifest } from './schema'
 import { LocalProjectSharingPanel, WorkspaceView } from './WorkspaceView'
+import { SelfHostedProjectControls } from './SelfHostedProjectControls'
 import {
   editSharedProjectTitleDraft,
   SharedProjectTitleControl,
@@ -25,6 +26,17 @@ const driveProject: ResearchProjectManifest = {
   documentId: 'workspace-shared-document',
   title: 'Shared collaboration draft',
   transport: { kind: 'drive', workspaceId: 'workspace-drive' },
+}
+const websocketProject: ResearchProjectManifest = {
+  ...localProject,
+  id: 'workspace-self-hosted-project',
+  documentId: 'workspace-self-hosted-document',
+  title: 'Self-hosted collaboration draft',
+  transport: {
+    kind: 'websocket',
+    endpoint: 'ws://192.168.1.20:1234',
+    roomId: 'room_' + 'a'.repeat(40),
+  },
 }
 
 let previousProjects: ResearchProjectManifest[]
@@ -53,6 +65,8 @@ describe('workspace collaboration entry points', () => {
     expect(html).toContain('Create research project')
     expect(html).toContain('Import offline copy')
     expect(html).toContain('Shared Drive projects')
+    expect(html).toContain('Join a self-hosted project (advanced)')
+    expect(html).toContain('bearer invitation')
   })
 
   it('distinguishes live Drive sharing from an independent offline copy', () => {
@@ -63,6 +77,20 @@ describe('workspace collaboration entry points', () => {
     expect(html).toContain('Offline copies do not keep syncing')
     expect(html).toContain('Share this project')
     expect(html).toContain('Export offline copy')
+    expect(html).toContain('advanced self-hosted relay')
+  })
+
+  it('makes the self-hosted relay an explicit acknowledged product action', () => {
+    const localHtml = renderToStaticMarkup(createElement(SelfHostedProjectControls, { project: localProject }))
+    expect(localHtml).toContain('Self-hosted relay (advanced)')
+    expect(localHtml).toContain('The relay is not a backup')
+    expect(localHtml).toContain('invitation is the access key')
+    expect(localHtml).toContain('Create invitation and connect')
+
+    const sharedHtml = renderToStaticMarkup(createElement(SelfHostedProjectControls, { project: websocketProject }))
+    expect(sharedHtml).toContain('Anyone with this invitation can read and edit')
+    expect(sharedHtml).toContain('Leave relay · keep local copy')
+    expect(sharedHtml).toContain('Local IndexedDB remains the durable copy')
   })
 
   it('makes a Drive-shared title an explicit synchronized action instead of a read-only field', () => {

@@ -20,7 +20,7 @@ import {
   type StablePolicyStatus,
 } from './workspace/policyContentModel'
 
-export const PERSISTED_STORE_VERSION = 3
+export const PERSISTED_STORE_VERSION = 4
 
 export interface LegacyPolicyContentSeed {
   policyId: string
@@ -95,8 +95,9 @@ export function migrateLocalPolicyContentDocument(
 }
 
 /**
- * Zustand rewrites storage only when its numbered migration runs. Version 3 makes the generated
- * per-install researcher identity durable for saves created before attribution existed.
+ * Zustand rewrites storage only when its numbered migration runs. Version 4 records the expanded
+ * project-transport union; existing local/Drive manifests are already canonical and pass through
+ * unchanged, while mergePersisted continues to reject unknown or malformed bindings.
  */
 export function migratePersistedVersion(persisted: unknown, storedVersion: number): unknown {
   if (!Number.isInteger(storedVersion) || storedVersion < 0 || storedVersion > PERSISTED_STORE_VERSION) {

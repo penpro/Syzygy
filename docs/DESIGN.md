@@ -119,7 +119,7 @@ or permission; domain review and any future authority grant are distinct later a
 Restore is a deliberate two-step action on a non-head checkpoint. **Prepare restore** reveals the
 exact short checkpoint ID, a cancel action, and **Restore as new version**. The copy states that the
 live draft is replaced, a new child is created on the current head, and existing versions remain.
-The UI identifies local versus Drive-shared projects precisely. Scenario response generation, versioned scenario-rerun evaluation, and exact baseline comparison/export are available; installed-network real-time presence remains unclaimed.
+The UI identifies local, Drive-shared, and self-hosted relay projects precisely. Scenario response generation, versioned scenario-rerun evaluation, and exact baseline comparison/export are available. Live presence is claimed only while the WebSocket provider reports a real live transport; Drive remains polling-only.
 
 Portable project movement is available from both the empty workspace and an open project. **Export
 offline copy** stays disabled until the live collaboration document is ready; **Import offline
@@ -173,15 +173,25 @@ an instruction to inspect again. Partial work reports the remaining count and re
 inspection. Successful copy says to reopen a project if the earlier provider initialization was
 already blocked. The surface never displays repair record names or Drive IDs, calls quarantined data
 trusted, adjudicates title conflicts, or suggests authenticated provenance.
+Self-hosted collaboration is an advanced, explicit flow. A local project accepts a canonical WS/WSS
+relay endpoint only after the user acknowledges that its generated invitation is a bearer access key.
+The empty workspace can join only from the complete bounded invitation. Active relay projects show
+the configured endpoint, live/connecting/offline/error state, a manually copyable invitation, and
+**Leave relay · keep local copy**. Copy must say that anyone with the invitation can read and edit,
+participant names are self-reported, local IndexedDB is the durable copy, and the relay is not a
+backup. Public plaintext, embedded credentials, queries, fragments, room paths, and weak room IDs
+fail before persistence. Offline archive export strips the endpoint and bearer room. Do not imply
+that Syzygy currently bundles, authenticates, backs up, or administers the relay.
 The UI must not describe polling as real-time presence.
 A compact **Presence** strip below the editor toolbar always names the actual capability. Local
 projects say that no remote editing session is connected. Drive-shared projects say edits sync
-but live cursors and online status are unavailable. A future live provider may show bounded
+but live cursors and online status are unavailable. The self-hosted live provider shows bounded
 session chips with **this device**, **editing**, or **viewing** state. Invalid/excess peer records
 produce an accessible warning rather than rendering attacker-controlled identity data. Live mode
 must state that presence is ephemeral and collaborator names are self-reported, not authenticated.
-Live offline/LAN project synchronization is not implemented; the portable archive is a handoff that
-creates independent local state after import.
+Self-hosted WS/WSS synchronization is implemented for a user-operated relay; the bundled one-click
+relay and authenticated participant identity remain open. The portable archive is still a separate
+handoff that creates independent local state after import and contains no relay invitation.
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,
 empty, integrity-error, and mutation-error states; creates and selects stable scenarios; edits title,
 background, and workflow state; creates ordered role/content turns; and appends attributed immutable

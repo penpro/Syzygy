@@ -12,19 +12,20 @@ import { LocalProjectProvider } from './localProvider'
 import { createProjectDocument } from './projectModel'
 import { registerProjectPresence } from './presenceRegistry'
 import type { ResearchProjectManifest } from './schema'
+import {
+  normalizeWebsocketProjectBinding,
+  type WebsocketProjectBinding,
+} from './websocketProjectBinding'
+import { registerWebsocketProjectStatus } from './websocketProjectStatus'
 
 const READY_DEADLINE_MS = 15_000
-const MAX_ENDPOINT_LENGTH = 2_048
-const ROOM_ID_PATTERN = /^[A-Za-z0-9_-]{32,128}$/
 
-export interface WebsocketProjectBinding {
-  endpoint: string
-  roomId: string
-}
-
-export interface NormalizedWebsocketProjectBinding extends WebsocketProjectBinding {
-  endpoint: string
-}
+export {
+  createWebsocketRoomId,
+  normalizeWebsocketProjectBinding,
+  type NormalizedWebsocketProjectBinding,
+  type WebsocketProjectBinding,
+} from './websocketProjectBinding'
 
 export const WEBSOCKET_PROVIDER_CAPABILITIES: ProjectProviderCapabilities = {
   realtime: true,
@@ -32,63 +33,6 @@ export const WEBSOCKET_PROVIDER_CAPABILITIES: ProjectProviderCapabilities = {
   durableLocal: true,
   remotePersistence: false,
   attachments: false,
-}
-
-function isPrivateIpv4(hostname: string): boolean {
-  const octets = hostname.split('.').map(Number)
-  if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) {
-    return false
-  }
-  return octets[0] === 10
-    || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31)
-    || (octets[0] === 192 && octets[1] === 168)
-    || octets[0] === 127
-}
-
-function isPrivateHostname(hostname: string): boolean {
-  const normalized = hostname.toLowerCase()
-  return normalized === 'localhost'
-    || normalized === '[::1]'
-    || normalized.endsWith('.local')
-    || isPrivateIpv4(normalized)
-}
-
-/**
- * The first self-hosted transport is intentionally capability-limited: plaintext WebSockets are
- * accepted only on loopback/private LAN hosts, while non-private endpoints must use TLS. Secrets,
- * query parameters, fragments, and embedded credentials never enter the persisted binding.
- */
-export function normalizeWebsocketProjectBinding(
-  value: WebsocketProjectBinding,
-): NormalizedWebsocketProjectBinding {
-  if (typeof value.endpoint !== 'string' || value.endpoint.length > MAX_ENDPOINT_LENGTH) {
-    throw new Error('WebSocket collaboration endpoint is missing or too long')
-  }
-  let endpoint: URL
-  try {
-    endpoint = new URL(value.endpoint)
-  } catch {
-    throw new Error('WebSocket collaboration endpoint is invalid')
-  }
-  if (!['ws:', 'wss:'].includes(endpoint.protocol)) {
-    throw new Error('WebSocket collaboration endpoint must use ws:// or wss://')
-  }
-  if (endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
-    throw new Error('WebSocket collaboration endpoint cannot contain credentials, query parameters, or fragments')
-  }
-  if (endpoint.pathname !== '/' && endpoint.pathname !== '') {
-    throw new Error('WebSocket collaboration endpoint cannot contain a room path')
-  }
-  if (endpoint.protocol === 'ws:' && !isPrivateHostname(endpoint.hostname)) {
-    throw new Error('Plaintext WebSocket collaboration is limited to loopback or private LAN hosts')
-  }
-  if (!ROOM_ID_PATTERN.test(value.roomId)) {
-    throw new Error('WebSocket collaboration room ID must be 32-128 URL-safe characters')
-  }
-  return {
-    endpoint: endpoint.origin,
-    roomId: value.roomId,
-  }
 }
 
 /**
@@ -105,16 +49,25 @@ export class WebsocketProjectProvider implements ProjectCollaborationProvider {
   private connected = false
   private remoteReady = false
   private unregisterPresence: (() => void) | null = null
+  private statusRegistration: ReturnType<typeof registerWebsocketProjectStatus> | null = null
   private readonly forwardUpdate = (update: Uint8Array) => this.emit('update', update)
   private readonly forwardStatus = (event: { status: 'connected' | 'disconnected' | 'connecting' }) => {
     this.emit('status', event)
+    if (event.status !== 'connected') this.statusRegistration?.publish({ state: event.status })
   }
   private readonly forwardSync = (synced: boolean) => {
     this.remoteReady = synced
     this.emit('sync', synced)
+    this.statusRegistration?.publish(synced
+      ? { state: 'connected', syncedAt: Date.now() }
+      : { state: 'connecting' })
   }
   private readonly forwardConnectionError = () => {
     this.emit('status', { status: 'error', error: 'Self-hosted collaboration relay is unavailable' })
+    this.statusRegistration?.publish({
+      state: 'error',
+      error: 'Self-hosted collaboration relay is unavailable',
+    })
   }
 
   constructor(
@@ -141,6 +94,8 @@ export class WebsocketProjectProvider implements ProjectCollaborationProvider {
   connect(): void {
     if (this.connected) return
     this.connected = true
+    this.statusRegistration?.unregister()
+    this.statusRegistration = registerWebsocketProjectStatus(this.projectId)
     this.local.connect()
     this.unregisterPresence = registerProjectPresence(this.projectId, this.awareness, 'live')
     this.remote.connect()
@@ -180,6 +135,7 @@ export class WebsocketProjectProvider implements ProjectCollaborationProvider {
     this.unregisterPresence = null
     this.remote.disconnect()
     this.local.disconnect()
+    this.statusRegistration?.publish({ state: 'disconnected' })
   }
 
   async flush(): Promise<void> {
@@ -188,14 +144,22 @@ export class WebsocketProjectProvider implements ProjectCollaborationProvider {
 
   async destroy(): Promise<void> {
     this.disconnect()
-    await this.local.flush()
-    this.remote.off('status', this.forwardStatus)
-    this.remote.off('sync', this.forwardSync)
-    this.remote.off('connection-error', this.forwardConnectionError)
-    this.remote.destroy()
-    this.doc.off('update', this.forwardUpdate)
-    this.awareness.destroy()
-    await this.local.destroy()
+    try {
+      await this.local.flush()
+    } finally {
+      this.remote.off('status', this.forwardStatus)
+      this.remote.off('sync', this.forwardSync)
+      this.remote.off('connection-error', this.forwardConnectionError)
+      this.remote.destroy()
+      this.doc.off('update', this.forwardUpdate)
+      this.awareness.destroy()
+      try {
+        await this.local.destroy()
+      } finally {
+        this.statusRegistration?.unregister()
+        this.statusRegistration = null
+      }
+    }
   }
 
   on(type: ProjectProviderEvent, callback: ProjectProviderListener): void {

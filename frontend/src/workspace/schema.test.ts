@@ -31,4 +31,21 @@ describe('research project schema', () => {
     const manifest = createProjectManifest({ id: 'project-1', documentId: 'doc-1', timestamp: 42 })
     expect(isResearchProjectManifest({ ...manifest, title: '' })).toBe(true)
   })
+
+  it('accepts only canonical, bounded self-hosted bindings', () => {
+    const manifest = createProjectManifest({ id: 'project-1', documentId: 'doc-1', timestamp: 42 })
+    const roomId = 'room_' + 'a'.repeat(40)
+    expect(isResearchProjectManifest({
+      ...manifest,
+      transport: { kind: 'websocket', endpoint: 'ws://192.168.1.20:1234', roomId },
+    })).toBe(true)
+    expect(isResearchProjectManifest({
+      ...manifest,
+      transport: { kind: 'websocket', endpoint: 'ws://192.168.1.20:1234/', roomId },
+    })).toBe(false)
+    expect(isResearchProjectManifest({
+      ...manifest,
+      transport: { kind: 'websocket', endpoint: 'ws://public.example.test', roomId },
+    })).toBe(false)
+  })
 })

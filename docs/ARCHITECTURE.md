@@ -217,8 +217,14 @@ fixture. `WebsocketProjectProvider` is the first non-Drive implementation: it co
 IndexedDB/automation lifecycle with the stable Yjs 13 `y-websocket` protocol, live awareness,
 15-second initial-readiness bound, and reconnect backoff. Binding validation permits plaintext only
 for loopback/private-LAN hosts and rejects credentials, queries, fragments, prefilled room paths, and
-weak room IDs. The provider is not yet reachable from a persisted project manifest or product UI;
-relay authentication, server persistence/backups, quotas, and CSP activation remain gates. The
+weak room IDs. The product can persist that binding, create or accept a strict bounded bearer
+invitation, reopen through IndexedDB, show owned connection status, and leave the relay while keeping
+the local copy. Store v4 is the idempotent persistence boundary; offline archives deliberately redact
+the endpoint and bearer room. The webview CSP permits dynamic WS/WSS connections because endpoints
+are user-configured, while the application parser retains the private-plaintext boundary. The room
+identifier grants project access but does not authenticate participant identity. A bundled relay,
+identity authentication/authorization, server persistence/backups, quotas, and abuse controls remain
+gates. The
 Drive provider publishes to the UI/MCP automation registry only after local reopen plus its initial
 remote pull, and a live canary proves the underlying Google create/list/readback/cleanup path.
 Drive project titles are a second, metadata-only append path rather than a mutable manifest field.

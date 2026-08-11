@@ -59,8 +59,12 @@ function normalizedManifest(value: unknown): ResearchProjectManifest {
   if (parsed.title.length > MAX_PROJECT_TITLE) throw new Error('Project archive title exceeds the size limit')
   if (parsed.transport.kind === 'local') {
     if (!exactKeys(parsed.transport, ['kind'])) throw new Error('Project archive local transport is malformed')
-  } else if (!exactKeys(parsed.transport, ['kind', 'workspaceId']) || parsed.transport.workspaceId.length > MAX_MANIFEST_ID) {
-    throw new Error('Project archive Drive transport is malformed')
+  } else if (parsed.transport.kind === 'drive') {
+    if (!exactKeys(parsed.transport, ['kind', 'workspaceId']) || parsed.transport.workspaceId.length > MAX_MANIFEST_ID) {
+      throw new Error('Project archive Drive transport is malformed')
+    }
+  } else if (!exactKeys(parsed.transport, ['kind', 'endpoint', 'roomId'])) {
+    throw new Error('Project archive WebSocket transport is malformed')
   }
   return {
     schemaVersion: parsed.schemaVersion,
@@ -72,7 +76,9 @@ function normalizedManifest(value: unknown): ResearchProjectManifest {
     ...(parsed.archivedAt === undefined ? {} : { archivedAt: parsed.archivedAt }),
     transport: parsed.transport.kind === 'local'
       ? { kind: 'local' }
-      : { kind: 'drive', workspaceId: parsed.transport.workspaceId },
+      : parsed.transport.kind === 'drive'
+        ? { kind: 'drive', workspaceId: parsed.transport.workspaceId }
+        : { kind: 'websocket', endpoint: parsed.transport.endpoint, roomId: parsed.transport.roomId },
   }
 }
 
@@ -148,9 +154,14 @@ export async function createProjectArchive(
   doc: Y.Doc,
   exportedAt = Date.now(),
 ): Promise<string> {
-  const manifest = normalizedManifest(manifestValue)
+  const sourceManifest = normalizedManifest(manifestValue)
   if (!Number.isFinite(exportedAt) || exportedAt < 0) throw new Error('Project archive export time is invalid')
-  assertDocumentIdentity(doc, manifest)
+  assertDocumentIdentity(doc, sourceManifest)
+  // A portable copy is deliberately independent. Do not embed the bearer room identifier or
+  // relay endpoint: importing the archive must never silently retain live-collaboration access.
+  const manifest = sourceManifest.transport.kind === 'websocket'
+    ? { ...sourceManifest, transport: { kind: 'local' as const } }
+    : sourceManifest
   const update = encodeProjectState(doc)
   if (update.byteLength === 0 || update.byteLength > MAX_ARCHIVE_UPDATE_BYTES) {
     throw new Error('Project archive document exceeds the size limit')

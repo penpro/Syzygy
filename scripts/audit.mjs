@@ -56,9 +56,11 @@ record(
 )
 
 const websocketProviderSource = text('frontend/src/workspace/websocketProjectProvider.ts')
+const websocketBindingSource = text('frontend/src/workspace/websocketProjectBinding.ts')
 const websocketProviderTestSource = text('frontend/src/workspace/websocketProjectProvider.test.ts')
 const websocketHarnessSource = text('scripts/websocket-collaboration-harness.mjs')
 const websocketEvidence = text('docs/audits/runs/SELF-HOSTED-WEBSOCKET-TRANSPORT-2026-08-11.json')
+const websocketProductEvidence = text('docs/audits/runs/SELF-HOSTED-PRODUCT-COLLABORATION-2026-08-11.json')
 const websocketClientPackage = lock.packages?.['node_modules/y-websocket']
 const websocketRelayPackage = lock.packages?.['node_modules/@y/websocket-server']
 record(
@@ -70,9 +72,9 @@ record(
     websocketRelayPackage?.integrity === 'sha512-pPtXm5Ceqs4orhXXHwm2I+u1mKNBDNzlrwNiI7OMwM7PlVS4WCMpiIuSB8WsYeSuISbvpXPNvaj6H1MoQBbE+g==' &&
     frontendPackage.scripts?.['test:collaboration:websocket'] === 'node ../scripts/websocket-collaboration-harness.mjs' &&
     websocketProviderSource.includes('READY_DEADLINE_MS = 15_000') &&
-    websocketProviderSource.includes("if (endpoint.protocol === 'ws:' && !isPrivateHostname(endpoint.hostname))") &&
-    websocketProviderSource.includes('endpoint.username || endpoint.password || endpoint.search || endpoint.hash') &&
-    websocketProviderSource.includes('ROOM_ID_PATTERN = /^[A-Za-z0-9_-]{32,128}$/') &&
+    websocketBindingSource.includes("if (endpoint.protocol === 'ws:' && !isPrivateHostname(endpoint.hostname))") &&
+    websocketBindingSource.includes('endpoint.username || endpoint.password || endpoint.search || endpoint.hash') &&
+    websocketBindingSource.includes('ROOM_ID_PATTERN = /^[A-Za-z0-9_-]{32,128}$/') &&
     websocketProviderSource.includes('remotePersistence: false') &&
     websocketProviderSource.includes('disableBc: true') &&
     websocketProviderTestSource.includes('refuses lookalike addresses') &&
@@ -84,6 +86,49 @@ record(
     websocketEvidence.includes('"packagedTwoInstallUsed": false') &&
     websocketEvidence.includes('"status": "implemented_unverified"'),
   'stable Yjs-13 pins, private-plaintext boundary, secret-free binding, sync deadline, relay reaping, real convergence harness, and explicit product/auth/persistence nonclaims are present',
+)
+
+const websocketInviteSource = text('frontend/src/workspace/websocketProjectInvite.ts')
+const websocketInviteTestSource = text('frontend/src/workspace/websocketProjectInvite.test.ts')
+const websocketStatusSource = text('frontend/src/workspace/websocketProjectStatus.ts')
+const websocketControlsSource = text('frontend/src/workspace/SelfHostedProjectControls.tsx')
+const websocketProductFlowSource = text('frontend/src/workspace/websocketProjectProductFlow.integration.test.ts')
+const projectSchemaSource = text('frontend/src/workspace/schema.ts')
+const projectStoreSourceForWebsocket = text('frontend/src/store.ts')
+const projectArchiveSourceForWebsocket = text('frontend/src/workspace/projectArchive.ts')
+const projectArchiveTestSourceForWebsocket = text('frontend/src/workspace/projectArchive.test.ts')
+const researchEditorSourceForWebsocket = text('frontend/src/workspace/ResearchEditor.tsx')
+const migrationSourceForWebsocket = text('frontend/src/migrations.ts')
+const selfHostedCspSource = text('frontend/src-tauri/tauri.conf.json')
+const selfHostedNetworkManifestSource = text('docs/audits/NETWORK-BOUNDARIES.json')
+record(
+  'self-hosted product collaboration remains persisted, explicit, live-tested, and bearer-honest',
+  projectSchemaSource.includes("{ kind: 'websocket'; endpoint: string; roomId: string }") &&
+    migrationSourceForWebsocket.includes('PERSISTED_STORE_VERSION = 4') &&
+    projectStoreSourceForWebsocket.includes('bindProjectToWebsocket: (id, bindingValue) =>') &&
+    projectStoreSourceForWebsocket.includes('addSelfHostedProject: (value) =>') &&
+    projectStoreSourceForWebsocket.includes('leaveSelfHostedProject: (id) =>') &&
+    websocketInviteSource.includes("WEBSOCKET_PROJECT_INVITE_PREFIX = 'syzygy-websocket-invite-v1.'") &&
+    websocketInviteSource.includes('MAX_WEBSOCKET_PROJECT_INVITE_LENGTH = 6_000') &&
+    websocketInviteSource.includes("exactKeys(manifest.transport, ['kind', 'endpoint', 'roomId'])") &&
+    websocketInviteTestSource.includes('rejects malformed, oversized, archived, non-WebSocket, and extra-field invitations') &&
+    websocketControlsSource.includes('Anyone with this invitation can read and edit') &&
+    websocketControlsSource.includes('The relay is not a backup') &&
+    websocketControlsSource.includes('Leave relay · keep local copy') &&
+    websocketStatusSource.includes("entries.get(projectId)?.owner !== owner") &&
+    researchEditorSourceForWebsocket.includes('createWebsocketProviderFactory(project, project.transport)') &&
+    projectArchiveSourceForWebsocket.includes("sourceManifest.transport.kind === 'websocket'") &&
+    projectArchiveTestSourceForWebsocket.includes('strips a self-hosted bearer invitation from an independent offline archive') &&
+    selfHostedCspSource.includes('connect-src') &&
+    selfHostedCspSource.includes('ws: wss:') &&
+    selfHostedNetworkManifestSource.includes('"id": "self-hosted-collaboration"') &&
+    websocketProductFlowSource.includes('reopens one client from IndexedDB') &&
+    websocketHarnessSource.includes('productProviderReopenRestored: true') &&
+    websocketHarnessSource.includes('product provider flow exceeded its 30-second deadline') &&
+    websocketProductEvidence.includes('"productManifestBindingUsed": true') &&
+    websocketProductEvidence.includes('"packagedTwoInstallUsed": false') &&
+    websocketProductEvidence.includes('"status": "implemented_unverified"'),
+  'store-v4 manifest binding, strict invite, explicit bearer disclosure, stale-safe status, archive redaction, CSP/network inventory, real provider reopen, and physical/auth/bundled-relay nonclaims are present',
 )
 
 const sourceFiles = [
@@ -168,13 +213,14 @@ record(
   projectArchiveSource.includes("PROJECT_ARCHIVE_FORMAT = 'syzygy-project-archive'") &&
     projectArchiveSource.includes('PROJECT_ARCHIVE_MAX_FILE_BYTES = 36_000_000') &&
     projectArchiveSource.includes("globalThis.crypto.subtle.digest('SHA-256', ownedBytes.buffer)") &&
-    projectArchiveSource.includes('assertDocumentIdentity(doc, manifest)') &&
+    projectArchiveSource.includes('assertDocumentIdentity(doc, sourceManifest)') &&
     projectArchiveSource.includes('Project archive manifest contains unsupported fields') &&
     projectArchiveSource.includes("transport: { kind: 'local' }") &&
     projectArchiveSource.includes('project.id === manifest.id || project.documentId === manifest.documentId') &&
     projectArchiveSource.includes('migrateScenarioDocument(decoded.doc)') &&
     projectArchiveSource.includes('Local storage already contains different state for this project') &&
     projectArchiveTestSource.includes('round-trips every shared collection with stable identity and a local import binding') &&
+    projectArchiveTestSource.includes('strips a self-hosted bearer invitation from an independent offline archive') &&
     projectArchiveTestSource.includes('persists an imported archive and reopens it from IndexedDB without a network provider') &&
     projectArchiveTestSource.includes('refuses to merge an archive with different orphaned local state') &&
     scenarioArchiveGraphTestSource.includes('survives export, local import persistence, and disconnected reopen with exact content and ancestry') &&
@@ -966,7 +1012,7 @@ record(
       ) &&
     localProjectProviderTestSource.includes("expect(automationProjectDocumentReady('document-1')).toBe(false)") &&
     localProjectProviderTestSource.includes("expect(automationProjectDocumentReady('document-1')).toBe(true)") &&
-    migrationSource.includes('PERSISTED_STORE_VERSION = 3') &&
+    migrationSource.includes('PERSISTED_STORE_VERSION = 4') &&
     migrationSource.includes('storedVersion > PERSISTED_STORE_VERSION'),
   'post-IndexedDB publication, exact draft/head guards, rollback-aware semantic replacement, two-step UI, one-update two-peer Yjs proof, durable attribution, and truthful P-28 status are present',
 )

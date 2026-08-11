@@ -10,6 +10,8 @@ describe('NetworkBoundarySummary', () => {
     expect(html).toContain('Loopback on this computer only')
     expect(html).toContain('choose Send once')
     expect(html).toContain('Google OAuth, Drive, and Sheets services')
+    expect(html).toContain('The WS/WSS relay endpoint in the invitation')
+    expect(html).toContain('The invitation is the access key')
     expect(html).toContain('Hugging Face for models; GitHub for signed Syzygy releases')
     expect(html).toContain('Only after you opt in and an unexpected error occurs')
     expect(html).toContain('The control link does not sync research data by itself')

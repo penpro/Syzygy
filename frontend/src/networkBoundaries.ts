@@ -33,6 +33,14 @@ export const NETWORK_BOUNDARY_ITEMS: readonly NetworkBoundaryItem[] = [
     data: 'OAuth material plus selected-workspace metadata and supported file content. Drive tokens stay in the native core.',
   },
   {
+    id: 'self-hosted-collaboration',
+    label: 'Self-hosted project relay',
+    defaultState: 'Off until you create or accept a bearer invitation',
+    activation: 'When you explicitly connect a project or join a self-hosted invitation',
+    destination: 'The WS/WSS relay endpoint in the invitation',
+    data: 'The relay receives project updates and ephemeral presence. The invitation is the access key; identities are self-reported, and the relay is not a backup.',
+  },
+  {
     id: 'downloads-updates',
     label: 'Models and app updates',
     defaultState: 'Manual',

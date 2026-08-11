@@ -2452,6 +2452,74 @@ input.workspace-title-input:focus {
   flex-wrap: wrap;
   gap: 8px;
 }
+.self-hosted-project-controls {
+  width: min(760px, 100%);
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--text-2);
+  font-size: 12px;
+}
+.self-hosted-project-strip {
+  flex: 0 0 auto;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.self-hosted-project-controls > summary {
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 600;
+}
+.self-hosted-project-controls > p {
+  margin: 8px 0;
+  line-height: 1.45;
+}
+.self-hosted-project-heading,
+.self-hosted-project-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.self-hosted-project-heading p,
+.self-hosted-project-actions span {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.self-hosted-endpoint-field,
+.self-hosted-invite-field {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0;
+}
+.self-hosted-endpoint-field input,
+.self-hosted-invite-field textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: 11px/1.4 var(--font-mono);
+}
+.self-hosted-invite-field textarea {
+  resize: vertical;
+  overflow-wrap: anywhere;
+}
+.self-hosted-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 10px 0;
+  color: var(--text-2);
+  line-height: 1.4;
+}
+.self-hosted-project-join {
+  margin-top: 14px;
+}
 .project-archive-file {
   position: absolute;
   width: 1px;

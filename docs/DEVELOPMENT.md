@@ -917,10 +917,13 @@ node scripts\run-with-heartbeat.mjs `
   -- npm --prefix frontend run test:collaboration:websocket
 ```
 
-The harness starts the exact test-only `@y/websocket-server@0.1.1` relay on loopback, connects two
-stable-Yjs-13 clients, proves bidirectional document and awareness propagation, kills and reaps the
-relay, creates partitioned edits, restarts the relay, requires convergence, and checks stale
-awareness removal. It reports explicitly that the relay retained no document state. Client-local
-IndexedDB is composed by `WebsocketProjectProvider`, but app-process restart, manifest/UI binding,
-authentication, relay persistence/backups, five-client soak, and packaged CSP/network behavior are
-not proved by this harness.
+The harness starts the exact test-only `@y/websocket-server@0.1.1` relay on loopback. Its raw protocol
+clients prove bidirectional document/awareness propagation, relay termination/restart, partition
+convergence, and stale-awareness removal. A separately supervised Vitest child then exercises the
+product manifest and bearer-invitation codec, two real `WebsocketProjectProvider` instances with
+separate IndexedDB stores, process-level relay exchange, destroy/recreate of one logical client, local
+reopen, and return synchronization. The child has a 30-second deadline and the outer harness still
+reaps the relay in `finally`. The result explicitly reports that the basic relay retained no document
+state. This proves a synthetic same-computer product flow, not authenticated identity, a bundled
+relay, relay persistence/backups, five-client soak, physical two-install use, or packaged CSP/network
+behavior.

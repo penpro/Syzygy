@@ -1,6 +1,7 @@
 //! Syzygy Tauri backend. Domain logic lives in the modules below; this file wires up
 //! state and command handlers. The persisted frontend preference owns engine startup.
 mod automation;
+pub mod collaboration_device_trust;
 pub mod collaboration_identity;
 mod collaboration_relay_runtime;
 pub mod collaboration_relay_server;
@@ -225,6 +226,8 @@ pub fn run() {
             collaboration_relay_runtime::collaboration_relay_configure,
             collaboration_identity::collaboration_identity_status,
             collaboration_identity::collaboration_identity_sign_presence,
+            collaboration_device_trust::collaboration_device_trust_status,
+            collaboration_device_trust::collaboration_device_trust_change,
             mcp_setup::mcp_connection_info,
             provider_runtime::provider_generate,
             provider_runtime::provider_generate_stream,

@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "runId": "LOCAL-DEVICE-TRUST-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "c3b680b",
+  "capabilities": ["P-11"],
+  "status": "implemented_unverified",
+  "claim": "A user can label an independently verified remote device fingerprint approved, revoked, or re-approved for one local installation and project; this current-state preference does not authenticate a person, propagate to collaborators, retain decision history, disconnect a peer, or change relay access.",
+  "commands": [
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path src-tauri/Cargo.toml collaboration_device_trust --lib",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm exec vitest run src/workspace/ResearchPresence.ui.test.tsx src/workspace/deviceIdentity.test.ts src/workspace/signedPresencePublisher.test.ts src/workspace/presenceModel.test.ts",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run check:supervised"
+  ],
+  "result": {
+    "rustTrustTestsPassed": 4,
+    "focusedFrontendFilesPassed": 4,
+    "focusedFrontendTestsPassed": 15,
+    "canonicalKeyIdsRequired": true,
+    "staleMutationRejected": true,
+    "corruptPrimaryFailsClosed": true,
+    "validPrimaryWinsOverPrevious": true,
+    "missingPrimaryRecoversPrevious": true,
+    "registryBytesBound": 1048576,
+    "projectCountBound": 64,
+    "deviceCountPerProjectBound": 64,
+    "nativeMutationSerialization": true,
+    "uiConcurrentMutationsAllowed": false,
+    "sharedWithOtherInstallations": false,
+    "relayAccessChanged": false,
+    "peerDisconnectedOnRevocation": false,
+    "sameUserFileTamperingPrevented": false,
+    "decisionHistoryRetained": false,
+    "humanIdentityAuthenticated": false,
+    "trustedEnrollmentImplemented": false,
+    "fullFrontendFilesPassed": 119,
+    "fullFrontendFilesSkipped": 3,
+    "fullFrontendTestsPassed": 494,
+    "fullFrontendTestsSkipped": 3,
+    "frontendProductionBuildPassed": true,
+    "frontendModulesTransformed": 1259,
+    "frontendAssetReembedProof": "Compiling app v0.1.19",
+    "structuralAuditPassed": true,
+    "rustCheckPassed": true,
+    "supervisedCheckRunId": "20260811-113847-550dbc",
+    "supervisedCheckElapsedSeconds": 26,
+    "fullValidationPending": false
+  },
+  "proved": [
+    "Native state is scoped to installation, project stable ID, and canonical Ed25519 SHA-256 key ID; unapproved is derived rather than persisted.",
+    "Approve, revoke, and re-approve require the exact expected current state and serialize through one native lock.",
+    "The strict registry rejects unknown fields, invalid status/timestamps, oversize content, more than 64 projects, and more than 64 decisions in one project without changing the saved primary.",
+    "Persistence syncs a bounded temporary file, rotates the primary to a recovery copy, restores on final-rename failure, prefers a valid primary, recovers a missing primary, and fails closed on a malformed primary.",
+    "Only independently verified remote presence proofs receive controls; the product exposes a short fingerprint, local approval state, one-at-a-time mutation controls, accessible errors, and explicit no-relay-access copy."
+  ],
+  "notProved": [
+    "A local decision is signed, append-only, tamper-resistant from the same OS user, shared with another installation, or retained as an audit history.",
+    "A self-issued key is bound to a person, organization, account, trusted enrollment, project role, or authoritative participant identity.",
+    "Revoking a local label disconnects a peer, removes room access, revokes an invitation, blocks Yjs or MCP operations, or propagates to collaborators.",
+    "Key rotation/recovery, trusted time, exact same-context replay prevention, or signed durable research events exists.",
+    "Physical packaged two-install interaction, cross-platform app-data behavior, or five-client soak has passed."
+  ],
+  "implementationAnchors": [
+    "frontend/src-tauri/src/collaboration_device_trust.rs",
+    "frontend/src-tauri/src/lib.rs",
+    "frontend/src/tauri.ts",
+    "frontend/src/workspace/ResearchPresence.tsx",
+    "frontend/src/workspace/ResearchPresence.ui.test.tsx"
+  ]
+}

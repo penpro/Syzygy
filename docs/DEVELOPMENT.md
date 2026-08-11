@@ -305,11 +305,18 @@ restoration after Lexical focus/blur republishes its original awareness data, an
 verification cache key, and 200-pending/400-cache-entry bounds. Run
 `npm run test:collaboration:identity` to build the exact Rust harness under a 120-second deadline and
 verify its canonical signature plus four claim mutations through Node WebCrypto; the proof output
-must contain no private-material field. `presenceResearchInspection.test.ts`
+must contain no private-material field. The native `collaboration_device_trust` tests additionally
+require exact-state approve/revoke/re-approve transitions, per-project isolation, corrupt-primary
+fail-closed behavior, missing-primary recovery, primary precedence, canonical key IDs, and unchanged
+saved bytes after 64-device or 64-project bound rejection. `ResearchPresence.ui.test.tsx` requires
+the short fingerprint, local-only approval/revocation labels and controls, and explicit copy denying
+relay authorization. Only one UI trust mutation may be in flight. `presenceResearchInspection.test.ts`
 requires MCP to expose only transport mode and session/integrity counts. This is provider-neutral
-and product-visible evidence, but it does not prove trusted key enrollment, human identity,
-authorization/revocation, same-session replay prevention, durable event signatures, a physical
-two-install cursor run, or the Phase 5 five-client soak.
+and product-visible evidence, but the local app-data registry is a user preference, not a signed
+project record or access-control boundary. It does not prove trusted/shared key enrollment, human
+identity, roles, relay authorization, propagated revocation, same-session replay prevention, key
+rotation/recovery, durable event signatures, a physical two-install cursor run, or the Phase 5
+five-client soak.
 
 The same suite includes `heuristicsModel.test.ts`. Forty seeded delivery orders prove concurrent
 field edits retain both values and attribution events, and another forty prove concurrent additions

@@ -156,9 +156,12 @@ not provide remote live presence; Drive edit polling is unchanged. Live WebSocke
 an independently verified, domain-separated Ed25519 proof from an OS-vault installation key. The
 claim binds the project, document, self-reported participant, awareness client, and random session
 nonce; legacy/invalid/unavailable states remain visible and do not block editing. This does not
-authenticate a person: keys are self-issued, peers are not approved, exact same-session replay is
-not rejected, and durable Yjs events are not signed. Trusted enrollment, roles/revocation, physical
-two-install cursor proof, and five-client soak remain open, so P-11 is `implemented_unverified`.
+authenticate a person: keys are self-issued, but a verified fingerprint can now receive one bounded
+per-installation, per-project approved/revoked label with exact-state native mutations. Those labels
+are local user preferences and explicitly do not alter relay access. Trusted project-shared
+enrollment, roles, propagated revocation, rotation/recovery, exact same-session replay rejection,
+durable Yjs event signatures, physical two-install cursor proof, and five-client soak remain open,
+so P-11 is `implemented_unverified`.
 
 
 P-04 now has a Penumbra-original typed Yjs domain service and deterministic headless evidence for
@@ -418,9 +421,11 @@ signaling/privacy/reliability spike passes.
 
 Current identity progress is deliberately narrower than the phase auth hook: one OS-vault Ed25519
 key signs a typed ephemeral presence claim, and Rust-to-WebCrypto interop rejects changed
-project/document/participant/client fields. The next identity increment must define peer enrollment,
-fingerprint approval/rejection, project-scoped roles, revocation propagation, durable event
-signatures, key rotation/recovery, and a replay policy before the product may say authenticated.
+project/document/participant/client fields. The first fingerprint approval/revocation increment is
+implemented only as a local project-scoped current-state label and never changes relay access. The
+next identity increment must define trusted shared enrollment, project-scoped roles, revocation
+propagation, durable event signatures, key rotation/recovery, and a replay policy before the product
+may say authenticated.
 
 Gate: five-client rapid-edit soak converges; stale presence disappears; restart/partition loses
 no edit; schema is unchanged when switching providers; P-11/P-12/S-05 pass.

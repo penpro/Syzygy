@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Awareness } from 'y-protocols/awareness'
 import {
+  collaborationDeviceTrustChange,
+  collaborationDeviceTrustStatus,
   collaborationIdentitySignPresence,
   type DevicePresenceProof,
+  type DeviceTrustReport,
+  type DeviceTrustStatus,
   type PresenceIdentityClaim,
 } from '../tauri'
 import {
@@ -13,7 +17,7 @@ import {
   type DeviceProofStatus,
   verifyDevicePresenceProof,
 } from './deviceIdentity'
-import type { PresenceInspection } from './presenceModel'
+import type { PresenceInspection, PresenceParticipant } from './presenceModel'
 import { inspectAwareness } from './presenceModel'
 import {
   getProjectPresence,
@@ -28,6 +32,21 @@ function proofLabel(status: DeviceProofStatus | undefined): string {
   if (status === 'unavailable') return ' · signature not checked'
   if (status === 'checking') return ' · checking signature'
   return ' · unsigned device'
+}
+
+type DeviceTrustUiStatus = DeviceTrustStatus | 'checking' | 'unavailable'
+
+function trustLabel(status: DeviceTrustUiStatus | undefined): string {
+  if (status === 'approved') return ' · key approved locally'
+  if (status === 'revoked') return ' · key revoked locally'
+  if (status === 'unavailable') return ' · approval not checked'
+  if (status === 'checking') return ' · checking local approval'
+  return ' · key not approved'
+}
+
+function shortFingerprint(participant: PresenceParticipant): string | null {
+  const fingerprint = participant.deviceProof?.keyId.replace(/^ed25519-sha256:/, '')
+  return fingerprint ? fingerprint.slice(0, 12) : null
 }
 
 export function installSignedPresencePublisher(
@@ -87,10 +106,20 @@ export function ResearchPresenceView({
   mode,
   inspection,
   proofStatuses = new Map(),
+  trustStatuses = new Map(),
+  busyKeyId = null,
+  onApproveDevice,
+  onRevokeDevice,
+  trustError = null,
 }: {
   mode: PresenceTransportMode | null
   inspection: PresenceInspection | null
   proofStatuses?: ReadonlyMap<number, DeviceProofStatus>
+  trustStatuses?: ReadonlyMap<number, DeviceTrustUiStatus>
+  busyKeyId?: string | null
+  onApproveDevice?: (participant: PresenceParticipant) => void
+  onRevokeDevice?: (participant: PresenceParticipant) => void
+  trustError?: string | null
 }) {
   if (!mode || !inspection) {
     return <section className="research-presence" aria-label="Collaboration presence"><span>Presence starting…</span></section>
@@ -109,14 +138,46 @@ export function ResearchPresenceView({
       </div>
       {inspection.participants.length > 0 ? (
         <ul aria-label="Editing sessions">
-          {inspection.participants.map((participant) => (
-            <li key={participant.clientId}>
-              <span className="presence-dot" aria-hidden="true" />
-              {participant.displayName}
-              {participant.local ? ' · this device' : participant.focusing ? ' · editing' : ' · viewing'}
-              {live ? proofLabel(proofStatuses.get(participant.clientId)) : null}
-            </li>
-          ))}
+          {inspection.participants.map((participant) => {
+            const proofStatus = proofStatuses.get(participant.clientId)
+            const trustStatus = trustStatuses.get(participant.clientId)
+            const fingerprint = shortFingerprint(participant)
+            const actionable = live && !participant.local && proofStatus === 'verified-device' &&
+              participant.deviceProof && trustStatus !== 'checking' && trustStatus !== 'unavailable'
+            return (
+              <li key={participant.clientId}>
+                <span className="presence-dot" aria-hidden="true" />
+                {participant.displayName}
+                {participant.local ? ' · this device' : participant.focusing ? ' · editing' : ' · viewing'}
+                {live ? proofLabel(proofStatus) : null}
+                {live && !participant.local && proofStatus === 'verified-device' ? trustLabel(trustStatus) : null}
+                {fingerprint && live && proofStatus === 'verified-device' ? (
+                  <span className="mono subtle" title={participant.deviceProof?.keyId}>key {fingerprint}</span>
+                ) : null}
+                {actionable && trustStatus === 'approved' && onRevokeDevice ? (
+                  <button
+                    type="button"
+                    className="btn sm ghost"
+                    disabled={busyKeyId !== null}
+                    aria-label={`Revoke ${participant.displayName} device key on this installation`}
+                    onClick={() => onRevokeDevice(participant)}
+                  >
+                    Revoke key
+                  </button>
+                ) : actionable && onApproveDevice ? (
+                  <button
+                    type="button"
+                    className="btn sm ghost"
+                    disabled={busyKeyId !== null}
+                    aria-label={`${trustStatus === 'revoked' ? 'Re-approve' : 'Approve'} ${participant.displayName} device key on this installation`}
+                    onClick={() => onApproveDevice(participant)}
+                  >
+                    {trustStatus === 'revoked' ? 'Re-approve key' : 'Approve key'}
+                  </button>
+                ) : null}
+              </li>
+            )
+          })}
         </ul>
       ) : null}
       {!inspection.healthy ? (
@@ -124,10 +185,12 @@ export function ResearchPresenceView({
           {inspection.invalidRecords} invalid or excess presence record{inspection.invalidRecords === 1 ? '' : 's'} hidden.
         </span>
       ) : null}
+      {trustError ? <span className="presence-warning" role="alert">{trustError}</span> : null}
       {live ? (
         <small>
           Presence is ephemeral. Signed device means this session proved possession of an installation key;
-          it does not verify a person. Names remain self-reported.
+          it does not verify a person. Names remain self-reported. Approvals and revocations apply only
+          to this installation and project; they do not grant or remove relay access.
         </small>
       ) : null}
     </section>
@@ -148,6 +211,11 @@ export function ResearchPresence({
   )
   const [awarenessRevision, setAwarenessRevision] = useState(0)
   const [proofStatuses, setProofStatuses] = useState<ReadonlyMap<number, DeviceProofStatus>>(new Map())
+  const [trustReport, setTrustReport] = useState<DeviceTrustReport | null>(null)
+  const [trustRegistryState, setTrustRegistryState] = useState<'checking' | 'ready' | 'unavailable'>('checking')
+  const [trustError, setTrustError] = useState<string | null>(null)
+  const [busyKeyId, setBusyKeyId] = useState<string | null>(null)
+  const trustMutationInFlight = useRef(false)
   const verificationCache = useRef(new Map<string, DeviceProofStatus>())
   const pendingVerifications = useRef(new Map<string, Promise<DeviceProofStatus>>())
 
@@ -163,6 +231,25 @@ export function ResearchPresence({
     update()
     return () => registration.awareness.off('change', update)
   }, [registration])
+
+  useEffect(() => {
+    let disposed = false
+    setTrustReport(null)
+    setTrustError(null)
+    if (!registration || registration.mode !== 'live') {
+      setTrustRegistryState('ready')
+      return () => { disposed = true }
+    }
+    setTrustRegistryState('checking')
+    void collaborationDeviceTrustStatus(projectId).then((next) => {
+      if (disposed) return
+      setTrustReport(next)
+      setTrustRegistryState('ready')
+    }).catch(() => {
+      if (!disposed) setTrustRegistryState('unavailable')
+    })
+    return () => { disposed = true }
+  }, [projectId, registration])
 
   useEffect(() => {
     verificationCache.current.clear()
@@ -239,11 +326,52 @@ export function ResearchPresence({
     return () => { disposed = true }
   }, [documentId, inspection, projectId, registration])
 
+  const trustStatuses = useMemo(() => {
+    const next = new Map<number, DeviceTrustUiStatus>()
+    const decisions = new Map(trustReport?.decisions.map((decision) => [decision.keyId, decision.status]) ?? [])
+    for (const participant of inspection?.participants ?? []) {
+      if (participant.local || proofStatuses.get(participant.clientId) !== 'verified-device' ||
+        !participant.deviceProof) continue
+      next.set(
+        participant.clientId,
+        trustRegistryState === 'ready'
+          ? decisions.get(participant.deviceProof.keyId) ?? 'unapproved'
+          : trustRegistryState,
+      )
+    }
+    return next
+  }, [inspection, proofStatuses, trustRegistryState, trustReport])
+
+  const changeTrust = async (participant: PresenceParticipant, action: 'approve' | 'revoke') => {
+    if (trustMutationInFlight.current) return
+    const proof = participant.deviceProof
+    if (!proof || participant.local || proofStatuses.get(participant.clientId) !== 'verified-device' ||
+      trustRegistryState !== 'ready') return
+    const current = trustReport?.decisions.find((decision) => decision.keyId === proof.keyId)?.status ?? 'unapproved'
+    if ((action === 'approve' && current === 'approved') || (action === 'revoke' && current !== 'approved')) return
+    trustMutationInFlight.current = true
+    setBusyKeyId(proof.keyId)
+    setTrustError(null)
+    try {
+      setTrustReport(await collaborationDeviceTrustChange(projectId, proof.keyId, current, action))
+    } catch (error) {
+      setTrustError(error instanceof Error ? error.message : String(error))
+    } finally {
+      trustMutationInFlight.current = false
+      setBusyKeyId(null)
+    }
+  }
+
   return (
     <ResearchPresenceView
       mode={registration?.mode ?? null}
       inspection={inspection}
       proofStatuses={proofStatuses}
+      trustStatuses={trustStatuses}
+      busyKeyId={busyKeyId}
+      onApproveDevice={(participant) => { void changeTrust(participant, 'approve') }}
+      onRevokeDevice={(participant) => { void changeTrust(participant, 'revoke') }}
+      trustError={trustError}
     />
   )
 }

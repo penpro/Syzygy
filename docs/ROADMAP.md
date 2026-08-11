@@ -157,11 +157,15 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   is self-signed by an OS-vault Ed25519 installation key and independently verified in WebCrypto;
   legacy, invalid, and unsupported-verifier states remain explicit, and focus changes cannot silently
   discard the proof. This proves only possession of a self-issued device key for the current bounded
-  session. Trusted enrollment, human identity, authorization/revocation, durable-event signatures,
-  physical two-install cursor proof, and five-client soak do not exist, so P-11 remains
+  session. Verified fingerprints can now be approved, revoked, and re-approved in a bounded native
+  current-state registry scoped to one installation and project. The UI explicitly denies that these
+  local labels change relay access. Trusted/shared enrollment, human identity, roles, propagated
+  revocation, key rotation/recovery, durable-event signatures, physical two-install cursor proof,
+  and five-client soak do not exist, so P-11 remains
   `implemented_unverified`. Evidence:
   `docs/audits/runs/PRESENCE-LIFECYCLE-2026-07-18.json` and
-  `docs/audits/runs/SIGNED-DEVICE-PRESENCE-2026-08-11.json`.
+  `docs/audits/runs/SIGNED-DEVICE-PRESENCE-2026-08-11.json` and
+  `docs/audits/runs/LOCAL-DEVICE-TRUST-2026-08-11.json`.
 - P-16 now connects selected scenarios to one bounded provider-neutral response contract. Local
   generation uses the optional loopback model; OpenAI, Anthropic, Gemini, and xAI reuse the native
   Send once boundary. Output enters the existing collaborative response lineage only when the exact
@@ -601,10 +605,12 @@ collaborators are not required to download large project folders.
    awareness. A native-executable harness proves all-source-client exit, process restart, server-only
    recovery into an empty client, product-provider compatibility, and listener reuse. A first
    identity foundation now gives each installation an OS-vault Ed25519 key and signs only bounded
-   ephemeral presence. Cross-language mutation tests pass, but keys remain self-issued and unapproved;
-   exact same-session replay and participant-ID impersonation remain possible, and durable research
-   events are unsigned. Next: add peer approval, authorization/revocation and signed durable-event
-   envelopes, public WSS operations, compaction/export/backups
+   ephemeral presence. Cross-language mutation tests pass, and a local project-scoped registry now
+   labels verified fingerprints approved or revoked without changing relay access. Keys remain
+   self-issued; decisions are neither shared nor authoritative, exact same-session replay and
+   participant-ID impersonation remain possible, and durable research events are unsigned. Next: add
+   trusted project-shared enrollment, roles and revocation propagation, signed durable-event
+   envelopes, key rotation/recovery, public WSS operations, compaction/export/backups
    and broader abuse controls, then run packaged physical two-install and five-client soak gates.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.
    v0.1.14 added same-name folder codes and the bounded MCP/LAN diagnostic; the two-physical-install

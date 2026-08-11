@@ -201,12 +201,17 @@ produce an accessible warning rather than rendering attacker-controlled identity
 labels schema-v1 peers **unsigned device** and a valid schema-v2 Ed25519 session proof **signed
 device**; invalid or unverifiable proofs remain visibly distinct. Copy must say that the proof
 establishes possession of a self-issued installation key for this session, not a verified person or
-organization, and that names remain self-reported. Settings exposes only the local public
-fingerprint and repeats the same boundary; it offers no rotate control before revocation semantics
-exist. Signature failure must degrade to explicit unsigned presence without blocking editing.
-Self-hosted WS/WSS synchronization and an app-managed private-LAN relay are implemented. Trusted
-device enrollment, peer approval, roles/revocation, durable-event signatures, public WSS hosting,
-and backup administration remain open. The portable archive is still a separate
+organization, and that names remain self-reported. A verified remote session shows a short key
+fingerprint plus **Approve key**, **Revoke key**, or **Re-approve key**. The resulting label must say
+**approved locally** or **revoked locally**, and adjacent copy must state that the decision applies
+only to this installation and project and does not grant or remove relay access. All trust controls
+are disabled while one mutation is pending; native stale-state rejection surfaces as an accessible
+error. Settings exposes only the local public fingerprint and repeats the device-only boundary; it
+offers no rotate control before shared enrollment and key recovery exist. Signature or local-registry
+failure must degrade to an explicit unsigned/unavailable state without blocking editing.
+Self-hosted WS/WSS synchronization and an app-managed private-LAN relay are implemented. Trusted or
+project-shared device enrollment, roles, propagated revocation, durable-event signatures, public WSS
+hosting, and backup administration remain open. The portable archive is still a separate
 handoff that creates independent local state after import and contains no relay invitation.
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,
 empty, integrity-error, and mutation-error states; creates and selects stable scenarios; edits title,

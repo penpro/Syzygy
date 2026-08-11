@@ -219,6 +219,42 @@ record(
   'OS-vault private key, typed canonical signing only, strict WebCrypto parsing, focus-proof restoration, bounded interop mutation proof, and explicit enrollment/replay/human/durable-event nonclaims are present',
 )
 
+const collaborationTrustSource = text('frontend/src-tauri/src/collaboration_device_trust.rs')
+const collaborationTrustBoundary = text('frontend/src/tauri.ts')
+const collaborationTrustEvidence = text('docs/audits/runs/LOCAL-DEVICE-TRUST-2026-08-11.json')
+record(
+  'local collaboration device decisions stay bounded, serialized, project-scoped, and non-authoritative',
+  collaborationTrustSource.includes('MAX_REGISTRY_BYTES: usize = 1024 * 1024') &&
+    collaborationTrustSource.includes('MAX_PROJECTS: usize = 64') &&
+    collaborationTrustSource.includes('MAX_DEVICES_PER_PROJECT: usize = 64') &&
+    collaborationTrustSource.includes('local-installation-project-device-key-only') &&
+    collaborationTrustSource.includes('deny_unknown_fields') &&
+    collaborationTrustSource.includes('TRUST_LOCK') &&
+    collaborationTrustSource.includes('expected_status') &&
+    collaborationTrustSource.includes('file.sync_all()') &&
+    collaborationTrustSource.includes('if path.exists()') &&
+    collaborationTrustSource.includes('if previous.exists()') &&
+    (collaborationTrustSource.match(/#\[tauri::command\]/g)?.length ?? 0) === 2 &&
+    collaborationRelayLib.includes('collaboration_device_trust::collaboration_device_trust_status') &&
+    collaborationRelayLib.includes('collaboration_device_trust::collaboration_device_trust_change') &&
+    collaborationTrustBoundary.includes("invoke('collaboration_device_trust_status'") &&
+    collaborationTrustBoundary.includes("invoke('collaboration_device_trust_change'") &&
+    collaborationIdentityPresence.includes('trustMutationInFlight') &&
+    collaborationIdentityPresence.includes('key approved locally') &&
+    collaborationIdentityPresence.includes('key revoked locally') &&
+    collaborationIdentityPresence.includes('do not grant or remove relay access') &&
+    collaborationTrustEvidence.includes('"rustTrustTestsPassed": 4') &&
+    collaborationTrustEvidence.includes('"sharedWithOtherInstallations": false') &&
+    collaborationTrustEvidence.includes('"relayAccessChanged": false') &&
+    collaborationTrustEvidence.includes('"sameUserFileTamperingPrevented": false') &&
+    collaborationTrustEvidence.includes('"humanIdentityAuthenticated": false') &&
+    collaborationTrustEvidence.includes('"fullFrontendTestsPassed": 494') &&
+    collaborationTrustEvidence.includes('"structuralAuditPassed": true') &&
+    collaborationTrustEvidence.includes('"fullValidationPending": false') &&
+    collaborationTrustEvidence.includes('"status": "implemented_unverified"'),
+  '1 MiB/64-project/64-key native current-state registry, strict stale transitions, synced recovery replace, one-at-a-time local controls, and explicit shared-identity/relay/tamper nonclaims are present',
+)
+
 const sourceFiles = [
   ...filesBelow('frontend/src', ['.ts', '.tsx']),
   ...filesBelow('frontend/src-tauri/src', ['.rs']),

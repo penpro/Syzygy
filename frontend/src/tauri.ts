@@ -137,6 +137,22 @@ export interface DevicePresenceProof {
   signature: string
 }
 
+export type DeviceTrustStatus = 'unapproved' | 'approved' | 'revoked'
+export type DeviceTrustAction = 'approve' | 'revoke'
+
+export interface DeviceTrustDecision {
+  keyId: string
+  status: Exclude<DeviceTrustStatus, 'unapproved'>
+  updatedAtMs: number
+}
+
+export interface DeviceTrustReport {
+  schemaVersion: 1
+  projectId: string
+  scope: 'local-installation-project-device-key-only'
+  decisions: DeviceTrustDecision[]
+}
+
 export interface ProviderToolDefinition {
   name: string
   description: string
@@ -751,6 +767,23 @@ export const collaborationIdentityStatus = (): Promise<CollaborationIdentityRepo
 export const collaborationIdentitySignPresence = (
   claim: PresenceIdentityClaim,
 ): Promise<DevicePresenceProof> => invoke('collaboration_identity_sign_presence', { claim })
+
+/** Local project-scoped device-key decisions. This does not return or grant relay authorization. */
+export const collaborationDeviceTrustStatus = (projectId: string): Promise<DeviceTrustReport> =>
+  invoke('collaboration_device_trust_status', { projectId })
+
+/** Approve/revoke one device key only if its exact local state has not changed. */
+export const collaborationDeviceTrustChange = (
+  projectId: string,
+  keyId: string,
+  expectedStatus: DeviceTrustStatus,
+  action: DeviceTrustAction,
+): Promise<DeviceTrustReport> => invoke('collaboration_device_trust_change', {
+  projectId,
+  keyId,
+  expectedStatus,
+  action,
+})
 
 /** Pick the pairing-key file without reading its contents into the webview. */
 export async function pickLanPairingKeyFile(): Promise<string | null> {

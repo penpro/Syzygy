@@ -489,6 +489,34 @@ export interface DriveProjectTitleCompactionResult {
   state: DriveProjectTitleState
 }
 
+export interface DriveProjectTitleRepairInspection {
+  repairRevision: string
+  repairRequired: boolean
+  recoverableEventCount: number
+  activeRecordCount: number
+  archivedRecordCount: number
+  quarantinedRecordCount: number
+  quarantineCandidateCount: number
+  archiveCandidateCount: number
+  invalidArchivedRecordCount: number
+  recoverableQuarantinedRecordCount: number
+  invalidQuarantinedRecordCount: number
+  moveCountThisRun: number
+  remainingMoveCount: number
+}
+
+export interface DriveProjectTitleRepairResult {
+  repairRevision: string
+  snapshotRevision: string | null
+  recoverableEventCount: number
+  quarantinedRecordCount: number
+  archivedRecordCount: number
+  failedMoveCount: number
+  remainingMoveCount: number
+  complete: boolean
+  state: DriveProjectTitleState | null
+}
+
 export interface DriveProjectCatalog {
   projects: DriveProjectDescriptor[]
   workspaceCount: number
@@ -564,6 +592,24 @@ export const googleDriveProjectTitleCompact = (
   projectId,
   documentId,
   expectedRevisionGuards,
+})
+
+export const googleDriveProjectTitleRepairInspect = (
+  projectId: string,
+  documentId: string,
+): Promise<DriveProjectTitleRepairInspection> => invoke('google_drive_project_title_repair_inspect', {
+  projectId,
+  documentId,
+})
+
+export const googleDriveProjectTitleRepair = (
+  projectId: string,
+  documentId: string,
+  expectedRepairRevision: string,
+): Promise<DriveProjectTitleRepairResult> => invoke('google_drive_project_title_repair', {
+  projectId,
+  documentId,
+  expectedRepairRevision,
 })
 
 export const googleDriveProjectPull = (

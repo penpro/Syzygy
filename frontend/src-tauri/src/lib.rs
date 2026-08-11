@@ -191,6 +191,8 @@ pub fn run() {
             drive_projects::google_drive_project_title_state,
             drive_projects::google_drive_project_title_update,
             drive_projects::google_drive_project_title_compact,
+            drive_projects::google_drive_project_title_repair_inspect,
+            drive_projects::google_drive_project_title_repair,
             google_drive::google_drive_mirror_dir,
             google_drive::google_drive_sync_folder,
             google_drive::google_drive_mirror_append_log,

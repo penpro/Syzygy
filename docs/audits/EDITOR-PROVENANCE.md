@@ -52,6 +52,7 @@
 | `frontend/src/workspace/policyVersionHistory.ts` | Penumbra original | Exact-head commits, restore-as-new-child history, concurrent branch retention, and deterministic engine-free structured diffs |
 | `frontend/src/workspace/localProvider.ts` | Penumbra original | Local IndexedDB provider implementing the Lexical/Yjs boundary with migration-before-automation reopen |
 | `frontend/src/workspace/driveProjectProvider.ts` | Penumbra original | Immutable-update Drive-backed Yjs provider with IndexedDB durability, partition/reconnect merge, post-pull migration, shared-title pull/projection/exact-guard append, and final-sync snapshot-first compaction |
+| `frontend/src/workspace/driveTitleRepairJobs.ts` | Penumbra original | Content-minimized bounded background jobs for exact-inventory Drive shared-title inspection and recoverable repair, with 30-second heartbeats and one-hour terminal retention |
 | `frontend/src/workspace/driveProjectMaintenanceRegistry.ts` | Penumbra original | Identity-safe lifecycle registry exposing explicit compaction/title maintenance only for the currently ready Drive provider without stale-disconnect teardown |
 | `frontend/src/workspace/driveProjectActions.ts` | Penumbra original | Exact-revision Drive publish and refetched exact-identity Join actions shared by product UI and MCP automation |
 | `frontend/src/workspace/driveProjectStatus.ts` | Penumbra original | Content-free per-project Drive transport lifecycle registry for honest product status |

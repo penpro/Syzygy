@@ -71,6 +71,8 @@ describe('workspace collaboration entry points', () => {
     expect(html).toContain('aria-label="Shared project title"')
     expect(html).toContain('Rename shared project')
     expect(html).toContain('Loading shared title')
+    expect(html).toContain('Check title recovery')
+    expect(html).toContain('without returning titles, authors, file names, or Drive file IDs')
     expect(html).not.toContain('Shared project titles are fixed')
   })
 

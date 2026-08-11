@@ -466,7 +466,7 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   Two explicit MCP reads now provide a bounded scenario traversal chain while broad inspection stays
   body-free: `read_scenario` returns one background plus ordered turn identity/head/tip metadata,
   then `read_scenario_turn_revision` returns one chosen selected-head, named, or indexed body. The
-  two-minute physical harness now requires both nodes and all 39 current tools. It discovers the turn on
+  two-minute physical harness now requires both nodes and all 42 current tools. It discovers the turn on
   both installations, reads both simultaneous scenario siblings, requires the same head/tip set,
   appends one exact all-parent reconciliation, requires the four-revision merge on both nodes, and
   rejects stale document and scenario writes with boolean-only output. Component, Rust, MCP, and synthetic host gates pass;
@@ -524,8 +524,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   persists its parent set and source, and projection derives the complete acyclic tip set. Concurrent
   exact-parent edits remain visible siblings; ordinary edits stop until an exact all-tip merge is
   appended. The engine-free UI exposes explicit sibling selection without deleting alternatives,
-  and MCP discovery now exposes 39 tools including `reconcile_scenario_turn`, revision-guarded
-  `compact_drive_project`, and exact-guard `retain_drive_title_history`. Valid v1 IndexedDB,
+  and MCP discovery now exposes 42 tools including `reconcile_scenario_turn`, revision-guarded
+  `compact_drive_project`, exact-guard `retain_drive_title_history`, and bounded title-repair jobs. Valid v1 IndexedDB,
   Drive, project-archive, and scenario-pack histories migrate deterministically; malformed/future
   records fail before the first migration write. Headless domain, provider, archive, schema, Rust,
   stdio, and structural gates pass. A packaged physical two-install merge remains unverified and is
@@ -573,9 +573,14 @@ collaborators are not required to download large project folders.
    retention now canonicalizes the complete validated graph into an immutable content-addressed
    snapshot before recoverably archiving observed title events/superseded snapshots; exact guards,
    concurrent children, partial retry, 200-record/eight-request movement, 5,000-event/4-MiB bounds,
-   product counts, and a dedicated MCP action are headlessly covered. Next: run and
-   record the packaged two-install convergence/reconciliation/title harness, large-account catalog
-   latency, real-Drive update/title compaction, and a retained-title restore/quarantine repair canary,
+   product counts, and a dedicated MCP action are headlessly covered. Retained-title recovery now
+   inspects active, archived, and quarantined history under an exact content fingerprint, reconstructs only the
+   maximal parent-complete graph, appends its canonical snapshot before any move, quarantines invalid
+   active records without deletion, leaves invalid archive/quarantine records untouched while allowing
+   later-valid parent-complete quarantine to re-enter a canonical snapshot, and exposes four-slot
+   30-second-heartbeat background jobs to MCP so the 15-second live bridge never owns the mutation.
+   Next: run and record the packaged two-install convergence/reconciliation/title harness,
+   large-account catalog latency, and real-Drive update/title compaction plus interruption repair;
    then add the first self-hosted non-Drive transport.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.
    v0.1.14 added same-name folder codes and the bounded MCP/LAN diagnostic; the two-physical-install

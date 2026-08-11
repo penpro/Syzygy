@@ -51,7 +51,7 @@
       "id": "google-drive",
       "label": "Google Drive collaboration",
       "defaultState": "off until the user links a Google account and selects a workspace",
-      "activation": "link, browse, read, write, share, retain shared history, or explicitly sync the selected Drive workspace",
+      "activation": "link, browse, read, write, share, retain or recover shared history, or explicitly sync the selected Drive workspace",
       "destinations": [
         { "kind": "internet", "origin": "https://accounts.google.com", "routePrefixes": ["/o/oauth2/v2/auth"] },
         { "kind": "internet", "origin": "https://oauth2.googleapis.com", "routePrefixes": ["/token", "/revoke"] },
@@ -63,13 +63,13 @@
       "sourceAnchors": [
         { "path": "frontend/src-tauri/src/google_auth.rs", "contains": "https://oauth2.googleapis.com/token" },
         { "path": "frontend/src-tauri/src/google_drive.rs", "contains": "https://sheets.googleapis.com/v4/spreadsheets" },
-        { "path": "frontend/src-tauri/src/drive_projects.rs", "contains": "TITLE_SNAPSHOT_PREFIX" }
+        { "path": "frontend/src-tauri/src/drive_projects.rs", "contains": "QUARANTINED_TITLE_HISTORY_FOLDER" }
       ],
       "copyAnchors": [
         { "path": "frontend/src/components/GoogleDriveButton.tsx", "contains": "It does not download the folder unless" },
         { "path": "frontend/src/networkBoundaries.ts", "contains": "Drive tokens stay in the native core" }
       ],
-      "evidence": ["docs/audits/runs/DRIVE-PROJECT-TRANSPORT-2026-07-16.json", "docs/audits/runs/LAN-COLLABORATION-SUPERVISION-2026-07-17.json", "docs/audits/runs/DRIVE-TITLE-HISTORY-RETENTION-2026-08-11.json"]
+      "evidence": ["docs/audits/runs/DRIVE-PROJECT-TRANSPORT-2026-07-16.json", "docs/audits/runs/LAN-COLLABORATION-SUPERVISION-2026-07-17.json", "docs/audits/runs/DRIVE-TITLE-HISTORY-RETENTION-2026-08-11.json", "docs/audits/runs/DRIVE-TITLE-HISTORY-REPAIR-2026-08-11.json"]
     },
     {
       "id": "model-downloads",

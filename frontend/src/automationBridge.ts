@@ -43,6 +43,7 @@ import {
   updateDriveProjectTitle,
 } from './workspace/driveProjectMaintenanceRegistry'
 import { currentDriveProjectTitleState } from './workspace/driveProjectTitleStatus'
+import { driveTitleRepairJobs, type DriveTitleRepairJob } from './workspace/driveTitleRepairJobs'
 import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
 import { projectStateFingerprint } from './workspace/projectModel'
 import { restoreAutomationPolicyVersion, saveAutomationPolicyVersion } from './workspace/versionAutomation'
@@ -199,6 +200,49 @@ export async function dispatchAutomationRequest(
           complete: result.complete,
         },
         sharedTitle: summarizeDriveTitle(result.state),
+      }
+    }
+    case 'project.startDriveTitleRepairInspection': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; open a Drive-shared project first')
+      if (project.transport.kind !== 'drive') throw new Error('The active project is not Drive-shared')
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        titleRepairJob: summarizeDriveTitleRepairJob(
+          driveTitleRepairJobs.startInspection(project.id, project.documentId),
+        ),
+      }
+    }
+    case 'project.startDriveTitleRepair': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; open a Drive-shared project first')
+      if (project.transport.kind !== 'drive') throw new Error('The active project is not Drive-shared')
+      const expectedRepairRevision = requiredString(params, 'expectedRepairRevision')
+      if (!/^[a-f0-9]{64}$/i.test(expectedRepairRevision)) {
+        throw new Error('Drive title repair revision must be an exact SHA-256 value')
+      }
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        titleRepairJob: summarizeDriveTitleRepairJob(
+          driveTitleRepairJobs.startRepair(
+            project.id,
+            project.documentId,
+            expectedRepairRevision.toLowerCase(),
+          ),
+        ),
+      }
+    }
+    case 'project.inspectDriveTitleRepairJob': {
+      return {
+        titleRepairJob: summarizeDriveTitleRepairJob(
+          driveTitleRepairJobs.inspect(requiredString(params, 'jobId')),
+        ),
       }
     }
     case 'project.create': {
@@ -827,6 +871,48 @@ function summarizeDriveTitle(state: DriveProjectTitleState) {
       displayName: tip.displayName,
       timestamp: tip.timestamp,
     })),
+  }
+}
+
+function summarizeDriveTitleRepairJob(job: DriveTitleRepairJob) {
+  return {
+    jobId: job.jobId,
+    kind: job.kind,
+    status: job.status,
+    startedAt: job.startedAt,
+    updatedAt: job.updatedAt,
+    heartbeatAt: job.heartbeatAt,
+    error: job.error,
+    inspection: job.inspection
+      ? {
+          repairRevision: job.inspection.repairRevision,
+          repairRequired: job.inspection.repairRequired,
+          recoverableEventCount: job.inspection.recoverableEventCount,
+          activeRecordCount: job.inspection.activeRecordCount,
+          archivedRecordCount: job.inspection.archivedRecordCount,
+          quarantinedRecordCount: job.inspection.quarantinedRecordCount,
+          quarantineCandidateCount: job.inspection.quarantineCandidateCount,
+          archiveCandidateCount: job.inspection.archiveCandidateCount,
+          invalidArchivedRecordCount: job.inspection.invalidArchivedRecordCount,
+          recoverableQuarantinedRecordCount: job.inspection.recoverableQuarantinedRecordCount,
+          invalidQuarantinedRecordCount: job.inspection.invalidQuarantinedRecordCount,
+          moveCountThisRun: job.inspection.moveCountThisRun,
+          remainingMoveCount: job.inspection.remainingMoveCount,
+        }
+      : null,
+    repair: job.repair
+      ? {
+          repairRevision: job.repair.repairRevision,
+          snapshotRevision: job.repair.snapshotRevision,
+          recoverableEventCount: job.repair.recoverableEventCount,
+          quarantinedRecordCount: job.repair.quarantinedRecordCount,
+          archivedRecordCount: job.repair.archivedRecordCount,
+          failedMoveCount: job.repair.failedMoveCount,
+          remainingMoveCount: job.repair.remainingMoveCount,
+          complete: job.repair.complete,
+          titleStateReady: job.repair.titleStateReady,
+        }
+      : null,
   }
 }
 

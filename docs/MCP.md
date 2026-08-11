@@ -59,6 +59,9 @@ Recommended first instruction to an MCP-capable model:
 | `join_shared_project` | local workspace/project registration | Refetches and joins one exact workspace/project/document identity, rejects local collisions, and waits for the Drive-backed editor |
 | `compact_drive_project` | Drive maintenance | After a final sync and exact `expectedDocumentRevision` plus `expectedResearchRevision` checks, appends a complete snapshot and recoverably archives only applied update records; reports partial/concurrent counts and returns no Drive file IDs |
 | `retain_drive_title_history` | Drive title maintenance | Requires the complete exact `sharedTitle.revisionGuards`, snapshots the complete validated title graph before recoverably archiving observed active records, preserves concurrent children, and returns counts without Drive file IDs |
+| `start_drive_title_repair_inspection` | no | Starts a bounded background inventory of active, recoverable archived, and quarantined title records; returns a job immediately and never returns titles, authors, filenames, Drive file IDs, or snapshot bodies |
+| `inspect_drive_title_repair_job` | no | Polls a title inspection/repair job with a 30-second heartbeat; terminal count-only results expire after one hour |
+| `start_drive_title_repair` | recoverable Drive title maintenance | Requires the exact inspection revision, appends the maximal complete validated recovery snapshot before any move, quarantines invalid active records, re-archives valid active records, deletes nothing, and returns immediately with a job ID |
 | `create_project` | yes | Creates and opens a local project with a non-empty title |
 | `open_project` | navigation | Opens a non-archived project by stable ID |
 | `rename_project` | local metadata or Drive title event | Local projects change local metadata. Drive projects require the complete exact `sharedTitle.revisionGuards`; stale calls fail, simultaneous siblings remain visible, and an all-tip rename reconciles without deleting history |
@@ -110,6 +113,21 @@ an attributed merge event. The MCP response includes bounded title/tip metadata 
 appends a canonical content-addressed snapshot of the complete validated graph, rechecks the tips,
 then moves at most 200 observed records into a recoverable folder. A stale pre-move set writes no
 archive moves; concurrent children remain active; partial moves are reported and safe to retry.
+Title repair is inspect-first and asynchronous because bounded Drive recovery can outlive the
+15-second live bridge request. The inspection hashes the exact active/archive/quarantine inventory and returns
+only counts plus `repairRevision`. `start_drive_title_repair` must present that exact hash; Rust
+rechecks it before writing, appends or reuses the canonical recovery snapshot, re-reads the inventory,
+and permits no move if anything except that snapshot changed. Invalid active records move to
+`quarantined-title-history/`; valid active records move back to `compacted-title-history/`. Archived
+invalid records remain untouched. Later inspection may recover a now-valid parent-complete
+quarantined record into a new snapshot, while malformed quarantine remains untouched. Each job
+reports a content-minimized heartbeat every 30 seconds,
+the native operation has a 120-second absolute deadline, each request retains its 30-second deadline,
+and at most 200 moves run per repair with eight in flight. There is no delete or conflict-adjudication
+authority. Once started, a title-repair job cannot be cancelled through MCP because the underlying
+Tauri invocation has no cancellation channel; the native 120-second deadline remains authoritative.
+Closing the app terminates the process, but is not a transactional rollback: the recovery snapshot is
+written first, moves are recoverable, and the caller must inspect again before retrying.
 
 ## Local bridge and security boundary
 
@@ -137,7 +155,7 @@ MCP host
   malware already executing as the same OS user; such a process can already access the user's
   local app data and input devices.
 - MCP tools do not receive ambient filesystem or local-model authority. Drive access is absent unless
-  the caller explicitly invokes one of the four Drive-project tools. Catalog reads return bounded
+  the caller explicitly invokes one of the named Drive-project tools. Catalog reads return bounded
   identity metadata without OAuth tokens, Drive file IDs, or document content. Share requires the
   exact active document revision and publishes only a local project's captured Yjs state. Join
   refetches and matches exact workspace/project/document identity before local registration. These

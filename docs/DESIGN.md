@@ -163,6 +163,16 @@ suggest that retention resolved a title conflict or authenticated its authors. R
 timestamps remain self-reported; 200 active event files stop new renames and require retention
 (reads tolerate a bounded 400-file concurrency overflow), and the retained graph
 still fails closed at its explicit 5,000-event/4-MiB bounds rather than hiding history.
+**Check title recovery** remains available even while normal shared-title loading is blocked. It is
+an inspect-first maintenance flow, not an automatic repair banner: the first action reports only
+recoverable/active/archive/quarantine counts. When repair is required, the confirmation states that
+a complete validated snapshot is appended before any move, invalid active records go to a
+recoverable quarantine folder, invalid archived records remain untouched, and nothing is deleted.
+**Repair from retained history** consumes the exact inspection revision; stale inventory fails with
+an instruction to inspect again. Partial work reports the remaining count and requires another
+inspection. Successful copy says to reopen a project if the earlier provider initialization was
+already blocked. The surface never displays repair record names or Drive IDs, calls quarantined data
+trusted, adjudicates title conflicts, or suggests authenticated provenance.
 The UI must not describe polling as real-time presence.
 A compact **Presence** strip below the editor toolbar always names the actual capability. Local
 projects say that no remote editing session is connected. Drive-shared projects say edits sync

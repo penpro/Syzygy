@@ -131,6 +131,11 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "join_shared_project" => live("project.joinDrive", arguments),
         "compact_drive_project" => live("project.compactDriveHistory", arguments),
         "retain_drive_title_history" => live("project.compactDriveTitleHistory", arguments),
+        "start_drive_title_repair_inspection" => {
+            live("project.startDriveTitleRepairInspection", json!({}))
+        }
+        "inspect_drive_title_repair_job" => live("project.inspectDriveTitleRepairJob", arguments),
+        "start_drive_title_repair" => live("project.startDriveTitleRepair", arguments),
         "workspace_walkthrough" => live("workspace.walkthrough", json!({})),
         "create_project" => live("project.create", arguments),
         "open_project" => live("project.open", arguments),
@@ -264,6 +269,27 @@ fn tool_definitions() -> Vec<Value> {
             object_schema(
                 &[("expectedTitleRevisionGuards", json!({ "type": "array", "minItems": 1, "maxItems": 20, "uniqueItems": true, "items": { "type": "string" }, "description": "Complete exact sharedTitle.revisionGuards from read_active_project." }))],
                 &["expectedTitleRevisionGuards"],
+            ),
+        ),
+        tool(
+            "start_drive_title_repair_inspection",
+            "Start a bounded background inspection of active plus recoverable archived shared-title records for the active Drive project. Returns immediately with a job ID; poll inspect_drive_title_repair_job. Results contain counts and an exact repair revision, never titles, authors, filenames, Drive file IDs, or snapshot bodies.",
+            object_schema(&[], &[]),
+        ),
+        tool(
+            "inspect_drive_title_repair_job",
+            "Poll one bounded Drive title-repair inspection or repair job. Running jobs heartbeat every 30 seconds; terminal results are content-minimized and retained for one hour.",
+            object_schema(
+                &[("jobId", string_schema("Exact job ID returned by a start_drive_title_repair_* call."))],
+                &["jobId"],
+            ),
+        ),
+        tool(
+            "start_drive_title_repair",
+            "Start explicit recoverable shared-title repair for the active Drive project. Requires the exact repair revision from a completed inspection. The native operation appends a complete validated snapshot before moving invalid active records to quarantine and valid active records to the recoverable archive; nothing is deleted. Returns immediately with a job ID.",
+            object_schema(
+                &[("expectedRepairRevision", json!({ "type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[A-Fa-f0-9]{64}$", "description": "Exact repairRevision returned by a completed inspection job." }))],
+                &["expectedRepairRevision"],
             ),
         ),
         tool(
@@ -802,6 +828,9 @@ mod tests {
         assert!(names.contains(&"join_shared_project"));
         assert!(names.contains(&"compact_drive_project"));
         assert!(names.contains(&"retain_drive_title_history"));
+        assert!(names.contains(&"start_drive_title_repair_inspection"));
+        assert!(names.contains(&"inspect_drive_title_repair_job"));
+        assert!(names.contains(&"start_drive_title_repair"));
         assert!(names.contains(&"create_scenario"));
         assert!(names.contains(&"add_scenario_turn"));
         assert!(names.contains(&"revise_scenario_turn"));
@@ -820,7 +849,7 @@ mod tests {
         assert!(names.contains(&"cancel_adversarial_review"));
         assert!(names.contains(&"save_adversarial_review"));
         assert!(names.contains(&"decide_adversarial_review"));
-        assert_eq!(names.len(), 39);
+        assert_eq!(names.len(), 42);
         assert!(names.contains(&"replace_active_document"));
         let compact = tools["result"]["tools"]
             .as_array()
@@ -842,6 +871,20 @@ mod tests {
         assert_eq!(
             title_retention["inputSchema"]["required"],
             json!(["expectedTitleRevisionGuards"])
+        );
+        let title_repair = tools["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|tool| tool["name"] == "start_drive_title_repair")
+            .unwrap();
+        assert_eq!(
+            title_repair["inputSchema"]["required"],
+            json!(["expectedRepairRevision"])
+        );
+        assert_eq!(
+            title_repair["inputSchema"]["properties"]["expectedRepairRevision"]["minLength"],
+            64
         );
         let rename = tools["result"]["tools"]
             .as_array()
@@ -945,6 +988,15 @@ mod tests {
                 "retain_drive_title_history",
                 "project.compactDriveTitleHistory",
             ),
+            (
+                "start_drive_title_repair_inspection",
+                "project.startDriveTitleRepairInspection",
+            ),
+            (
+                "inspect_drive_title_repair_job",
+                "project.inspectDriveTitleRepairJob",
+            ),
+            ("start_drive_title_repair", "project.startDriveTitleRepair"),
         ] {
             let arguments = json!({
                 "expectedDocumentRevision": "revision-1",
@@ -964,7 +1016,10 @@ mod tests {
             )
             .unwrap();
             assert_eq!(response["result"]["structuredContent"]["method"], method);
-            if tool_name == "list_shared_projects" {
+            if matches!(
+                tool_name,
+                "list_shared_projects" | "start_drive_title_repair_inspection"
+            ) {
                 assert_eq!(response["result"]["structuredContent"]["params"], json!({}));
             } else {
                 assert_eq!(response["result"]["structuredContent"]["params"], arguments);

@@ -169,6 +169,27 @@ history stops at 5,000 events and 4 MiB, archive moves at 200/eight-way, and the
 post-snapshot phase at 60 seconds. Those deterministic gates do not substitute for rerunning the
 physical harness on a packaged build or for real-Drive quota/interruption/partial-move evidence.
 
+Retained-title recovery uses two explicit steps. `google_drive_project_title_repair_inspect` hashes
+the exact recognized active/archive/quarantine inventory and returns only counts. Repair requires that hash,
+constructs the maximal parent-complete graph, appends/reuses its canonical snapshot, re-lists the
+inventory, and refuses every move if pre-existing input changed or any unexpected record appeared.
+Invalid active records move to `quarantined-title-history/`; valid active records return to the
+recoverable archive; nothing is deleted. Focused native planning and MCP routing:
+
+```powershell
+node scripts\run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend\src-tauri\Cargo.toml shared_title_repair
+node scripts\run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend\src-tauri\Cargo.toml mcp::tests
+node scripts\run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend exec vitest run src/workspace/driveTitleRepairJobs.test.ts src/workspace/WorkspaceView.ui.test.ts
+```
+
+The native operation has a 120-second absolute deadline, retains 30-second request deadlines and a
+60-second move phase, inspects at most 501 active/5,200 archived/5,200 quarantined recognized records, reads at most 64
+snapshots and 32 MiB per location, and moves 200 records eight-way per run. MCP uses a four-active-job
+registry so the 15-second semantic bridge returns immediately; running jobs heartbeat every 30
+seconds and count-only terminal records expire after one hour. Tests prove planning and job behavior,
+not real-Drive interruption, quota, process-loss recovery, or the semantic trustworthiness of
+quarantined data.
+
 The Drive catalog supervision gate spans `drive_projects::tests` and `npm run audit`. Both the
 selected-workspace list and the cross-workspace browser are wrapped in one cancellation-safe
 12-second deadline. Project manifest/title reads are ordered and limited to eight concurrent

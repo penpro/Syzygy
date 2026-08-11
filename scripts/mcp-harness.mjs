@@ -82,7 +82,7 @@ async function proveStdioContract() {
   if (messages.length !== 6) throw new Error(`expected 6 MCP responses, received ${messages.length}`)
   if (byId.get(1)?.result?.protocolVersion !== '2025-11-25') throw new Error('MCP version negotiation failed')
   const tools = byId.get(2)?.result?.tools
-  if (!Array.isArray(tools) || tools.length < 39) throw new Error('MCP tool discovery is incomplete')
+  if (!Array.isArray(tools) || tools.length < 42) throw new Error('MCP tool discovery is incomplete')
   if (!tools.some((tool) => tool.name === 'workspace_walkthrough')) throw new Error('walkthrough tool is missing')
   if (!tools.some((tool) => tool.name === 'inspect_research_state')) throw new Error('research-state inspection tool is missing')
   if (!tools.some((tool) => tool.name === 'inspect_drive_project_discovery')) throw new Error('Drive project discovery diagnostic is missing')
@@ -105,6 +105,23 @@ async function proveStdioContract() {
     retentionGuards?.type !== 'array' || retentionGuards?.minItems !== 1 ||
     retentionGuards?.maxItems !== 20 || retentionGuards?.uniqueItems !== true) {
     throw new Error('Drive title-history retention guards are not exact and bounded')
+  }
+  const startRepairInspection = tools.find((tool) => tool.name === 'start_drive_title_repair_inspection')
+  const inspectRepairJob = tools.find((tool) => tool.name === 'inspect_drive_title_repair_job')
+  const startRepair = tools.find((tool) => tool.name === 'start_drive_title_repair')
+  if (!startRepairInspection || !inspectRepairJob || !startRepair) {
+    throw new Error('Drive title-repair job tools are incomplete')
+  }
+  if (startRepairInspection.inputSchema?.additionalProperties !== false ||
+    inspectRepairJob.inputSchema?.additionalProperties !== false ||
+    startRepair.inputSchema?.additionalProperties !== false) {
+    throw new Error('Drive title-repair job schemas are not strict')
+  }
+  if (!inspectRepairJob.inputSchema?.required?.includes('jobId') ||
+    !startRepair.inputSchema?.required?.includes('expectedRepairRevision') ||
+    startRepair.inputSchema?.properties?.expectedRepairRevision?.minLength !== 64 ||
+    startRepair.inputSchema?.properties?.expectedRepairRevision?.maxLength !== 64) {
+    throw new Error('Drive title-repair job guards are incomplete')
   }
   const renameProject = tools.find((tool) => tool.name === 'rename_project')
   if (!renameProject) throw new Error('project rename tool is missing')

@@ -25,6 +25,7 @@ const COMPACTED_UPDATES_FOLDER: &str = "compacted-updates";
 const TITLE_EVENT_PREFIX: &str = "title-event-";
 const TITLE_SNAPSHOT_PREFIX: &str = "title-snapshot-";
 const COMPACTED_TITLE_HISTORY_FOLDER: &str = "compacted-title-history";
+const QUARANTINED_TITLE_HISTORY_FOLDER: &str = "quarantined-title-history";
 const MAX_UPDATE_BYTES: usize = 4 * 1024 * 1024;
 const MAX_PULL_BYTES: usize = 32 * 1024 * 1024;
 const MAX_UPDATE_FILES: usize = 5_000;
@@ -39,6 +40,12 @@ const MAX_TITLE_EVENT_READS: usize = 400;
 const MAX_TITLE_PARENTS: usize = 20;
 const MAX_TITLE_HISTORY_EVENTS: usize = 5_000;
 const MAX_TITLE_SNAPSHOTS: usize = 8;
+const MAX_TITLE_REPAIR_ACTIVE_FILES: usize = 501;
+const MAX_TITLE_REPAIR_ARCHIVE_FILES: usize = 5_200;
+const MAX_TITLE_REPAIR_QUARANTINE_FILES: usize = 5_200;
+const MAX_TITLE_REPAIR_SNAPSHOTS: usize = 64;
+const MAX_TITLE_REPAIR_BYTES: usize = 32 * 1024 * 1024;
+const TITLE_REPAIR_DEADLINE_SECONDS: u64 = 120;
 const MAX_PROJECT_ROOTS: usize = 200;
 const MAX_DISCOVERED_PROJECTS: usize = 1_000;
 const PROJECT_CATALOG_CONCURRENCY: usize = 8;
@@ -689,6 +696,91 @@ struct ProjectTitleHistory {
     snapshot_files: Vec<ListedFile>,
 }
 
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+enum TitleRepairLocation {
+    Active,
+    Archive,
+    Quarantine,
+}
+
+#[derive(Clone, Debug)]
+enum TitleRepairPayload {
+    Event {
+        revision: String,
+        event: StoredProjectTitleEvent,
+    },
+    Snapshot {
+        revision: String,
+        snapshot: StoredProjectTitleSnapshot,
+    },
+}
+
+#[derive(Clone, Debug)]
+struct TitleRepairRecord {
+    file: ListedFile,
+    location: TitleRepairLocation,
+    content_sha256: String,
+    observed_bytes: usize,
+    payload: Result<TitleRepairPayload, String>,
+}
+
+#[derive(Debug)]
+struct TitleRepairInventory {
+    active: Vec<TitleRepairRecord>,
+    archived: Vec<TitleRepairRecord>,
+    quarantined: Vec<TitleRepairRecord>,
+}
+
+#[derive(Debug)]
+struct TitleRepairPlan {
+    repair_revision: String,
+    repair_required: bool,
+    recoverable_events: HashMap<String, StoredProjectTitleEvent>,
+    snapshot: Option<StoredProjectTitleSnapshot>,
+    snapshot_revision: Option<String>,
+    quarantine_active: Vec<ListedFile>,
+    archive_active: Vec<ListedFile>,
+    invalid_archived_record_count: usize,
+    recoverable_quarantined_record_count: usize,
+    invalid_quarantined_record_count: usize,
+    active_record_count: usize,
+    archived_record_count: usize,
+    quarantined_record_count: usize,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DriveProjectTitleRepairInspection {
+    repair_revision: String,
+    repair_required: bool,
+    recoverable_event_count: usize,
+    active_record_count: usize,
+    archived_record_count: usize,
+    quarantined_record_count: usize,
+    quarantine_candidate_count: usize,
+    archive_candidate_count: usize,
+    invalid_archived_record_count: usize,
+    recoverable_quarantined_record_count: usize,
+    invalid_quarantined_record_count: usize,
+    move_count_this_run: usize,
+    remaining_move_count: usize,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DriveProjectTitleRepairResult {
+    repair_revision: String,
+    snapshot_revision: Option<String>,
+    recoverable_event_count: usize,
+    quarantined_record_count: usize,
+    archived_record_count: usize,
+    failed_move_count: usize,
+    remaining_move_count: usize,
+    complete: bool,
+    state: Option<DriveProjectTitleState>,
+}
+
 fn project_title_history(
     manifest: &StoredProjectManifest,
     listed: &[ListedFile],
@@ -832,6 +924,304 @@ fn project_title_state(
     listed: &[ListedFile],
 ) -> Result<DriveProjectTitleState, String> {
     project_title_history(manifest, listed, &[]).map(|history| history.state)
+}
+
+fn title_record_revision(name: &str, prefix: &str) -> Option<String> {
+    name.strip_prefix(prefix)
+        .and_then(|value| value.strip_suffix(".json"))
+        .filter(|value| valid_sha256(value))
+        .map(str::to_string)
+}
+
+fn parse_title_event_repair_record(
+    manifest: &StoredProjectManifest,
+    file: &ListedFile,
+) -> Result<TitleRepairPayload, String> {
+    let revision = title_record_revision(&file.name, TITLE_EVENT_PREFIX)
+        .ok_or("Drive project title event filename is malformed.")?;
+    let description = file
+        .description
+        .as_deref()
+        .ok_or("Drive project title event has no metadata body.")?;
+    let event: StoredProjectTitleEvent = serde_json::from_str(description)
+        .map_err(|_| "Drive project title event metadata is malformed.".to_string())?;
+    event.validate_for(manifest)?;
+    if title_event_revision(&event)? != revision {
+        return Err("Drive project title event content hash does not match its filename.".into());
+    }
+    Ok(TitleRepairPayload::Event { revision, event })
+}
+
+fn parse_title_snapshot_repair_record(
+    manifest: &StoredProjectManifest,
+    file: &ListedFile,
+    content: &str,
+) -> Result<TitleRepairPayload, String> {
+    let revision = title_record_revision(&file.name, TITLE_SNAPSHOT_PREFIX)
+        .ok_or("Drive project title snapshot filename is malformed.")?;
+    let snapshot: StoredProjectTitleSnapshot = serde_json::from_str(content)
+        .map_err(|_| "Drive project title snapshot is malformed.".to_string())?;
+    snapshot.validate_for(manifest)?;
+    if title_snapshot_revision(&snapshot)? != revision {
+        return Err(
+            "Drive project title snapshot content hash does not match its filename.".into(),
+        );
+    }
+    Ok(TitleRepairPayload::Snapshot { revision, snapshot })
+}
+
+fn title_repair_inventory_revision(
+    manifest: &StoredProjectManifest,
+    inventory: &TitleRepairInventory,
+) -> Result<String, String> {
+    let mut records = inventory
+        .active
+        .iter()
+        .chain(inventory.archived.iter())
+        .chain(inventory.quarantined.iter())
+        .map(|record| {
+            serde_json::json!({
+                "location": record.location,
+                "id": record.file.id,
+                "name": record.file.name,
+                "size": record.file.size,
+                "contentSha256": record.content_sha256,
+            })
+        })
+        .collect::<Vec<_>>();
+    records.sort_by(|left, right| {
+        left["location"]
+            .as_str()
+            .cmp(&right["location"].as_str())
+            .then(left["name"].as_str().cmp(&right["name"].as_str()))
+            .then(left["id"].as_str().cmp(&right["id"].as_str()))
+    });
+    let bytes = serde_json::to_vec(&serde_json::json!({
+        "schemaVersion": 1,
+        "projectId": manifest.project_id,
+        "documentId": manifest.document_id,
+        "records": records,
+    }))
+    .map_err(|error| format!("Drive title repair inventory could not be encoded: {error}"))?;
+    Ok(format!("{:x}", Sha256::digest(bytes)))
+}
+
+fn insert_repair_event(
+    events: &mut HashMap<String, StoredProjectTitleEvent>,
+    revision: &str,
+    event: &StoredProjectTitleEvent,
+) -> Result<(), String> {
+    if let Some(existing) = events.insert(revision.to_string(), event.clone()) {
+        if existing != *event {
+            return Err("Drive title repair found one revision with conflicting content.".into());
+        }
+    }
+    Ok(())
+}
+
+fn plan_title_repair(
+    manifest: &StoredProjectManifest,
+    inventory: &TitleRepairInventory,
+) -> Result<TitleRepairPlan, String> {
+    let mut events = HashMap::<String, StoredProjectTitleEvent>::new();
+    for record in inventory
+        .active
+        .iter()
+        .chain(inventory.archived.iter())
+        .chain(inventory.quarantined.iter())
+    {
+        match &record.payload {
+            Ok(TitleRepairPayload::Event { revision, event }) => {
+                insert_repair_event(&mut events, revision, event)?;
+            }
+            Ok(TitleRepairPayload::Snapshot { snapshot, .. }) => {
+                for event in &snapshot.events {
+                    let revision = title_event_revision(event)?;
+                    insert_repair_event(&mut events, &revision, event)?;
+                }
+            }
+            Err(_) => {}
+        }
+    }
+    if events.len() > MAX_TITLE_HISTORY_EVENTS {
+        return Err("Drive title repair exceeds the 5,000-event recovery limit.".into());
+    }
+
+    let mut recoverable_revisions = events.keys().cloned().collect::<HashSet<_>>();
+    loop {
+        let invalid = recoverable_revisions
+            .iter()
+            .filter(|revision| {
+                events.get(*revision).is_some_and(|event| {
+                    event
+                        .parent_revisions
+                        .iter()
+                        .any(|parent| !recoverable_revisions.contains(parent))
+                })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if invalid.is_empty() {
+            break;
+        }
+        for revision in invalid {
+            recoverable_revisions.remove(&revision);
+        }
+    }
+    let recoverable_events = events
+        .into_iter()
+        .filter(|(revision, _)| recoverable_revisions.contains(revision))
+        .collect::<HashMap<_, _>>();
+    let referenced = recoverable_events
+        .values()
+        .flat_map(|event| event.parent_revisions.iter().cloned())
+        .collect::<HashSet<_>>();
+    let tip_count = recoverable_events
+        .keys()
+        .filter(|revision| !referenced.contains(*revision))
+        .count();
+    if tip_count > MAX_TITLE_PARENTS {
+        return Err(
+            "Drive title repair found more than 20 recoverable title tips; reconcile or inspect the archive manually before repair."
+                .into(),
+        );
+    }
+
+    let active_has_invalid = inventory.active.iter().any(|record| match &record.payload {
+        Err(_) => true,
+        Ok(TitleRepairPayload::Event { revision, .. }) => !recoverable_revisions.contains(revision),
+        Ok(TitleRepairPayload::Snapshot { .. }) => false,
+    });
+    let active_state = if active_has_invalid {
+        None
+    } else {
+        let active_events = inventory
+            .active
+            .iter()
+            .filter_map(|record| match &record.payload {
+                Ok(TitleRepairPayload::Event { .. }) => Some(record.file.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let active_snapshots = inventory
+            .active
+            .iter()
+            .filter_map(|record| match &record.payload {
+                Ok(TitleRepairPayload::Snapshot { snapshot, .. }) => {
+                    Some((record.file.clone(), snapshot.clone()))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        project_title_history(manifest, &active_events, &active_snapshots)
+            .ok()
+            .map(|history| history.state)
+    };
+    let repair_required = active_has_invalid
+        || active_state
+            .as_ref()
+            .map(|state| state.event_count != recoverable_events.len())
+            .unwrap_or(!recoverable_events.is_empty());
+
+    let snapshot = if recoverable_events.is_empty() {
+        None
+    } else {
+        Some(StoredProjectTitleSnapshot::new(
+            manifest,
+            &recoverable_events,
+        )?)
+    };
+    let snapshot_revision = snapshot.as_ref().map(title_snapshot_revision).transpose()?;
+    let mut quarantine_active = Vec::new();
+    let mut archive_active = Vec::new();
+    if repair_required {
+        for record in &inventory.active {
+            let valid = match &record.payload {
+                Ok(TitleRepairPayload::Event { revision, .. }) => {
+                    recoverable_revisions.contains(revision)
+                }
+                Ok(TitleRepairPayload::Snapshot { .. }) => true,
+                Err(_) => false,
+            };
+            if !valid {
+                quarantine_active.push(record.file.clone());
+            } else if snapshot.is_some()
+                && !matches!(
+                    &record.payload,
+                    Ok(TitleRepairPayload::Snapshot { revision, .. })
+                        if Some(revision) == snapshot_revision.as_ref()
+                )
+            {
+                archive_active.push(record.file.clone());
+            }
+        }
+    }
+    quarantine_active
+        .sort_by(|left, right| left.name.cmp(&right.name).then(left.id.cmp(&right.id)));
+    archive_active.sort_by(|left, right| left.name.cmp(&right.name).then(left.id.cmp(&right.id)));
+    let invalid_archived_record_count = inventory
+        .archived
+        .iter()
+        .filter(|record| match &record.payload {
+            Err(_) => true,
+            Ok(TitleRepairPayload::Event { revision, .. }) => {
+                !recoverable_revisions.contains(revision)
+            }
+            Ok(TitleRepairPayload::Snapshot { .. }) => false,
+        })
+        .count();
+    let recoverable_quarantined_record_count = inventory
+        .quarantined
+        .iter()
+        .filter(|record| match &record.payload {
+            Ok(TitleRepairPayload::Event { revision, .. }) => {
+                recoverable_revisions.contains(revision)
+            }
+            Ok(TitleRepairPayload::Snapshot { .. }) => true,
+            Err(_) => false,
+        })
+        .count();
+    let invalid_quarantined_record_count = inventory
+        .quarantined
+        .len()
+        .saturating_sub(recoverable_quarantined_record_count);
+
+    Ok(TitleRepairPlan {
+        repair_revision: title_repair_inventory_revision(manifest, inventory)?,
+        repair_required,
+        recoverable_events,
+        snapshot,
+        snapshot_revision,
+        quarantine_active,
+        archive_active,
+        invalid_archived_record_count,
+        recoverable_quarantined_record_count,
+        invalid_quarantined_record_count,
+        active_record_count: inventory.active.len(),
+        archived_record_count: inventory.archived.len(),
+        quarantined_record_count: inventory.quarantined.len(),
+    })
+}
+
+impl TitleRepairPlan {
+    fn inspection(&self) -> DriveProjectTitleRepairInspection {
+        let total_moves = self.quarantine_active.len() + self.archive_active.len();
+        DriveProjectTitleRepairInspection {
+            repair_revision: self.repair_revision.clone(),
+            repair_required: self.repair_required,
+            recoverable_event_count: self.recoverable_events.len(),
+            active_record_count: self.active_record_count,
+            archived_record_count: self.archived_record_count,
+            quarantined_record_count: self.quarantined_record_count,
+            quarantine_candidate_count: self.quarantine_active.len(),
+            archive_candidate_count: self.archive_active.len(),
+            invalid_archived_record_count: self.invalid_archived_record_count,
+            recoverable_quarantined_record_count: self.recoverable_quarantined_record_count,
+            invalid_quarantined_record_count: self.invalid_quarantined_record_count,
+            move_count_this_run: total_moves.min(MAX_COMPACTION_BATCH),
+            remaining_move_count: total_moves.saturating_sub(MAX_COMPACTION_BATCH),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -1216,6 +1606,217 @@ async fn load_project_title_history(
         .into_iter()
         .collect::<Result<Vec<_>, _>>()?;
     project_title_history(manifest, &listed, &snapshots)
+}
+
+async fn load_title_repair_records(
+    token: &str,
+    manifest: &StoredProjectManifest,
+    location: TitleRepairLocation,
+    listed: Vec<ListedFile>,
+) -> Result<Vec<TitleRepairRecord>, String> {
+    let recognized = listed
+        .into_iter()
+        .filter(|file| {
+            file.name.starts_with(TITLE_EVENT_PREFIX)
+                || file.name.starts_with(TITLE_SNAPSHOT_PREFIX)
+        })
+        .collect::<Vec<_>>();
+    let declared_snapshot_bytes = recognized
+        .iter()
+        .filter(|file| file.name.starts_with(TITLE_SNAPSHOT_PREFIX))
+        .try_fold(0usize, |total, file| total.checked_add(file.size))
+        .ok_or("Drive title repair snapshot byte accounting overflowed.")?;
+    let snapshot_count = recognized
+        .iter()
+        .filter(|file| file.name.starts_with(TITLE_SNAPSHOT_PREFIX))
+        .count();
+    if snapshot_count > MAX_TITLE_REPAIR_SNAPSHOTS {
+        return Err(
+            "Drive title repair contains too many snapshot records to inspect safely.".into(),
+        );
+    }
+    if declared_snapshot_bytes > MAX_TITLE_REPAIR_BYTES {
+        return Err("Drive title repair snapshot inventory exceeds its 32 MiB read limit.".into());
+    }
+
+    let records = stream::iter(recognized.into_iter())
+        .map(|file| async move {
+            if file.name.starts_with(TITLE_EVENT_PREFIX) {
+                let raw = file.description.as_deref().unwrap_or_default().as_bytes();
+                return Ok(TitleRepairRecord {
+                    content_sha256: format!("{:x}", Sha256::digest(raw)),
+                    observed_bytes: raw.len(),
+                    payload: parse_title_event_repair_record(manifest, &file),
+                    file,
+                    location,
+                });
+            }
+            if file.size > MAX_UPDATE_BYTES {
+                return Ok(TitleRepairRecord {
+                    content_sha256: format!(
+                        "{:x}",
+                        Sha256::digest(format!("oversized:{}", file.size).as_bytes())
+                    ),
+                    payload: Err(
+                        "Drive project title snapshot exceeds its 4 MiB record limit.".into(),
+                    ),
+                    observed_bytes: 0,
+                    file,
+                    location,
+                });
+            }
+            let content = read_text_file(token, &file.id).await?;
+            let content_sha256 = format!("{:x}", Sha256::digest(content.as_bytes()));
+            let payload = if content.len() > MAX_UPDATE_BYTES {
+                Err("Drive project title snapshot exceeds its 4 MiB record limit.".into())
+            } else {
+                parse_title_snapshot_repair_record(manifest, &file, &content)
+            };
+            Ok(TitleRepairRecord {
+                payload,
+                content_sha256,
+                observed_bytes: content.len(),
+                file,
+                location,
+            })
+        })
+        .buffered(COMPACTION_CONCURRENCY)
+        .collect::<Vec<Result<TitleRepairRecord, String>>>()
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?;
+    let actual_snapshot_bytes = records
+        .iter()
+        .filter(|record| record.file.name.starts_with(TITLE_SNAPSHOT_PREFIX))
+        .try_fold(0usize, |total, record| {
+            total.checked_add(record.observed_bytes)
+        })
+        .ok_or("Drive title repair observed byte accounting overflowed.")?;
+    if actual_snapshot_bytes > MAX_TITLE_REPAIR_BYTES {
+        return Err("Drive title repair snapshot inventory exceeds its 32 MiB read limit.".into());
+    }
+    Ok(records)
+}
+
+async fn load_title_repair_inventory(
+    token: &str,
+    project_folder_id: &str,
+    manifest: &StoredProjectManifest,
+) -> Result<TitleRepairInventory, String> {
+    let active = list_children_filtered(
+        token,
+        project_folder_id,
+        Some("title-"),
+        true,
+        MAX_TITLE_REPAIR_ACTIVE_FILES,
+        "Drive title repair contains too many active records to inspect safely.",
+    )
+    .await?;
+    let archived = if let Some(archive_folder) = find_child(
+        token,
+        project_folder_id,
+        COMPACTED_TITLE_HISTORY_FOLDER,
+        Some("application/vnd.google-apps.folder"),
+    )
+    .await?
+    {
+        list_children_filtered(
+            token,
+            &archive_folder,
+            Some("title-"),
+            true,
+            MAX_TITLE_REPAIR_ARCHIVE_FILES,
+            "Drive title repair archive contains too many records to inspect safely.",
+        )
+        .await?
+    } else {
+        Vec::new()
+    };
+    let quarantined = if let Some(quarantine_folder) = find_child(
+        token,
+        project_folder_id,
+        QUARANTINED_TITLE_HISTORY_FOLDER,
+        Some("application/vnd.google-apps.folder"),
+    )
+    .await?
+    {
+        list_children_filtered(
+            token,
+            &quarantine_folder,
+            Some("title-"),
+            true,
+            MAX_TITLE_REPAIR_QUARANTINE_FILES,
+            "Drive title repair quarantine contains too many records to inspect safely.",
+        )
+        .await?
+    } else {
+        Vec::new()
+    };
+    let active =
+        load_title_repair_records(token, manifest, TitleRepairLocation::Active, active).await?;
+    let archived =
+        load_title_repair_records(token, manifest, TitleRepairLocation::Archive, archived).await?;
+    let quarantined = load_title_repair_records(
+        token,
+        manifest,
+        TitleRepairLocation::Quarantine,
+        quarantined,
+    )
+    .await?;
+    Ok(TitleRepairInventory {
+        active,
+        archived,
+        quarantined,
+    })
+}
+
+fn title_repair_inventory_unchanged(
+    before: &TitleRepairInventory,
+    after: &TitleRepairInventory,
+    allowed_snapshot_id: Option<&str>,
+    allowed_snapshot_revision: Option<&str>,
+) -> bool {
+    let record_map = |inventory: &TitleRepairInventory| {
+        inventory
+            .active
+            .iter()
+            .chain(inventory.archived.iter())
+            .chain(inventory.quarantined.iter())
+            .map(|record| {
+                (
+                    (record.location, record.file.id.clone()),
+                    (
+                        record.file.name.clone(),
+                        record.file.size,
+                        record.content_sha256.clone(),
+                    ),
+                )
+            })
+            .collect::<HashMap<_, _>>()
+    };
+    let before_records = record_map(before);
+    let after_records = record_map(after);
+    if before_records
+        .iter()
+        .any(|(key, value)| after_records.get(key) != Some(value))
+    {
+        return false;
+    }
+    after
+        .active
+        .iter()
+        .chain(after.archived.iter())
+        .chain(after.quarantined.iter())
+        .filter(|record| !before_records.contains_key(&(record.location, record.file.id.clone())))
+        .all(|record| {
+            record.location == TitleRepairLocation::Active
+                && Some(record.file.id.as_str()) == allowed_snapshot_id
+                && matches!(
+                    &record.payload,
+                    Ok(TitleRepairPayload::Snapshot { revision, .. })
+                        if Some(revision.as_str()) == allowed_snapshot_revision
+                )
+        })
 }
 
 async fn load_project_title_state(
@@ -1633,6 +2234,230 @@ pub async fn google_drive_project_title_compact(
         complete: failed_archive_count == 0 && remaining_record_count == 0,
         state: after.state,
     })
+}
+
+/// Inspect active and recoverable archived shared-title records without returning record IDs,
+/// filenames, titles, author metadata, or snapshot bodies. The returned repair revision binds an
+/// explicit follow-up repair to this exact content inventory.
+#[tauri::command]
+pub async fn google_drive_project_title_repair_inspect(
+    app: tauri::AppHandle,
+    project_id: String,
+    document_id: String,
+) -> Result<DriveProjectTitleRepairInspection, String> {
+    with_drive_project_deadline(
+        "title repair inspection",
+        Duration::from_secs(TITLE_REPAIR_DEADLINE_SECONDS),
+        async {
+            let (token, workspace) = selected_workspace_access(&app).await?;
+            let (folder, manifest) =
+                require_project_manifest(&token, &workspace, project_id.trim(), document_id.trim())
+                    .await?;
+            let inventory = load_title_repair_inventory(&token, &folder, &manifest).await?;
+            Ok(plan_title_repair(&manifest, &inventory)?.inspection())
+        },
+    )
+    .await
+}
+
+/// Restore the maximal complete validated title graph from active plus recoverable archived
+/// records. A new canonical snapshot is appended before valid active records are re-archived and
+/// invalid active records are moved to a separate recoverable quarantine folder. The exact repair
+/// inventory is rechecked after snapshot creation and before any move.
+#[tauri::command]
+pub async fn google_drive_project_title_repair(
+    app: tauri::AppHandle,
+    project_id: String,
+    document_id: String,
+    expected_repair_revision: String,
+) -> Result<DriveProjectTitleRepairResult, String> {
+    if !valid_sha256(expected_repair_revision.trim()) {
+        return Err("Drive title repair revision is malformed.".into());
+    }
+    with_drive_project_deadline(
+        "title repair",
+        Duration::from_secs(TITLE_REPAIR_DEADLINE_SECONDS),
+        async {
+            let (token, workspace) = selected_workspace_access(&app).await?;
+            let (folder, manifest) = require_project_manifest(
+                &token,
+                &workspace,
+                project_id.trim(),
+                document_id.trim(),
+            )
+            .await?;
+            let inventory = load_title_repair_inventory(&token, &folder, &manifest).await?;
+            let plan = plan_title_repair(&manifest, &inventory)?;
+            if plan.repair_revision != expected_repair_revision.trim() {
+                return Err(
+                    "Drive title repair inventory changed; inspect it again before moving records."
+                        .into(),
+                );
+            }
+            if !plan.repair_required {
+                return Err("Drive shared-title history does not currently require repair.".into());
+            }
+
+            let snapshot_id = if let (Some(snapshot), Some(snapshot_revision)) =
+                (plan.snapshot.as_ref(), plan.snapshot_revision.as_ref())
+            {
+                let snapshot_content = serde_json::to_string(snapshot).map_err(|error| {
+                    format!("Drive title repair snapshot could not be encoded: {error}")
+                })?;
+                if snapshot_content.len() > MAX_UPDATE_BYTES {
+                    return Err(
+                        "Drive title repair snapshot exceeds its 4 MiB recovery limit.".into(),
+                    );
+                }
+                let snapshot_name = format!("{TITLE_SNAPSHOT_PREFIX}{snapshot_revision}.json");
+                if let Some(existing_id) = find_child(&token, &folder, &snapshot_name, None).await? {
+                    let existing_content = read_text_file(&token, &existing_id).await?;
+                    let existing = parse_title_snapshot_repair_record(
+                        &manifest,
+                        &ListedFile {
+                            id: existing_id.clone(),
+                            name: snapshot_name,
+                            size: existing_content.len(),
+                            description: None,
+                        },
+                        &existing_content,
+                    )?;
+                    if !matches!(
+                        existing,
+                        TitleRepairPayload::Snapshot { snapshot: existing, .. } if &existing == snapshot
+                    ) {
+                        return Err(
+                            "Existing Drive title repair snapshot collides with different content."
+                                .into(),
+                        );
+                    }
+                    Some(existing_id)
+                } else {
+                    if inventory.active.len() >= MAX_TITLE_REPAIR_ACTIVE_FILES {
+                        return Err(
+                            "Drive title repair has no bounded active-record slot for its recovery snapshot; preserve the folder and inspect it manually."
+                                .into(),
+                        );
+                    }
+                    Some(create_text_file(&token, &folder, &snapshot_name, &snapshot_content).await?)
+                }
+            } else {
+                None
+            };
+
+            let after_snapshot = load_title_repair_inventory(&token, &folder, &manifest).await?;
+            if !title_repair_inventory_unchanged(
+                &inventory,
+                &after_snapshot,
+                snapshot_id.as_deref(),
+                plan.snapshot_revision.as_deref(),
+            ) {
+                return Err(
+                    "Drive title history changed while the recovery snapshot was being appended; no records were moved."
+                        .into(),
+                );
+            }
+
+            let quarantine_take = plan.quarantine_active.len().min(MAX_COMPACTION_BATCH);
+            let archive_take = plan
+                .archive_active
+                .len()
+                .min(MAX_COMPACTION_BATCH.saturating_sub(quarantine_take));
+            let quarantine_moves = plan
+                .quarantine_active
+                .iter()
+                .take(quarantine_take)
+                .cloned()
+                .collect::<Vec<_>>();
+            let archive_moves = plan
+                .archive_active
+                .iter()
+                .take(archive_take)
+                .cloned()
+                .collect::<Vec<_>>();
+            let quarantine_folder = if quarantine_moves.is_empty() {
+                None
+            } else {
+                Some(
+                    find_or_create_folder(&token, &folder, QUARANTINED_TITLE_HISTORY_FOLDER)
+                        .await?,
+                )
+            };
+            let archive_folder = if archive_moves.is_empty() {
+                None
+            } else {
+                Some(
+                    find_or_create_folder(&token, &folder, COMPACTED_TITLE_HISTORY_FOLDER).await?,
+                )
+            };
+            let mut moves = quarantine_moves
+                .into_iter()
+                .map(|file| (true, file, quarantine_folder.clone().expect("folder exists")))
+                .collect::<Vec<_>>();
+            moves.extend(
+                archive_moves
+                    .into_iter()
+                    .map(|file| (false, file, archive_folder.clone().expect("folder exists"))),
+            );
+            let move_results = tokio::time::timeout(
+                Duration::from_secs(COMPACTION_ARCHIVE_DEADLINE_SECONDS),
+                stream::iter(moves.into_iter())
+                    .map(|(quarantine, file, destination)| {
+                        let token = &token;
+                        let folder = &folder;
+                        async move {
+                            (
+                                quarantine,
+                                move_file_to_folder(token, &file.id, folder, &destination).await,
+                            )
+                        }
+                    })
+                    .buffer_unordered(COMPACTION_CONCURRENCY)
+                    .collect::<Vec<_>>(),
+            )
+            .await
+            .map_err(|_| {
+                "Drive title repair reached its 60-second move deadline after the recovery snapshot was appended. Some records may already be archived or quarantined; inspect again before retrying."
+                    .to_string()
+            })?;
+            let quarantined_record_count = move_results
+                .iter()
+                .filter(|(quarantine, result)| *quarantine && result.is_ok())
+                .count();
+            let archived_record_count = move_results
+                .iter()
+                .filter(|(quarantine, result)| !*quarantine && result.is_ok())
+                .count();
+            let failed_move_count = move_results
+                .iter()
+                .filter(|(_, result)| result.is_err())
+                .count();
+            let total_move_count = plan.quarantine_active.len() + plan.archive_active.len();
+            let successful_move_count = quarantined_record_count + archived_record_count;
+            let remaining_move_count = total_move_count.saturating_sub(successful_move_count);
+            let remaining_quarantine_count = plan
+                .quarantine_active
+                .len()
+                .saturating_sub(quarantined_record_count);
+            let state = if remaining_quarantine_count == 0 {
+                Some(load_project_title_state(&token, &folder, &manifest).await?)
+            } else {
+                None
+            };
+            Ok(DriveProjectTitleRepairResult {
+                repair_revision: plan.repair_revision,
+                snapshot_revision: plan.snapshot_revision,
+                recoverable_event_count: plan.recoverable_events.len(),
+                quarantined_record_count,
+                archived_record_count,
+                failed_move_count,
+                remaining_move_count,
+                complete: failed_move_count == 0 && remaining_move_count == 0,
+                state,
+            })
+        },
+    )
+    .await
 }
 
 #[tauri::command]
@@ -2069,6 +2894,182 @@ mod tests {
             size: 0,
             description: Some(serde_json::to_string(event).expect("title event JSON")),
         }
+    }
+
+    fn title_repair_event_record(
+        manifest: &StoredProjectManifest,
+        event: &StoredProjectTitleEvent,
+        location: TitleRepairLocation,
+    ) -> TitleRepairRecord {
+        let file = title_event_file(event);
+        let raw = file.description.as_deref().expect("event description");
+        TitleRepairRecord {
+            payload: parse_title_event_repair_record(manifest, &file),
+            content_sha256: format!("{:x}", Sha256::digest(raw.as_bytes())),
+            observed_bytes: raw.len(),
+            file,
+            location,
+        }
+    }
+
+    fn title_repair_snapshot_record(
+        manifest: &StoredProjectManifest,
+        snapshot: &StoredProjectTitleSnapshot,
+        location: TitleRepairLocation,
+    ) -> TitleRepairRecord {
+        let revision = title_snapshot_revision(snapshot).expect("snapshot revision");
+        let content = serde_json::to_string(snapshot).expect("snapshot JSON");
+        let file = ListedFile {
+            id: format!("snapshot-file-{revision}"),
+            name: format!("{TITLE_SNAPSHOT_PREFIX}{revision}.json"),
+            size: content.len(),
+            description: None,
+        };
+        TitleRepairRecord {
+            payload: parse_title_snapshot_repair_record(manifest, &file, &content),
+            content_sha256: format!("{:x}", Sha256::digest(content.as_bytes())),
+            observed_bytes: content.len(),
+            file,
+            location,
+        }
+    }
+
+    fn invalid_title_repair_record(location: TitleRepairLocation) -> TitleRepairRecord {
+        let file = ListedFile {
+            id: "invalid-title-file".into(),
+            name: format!("{TITLE_EVENT_PREFIX}{}.json", "a".repeat(64)),
+            size: 0,
+            description: Some("{malformed".into()),
+        };
+        TitleRepairRecord {
+            content_sha256: format!("{:x}", Sha256::digest(b"{malformed")),
+            observed_bytes: 10,
+            payload: Err("malformed fixture".into()),
+            file,
+            location,
+        }
+    }
+
+    #[test]
+    fn shared_title_repair_restores_archived_history_and_quarantines_only_active_damage() {
+        let manifest = title_manifest();
+        let root = title_event("Root", "alice", 10, vec![]);
+        let root_revision = title_event_revision(&root).expect("root revision");
+        let child = title_event("Child", "bob", 11, vec![root_revision]);
+        let inventory = TitleRepairInventory {
+            active: vec![invalid_title_repair_record(TitleRepairLocation::Active)],
+            archived: vec![
+                title_repair_event_record(&manifest, &root, TitleRepairLocation::Archive),
+                title_repair_event_record(&manifest, &child, TitleRepairLocation::Archive),
+            ],
+            quarantined: vec![],
+        };
+
+        let plan = plan_title_repair(&manifest, &inventory).expect("repair plan");
+        assert!(plan.repair_required);
+        assert_eq!(plan.recoverable_events.len(), 2);
+        assert_eq!(plan.quarantine_active.len(), 1);
+        assert!(plan.archive_active.is_empty());
+        assert_eq!(plan.invalid_archived_record_count, 0);
+        assert_eq!(plan.snapshot.as_ref().expect("snapshot").events.len(), 2);
+        assert_eq!(plan.inspection().move_count_this_run, 1);
+    }
+
+    #[test]
+    fn shared_title_repair_archives_valid_active_records_only_after_complete_union_snapshot() {
+        let manifest = title_manifest();
+        let root = title_event("Root", "alice", 10, vec![]);
+        let root_revision = title_event_revision(&root).expect("root revision");
+        let child = title_event("Child", "bob", 11, vec![root_revision]);
+        let inventory = TitleRepairInventory {
+            active: vec![title_repair_event_record(
+                &manifest,
+                &root,
+                TitleRepairLocation::Active,
+            )],
+            archived: vec![title_repair_event_record(
+                &manifest,
+                &child,
+                TitleRepairLocation::Archive,
+            )],
+            quarantined: vec![],
+        };
+
+        let plan = plan_title_repair(&manifest, &inventory).expect("repair plan");
+        assert!(plan.repair_required);
+        assert_eq!(plan.recoverable_events.len(), 2);
+        assert!(plan.quarantine_active.is_empty());
+        assert_eq!(plan.archive_active.len(), 1);
+        let snapshot = plan.snapshot.as_ref().expect("union snapshot");
+        assert_eq!(snapshot.events.len(), 2);
+
+        let healthy_inventory = TitleRepairInventory {
+            active: vec![title_repair_snapshot_record(
+                &manifest,
+                snapshot,
+                TitleRepairLocation::Active,
+            )],
+            archived: inventory.archived,
+            quarantined: vec![],
+        };
+        let healthy = plan_title_repair(&manifest, &healthy_inventory).expect("healthy plan");
+        assert!(!healthy.repair_required);
+        assert!(healthy.quarantine_active.is_empty());
+        assert!(healthy.archive_active.is_empty());
+    }
+
+    #[test]
+    fn shared_title_repair_can_recover_valid_quarantine_without_trusting_malformed_records() {
+        let manifest = title_manifest();
+        let root = title_event("Recovered root", "alice", 10, vec![]);
+        let inventory = TitleRepairInventory {
+            active: vec![invalid_title_repair_record(TitleRepairLocation::Active)],
+            archived: vec![],
+            quarantined: vec![
+                title_repair_event_record(&manifest, &root, TitleRepairLocation::Quarantine),
+                invalid_title_repair_record(TitleRepairLocation::Quarantine),
+            ],
+        };
+
+        let plan = plan_title_repair(&manifest, &inventory).expect("quarantine repair plan");
+        assert!(plan.repair_required);
+        assert_eq!(plan.recoverable_events.len(), 1);
+        assert_eq!(plan.recoverable_quarantined_record_count, 1);
+        assert_eq!(plan.invalid_quarantined_record_count, 1);
+        assert_eq!(plan.quarantine_active.len(), 1);
+        assert!(plan.snapshot.is_some());
+    }
+
+    #[test]
+    fn shared_title_repair_guard_detects_changed_inventory_and_ignores_invalid_archive_orphans() {
+        let manifest = title_manifest();
+        let root = title_event("Root", "alice", 10, vec![]);
+        let orphan = title_event("Orphan", "mallory", 11, vec!["b".repeat(64)]);
+        let mut inventory = TitleRepairInventory {
+            active: vec![invalid_title_repair_record(TitleRepairLocation::Active)],
+            archived: vec![
+                title_repair_event_record(&manifest, &root, TitleRepairLocation::Archive),
+                title_repair_event_record(&manifest, &orphan, TitleRepairLocation::Archive),
+            ],
+            quarantined: vec![],
+        };
+        let first = plan_title_repair(&manifest, &inventory).expect("first plan");
+        assert_eq!(first.recoverable_events.len(), 1);
+        assert_eq!(first.invalid_archived_record_count, 1);
+
+        inventory.archived[0].file.id.push_str("-changed");
+        let second = plan_title_repair(&manifest, &inventory).expect("changed plan");
+        assert_ne!(first.repair_revision, second.repair_revision);
+        assert!(!title_repair_inventory_unchanged(
+            &TitleRepairInventory {
+                active: vec![],
+                archived: vec![],
+                quarantined: vec![],
+            },
+            &inventory,
+            None,
+            None,
+        ));
     }
 
     #[test]

@@ -110,6 +110,26 @@ never Drive file IDs. New renames stop at 200 active files, while reads/retentio
 5,000, snapshot JSON at 4 MiB, and each run moves at most 200 records with eight requests in flight
 inside a 60-second post-snapshot deadline. Real-Drive interruption/quota evidence remains open.
 
+**Check title recovery** is the explicit fail-closed repair path. It can run even when malformed
+active title history prevented normal title state from loading. Inspection reads only recognized
+active records, the recoverable `compacted-title-history/` archive, and prior
+`quarantined-title-history/` records; it validates identity, schema,
+content hashes, parent closure, tip bounds, and byte/file ceilings, and returns only counts plus a
+SHA-256 `repairRevision`; titles, author metadata, filenames, Drive file IDs, and snapshot bodies do
+not cross into automation. **Repair from retained history** requires that exact revision. It derives
+the maximal parent-complete graph, appends or reuses its canonical snapshot, re-reads the exact
+inventory, and moves nothing if any pre-existing record changed or a concurrent record appeared.
+Only then can invalid active records move to recoverable `quarantined-title-history/` and valid active
+records move back to `compacted-title-history/`; nothing is trashed or deleted and invalid archived
+records remain untouched. A later inspection can include a now-valid parent-complete quarantined
+record in a new canonical snapshot without moving or trusting malformed quarantine. Quarantine moves
+are prioritized so a bounded partial run can restore readability sooner. Each run inspects at most
+501 active, 5,200 archived, and 5,200 quarantined recognized records, at
+most 64 snapshots per location and 32 MiB of snapshot bodies, retains the 5,000-event/20-tip/4-MiB
+canonical limits, moves at most 200 records with eight in flight, and stops after 120 seconds overall
+or 60 seconds in the move phase. Product controls are synchronous; MCP starts bounded background jobs
+that heartbeat every 30 seconds and retain count-only terminal results for one hour.
+
 Explicit **Compact Drive history** maintenance first performs a normal pull/flush, checks any MCP
 document and research revision guards, and appends one complete content-addressed Yjs snapshot. Only
 active update file IDs that this live provider has already applied are then moved, in batches of at
@@ -234,6 +254,9 @@ typed Sheet action is exposed by v0.1.7.
   200 active events stop new renames and require a retention run; reads remain bounded at 400 so a
   concurrent overflow can still be retained. A total of 5,000 retained events or a 4-MiB canonical
   snapshot fail closed. Retained title/update archives are not deleted automatically.
+- Title repair preserves malformed records in quarantine but does not make them trustworthy, infer
+  missing content, adjudicate more than 20 competing tips, delete archives, or authenticate authors.
+  A completed repair may require reopening a project whose initial Drive provider was already blocked.
 - Native Google Docs and Slides remain read-only research sources in Ask. Native Sheet support is
   currently literal rectangular value replacement from one starting cell; formatting, formulas,
   named-tab selection, structural edits, and conflict-aware revision controls are not yet exposed.

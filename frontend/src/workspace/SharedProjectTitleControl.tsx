@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
-import type { DriveProjectTitleState } from '../tauri'
+import {
+  googleDriveProjectTitleRepair,
+  googleDriveProjectTitleRepairInspect,
+  type DriveProjectTitleRepairInspection,
+  type DriveProjectTitleState,
+} from '../tauri'
 import { useStore } from '../store'
 import type { ResearchProjectManifest } from './schema'
 import { compactDriveProjectTitle, updateDriveProjectTitle } from './driveProjectMaintenanceRegistry'
@@ -41,6 +46,8 @@ export function SharedProjectTitleControl({ project }: { project: ResearchProjec
     dirty: false,
   })
   const [busy, setBusy] = useState(false)
+  const [repairBusy, setRepairBusy] = useState(false)
+  const [repairInspection, setRepairInspection] = useState<DriveProjectTitleRepairInspection | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -100,6 +107,52 @@ export function SharedProjectTitleControl({ project }: { project: ResearchProjec
     }
   }
 
+  const inspectRepair = async () => {
+    setRepairBusy(true)
+    setMessage(null)
+    setError(null)
+    setRepairInspection(null)
+    try {
+      const inspection = await googleDriveProjectTitleRepairInspect(project.id, project.documentId)
+      setRepairInspection(inspection)
+      if (!inspection.repairRequired) {
+        setMessage(
+          `Shared-title history is healthy: ${inspection.recoverableEventCount} recoverable events and no repair required.`,
+        )
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setRepairBusy(false)
+    }
+  }
+
+  const repairHistory = async () => {
+    if (!repairInspection?.repairRequired) throw new Error('Inspect title recovery before repairing')
+    setRepairBusy(true)
+    setMessage(null)
+    setError(null)
+    try {
+      const result = await googleDriveProjectTitleRepair(
+        project.id,
+        project.documentId,
+        repairInspection.repairRevision,
+      )
+      if (result.state) {
+        setState(result.state)
+        setDraft((current) => syncSharedProjectTitleDraft(current, result.state!))
+      }
+      setRepairInspection(null)
+      setMessage(result.complete
+        ? `Recovered ${result.recoverableEventCount} shared-title events, quarantined ${result.quarantinedRecordCount} invalid records, and archived ${result.archivedRecordCount} valid active records. Reopen the project if its connection was previously blocked.`
+        : `The recovery snapshot is safe. Moved ${result.quarantinedRecordCount + result.archivedRecordCount} records; ${result.remainingMoveCount} remain and require another inspection.`)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setRepairBusy(false)
+    }
+  }
+
   return (
     <div className="shared-title-control">
       <div className="workspace-title-row">
@@ -108,7 +161,7 @@ export function SharedProjectTitleControl({ project }: { project: ResearchProjec
           aria-label="Shared project title"
           value={draft.title}
           maxLength={200}
-          disabled={!state || busy}
+          disabled={!state || busy || repairBusy}
           onChange={(event) => {
             setDraft((current) => editSharedProjectTitleDraft(current, event.target.value, state))
             setMessage(null)
@@ -118,7 +171,7 @@ export function SharedProjectTitleControl({ project }: { project: ResearchProjec
         <button
           className="btn sm ghost"
           type="button"
-          disabled={!state || busy || !draft.dirty || !draft.title.trim() || draft.revisionGuards.length === 0}
+          disabled={!state || busy || repairBusy || !draft.dirty || !draft.title.trim() || draft.revisionGuards.length === 0}
           onClick={() => void submit().catch((cause) => setError(String(cause)))}
         >
           {busy ? 'Saving…' : state?.conflict ? 'Reconcile shared title' : 'Rename shared project'}
@@ -135,7 +188,7 @@ export function SharedProjectTitleControl({ project }: { project: ResearchProjec
                 className="btn xs ghost"
                 type="button"
                 key={tip.revision}
-                disabled={busy}
+                disabled={busy || repairBusy}
                 onClick={() => {
                   setDraft({
                     title: tip.title,
@@ -166,6 +219,48 @@ export function SharedProjectTitleControl({ project }: { project: ResearchProjec
           <span className="workspace-status mono">
             {state.eventCount} retained / {state.activeEventCount} active / {state.snapshotCount} snapshots
           </span>
+        </div>
+      )}
+      <div className="workspace-inline-actions">
+        <button
+          className="btn xs ghost"
+          type="button"
+          disabled={busy || repairBusy}
+          title="Inspect active and recoverable archived title records without returning titles, authors, file names, or Drive file IDs."
+          onClick={() => void inspectRepair().catch((cause) => setError(String(cause)))}
+        >
+          {repairBusy ? 'Checking...' : 'Check title recovery'}
+        </button>
+      </div>
+      {repairInspection?.repairRequired && (
+        <div className="workspace-inline-alert" role="alert">
+          <strong>Shared-title history needs recoverable repair.</strong>
+          <p>
+            {repairInspection.recoverableEventCount} events can be preserved.{' '}
+            {repairInspection.quarantineCandidateCount} invalid active records will move to quarantine, and{' '}
+            {repairInspection.archiveCandidateCount} valid active records will return to the recoverable archive.
+          </p>
+          {repairInspection.invalidArchivedRecordCount > 0 && (
+            <p>{repairInspection.invalidArchivedRecordCount} invalid archived records will remain untouched.</p>
+          )}
+          {repairInspection.quarantinedRecordCount > 0 && (
+            <p>
+              {repairInspection.recoverableQuarantinedRecordCount} of{' '}
+              {repairInspection.quarantinedRecordCount} quarantined records contribute to the recovery snapshot;{' '}
+              {repairInspection.invalidQuarantinedRecordCount} remain untouched and untrusted.
+            </p>
+          )}
+          <button
+            className="btn xs ghost"
+            type="button"
+            disabled={busy || repairBusy}
+            onClick={() => void repairHistory().catch((cause) => setError(String(cause)))}
+          >
+            Repair from retained history
+          </button>
+          <p className="workspace-status mono">
+            A complete validated snapshot is appended before any active record moves. Nothing is deleted.
+          </p>
         </div>
       )}
       {message && <div className="workspace-status mono" role="status">{message}</div>}

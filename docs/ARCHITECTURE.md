@@ -86,7 +86,7 @@ packaged MCP surface before succeeding.
 | `knowledge.rs` | Folder knowledge: chunking granted folders, relevance retrieval. |
 | `google_auth.rs` | OAuth loopback + PKCE, collaboration-scope gate, token storage/refresh, cancel. See `GOOGLE-DRIVE.md`. |
 | `google_drive.rs` | Selected-workspace boundary, recursive direct retrieval/native export, confirmed native-Sheet value writes, and optional mirror sync. See `GOOGLE-DRIVE.md`. |
-| `drive_projects.rs` | Immutable active Drive project updates, content-addressed shared-title event graphs and retained snapshots, cancellation-bounded shared-project catalogs, snapshot-first bounded update/title archival into recoverable sibling folders, strict identity/integrity bounds, and the live cleanup canary. |
+| `drive_projects.rs` | Immutable active Drive project updates, content-addressed shared-title event graphs and retained snapshots, cancellation-bounded shared-project catalogs, snapshot-first bounded update/title archival, exact-inventory title restore plus recoverable quarantine, strict identity/integrity bounds, and the live cleanup canary. |
 | `downloads.rs` | Resumable model downloads. |
 | `updates.rs` | App version for the in-app updater. |
 | `state.rs` | Shared state types (`Engine`, `Granted`, `KnowledgeCache`, …). |
@@ -183,6 +183,11 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   Syzygy-root catalog. Both catalog paths cancel as a whole after 12 seconds and bound per-root
   project metadata reads to eight; Join persists the exact parent workspace before constructing the
   Drive-bound project.
+- `workspace/driveTitleRepairJobs.ts` keeps long Drive title inspections/repairs outside the
+  15-second live automation request. Four bounded jobs may run at once, running jobs heartbeat every
+  30 seconds, and count-only terminal state expires after one hour. Rust remains the inventory,
+  snapshot, deadline, archive, and quarantine authority; the JavaScript registry grants no Drive IDs
+  or direct mutation path.
 - `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
   navigation, revision-guarded editor reads/writes, and bounded read-only research-state integrity
   inspection. `scenarioAutomation.ts` creates scenarios, adds/revises attributed turns, and casts
@@ -216,8 +221,11 @@ The immutable manifest supplies the initial `base-<sha256>` guard. One tip proje
 title; simultaneous root or child events remain visible as multiple tips; one explicit event naming
 the complete current tip set reconciles them without deleting history. The native boundary rejects
 wrong project/document identity, missing parents, malformed or tampered hashes, stale/incomplete
-tip sets, more than 20 parents, reads beyond 200 events, and any new event at the 200-event ceiling
-before writing. The provider pulls
+tip sets, more than 20 parents, reads beyond the 400-event maintenance ceiling, and any new event at
+the 200-active-event write ceiling. Canonical retained snapshots keep up to 5,000 events while active
+records move to a recoverable archive. Exact-inventory repair reconstructs the maximal closed graph
+from active plus archived plus quarantined records, snapshots it before moving anything, and quarantines invalid
+active records without deleting or trusting them. The provider pulls
 title state during normal synchronization, publishes it through an identity-safe registry, and only
 updates the local Drive-bound manifest projection. A dirty product draft keeps the guards captured
 when editing began, so a later peer title cannot be overwritten by silently adopting newer guards.

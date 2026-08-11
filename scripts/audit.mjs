@@ -182,6 +182,10 @@ const scenarioAnnotationBridgeSource = text('frontend/src/automationBridge.ts')
 const scenarioAnnotationEvidence = text('docs/audits/runs/SIGNED-SCENARIO-ANNOTATION-EVENTS-2026-08-11.json')
 const scenarioLabelAttributionSource = text('frontend/src/workspace/scenarioLabelModel.ts')
 const scenarioLabelEvidence = text('docs/audits/runs/SIGNED-SCENARIO-LABEL-EVENTS-2026-08-11.json')
+const policyVersionAttributionSource = text('frontend/src/workspace/policyVersionModel.ts')
+const policyVersionAttributionProductSource = text('frontend/src/workspace/PolicyVersionRail.tsx')
+const policyVersionAttributionProductTest = text('frontend/src/workspace/PolicyVersionRail.ui.test.ts')
+const policyVersionAttributionEvidence = text('docs/audits/runs/SIGNED-POLICY-VERSION-EVENTS-2026-08-11.json')
 record(
   'app-managed collaboration relay remains private, bounded, durable, reaped, and identity-honest',
   collaborationRelayCargo.includes('tungstenite = "=0.21.0"') &&
@@ -374,6 +378,7 @@ record(
     researchEventAttestationSource.includes('MAX_RESEARCH_EVENT_ATTESTATION_SETTINGS_SCAN = 5_000') &&
     researchEventAttestationSource.includes('MAX_RESEARCH_EVENT_ATTESTATION_VERIFICATION_CONCURRENCY = 8') &&
     researchEventAttestationSource.includes('device.participantIds.includes(record.proof.claim.participantId)') &&
+    researchEventAttestationSource.includes('event.participantId !== record.proof.claim.participantId') &&
     researchEventAttestationSource.includes('sameDeviceEvent') &&
     researchEventAttributionSource.includes('Failure never rolls back') &&
     researchEventAttributionSource.includes("status: 'unsigned'") &&
@@ -425,7 +430,7 @@ record(
     scenarioAnnotationProductTest.includes('without claiming human identity') &&
     scenarioAnnotationAutomationSource.match(/Scenario annotation event was not retained/g)?.length === 3 &&
     scenarioAnnotationBridgeSource.match(/await attestScenarioAnnotationEvent/g)?.length === 3 &&
-    researchEventMcpSource.includes('exact-hash installation attestations for scenario vote, annotation, and label events') &&
+    researchEventMcpSource.includes('exact-hash installation attestations for scenario vote, annotation, label, and immutable policy-version events') &&
     scenarioAnnotationEvidence.includes('"productionAdoptedEventKind": "scenario-annotation"') &&
     scenarioAnnotationEvidence.includes('"mutatedRetainedBodyRejected": true') &&
     scenarioAnnotationEvidence.includes('"signingFailurePreservesCommittedMutation": true') &&
@@ -453,7 +458,7 @@ record(
     scenarioAnnotationAutomationSource.match(/Scenario label event was not retained/g)?.length === 2 &&
     scenarioAnnotationAutomationSource.includes('Scenario label assignment event was not retained') &&
     scenarioAnnotationBridgeSource.match(/await attestScenarioLabelEvent/g)?.length === 3 &&
-    scenarioAnnotationBridgeSource.match(/researchRevision: projectStateFingerprint\(document\)/g)?.length === 7 &&
+    scenarioAnnotationBridgeSource.match(/researchRevision: projectStateFingerprint\(document\)/g)?.length === 9 &&
     researchEventAttestationTest.includes('maximum-length label assignment locator') &&
     researchEventAttestationTest.includes('assignmentEvents.set(assignmentStorageKey') &&
     researchEventAttestationTest.includes('not.toBe(mutationOnlyRevision)') &&
@@ -471,8 +476,40 @@ record(
     scenarioLabelEvidence.includes('"repositoryAuditPassed": true') &&
     scenarioLabelEvidence.includes('"fullValidationPending": false') &&
     scenarioLabelEvidence.includes('"status": "implemented_unverified"') &&
+    policyVersionAttributionSource.includes('policyVersionEventSha256') &&
+    policyVersionAttributionSource.includes('hex !== version.versionId') &&
+    researchEventAttributionSource.includes("eventKind !== 'policy-version'") &&
+    researchEventAttributionSource.includes('attestPolicyVersionEvent') &&
+    researchEventAttributionSource.includes('participantId: version.author.participantId') &&
+    policyVersionAttributionProductSource.match(/await attestPolicyVersionEvent/g)?.length === 2 &&
+    policyVersionAttributionProductSource.includes('Checkpoint committed. Checking registered-device attribution') &&
+    policyVersionAttributionProductSource.includes('not a person or organization') &&
+    policyVersionAttributionProductSource.includes('versionOperation.current === operation') &&
+    policyVersionAttributionProductTest.includes('signed-device, and unsigned checkpoint attribution') &&
+    scenarioAnnotationBridgeSource.match(/await attestPolicyVersionEvent/g)?.length === 2 &&
+    researchEventAttestationTest.includes('signs exact immutable policy-version envelopes and rejects cross-author claims') &&
+    researchEventAttestationTest.includes("note: 'Mutated signed version'") &&
+    researchEventMcpSource.includes('best-effort exact-envelope registered-device signature') &&
+    policyVersionAttributionEvidence.includes('"productionAdoptedEventKind": "policy-version"') &&
+    policyVersionAttributionEvidence.includes('"storedEventParticipantRequired": true') &&
+    policyVersionAttributionEvidence.includes('"crossAuthorClaimRejected": true') &&
+    policyVersionAttributionEvidence.includes('"mcpReturnsPostAttributionResearchRevision": true') &&
+    policyVersionAttributionEvidence.includes('"signingFailurePreservesCommittedCheckpoint": true') &&
+    policyVersionAttributionEvidence.includes('"mutatedRetainedVersionRejected": true') &&
+    policyVersionAttributionEvidence.includes('"policyBodiesDisplayNamesAndNotesReturnedByInspection": false') &&
+    policyVersionAttributionEvidence.includes('"humanOrOrganizationIdentityClaimed": false') &&
+    policyVersionAttributionEvidence.includes('"supervisedRunId": "20260811-183348-f1743b"') &&
+    policyVersionAttributionEvidence.includes('"frontendTestFilesPassed": 128') &&
+    policyVersionAttributionEvidence.includes('"frontendTestFilesSkipped": 3') &&
+    policyVersionAttributionEvidence.includes('"frontendTestsPassed": 550') &&
+    policyVersionAttributionEvidence.includes('"frontendTestsSkipped": 3') &&
+    policyVersionAttributionEvidence.includes('"frontendModulesTransformed": 1267') &&
+    policyVersionAttributionEvidence.includes('"rustAppRecompiled": true') &&
+    policyVersionAttributionEvidence.includes('"repositoryAuditPassed": true') &&
+    policyVersionAttributionEvidence.includes('"fullValidationPending": false') &&
+    policyVersionAttributionEvidence.includes('"status": "implemented_unverified"') &&
     researchEventEvidence.includes('"status": "implemented_unverified"'),
-  'closed typed native signing, exact project/participant/kind/event/hash/time/nonce binding, live-event resolution, registered-device matching, bounded merge/replay/poison gates, explicit unsigned fallback, body-free inspection, and human-identity nonclaims are present',
+  'closed typed native signing, exact project/participant/kind/event/hash/time/nonce binding, retained hash/author resolution, registered-device matching, bounded merge/replay/poison gates, explicit unsigned fallback, body-free inspection, and human-identity nonclaims are present',
 )
 record(
   'surviving-administrator recovery remains exact, replacement-bound, and escrow-free',

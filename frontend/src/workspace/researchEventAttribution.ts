@@ -5,7 +5,7 @@ import {
   createProjectResearchEventAttestation,
   publishProjectResearchEventAttestation,
   type ProjectResearchEventAttestationRecord,
-  type ProjectResearchEventHashResolver,
+  type ProjectResearchEventResolver,
 } from './projectResearchEventAttestation'
 import {
   inspectProjectDeviceDirectory,
@@ -24,6 +24,11 @@ import {
   type ScenarioLabelAssignmentEvent,
   type ScenarioLabelEvent,
 } from './scenarioLabelModel'
+import {
+  policyVersionEventSha256,
+  readPolicyVersion,
+  type PolicyVersion,
+} from './policyVersionModel'
 import {
   castScenarioVote,
   readScenarioVoteEvent,
@@ -156,36 +161,53 @@ function parseScenarioLabelAttestationEventId(value: string): ScenarioLabelAttes
 export function researchEventAttestationResolver(
   discussions: Y.Map<unknown>,
   settings?: Y.Map<unknown>,
-): ProjectResearchEventHashResolver {
-  const cache = new Map<string, Promise<string | null>>()
+  versions?: Y.Map<unknown>,
+): ProjectResearchEventResolver {
+  const cache = new Map<string, Promise<{ eventSha256: string; participantId: string } | null>>()
   return (eventKind, attestationEventId) => {
     if (eventKind !== 'scenario-vote' && eventKind !== 'scenario-annotation' &&
-      eventKind !== 'scenario-label') return null
+      eventKind !== 'scenario-label' && eventKind !== 'policy-version') return null
     const cacheKey = `${eventKind}:${attestationEventId}`
     const cached = cache.get(cacheKey)
     if (cached) return cached
     const resolved = (async () => {
+      if (eventKind === 'policy-version') {
+        if (!versions) return null
+        const version = await readPolicyVersion(versions, attestationEventId)
+        return version ? {
+          eventSha256: await policyVersionEventSha256(version),
+          participantId: version.author.participantId,
+        } : null
+      }
       if (eventKind === 'scenario-label') {
         if (!settings) return null
         const identity = parseScenarioLabelAttestationEventId(attestationEventId)
         if (!identity) return null
         if (identity.recordType === 'label') {
           const event = readScenarioLabelEvent(settings, identity.labelId, identity.eventId)
-          return event ? scenarioLabelEventSha256(event) : null
+          return event ? {
+            eventSha256: await scenarioLabelEventSha256(event), participantId: event.authorId,
+          } : null
         }
         const event = readScenarioLabelAssignmentEvent(
           settings, identity.scenarioId, identity.labelId, identity.eventId,
         )
-        return event ? scenarioLabelAssignmentEventSha256(event) : null
+        return event ? {
+          eventSha256: await scenarioLabelAssignmentEventSha256(event), participantId: event.authorId,
+        } : null
       }
       const identity = parseScenarioAttestationEventId(attestationEventId)
       if (!identity) return null
       if (eventKind === 'scenario-vote') {
         const event = readScenarioVoteEvent(discussions, identity.scenarioId, identity.eventId)
-        return event ? scenarioVoteEventSha256(event) : null
+        return event ? {
+          eventSha256: await scenarioVoteEventSha256(event), participantId: event.participantId,
+        } : null
       }
       const event = readScenarioAnnotationEvent(discussions, identity.scenarioId, identity.eventId)
-      return event ? scenarioAnnotationEventSha256(event) : null
+      return event ? {
+        eventSha256: await scenarioAnnotationEventSha256(event), participantId: event.authorId,
+      } : null
     })()
     cache.set(cacheKey, resolved)
     return resolved
@@ -195,7 +217,7 @@ export function researchEventAttestationResolver(
 async function attestResearchEvent(
   document: Y.Doc,
   projectId: string,
-  eventKind: 'scenario-vote' | 'scenario-annotation' | 'scenario-label',
+  eventKind: 'scenario-vote' | 'scenario-annotation' | 'scenario-label' | 'policy-version',
   eventId: string,
   participantId: string,
   eventHash: () => Promise<string>,
@@ -218,7 +240,6 @@ async function attestResearchEvent(
       authority: 'installation-device-not-human-identity',
     }
   }
-  const { discussions, settings } = getProjectSharedTypes(document)
   let eventSha256: string
   let record: ProjectResearchEventAttestationRecord
   try {
@@ -234,11 +255,12 @@ async function attestResearchEvent(
     }
   }
   try {
+    const { discussions, settings, versions } = getProjectSharedTypes(document)
     const inspection = await publishProjectResearchEventAttestation(
       settings,
       projectId,
       directory,
-      researchEventAttestationResolver(discussions, settings),
+      researchEventAttestationResolver(discussions, settings, versions),
       record,
     )
     return {
@@ -316,6 +338,24 @@ export async function attestScenarioLabelEvent(
     () => 'scenarioId' in event
       ? scenarioLabelAssignmentEventSha256(event)
       : scenarioLabelEventSha256(event),
+    dependencies,
+  )
+}
+
+/** Best-effort device attribution after an immutable save or restore checkpoint has committed. */
+export async function attestPolicyVersionEvent(
+  document: Y.Doc,
+  projectId: string,
+  version: PolicyVersion,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<ResearchEventAttributionResult> {
+  return attestResearchEvent(
+    document,
+    projectId,
+    'policy-version',
+    version.versionId,
+    version.author.participantId,
+    () => policyVersionEventSha256(version),
     dependencies,
   )
 }

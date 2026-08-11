@@ -55,10 +55,15 @@ export interface ProjectResearchEventAttestationInspection {
   excessRecords: number
 }
 
-export type ProjectResearchEventHashResolver = (
+export interface ProjectResearchEventResolution {
+  eventSha256: string
+  participantId: string
+}
+
+export type ProjectResearchEventResolver = (
   eventKind: ProjectResearchEventKind,
   eventId: string,
-) => string | null | Promise<string | null>
+) => ProjectResearchEventResolution | null | Promise<ProjectResearchEventResolution | null>
 
 export interface ProjectResearchEventAttestationDependencies {
   sign: (claim: ProjectResearchEventClaim) => Promise<ProjectResearchEventProof>
@@ -195,20 +200,22 @@ async function verifyRecord(
   value: unknown,
   projectId: string,
   directory: ProjectDeviceDirectoryInspection,
-  resolveEventSha256: ProjectResearchEventHashResolver,
+  resolveEvent: ProjectResearchEventResolver,
 ): Promise<'verified-device' | 'invalid' | 'unavailable'> {
   const record = parseProjectResearchEventAttestation(value)
   if (!record || record.proof.claim.projectId !== projectId || !directory.healthy) return 'invalid'
   const device = directory.devices.find(({ keyId }) => keyId === record.proof.keyId)
   if (!device || device.status !== 'registered-device' || device.publicKey !== record.proof.publicKey ||
     !device.participantIds.includes(record.proof.claim.participantId)) return 'invalid'
-  let eventSha256: string | null
+  let event: ProjectResearchEventResolution | null
   try {
-    eventSha256 = await resolveEventSha256(record.proof.claim.eventKind, record.proof.claim.eventId)
+    event = await resolveEvent(record.proof.claim.eventKind, record.proof.claim.eventId)
   } catch {
     return 'unavailable'
   }
-  if (eventSha256 !== record.proof.claim.eventSha256 || !isCanonicalBase64Url(eventSha256, 32)) return 'invalid'
+  if (!event || event.eventSha256 !== record.proof.claim.eventSha256 ||
+    event.participantId !== record.proof.claim.participantId ||
+    !isCanonicalBase64Url(event.eventSha256, 32) || !ID_PATTERN.test(event.participantId)) return 'invalid'
   return verifyEd25519DeviceMessage(
     record.proof.keyId,
     record.proof.publicKey,
@@ -235,7 +242,7 @@ export async function inspectProjectResearchEventAttestations(
   settings: Y.Map<unknown>,
   projectId: string,
   directory: ProjectDeviceDirectoryInspection,
-  resolveEventSha256: ProjectResearchEventHashResolver,
+  resolveEvent: ProjectResearchEventResolver,
 ): Promise<ProjectResearchEventAttestationInspection> {
   if (!ID_PATTERN.test(projectId) || settings.size > MAX_RESEARCH_EVENT_ATTESTATION_SETTINGS_SCAN) {
     return emptyInspection({ healthy: false, invalidRecords: 1, excessRecords: 1 })
@@ -259,7 +266,7 @@ export async function inspectProjectResearchEventAttestations(
     const verified = await Promise.all(batch.map(async ([storageKey, value]) => ({
       storageKey,
       record: parseProjectResearchEventAttestation(value),
-      status: await verifyRecord(value, projectId, directory, resolveEventSha256),
+      status: await verifyRecord(value, projectId, directory, resolveEvent),
     })))
     for (const candidate of verified) {
       if (candidate.status === 'unavailable') unavailableRecords += 1
@@ -310,15 +317,15 @@ export async function publishProjectResearchEventAttestation(
   settings: Y.Map<unknown>,
   projectId: string,
   directory: ProjectDeviceDirectoryInspection,
-  resolveEventSha256: ProjectResearchEventHashResolver,
+  resolveEvent: ProjectResearchEventResolver,
   value: unknown,
 ): Promise<ProjectResearchEventAttestationInspection> {
   const record = parseProjectResearchEventAttestation(value)
-  if (!record || await verifyRecord(record, projectId, directory, resolveEventSha256) !== 'verified-device') {
+  if (!record || await verifyRecord(record, projectId, directory, resolveEvent) !== 'verified-device') {
     throw new Error('Project research event attestation proof is invalid')
   }
   const before = await inspectProjectResearchEventAttestations(
-    settings, projectId, directory, resolveEventSha256,
+    settings, projectId, directory, resolveEvent,
   )
   if (!before.healthy) throw new Error('Project research event attestation history is not safe to update')
   const sameDeviceEvent = before.attestations.find((existing) =>
@@ -344,5 +351,5 @@ export async function publishProjectResearchEventAttestation(
   const operation = () => settings.set(storageKey, canonical)
   if (settings.doc) settings.doc.transact(operation, 'syzygy-project-research-event-attestation')
   else operation()
-  return inspectProjectResearchEventAttestations(settings, projectId, directory, resolveEventSha256)
+  return inspectProjectResearchEventAttestations(settings, projectId, directory, resolveEvent)
 }

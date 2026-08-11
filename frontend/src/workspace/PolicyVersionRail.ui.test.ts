@@ -50,6 +50,8 @@ describe('policy version rail UI contract', () => {
       busyAction: null,
       error: '',
       savedStatus: '',
+      versionAttribution: null,
+      versionAttributionPending: false,
       restoreArmed: false,
       onSelect: noop,
       onNoteChange: noop,
@@ -78,6 +80,8 @@ describe('policy version rail UI contract', () => {
       busyAction: null,
       error: '',
       savedStatus: '',
+      versionAttribution: null,
+      versionAttributionPending: false,
       restoreArmed: false,
       onSelect: noop,
       onNoteChange: noop,
@@ -100,6 +104,8 @@ describe('policy version rail UI contract', () => {
       busyAction: null,
       error: '',
       savedStatus: '',
+      versionAttribution: null,
+      versionAttributionPending: false,
       restoreArmed: true,
       onSelect: noop,
       onNoteChange: noop,
@@ -133,6 +139,8 @@ describe('policy version rail UI contract', () => {
       busyAction: null,
       error: '',
       savedStatus: '',
+      versionAttribution: null,
+      versionAttributionPending: false,
       restoreArmed: false,
       onSelect: noop,
       onNoteChange: noop,
@@ -152,6 +160,8 @@ describe('policy version rail UI contract', () => {
       busyAction: null,
       error: 'Version history contains an invalid checkpoint',
       savedStatus: '',
+      versionAttribution: null,
+      versionAttributionPending: false,
       restoreArmed: false,
       onSelect: noop,
       onNoteChange: noop,
@@ -164,5 +174,58 @@ describe('policy version rail UI contract', () => {
     expect(blockedHtml).toContain('Version history contains an invalid checkpoint')
     expect(blockedHtml).toContain('disabled=""')
     expect(blockedHtml).not.toContain('Opening the live project')
+  })
+
+  it('shows pending, signed-device, and unsigned checkpoint attribution without claiming a person', () => {
+    const common: Omit<Parameters<typeof PolicyVersionRailContent>[0],
+      'versionAttribution' | 'versionAttributionPending'> = {
+      ready: true,
+      versions: [root],
+      headVersionId: root.versionId,
+      selectedVersionId: root.versionId,
+      note: '',
+      busyAction: null,
+      error: '',
+      savedStatus: 'Initial version saved.',
+      restoreArmed: false,
+      onSelect: noop,
+      onNoteChange: noop,
+      onSave: noop,
+      onBeginRestore: noop,
+      onCancelRestore: noop,
+      onRestore: noop,
+    }
+    const pending = render({
+      ...common, versionAttribution: null, versionAttributionPending: true,
+    })
+    expect(pending).toContain('Checkpoint committed. Checking registered-device attribution')
+
+    const signed = render({
+      ...common,
+      versionAttributionPending: false,
+      versionAttribution: {
+        status: 'signed-device',
+        keyId: 'ed25519-sha256:abcdefghijklmnopqrstuv0123456789ABCDEFG',
+        eventKind: 'policy-version',
+        eventId: root.versionId,
+        eventSha256: 'abcdefghijklmnopqrstuv0123456789ABCDEFG',
+        attestationCount: 1,
+        authority: 'installation-device-not-human-identity',
+      },
+    })
+    expect(signed).toContain('Checkpoint event signed by registered device')
+    expect(signed).toContain('not a person or organization')
+
+    const unsigned = render({
+      ...common,
+      versionAttributionPending: false,
+      versionAttribution: {
+        status: 'unsigned',
+        reason: 'signing-or-registration-unavailable',
+        authority: 'installation-device-not-human-identity',
+      },
+    })
+    expect(unsigned).toContain('Checkpoint committed without a device signature')
+    expect(unsigned).toContain('not registered here or signing is unavailable')
   })
 })

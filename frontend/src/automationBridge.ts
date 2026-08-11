@@ -20,6 +20,7 @@ import {
 } from './workspace/editorAutomationRegistry'
 import { inspectResearchState } from './workspace/researchStateInspection'
 import {
+  attestPolicyVersionEvent,
   attestScenarioAnnotationEvent,
   attestScenarioLabelEvent,
   attestScenarioVoteEvent,
@@ -414,8 +415,9 @@ export async function dispatchAutomationRequest(
       )
       if (!project) throw new Error('No research project is active; list or create a project first')
       const controller = getAutomationEditorController(project.id)
+      const document = getAutomationProjectDocument(project.id)
       const saved = await saveAutomationPolicyVersion(
-        getAutomationProjectDocument(project.id),
+        document,
         project.id,
         {
           expectedDocumentRevision: requiredString(params, 'expectedDocumentRevision'),
@@ -427,6 +429,7 @@ export async function dispatchAutomationRequest(
         },
         controller.read,
       )
+      const attribution = await attestPolicyVersionEvent(document, project.id, saved.version)
       return {
         project: summarizeProject(project, latest.activeProjectId),
         documentRevision: saved.documentRevision,
@@ -440,6 +443,8 @@ export async function dispatchAutomationRequest(
           scenarioCount: saved.version.scenarioIds.length,
           hasNote: saved.version.note !== null,
         },
+        attribution,
+        researchRevision: projectStateFingerprint(document),
         deterministicChangeNote: saved.changeNote,
       }
     }
@@ -450,8 +455,9 @@ export async function dispatchAutomationRequest(
       )
       if (!project) throw new Error('No research project is active; list or create a project first')
       const controller = getAutomationEditorController(project.id)
+      const document = getAutomationProjectDocument(project.id)
       const restored = await restoreAutomationPolicyVersion(
-        getAutomationProjectDocument(project.id),
+        document,
         project.id,
         {
           targetVersionId: requiredString(params, 'targetVersionId'),
@@ -464,6 +470,7 @@ export async function dispatchAutomationRequest(
         },
         controller,
       )
+      const attribution = await attestPolicyVersionEvent(document, project.id, restored.version)
       return {
         project: summarizeProject(project, latest.activeProjectId),
         previousDocumentRevision: restored.previousDocumentRevision,
@@ -478,6 +485,8 @@ export async function dispatchAutomationRequest(
           scenarioCount: restored.version.scenarioIds.length,
           hasNote: restored.version.note !== null,
         },
+        attribution,
+        researchRevision: projectStateFingerprint(document),
         deterministicChangeNote: restored.changeNote,
       }
     }

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "runId": "SIGNED-POLICY-VERSION-EVENTS-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "7481078",
+  "capabilities": ["P-23", "P-27", "P-28"],
+  "status": "implemented_unverified",
+  "claim": "Product and MCP policy save and restore commit an immutable content-addressed checkpoint before best-effort registered-installation attribution over the exact retained version envelope. A signing failure remains explicit and never rolls back the checkpoint.",
+  "commands": [
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm test -- --run src/workspace/projectResearchEventAttestation.test.ts src/workspace/policyVersionModel.test.ts src/workspace/policyVersionHistory.test.ts src/workspace/versionAutomation.test.ts src/workspace/PolicyVersionRail.ui.test.ts src/workspace/researchStateInspection.test.ts src/automationCapabilities.test.ts",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run check:supervised",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/audit.mjs"
+  ],
+  "result": {
+    "productionAdoptedEventKind": "policy-version",
+    "actionsCovered": ["save", "restore"],
+    "exactCanonicalEnvelopeHashRequired": true,
+    "storedEventParticipantRequired": true,
+    "crossAuthorClaimRejected": true,
+    "productCheckpointCommittedBeforeAttribution": true,
+    "mcpCheckpointCommittedBeforeAttribution": true,
+    "mcpReturnsPostAttributionResearchRevision": true,
+    "signingFailurePreservesCommittedCheckpoint": true,
+    "mutatedRetainedVersionRejected": true,
+    "policyBodiesDisplayNamesAndNotesReturnedByInspection": false,
+    "signedUnsignedAndPendingUiStates": true,
+    "staleAsyncResultSuppressed": true,
+    "humanOrOrganizationIdentityClaimed": false,
+    "focusedFrontendTestFilesPassed": 7,
+    "focusedFrontendTestsPassed": 40,
+    "physicalPackagedTwoInstallUsed": false,
+    "supervisedRunId": "20260811-183348-f1743b",
+    "frontendTestFilesPassed": 128,
+    "frontendTestFilesSkipped": 3,
+    "frontendTestsPassed": 550,
+    "frontendTestsSkipped": 3,
+    "frontendModulesTransformed": 1267,
+    "rustAppRecompiled": true,
+    "repositoryAuditPassed": true,
+    "fullValidationPending": false
+  },
+  "proved": [
+    "The exact policy-version digest reuses the strict canonical envelope and independently requires its SHA-256 to equal the retained version ID, binding policy blocks, scenarios, project, parent, author snapshot, timestamp, and note.",
+    "Generic attestation verification now re-resolves both the retained event hash and retained participant, so a registered collaborator cannot sign another collaborator's event under a different participant claim.",
+    "Product and MCP save/restore commit before best-effort signing; directory, registration, signing, or attestation-ledger failure leaves the immutable checkpoint present and reports explicit unsigned state.",
+    "Product copy distinguishes pending, registered-device signed, and unsigned checkpoints, suppresses late cross-project results, and denies person or organization identity.",
+    "MCP save/restore return the post-attribution research revision so the next guarded mutation does not begin from a stale pre-signature revision.",
+    "Inspection remains content-minimized: policy bodies, author display names, notes, proof bodies, public keys, and signatures are absent."
+  ],
+  "notProved": [
+    "That a self-issued installation key authenticates a person or organization, prevents Sybil claims, supplies legal consent, or provides trusted time.",
+    "Durable attribution for the six remaining named research-event domains, identity-key rotation/recovery, or append-only survival against a malicious Yjs writer.",
+    "Physical packaged two-install product/MCP interaction; current proof is deterministic headless domain, product-copy, mutation-path, and resolver coverage."
+  ],
+  "implementationAnchors": [
+    "frontend/src/workspace/policyVersionModel.ts",
+    "frontend/src/workspace/projectResearchEventAttestation.ts",
+    "frontend/src/workspace/researchEventAttribution.ts",
+    "frontend/src/workspace/PolicyVersionRail.tsx",
+    "frontend/src/automationBridge.ts",
+    "frontend/src/workspace/researchStateInspection.ts",
+    "frontend/src-tauri/src/mcp.rs"
+  ]
+}

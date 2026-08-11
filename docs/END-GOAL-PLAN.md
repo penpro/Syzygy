@@ -230,6 +230,11 @@ services. A stale head fails before creating an orphan; two concurrent restores 
 immutable branches and converge one Yjs head across forty delivery orders. The product rail selects
 and renders parent change notes plus bounded block details without a model. Product restore now
 uses a two-step confirmation, exact draft/head guards, semantic-block replacement, and rollback.
+A save or restore checkpoint is committed before best-effort registered-device attribution over the
+exact immutable envelope; cross-author claims and changed retained envelopes fail verification.
+The rail exposes pending, signed-device, and explicit unsigned states without treating an
+installation key as a person, while MCP returns the post-attribution research revision. Signing
+failure never rolls back the checkpoint.
 A real two-peer Lexical/Yjs fixture proves root, immutable version, and head travel in one shared
 update, while the peer editor projection is checked after synchronization. The twenty-fifth MCP
 tool reuses that restore transaction with an inspected target, exact document revision, and exact

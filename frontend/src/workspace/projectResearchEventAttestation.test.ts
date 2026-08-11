@@ -17,9 +17,10 @@ import {
   publishProjectResearchEventAttestation,
   type ProjectResearchEventAttestationDependencies,
   type ProjectResearchEventAttestationRecord,
-  type ProjectResearchEventHashResolver,
+  type ProjectResearchEventResolver,
 } from './projectResearchEventAttestation'
 import {
+  attestPolicyVersionEvent,
   attestScenarioAnnotationEvent,
   attestScenarioLabelEvent,
   castScenarioVoteWithAttribution,
@@ -35,6 +36,11 @@ import {
   updateScenarioAnnotation,
   type ScenarioAnnotationEvent,
 } from './scenarioAnnotationModel'
+import {
+  commitPolicyVersion,
+  policyVersionEventSha256,
+  readPolicyVersion,
+} from './policyVersionModel'
 import { createScenario } from './scenarioModel'
 import {
   createScenarioLabel,
@@ -149,9 +155,15 @@ function dependencies(
   }
 }
 
-function resolver(entries: Array<[ProjectResearchEventKind, string, string]>): ProjectResearchEventHashResolver {
+function resolver(
+  entries: Array<[ProjectResearchEventKind, string, string]>,
+  participantId = participantA,
+): ProjectResearchEventResolver {
   const hashes = new Map(entries.map(([kind, id, hash]) => [`${kind}:${id}`, hash]))
-  return (kind, id) => hashes.get(`${kind}:${id}`) ?? null
+  return (kind, id) => {
+    const eventSha256 = hashes.get(`${kind}:${id}`)
+    return eventSha256 ? { eventSha256, participantId } : null
+  }
 }
 
 async function make(
@@ -197,7 +209,7 @@ describe('project research event attestations', () => {
 
   it('converges independent installation attestations and keeps replay idempotent', async () => {
     const left = await identity(participantA)
-    const right = await identity(participantB)
+    const right = await identity(participantA)
     const events = resolver([['scenario-vote', 'vote-1', hashVote]])
     const leftRecord = await make(left, 'scenario-vote', 'vote-1', hashVote, nonceA)
     const rightRecord = await make(right, 'scenario-vote', 'vote-1', hashVote, nonceB)
@@ -251,6 +263,10 @@ describe('project research event attestations', () => {
       { ...directory([signer]), devices: [{ ...directory([signer]).devices[0], participantIds: ['other'] }] },
       events,
       valid,
+    )).rejects.toThrow('proof is invalid')
+    await expect(publishProjectResearchEventAttestation(
+      new Y.Doc().getMap('settings'), projectId, directory([signer]),
+      resolver([['scenario-vote', 'vote-1', hashVote]], participantB), valid,
     )).rejects.toThrow('proof is invalid')
 
     const poisoned = new Y.Doc().getMap<unknown>('settings')
@@ -570,6 +586,80 @@ describe('project research event attestations', () => {
     expect(locator.length).toBeLessThanOrEqual(1024)
     await expect(researchEventAttestationResolver(discussions, settings)(
       'scenario-label', locator,
-    )).resolves.toBe(await scenarioLabelAssignmentEventSha256(retained))
+    )).resolves.toEqual({
+      eventSha256: await scenarioLabelAssignmentEventSha256(retained),
+      participantId: participantA,
+    })
+  })
+
+  it('signs exact immutable policy-version envelopes and rejects cross-author claims', async () => {
+    const signer = await identity(participantA)
+    const otherSigner = await identity(participantB)
+    const document = createProjectDocument(manifest)
+    const { discussions, metadata, settings, versions } = getProjectSharedTypes(document)
+    const first = await commitPolicyVersion(versions, metadata, {
+      projectId,
+      expectedHeadVersionId: null,
+      blocks: [{ kind: 'policy', policyId: 'policy-1', status: 'review', text: 'Policy body canary' }],
+      scenarioIds: [],
+      participantId: participantA,
+      displayName: 'Alice canary',
+      createdAt: 10,
+      note: 'Version note canary',
+    })
+    const signed = await attestPolicyVersionEvent(document, projectId, first, {
+      inspectDirectory: async () => directory([signer, otherSigner]),
+      create: (id, participantId, kind, eventId, hash) => createProjectResearchEventAttestation(
+        id, participantId, kind, eventId, hash, dependencies(signer, nonceA),
+      ),
+    })
+    expect(signed).toEqual(expect.objectContaining({
+      status: 'signed-device', eventKind: 'policy-version', eventId: first.versionId,
+      attestationCount: 1,
+    }))
+    const inspection = await inspectProjectResearchEventAttestations(
+      settings, projectId, directory([signer, otherSigner]),
+      researchEventAttestationResolver(discussions, settings, versions),
+    )
+    expect(inspection).toEqual(expect.objectContaining({ healthy: true, attestationCount: 1 }))
+    expect(JSON.stringify(inspection)).not.toContain('Policy body canary')
+    expect(JSON.stringify(inspection)).not.toContain('Version note canary')
+    expect(JSON.stringify(inspection)).not.toContain('Alice canary')
+
+    const crossAuthor = await createProjectResearchEventAttestation(
+      projectId, participantB, 'policy-version', first.versionId,
+      await policyVersionEventSha256(first), dependencies(otherSigner, nonceB),
+    )
+    await expect(publishProjectResearchEventAttestation(
+      settings, projectId, directory([signer, otherSigner]),
+      researchEventAttestationResolver(discussions, settings, versions), crossAuthor,
+    )).rejects.toThrow('proof is invalid')
+
+    const second = await commitPolicyVersion(versions, metadata, {
+      projectId,
+      expectedHeadVersionId: first.versionId,
+      blocks: [{ kind: 'policy', policyId: 'policy-1', status: 'approved', text: 'Approved body' }],
+      scenarioIds: [],
+      participantId: participantA,
+      displayName: 'Alice',
+      createdAt: 11,
+      note: 'Unsigned version remains',
+    })
+    const unsigned = await attestPolicyVersionEvent(document, projectId, second, {
+      inspectDirectory: async () => { throw new Error('directory unavailable') },
+      create: async () => { throw new Error('must not sign') },
+    })
+    expect(unsigned).toEqual({
+      status: 'unsigned', reason: 'device-directory-unhealthy',
+      authority: 'installation-device-not-human-identity',
+    })
+    expect(await readPolicyVersion(versions, second.versionId)).not.toBeNull()
+
+    const stored = JSON.parse(versions.get(first.versionId) as string) as Record<string, unknown>
+    versions.set(first.versionId, JSON.stringify({ ...stored, note: 'Mutated signed version' }))
+    await expect(inspectProjectResearchEventAttestations(
+      settings, projectId, directory([signer, otherSigner]),
+      researchEventAttestationResolver(discussions, settings, versions),
+    )).resolves.toEqual(expect.objectContaining({ healthy: false, invalidRecords: 1 }))
   })
 })

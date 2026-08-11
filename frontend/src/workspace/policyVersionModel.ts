@@ -171,6 +171,36 @@ async function sha256(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
+function encodeBase64Url(value: Uint8Array): string {
+  let binary = ''
+  for (const byte of value) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+export async function policyVersionEventSha256(version: PolicyVersion): Promise<string> {
+  if (!version || typeof version !== 'object' || Array.isArray(version) || !exactKeys(version, [
+    'schemaVersion', 'versionId', 'projectId', 'parentVersionId', 'policy', 'scenarioIds', 'author',
+    'createdAt', 'note',
+  ]) || !sha256Pattern.test(version.versionId)) throw new Error('Policy version event is invalid')
+  const payload = {
+    schemaVersion: version.schemaVersion,
+    projectId: version.projectId,
+    parentVersionId: version.parentVersionId,
+    policy: version.policy,
+    scenarioIds: version.scenarioIds,
+    author: version.author,
+    createdAt: version.createdAt,
+    note: version.note,
+  }
+  const input = inputFromPayload(payload)
+  if (!input) throw new Error('Policy version event is invalid')
+  const canonical = canonicalPayload(payloadFromInput(input))
+  const digest = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', encoder.encode(canonical)))
+  const hex = Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('')
+  if (hex !== version.versionId) throw new Error('Policy version event hash is invalid')
+  return encodeBase64Url(digest)
+}
+
 function transact(collection: Y.Map<unknown>, operation: () => void): void {
   if (collection.doc) collection.doc.transact(operation, 'syzygy-policy-version')
   else operation()

@@ -334,9 +334,11 @@ registration is append-only against a bearer peer, trusted enrollment, identity,
 approval/revocation, relay authorization, or signed attribution for every research-event domain.
 
 `projectResearchEventAttestation.test.ts` is the first general durable research-event signature
-gate. It uses real independent WebCrypto Ed25519 installations, two event kinds, disconnected merge,
+gate. It uses real independent WebCrypto Ed25519 installations, the closed event-kind vocabulary,
+disconnected merge,
 offline reopen, exact and fresh-nonce same-device/event idempotent replay, exact live-event hash
-resolution, registered participant/key matching, mutation/missing-event/poison/excess denial, and
+resolution, registered participant/key plus retained-event-author matching,
+mutation/missing-event/poison/excess denial, and
 content-minimized inspection. The real MCP and product vote paths commit the immutable vote first,
 then best-effort publish the attestation; vault/registration failure returns an explicit unsigned
 result without hiding or rolling back the vote. The product UI additionally preserves unsaved
@@ -350,12 +352,18 @@ canonical hashes distinguish label lifecycle from assignment records and bind ev
 length-prefixed locators retain scenario, label, and event identity without collision. Product and
 MCP paths return the exact retained event before signing, label names remain absent from attribution
 inspection, and signing/directory failure leaves the committed label mutation visible as unsigned.
-Every signed MCP vote, annotation, or label response recomputes `researchRevision` after attribution
+Immutable policy save and restore now follow the same post-commit rule. Their signature covers the
+exact content-addressed version envelope, including policy blocks, scenarios, parent, author
+snapshot, timestamp, and note. Cross-author claims and mutated retained versions fail verification;
+directory/signing failure leaves the checkpoint committed and explicitly unsigned. Product UI
+shows pending/signed/unsigned states without claiming human identity, and MCP returns the
+post-attribution research revision.
+Every signed MCP vote, annotation, label, or policy-version response recomputes `researchRevision` after attribution
 publication; returning the mutation-only revision would make the caller's next guarded write stale.
 `npm run test:collaboration:identity` independently verifies the Rust-produced signature and
 rejects seven signed-field mutations. Product and MCP scenario votes, annotations, and labels
-currently have production resolvers; the other seven allowed kinds remain a closed native vocabulary awaiting
-domain adoption.
+plus policy versions currently have production resolvers; the other six allowed kinds remain a
+closed native vocabulary awaiting domain adoption.
 
 `projectRelayAdminDecision.test.ts` is the shared remote-administration decision gate. It creates
 real WebCrypto Ed25519 keys and requires an exact native-compatible decision domain, canonical

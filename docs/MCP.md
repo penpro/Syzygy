@@ -87,8 +87,8 @@ Recommended first instruction to an MCP-capable model:
 | `create_scenario_label` | label event | Creates a shared context label against the exact current research revision; event bodies remain omitted |
 | `rename_scenario_label` | label event | Appends a rename only when both research revision and current label event match |
 | `set_scenario_label_assignment` | assignment event | Assigns/removes a label under the research guard; follow-up events also require the exact assignment event |
-| `save_active_policy_version` | version metadata | Saves the exact active semantic draft as a new immutable head under both document-revision and expected-head guards; does not edit the draft or restore history |
-| `restore_active_policy_version` | document + version metadata | Restores one inspected immutable version into the live semantic draft and appends it as a new head under exact target, document-revision, and expected-head guards; never rewrites history |
+| `save_active_policy_version` | version metadata | Saves the exact active semantic draft as a new immutable head under both document-revision and expected-head guards, then reports signed-device or explicit unsigned exact-envelope attribution and the post-attribution research revision; signing failure does not roll back the checkpoint |
+| `restore_active_policy_version` | document + version metadata | Restores one inspected immutable version into the live semantic draft and appends it as a new head under exact target, document-revision, and expected-head guards, then reports signed-device or explicit unsigned exact-envelope attribution and the post-attribution research revision; never rewrites history |
 | `replace_active_document` | yes | Replaces the document only when `expectedRevision` still matches |
 | `append_active_document` | yes | Appends blocks only when `expectedRevision` still matches |
 
@@ -249,14 +249,19 @@ MCP host
   when non-null, `expectedHeadVersionId` from `inspect_research_state`. The live editor revision is
   checked once before hashing and again inside the final Yjs head transaction; the existing head
   and parent bytes are rechecked there too. A conflict inserts no record in the committed harness.
-  Participant ID/display name are caller-supplied historical attribution, not authenticated identity.
+  After commit, the tool best-effort signs the exact content-addressed version envelope. The result
+  is explicitly signed-device or unsigned and includes the post-attribution `researchRevision`;
+  signing failure never rolls back the checkpoint. Participant ID/display name are caller-supplied
+  historical attribution, and an installation signature does not authenticate a person.
 - `restore_active_policy_version` requires `targetVersionId` from bounded version inspection,
   `expectedDocumentRevision` from `read_active_project`, and the exact non-null
   `expectedHeadVersionId` from `inspect_research_state`. The existing restore transaction
   validates target lineage/project identity, rechecks document and head, replaces exact semantic
   blocks, and appends a new immutable child. A stale document or head adds no version, and a
   synthetic editor failure restores the prior draft/head. Participant ID/display name remain
-  caller-supplied attribution rather than authenticated identity.
+  unauthenticated. The appended child is then attributed under the same exact-envelope,
+  explicit-unsigned, no-rollback contract as save, and the returned research revision includes any
+  attestation publication.
 - `syzygy_installation` discloses the executable and parent-folder paths to the already-connected
   local MCP host. These paths are local machine metadata, contain no OAuth token or research
   content, and are also visible to the user in Settings.

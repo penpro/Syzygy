@@ -119,6 +119,12 @@ or permission; domain review and any future authority grant are distinct later a
 Restore is a deliberate two-step action on a non-head checkpoint. **Prepare restore** reveals the
 exact short checkpoint ID, a cancel action, and **Restore as new version**. The copy states that the
 live draft is replaced, a new child is created on the current head, and existing versions remain.
+After either save or restore commits, the rail keeps checkpoint success visible while registered-
+device attribution is pending, then reports either the short signing-key fingerprint or an explicit
+unsigned result. Signing failure never changes a committed checkpoint into a failed save or restore.
+The copy always says that a signature proves installation-key possession, not a person or
+organization. Switching projects invalidates any late attribution result so one project's status
+cannot appear in another project.
 The UI identifies local, Drive-shared, and self-hosted relay projects precisely. Scenario response generation, versioned scenario-rerun evaluation, and exact baseline comparison/export are available. Live presence is claimed only while the WebSocket provider reports a real live transport; Drive remains polling-only.
 
 Portable project movement is available from both the empty workspace and an open project. **Export

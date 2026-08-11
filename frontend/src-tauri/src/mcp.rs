@@ -323,7 +323,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "inspect_research_state",
-            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, exact-hash installation attestations for scenario vote, annotation, and label events, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and immutable policy-version history. Device/attestation entries expose stable key IDs plus self-reported participant IDs but no proof bodies and grant no human identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
+            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, exact-hash installation attestations for scenario vote, annotation, label, and immutable policy-version events, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and policy-version history. Device/attestation entries expose stable key IDs plus self-reported participant IDs but no proof bodies and grant no human identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
             object_schema(&[], &[]),
         ),
         tool(
@@ -563,7 +563,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "save_active_policy_version",
-            "Save the exact active document revision as a new immutable, attributed policy-version head. Requires expectedDocumentRevision from read_active_project and, when one exists, expectedHeadVersionId from inspect_research_state. This does not edit document text or restore history.",
+            "Save the exact active document revision as a new immutable policy-version head, then attempt a best-effort exact-envelope registered-device signature. Requires expectedDocumentRevision from read_active_project and, when one exists, expectedHeadVersionId from inspect_research_state. The response reports signed or explicitly unsigned attribution plus the post-attribution research revision; signing failure never rolls back the checkpoint and does not authenticate a person. This does not edit document text or restore history.",
             object_schema(
                 &[
                     ("expectedDocumentRevision", string_schema("Exact revision from the latest read_active_project result.")),
@@ -577,7 +577,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "restore_active_policy_version",
-            "Restore an inspected immutable policy version into the active draft and append the restored state as a new attributed head. Requires the exact current document revision and exact current non-null version head. This never rewrites or deletes history.",
+            "Restore an inspected immutable policy version into the active draft and append the restored state as a new head, then attempt a best-effort exact-envelope registered-device signature. Requires the exact current document revision and exact current non-null version head. The response reports signed or explicitly unsigned attribution plus the post-attribution research revision; signing failure never rolls back the checkpoint and does not authenticate a person. This never rewrites or deletes history.",
             object_schema(
                 &[
                     ("targetVersionId", string_schema("Exact immutable version ID from inspect_research_state.")),

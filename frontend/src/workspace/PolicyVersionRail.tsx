@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type * as Y from 'yjs'
 import { useStore } from '../store'
 import { cx } from '../util'
@@ -13,6 +13,10 @@ import {
 } from './policyVersionModel'
 import type { ResearchProjectManifest } from './schema'
 import { restoreAutomationPolicyVersion, saveAutomationPolicyVersion } from './versionAutomation'
+import {
+  attestPolicyVersionEvent,
+  type ResearchEventAttributionResult,
+} from './researchEventAttribution'
 import { subscribeAutomationProjectDocument } from './workspaceAutomationRegistry'
 
 export interface VersionRailSelection {
@@ -70,6 +74,8 @@ export function PolicyVersionRailContent({
   busyAction,
   error,
   savedStatus,
+  versionAttribution,
+  versionAttributionPending,
   restoreArmed,
   onSelect,
   onNoteChange,
@@ -86,6 +92,8 @@ export function PolicyVersionRailContent({
   busyAction: 'save' | 'restore' | null
   error: string
   savedStatus: string
+  versionAttribution: ResearchEventAttributionResult | null
+  versionAttributionPending: boolean
   restoreArmed: boolean
   onSelect: (versionId: string) => void
   onNoteChange: (note: string) => void
@@ -128,6 +136,29 @@ export function PolicyVersionRailContent({
       {!ready && !error && <p className="version-status">Opening the live project…</p>}
       {ready && versions.length === 0 && <p className="version-status">Saved versions will appear here.</p>}
       {savedStatus && <p className="version-status success" role="status">{savedStatus}</p>}
+      {versionAttributionPending && (
+        <p className="version-status" role="status">
+          Checkpoint committed. Checking registered-device attribution…
+        </p>
+      )}
+      {!versionAttributionPending && versionAttribution?.status === 'signed-device' && (
+        <p className="version-status success" role="status">
+          Checkpoint event signed by registered device{' '}
+          <span className="mono">
+            {versionAttribution.keyId.replace('ed25519-sha256:', '').slice(0, 12)}…
+          </span>. This proves installation-key possession, not a person or organization.
+        </p>
+      )}
+      {!versionAttributionPending && versionAttribution?.status === 'unsigned' && (
+        <p className="version-status error" role="status">
+          Checkpoint committed without a device signature: {
+            versionAttribution.reason === 'device-directory-unhealthy'
+              ? 'the project device directory needs attention.'
+              : versionAttribution.reason === 'attestation-history-unhealthy'
+                ? 'signed attribution history needs attention.'
+                : 'this installation is not registered here or signing is unavailable.'}
+        </p>
+      )}
       {error && <p className="version-status error" role="alert">{error}</p>}
 
       {ordered.length > 0 && (
@@ -225,12 +256,25 @@ export function PolicyVersionRail({ project }: { project: ResearchProjectManifes
   const [busyAction, setBusyAction] = useState<'save' | 'restore' | null>(null)
   const [error, setError] = useState('')
   const [savedStatus, setSavedStatus] = useState('')
+  const [versionAttribution, setVersionAttribution] = useState<ResearchEventAttributionResult | null>(null)
+  const [versionAttributionPending, setVersionAttributionPending] = useState(false)
   const [restoreArmed, setRestoreArmed] = useState(false)
+  const versionOperation = useRef(0)
 
   useEffect(
     () => subscribeAutomationProjectDocument(project.id, setDoc),
     [project.id],
   )
+
+  useEffect(() => {
+    versionOperation.current += 1
+    setVersionAttribution(null)
+    setVersionAttributionPending(false)
+    setBusyAction(null)
+    setSavedStatus('')
+    setError('')
+    return () => { versionOperation.current += 1 }
+  }, [project.id])
 
   useEffect(() => {
     if (!doc) {
@@ -286,9 +330,13 @@ export function PolicyVersionRail({ project }: { project: ResearchProjectManifes
 
   const save = async () => {
     if (!doc || busyAction || !historyValid) return
+    const operation = versionOperation.current + 1
+    versionOperation.current = operation
     setBusyAction('save')
     setError('')
     setSavedStatus('')
+    setVersionAttribution(null)
+    setVersionAttributionPending(false)
     try {
       if (!researcherName.trim()) throw new Error('Add your researcher name in Settings before saving a version.')
       const snapshot = readAutomationEditor(project.id)
@@ -304,18 +352,30 @@ export function PolicyVersionRail({ project }: { project: ResearchProjectManifes
       setSelectedVersionId(saved.version.versionId)
       setNote('')
       setSavedStatus(saved.changeNote ?? `Initial version saved with ${saved.version.policy.blocks.length} blocks.`)
+      setVersionAttributionPending(true)
+      const attribution = await attestPolicyVersionEvent(doc, project.id, saved.version)
+      if (versionOperation.current === operation) setVersionAttribution(attribution)
     } catch (cause) {
-      setError((cause as Error)?.message ?? 'Could not save the current draft.')
+      if (versionOperation.current === operation) {
+        setError((cause as Error)?.message ?? 'Could not save the current draft.')
+      }
     } finally {
-      setBusyAction(null)
+      if (versionOperation.current === operation) {
+        setVersionAttributionPending(false)
+        setBusyAction(null)
+      }
     }
   }
 
   const restore = async () => {
     if (!doc || busyAction || !historyValid || !selectedVersionId || selectedVersionId === headVersionId) return
+    const operation = versionOperation.current + 1
+    versionOperation.current = operation
     setBusyAction('restore')
     setError('')
     setSavedStatus('')
+    setVersionAttribution(null)
+    setVersionAttributionPending(false)
     try {
       if (!researcherName.trim()) throw new Error('Add your researcher name in Settings before restoring a version.')
       const controller = getAutomationEditorController(project.id)
@@ -334,10 +394,18 @@ export function PolicyVersionRail({ project }: { project: ResearchProjectManifes
       setSelectedVersionId(restored.version.versionId)
       setSavedStatus(`Restored as a new current version. ${restored.changeNote}`)
       setRestoreArmed(false)
+      setVersionAttributionPending(true)
+      const attribution = await attestPolicyVersionEvent(doc, project.id, restored.version)
+      if (versionOperation.current === operation) setVersionAttribution(attribution)
     } catch (cause) {
-      setError((cause as Error)?.message ?? 'Could not restore the selected checkpoint.')
+      if (versionOperation.current === operation) {
+        setError((cause as Error)?.message ?? 'Could not restore the selected checkpoint.')
+      }
     } finally {
-      setBusyAction(null)
+      if (versionOperation.current === operation) {
+        setVersionAttributionPending(false)
+        setBusyAction(null)
+      }
     }
   }
 
@@ -351,6 +419,8 @@ export function PolicyVersionRail({ project }: { project: ResearchProjectManifes
       busyAction={busyAction}
       error={error}
       savedStatus={savedStatus}
+      versionAttribution={versionAttribution}
+      versionAttributionPending={versionAttributionPending}
       restoreArmed={restoreArmed}
       onSelect={(versionId) => {
         setSelectedVersionId(versionId)

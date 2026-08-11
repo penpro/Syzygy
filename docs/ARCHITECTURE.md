@@ -206,11 +206,13 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   `projectResearchEventAttestation.ts` is a parallel bounded Yjs ledger for exact event-hash
   installation signatures, so event-domain schemas do not require destructive changes.
   `researchEventAttribution.ts` is the first resolver/adoption layer: after an MCP or product
-  scenario vote, annotation create/edit/resolve/reopen, or label create/rename/add/remove event is committed, it locates and hashes
-  that exact retained event, requires the signer key to be an unconflicted project registration for
-  the participant claim, and publishes best-effort attribution. Failure remains explicitly unsigned
-  and never rolls back or disguises the research mutation. The generic ledger recognizes ten event
-  kinds; scenario votes, annotations, and labels currently have production resolvers. Label
+  scenario vote, annotation create/edit/resolve/reopen, label create/rename/add/remove, or immutable
+  policy save/restore checkpoint is committed, it locates and hashes that exact retained event,
+  requires the signer key to be an unconflicted project registration for the participant claim, and
+  requires the claim participant to equal the retained event author. It then publishes best-effort
+  attribution. Failure remains explicitly unsigned and never rolls back or disguises the research
+  mutation. The generic ledger recognizes ten event kinds; scenario votes, annotations, labels, and
+  policy versions currently have production resolvers. Label
   lifecycle and assignment records use distinct length-prefixed attestation locators so maximum
   valid scenario/label/event IDs remain unambiguous without changing their existing Yjs schemas.
   `versionAutomation.ts` maps the exact active semantic editor snapshot into an

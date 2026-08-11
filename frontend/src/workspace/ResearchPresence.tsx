@@ -3,7 +3,9 @@ import type { Awareness } from 'y-protocols/awareness'
 import {
   collaborationDeviceTrustChange,
   collaborationDeviceTrustStatus,
+  collaborationIdentitySignRegistration,
   collaborationIdentitySignPresence,
+  collaborationIdentityStatus,
   type DevicePresenceProof,
   type DeviceTrustReport,
   type DeviceTrustStatus,
@@ -19,6 +21,12 @@ import {
 } from './deviceIdentity'
 import type { PresenceInspection, PresenceParticipant } from './presenceModel'
 import { inspectAwareness } from './presenceModel'
+import { getProjectSharedTypes } from './projectModel'
+import {
+  inspectProjectDeviceDirectory,
+  publishProjectDeviceRegistration,
+  type ProjectDeviceDirectoryInspection,
+} from './projectDeviceDirectory'
 import {
   getProjectPresence,
   subscribeProjectPresence,
@@ -197,6 +205,126 @@ export function ResearchPresenceView({
   )
 }
 
+export function ProjectDeviceDirectoryView({
+  mode,
+  inspection,
+  state,
+  localKeyId,
+  identityState,
+  participantId,
+  registering = false,
+  error = null,
+  trustState,
+  trustDecisions = new Map(),
+  busyTrustKeyId = null,
+  onRegister,
+  onApproveDevice,
+  onRevokeDevice,
+}: {
+  mode: PresenceTransportMode | null
+  inspection: ProjectDeviceDirectoryInspection | null
+  state: 'checking' | 'ready' | 'unavailable'
+  localKeyId: string | null
+  identityState: 'checking' | 'ready' | 'unavailable'
+  participantId: string
+  registering?: boolean
+  error?: string | null
+  trustState: 'checking' | 'ready' | 'unavailable'
+  trustDecisions?: ReadonlyMap<string, DeviceTrustStatus>
+  busyTrustKeyId?: string | null
+  onRegister?: () => void
+  onApproveDevice?: (keyId: string) => void
+  onRevokeDevice?: (keyId: string) => void
+}) {
+  if (mode !== 'live' && mode !== 'drive-polling') return null
+  const localRegistered = Boolean(localKeyId && inspection?.verifiedRegistrations.some((registration) =>
+    registration.keyId === localKeyId && registration.participantId === participantId))
+  const summary = state === 'checking'
+    ? 'Checking signed project registrations…'
+    : state === 'unavailable'
+      ? 'Signed project registrations are unavailable on this installation.'
+      : inspection?.healthy
+        ? `${inspection.devices.length} signed device key${inspection.devices.length === 1 ? '' : 's'} registered in shared project state.`
+        : 'The signed device directory contains invalid, excess, or unverifiable records. Registration is blocked.'
+  return (
+    <section className="research-presence" aria-label="Project device directory">
+      <div>
+        <strong>Project devices</strong>
+        <span>{summary}</span>
+      </div>
+      {inspection?.devices.length ? (
+        <ul aria-label="Registered project devices">
+          {inspection.devices.slice(0, 20).map((device) => {
+            const local = device.keyId === localKeyId
+            const trustStatus: DeviceTrustUiStatus = trustState === 'ready'
+              ? trustDecisions.get(device.keyId) ?? 'unapproved'
+              : trustState
+            return (
+              <li key={device.keyId}>
+                <span className="mono subtle" title={device.keyId}>key {device.fingerprint.slice(0, 12)}</span>
+                {' · '}{device.participantIds.join(', ')}
+                {device.status === 'participant-claim-conflict' ? ' · conflicting self-reported names' : ''}
+                {local ? ' · this device key' : trustLabel(trustStatus)}
+                {!local && inspection.healthy && trustState === 'ready' && trustStatus === 'approved' && onRevokeDevice ? (
+                  <button
+                    type="button"
+                    className="btn sm ghost"
+                    disabled={busyTrustKeyId !== null}
+                    onClick={() => onRevokeDevice(device.keyId)}
+                  >
+                    Revoke key
+                  </button>
+                ) : !local && inspection.healthy && trustState === 'ready' && onApproveDevice ? (
+                  <button
+                    type="button"
+                    className="btn sm ghost"
+                    disabled={busyTrustKeyId !== null}
+                    onClick={() => onApproveDevice(device.keyId)}
+                  >
+                    {trustStatus === 'revoked' ? 'Re-approve key' : 'Approve key'}
+                  </button>
+                ) : null}
+              </li>
+            )
+          })}
+        </ul>
+      ) : null}
+      {inspection && (!inspection.healthy || inspection.conflictingDevices > 0) ? (
+        <span className="presence-warning" role="alert">
+          {inspection.invalidRecords} invalid, {inspection.unavailableRecords} unverifiable,
+          {' '}{inspection.excessRecords} excess record{inspection.excessRecords === 1 ? '' : 's'};
+          {' '}{inspection.conflictingDevices} device-name conflict{inspection.conflictingDevices === 1 ? '' : 's'}.
+        </span>
+      ) : null}
+      {error ? <span className="presence-warning" role="alert">{error}</span> : null}
+      {identityState === 'unavailable' ? (
+        <span className="presence-warning" role="alert">
+          OS device identity is unavailable; existing registrations remain readable.
+        </span>
+      ) : null}
+      {localRegistered ? (
+        <span>This installation key is registered for your current project name.</span>
+      ) : (
+        <button
+          type="button"
+          className="btn sm ghost"
+          disabled={registering || state !== 'ready' || identityState !== 'ready' ||
+            !inspection?.healthy || !localKeyId}
+          onClick={onRegister}
+        >
+          {registering ? 'Registering device…' : 'Register this device in project'}
+        </button>
+      )}
+      <small>
+        Registration is explicit and shares this installation&apos;s stable public fingerprint and
+        self-reported name in project state. The fingerprint can correlate this installation across
+        projects where you register it. Registration does not verify a person or assign a role.
+        Local approval or revocation does not grant or remove relay access.
+      </small>
+    </section>
+  )
+}
+
 export function ResearchPresence({
   projectId,
   documentId,
@@ -216,6 +344,13 @@ export function ResearchPresence({
   const [trustError, setTrustError] = useState<string | null>(null)
   const [busyKeyId, setBusyKeyId] = useState<string | null>(null)
   const trustMutationInFlight = useRef(false)
+  const [directoryInspection, setDirectoryInspection] = useState<ProjectDeviceDirectoryInspection | null>(null)
+  const [directoryState, setDirectoryState] = useState<'checking' | 'ready' | 'unavailable'>('checking')
+  const [directoryError, setDirectoryError] = useState<string | null>(null)
+  const [registeringDevice, setRegisteringDevice] = useState(false)
+  const [localIdentityKeyId, setLocalIdentityKeyId] = useState<string | null>(null)
+  const [localIdentityState, setLocalIdentityState] = useState<'checking' | 'ready' | 'unavailable'>('checking')
+  const registrationInFlight = useRef(false)
   const verificationCache = useRef(new Map<string, DeviceProofStatus>())
   const pendingVerifications = useRef(new Map<string, Promise<DeviceProofStatus>>())
 
@@ -236,7 +371,7 @@ export function ResearchPresence({
     let disposed = false
     setTrustReport(null)
     setTrustError(null)
-    if (!registration || registration.mode !== 'live') {
+    if (!registration || (registration.mode !== 'live' && registration.mode !== 'drive-polling')) {
       setTrustRegistryState('ready')
       return () => { disposed = true }
     }
@@ -249,6 +384,53 @@ export function ResearchPresence({
       if (!disposed) setTrustRegistryState('unavailable')
     })
     return () => { disposed = true }
+  }, [projectId, registration])
+
+  useEffect(() => {
+    let disposed = false
+    setLocalIdentityKeyId(null)
+    if (!registration || (registration.mode !== 'live' && registration.mode !== 'drive-polling')) {
+      setLocalIdentityState('ready')
+      return
+    }
+    setLocalIdentityState('checking')
+    void collaborationIdentityStatus().then((report) => {
+      if (disposed) return
+      setLocalIdentityKeyId(report.keyId)
+      setLocalIdentityState('ready')
+    }).catch(() => {
+      if (!disposed) setLocalIdentityState('unavailable')
+    })
+    return () => { disposed = true }
+  }, [registration])
+
+  useEffect(() => {
+    let disposed = false
+    let refreshId = 0
+    setDirectoryInspection(null)
+    setDirectoryError(null)
+    if (!registration || (registration.mode !== 'live' && registration.mode !== 'drive-polling')) {
+      setDirectoryState('ready')
+      return () => { disposed = true }
+    }
+    const settings = getProjectSharedTypes(registration.awareness.doc).settings
+    const refresh = () => {
+      const currentRefresh = ++refreshId
+      void inspectProjectDeviceDirectory(settings, projectId).then((next) => {
+        if (disposed || currentRefresh !== refreshId) return
+        setDirectoryInspection(next)
+        setDirectoryState('ready')
+      }).catch(() => {
+        if (!disposed && currentRefresh === refreshId) setDirectoryState('unavailable')
+      })
+    }
+    setDirectoryState('checking')
+    settings.observe(refresh)
+    refresh()
+    return () => {
+      disposed = true
+      settings.unobserve(refresh)
+    }
   }, [projectId, registration])
 
   useEffect(() => {
@@ -342,6 +524,11 @@ export function ResearchPresence({
     return next
   }, [inspection, proofStatuses, trustRegistryState, trustReport])
 
+  const directoryTrustDecisions = useMemo(
+    () => new Map(trustReport?.decisions.map((decision) => [decision.keyId, decision.status]) ?? []),
+    [trustReport],
+  )
+
   const changeTrust = async (participant: PresenceParticipant, action: 'approve' | 'revoke') => {
     if (trustMutationInFlight.current) return
     const proof = participant.deviceProof
@@ -362,16 +549,76 @@ export function ResearchPresence({
     }
   }
 
+  const registerCurrentDevice = async () => {
+    if (!registration || (registration.mode !== 'live' && registration.mode !== 'drive-polling') ||
+      registrationInFlight.current || directoryState !== 'ready' || localIdentityState !== 'ready' ||
+      !directoryInspection?.healthy) return
+    registrationInFlight.current = true
+    setRegisteringDevice(true)
+    setDirectoryError(null)
+    try {
+      const proof = await collaborationIdentitySignRegistration({
+        schemaVersion: 1,
+        projectId,
+        participantId,
+      })
+      const settings = getProjectSharedTypes(registration.awareness.doc).settings
+      setDirectoryInspection(await publishProjectDeviceRegistration(settings, projectId, proof))
+      setLocalIdentityKeyId(proof.keyId)
+    } catch (error) {
+      setDirectoryError(error instanceof Error ? error.message : String(error))
+    } finally {
+      registrationInFlight.current = false
+      setRegisteringDevice(false)
+    }
+  }
+
+  const changeDirectoryTrust = async (keyId: string, action: 'approve' | 'revoke') => {
+    if (keyId === localIdentityKeyId || trustMutationInFlight.current || trustRegistryState !== 'ready' ||
+      !directoryInspection?.devices.some((device) => device.keyId === keyId)) return
+    const current = directoryTrustDecisions.get(keyId) ?? 'unapproved'
+    if ((action === 'approve' && current === 'approved') || (action === 'revoke' && current !== 'approved')) return
+    trustMutationInFlight.current = true
+    setBusyKeyId(keyId)
+    setDirectoryError(null)
+    try {
+      setTrustReport(await collaborationDeviceTrustChange(projectId, keyId, current, action))
+    } catch (error) {
+      setDirectoryError(error instanceof Error ? error.message : String(error))
+    } finally {
+      trustMutationInFlight.current = false
+      setBusyKeyId(null)
+    }
+  }
+
   return (
-    <ResearchPresenceView
-      mode={registration?.mode ?? null}
-      inspection={inspection}
-      proofStatuses={proofStatuses}
-      trustStatuses={trustStatuses}
-      busyKeyId={busyKeyId}
-      onApproveDevice={(participant) => { void changeTrust(participant, 'approve') }}
-      onRevokeDevice={(participant) => { void changeTrust(participant, 'revoke') }}
-      trustError={trustError}
-    />
+    <>
+      <ResearchPresenceView
+        mode={registration?.mode ?? null}
+        inspection={inspection}
+        proofStatuses={proofStatuses}
+        trustStatuses={trustStatuses}
+        busyKeyId={busyKeyId}
+        onApproveDevice={(participant) => { void changeTrust(participant, 'approve') }}
+        onRevokeDevice={(participant) => { void changeTrust(participant, 'revoke') }}
+        trustError={trustError}
+      />
+      <ProjectDeviceDirectoryView
+        mode={registration?.mode ?? null}
+        inspection={directoryInspection}
+        state={directoryState}
+        localKeyId={localIdentityKeyId}
+        identityState={localIdentityState}
+        participantId={participantId}
+        registering={registeringDevice}
+        error={directoryError}
+        trustState={trustRegistryState}
+        trustDecisions={directoryTrustDecisions}
+        busyTrustKeyId={busyKeyId}
+        onRegister={() => { void registerCurrentDevice() }}
+        onApproveDevice={(keyId) => { void changeDirectoryTrust(keyId, 'approve') }}
+        onRevokeDevice={(keyId) => { void changeDirectoryTrust(keyId, 'revoke') }}
+      />
+    </>
   )
 }

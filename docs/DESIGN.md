@@ -209,6 +209,17 @@ are disabled while one mutation is pending; native stale-state rejection surface
 error. Settings exposes only the local public fingerprint and repeats the device-only boundary; it
 offers no rotate control before shared enrollment and key recovery exist. Signature or local-registry
 failure must degrade to an explicit unsigned/unavailable state without blocking editing.
+Drive-shared and live projects add a separate **Project devices** section. Registration is never
+automatic: **Register this device in project** must disclose that the stable public fingerprint and
+self-reported project name become shared durable project state and may correlate the installation
+across projects where it is registered. Verified entries remain visible while their publisher is
+offline and may receive the same **Approve key**, **Revoke key**, or **Re-approve key** local label.
+More than one participant claim for a key is shown as **conflicting self-reported names**; the UI
+must not choose an identity. Invalid, excess, or unverifiable directory state blocks registration and
+trust actions but not editing. Existing registrations remain readable if the local OS identity vault
+is unavailable. Copy must say that registration does not verify a person or assign a role and that
+local approval/revocation does not grant or remove relay access. Local-only projects do not show the
+shared directory action.
 Self-hosted WS/WSS synchronization and an app-managed private-LAN relay are implemented. Trusted or
 project-shared device enrollment, roles, propagated revocation, durable-event signatures, public WSS
 hosting, and backup administration remain open. The portable archive is still a separate

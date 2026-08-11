@@ -14,6 +14,7 @@ import { inspectScenarioVotes, listScenarioVoteSummaries } from './scenarioVoteM
 import { inspectScenarioLabels, listScenarioIdsForLabel, listScenarioLabels } from './scenarioLabelModel'
 import { inspectSuggestions, listSuggestions } from './suggestionModel'
 import { inspectRegisteredProjectPresence } from './presenceRegistry'
+import { inspectProjectDeviceDirectory } from './projectDeviceDirectory'
 
 const MAX_RETURNED_ITEMS = 200
 
@@ -62,6 +63,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   const suggestions = listSuggestions(discussions)
   const suggestionInspection = inspectSuggestions(discussions)
   const presence = inspectRegisteredProjectPresence(expectedProjectId)
+  const projectDevices = await inspectProjectDeviceDirectory(settings, expectedProjectId)
   const adversarialReviewInspection = await inspectAdversarialReviewHistory(discussions)
   const allVersions = await listPolicyVersions(versionMap)
   const versions = allVersions.filter((version) => version.projectId === expectedProjectId)
@@ -87,6 +89,12 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   issues.push(...suggestionInspection.issues)
   issues.push(...adversarialReviewInspection.issues)
   if (presence.available && !presence.healthy) issues.push(`${presence.invalidRecords} presence record(s) failed validation or exceeded the bound`)
+  if (!projectDevices.healthy) {
+    issues.push(`${projectDevices.invalidRecords + projectDevices.unavailableRecords} project device registration(s) failed validation, verification, or bounds`)
+  }
+  if (projectDevices.conflictingDevices > 0) {
+    issues.push(`${projectDevices.conflictingDevices} project device key(s) claim conflicting participant IDs`)
+  }
   if (invalidVersionRecords > 0) issues.push(`${invalidVersionRecords} version record(s) failed hash/schema validation`)
   if (foreignProjectVersions > 0) issues.push(`${foreignProjectVersions} version record(s) belong to another project`)
   if (invalidLineageRecords > 0) issues.push(`${invalidLineageRecords} version record(s) have missing, cross-project, or cyclic ancestry`)
@@ -110,6 +118,22 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
     projectId: expectedProjectId,
     revision: startingRevision,
     presence,
+    projectDevices: {
+      registrationCount: projectDevices.registrationCount,
+      deviceCount: projectDevices.devices.length,
+      conflictingDevices: projectDevices.conflictingDevices,
+      invalidRecords: projectDevices.invalidRecords,
+      unavailableRecords: projectDevices.unavailableRecords,
+      excessRecords: projectDevices.excessRecords,
+      truncated: projectDevices.devices.length > MAX_RETURNED_ITEMS,
+      items: projectDevices.devices.slice(0, MAX_RETURNED_ITEMS).map((device) => ({
+        keyId: device.keyId,
+        fingerprint: device.fingerprint,
+        participantIds: device.participantIds,
+        status: device.status,
+        registrationCount: device.registrationCount,
+      })),
+    },
     heuristics: {
       totalRecords: heuristicMap.size,
       validRecords: validHeuristics.length,
@@ -285,6 +309,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
     limitations: [
       'inspection itself is read-only; separate revision-guarded MCP tools can mutate scenarios, votes, annotations, labels, and policy versions, but suggestion decisions, heuristic mutation, and broader scenario lifecycle remain unavailable through MCP',
       'presence reports only active provider mode and bounded session counts; Drive polling is explicitly not live presence, and inspection does not prove an underlying transport healthy',
+      'project device registrations expose stable public fingerprints and self-reported participant IDs from shared project state; they prove only possession of self-issued keys and grant no identity, role, revocation, or relay authority',
       'counts and integrity are checked; policy text, adversarial-review question/source/result/decision-note bodies, suggestion content and decision bodies, heuristic guidance, example bodies/attribution, and heuristic-check rationale, uncertainty, citation text, scenario background/turn content/revision bodies, scenario-evaluation response/rationale/uncertainty bodies, annotation/voter bodies, label event bodies, edit values, and version notes are omitted',
     ],
   }

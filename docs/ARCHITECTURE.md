@@ -99,7 +99,7 @@ packaged MCP surface before succeeding.
 | `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses, Anthropic Messages, Gemini Interactions, and xAI Responses one-shot/SSE wire contracts have fake-server evidence with bounded controls, custom-function schema mapping, non-executing proposal normalization, a depth/node/keyword-bounded schema subset, and exact post-assembly argument validation. Validation always separates structural status from unreviewed domain semantics and false execution authority. xAI's boolean ZDR response header is required before event dispatch and preserved in the run record. |
 | `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. Ordinary tasks use one native Send-once decision whose disclosure includes any tool names, descriptions, and argument schemas; normalized proposals stay transient and are never executed, while the content-free output hash commits to their bodies and validation state. The runtime matches calls only to definitions from the approved request and authors valid/invalid/missing-definition status before returning the final outcome. Adversarial execution uses one content-bound batch decision that freezes exact research bytes, graph/routes/dependencies/order/limits/budgets; atomically consumes calls; verifies upstream output hashes; derives phase prompts; uses fixed built-in endpoints and the OS vault; rejects unsafe JSON; and records content-free provenance. The product executor is reachable through typed Tauri wrappers and revision-guarded resumable MCP jobs. Loopback transport is proven; packaged dialog interaction and live-provider behavior are not. |
 | `provider_stream.rs` | Incremental provider SSE normalization. OpenAI, Anthropic, Gemini, and xAI decoders handle fragmented frames, text/usage/finish lifecycles, unknown future events, sanitized provider errors, and bounded malformed/truncated input. Custom function calls normalize to one bounded start/delta/complete proposal lifecycle; orphaned, mismatched, malformed, duplicate, or unfinished calls fail closed. Anthropic/Gemini private-thinking bodies remain omitted. |
-| `collaboration_identity.rs` | OS-vault Ed25519 installation key, public fingerprint report, and one narrowly typed live-presence signing command; it exposes no arbitrary signing or private-key read surface. |
+| `collaboration_identity.rs` | OS-vault Ed25519 installation key, public fingerprint report, and narrowly typed live-presence plus durable project-registration signing commands; it exposes no arbitrary signing or private-key read surface. |
 | `collaboration_device_trust.rs` | Bounded per-installation, per-project current-state approval/revocation registry for verified collaboration device fingerprints; exact-state mutations use a serialized crash-recoverable native replace and do not grant relay access. |
 | `credential_vault.rs` | Provider-secret abstraction backed by Windows Credential Manager, macOS Keychain, or Linux Secret Service/keyutils. Unit tests use only a memory implementation; a separate live harness creates and deletes a random OS-store canary. |
 
@@ -228,8 +228,8 @@ identifier grants project access but does not authenticate participant identity.
 
 Live WebSocket awareness can add a schema-v2 self-signed installation proof. Rust creates one
 Ed25519 key per installation and persists its PKCS#8 private bytes only in the operating-system
-credential store. The only signing command accepts exact bounded project, document, participant, Yjs-awareness
-client, and 32-byte random session-nonce fields. The frontend independently reconstructs the
+credential store. The live-presence signing command accepts exact bounded project, document,
+participant, Yjs-awareness client, and 32-byte random session-nonce fields. The frontend independently reconstructs the
 domain-separated canonical bytes and verifies the public-key fingerprint and signature with
 WebCrypto before showing **signed device**. Legacy schema-v1 awareness remains explicitly unsigned,
 and a missing vault or unsupported verifier never prevents collaboration. Focus/blur republishing
@@ -245,9 +245,23 @@ serializes a synced temporary-file/previous-file replace. A valid primary always
 copy is read only when the primary is missing, while a malformed primary fails closed. Decisions
 never enter Yjs, Drive, archives, relay frames, invitations, or another installation.
 
+Collaborative Drive and WebSocket projects also expose a separate explicit **Register this device in
+project** action. Its domain-separated deterministic signature binds only project and self-reported
+participant ID to the same installation public key. Valid registrations are stored as distinct
+plain Yjs settings records keyed by every signed identity field. Reads strictly parse and independently
+verify at most 200 records in batches of eight; more than 1,000 total settings entries fails the
+directory closed before signature work. Disconnected registrations converge, survive IndexedDB,
+Drive/full-state relay persistence and portable archives, and remain available when their publisher
+is offline. Multiple participant claims by one key remain visible as a conflict rather than selecting
+an identity. Explicit local approval/revocation controls apply to these offline entries through the
+same native registry. `inspect_research_state` returns bounded public fingerprints, participant IDs,
+counts, conflicts, and integrity state without gaining a registration or trust mutation route.
+
 This remains a device-key continuity foundation, not participant authentication. Keys are
 self-issued, and local approval is a user-editable label rather than trusted enrollment or an access
-control. There is no project-shared approval, role, propagated revocation list, trusted clock, key
+control. Durable registration is replayable by design, can be deleted or flooded by a bearer peer,
+and exposes a stable cross-project-correlatable public fingerprint only after explicit action. There
+is no project-shared approval, role, propagated revocation list, trusted clock, key
 rotation/recovery, or binding from a fingerprint to a person or organization. A holder can claim any
 participant ID, a rotated key appears unapproved, and an exact captured proof can still be replayed
 for the same project/document/client/nonce context. Durable Yjs research events are not signed. The

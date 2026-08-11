@@ -74,7 +74,7 @@ function decodeBase64Url(value, bytes) {
   return decoded
 }
 
-function parseProof(value) {
+function parsePresenceProof(value) {
   if (!exactKeys(value, ['schemaVersion', 'algorithm', 'keyId', 'publicKey', 'claim', 'signature']) ||
     value.schemaVersion !== 1 || value.algorithm !== 'Ed25519') throw new Error('Rust proof header was not exact')
   if (!exactKeys(value.claim, [
@@ -95,7 +95,24 @@ function parseProof(value) {
   return value
 }
 
-function canonicalClaim(claim) {
+function parseRegistrationProof(value) {
+  if (!exactKeys(value, ['schemaVersion', 'algorithm', 'keyId', 'publicKey', 'claim', 'signature']) ||
+    value.schemaVersion !== 1 || value.algorithm !== 'Ed25519') throw new Error('Rust registration header was not exact')
+  if (!exactKeys(value.claim, ['schemaVersion', 'projectId', 'participantId']) ||
+    value.claim.schemaVersion !== 1) throw new Error('Rust registration claim was not exact')
+  for (const id of [value.claim.projectId, value.claim.participantId]) {
+    if (typeof id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:@-]{0,199}$/.test(id)) {
+      throw new Error('Rust registration contained an invalid stable ID')
+    }
+  }
+  const publicKey = decodeBase64Url(value.publicKey, 32)
+  decodeBase64Url(value.signature, 64)
+  const keyId = `ed25519-sha256:${createHash('sha256').update(publicKey).digest('base64url')}`
+  if (value.keyId !== keyId) throw new Error('Rust registration key ID did not match its public key')
+  return value
+}
+
+function canonicalPresenceClaim(claim) {
   return Buffer.from([
     'syzygy-device-presence-v1',
     claim.projectId,
@@ -106,7 +123,15 @@ function canonicalClaim(claim) {
   ].join('\n'), 'utf8')
 }
 
-async function verifies(proof) {
+function canonicalRegistrationClaim(claim) {
+  return Buffer.from([
+    'syzygy-project-device-registration-v1',
+    claim.projectId,
+    claim.participantId,
+  ].join('\n'), 'utf8')
+}
+
+async function verifies(proof, canonicalClaim) {
   const key = await webcrypto.subtle.importKey(
     'raw',
     decodeBase64Url(proof.publicKey, 32),
@@ -134,8 +159,21 @@ const run = await runBounded(executable, [], {
 })
 const lines = run.stdout.trim().split(/\r?\n/)
 if (lines.length !== 1) throw new Error('Rust identity harness did not emit exactly one JSON record')
-const proof = parseProof(JSON.parse(lines[0]))
-if (!await verifies(proof)) throw new Error('WebCrypto rejected the canonical Rust signature')
+const output = JSON.parse(lines[0])
+if (!exactKeys(output, ['presence', 'registration'])) {
+  throw new Error('Rust identity harness output was not exact')
+}
+const proof = parsePresenceProof(output.presence)
+const registration = parseRegistrationProof(output.registration)
+if (proof.keyId !== registration.keyId || proof.publicKey !== registration.publicKey) {
+  throw new Error('Rust identity harness did not reuse one installation key')
+}
+if (!await verifies(proof, canonicalPresenceClaim)) {
+  throw new Error('WebCrypto rejected the canonical Rust presence signature')
+}
+if (!await verifies(registration, canonicalRegistrationClaim)) {
+  throw new Error('WebCrypto rejected the canonical Rust registration signature')
+}
 
 const mutations = [
   { ...proof, claim: { ...proof.claim, projectId: 'project-mutated' } },
@@ -144,9 +182,18 @@ const mutations = [
   { ...proof, claim: { ...proof.claim, awarenessClientId: proof.claim.awarenessClientId - 1 } },
 ]
 for (const mutation of mutations) {
-  if (await verifies(mutation)) throw new Error('WebCrypto accepted a mutated Rust claim')
+  if (await verifies(mutation, canonicalPresenceClaim)) throw new Error('WebCrypto accepted a mutated Rust claim')
 }
-const serialized = JSON.stringify(proof).toLowerCase()
+const registrationMutations = [
+  { ...registration, claim: { ...registration.claim, projectId: 'project-mutated' } },
+  { ...registration, claim: { ...registration.claim, participantId: 'participant-mutated' } },
+]
+for (const mutation of registrationMutations) {
+  if (await verifies(mutation, canonicalRegistrationClaim)) {
+    throw new Error('WebCrypto accepted a mutated Rust project registration')
+  }
+}
+const serialized = JSON.stringify(output).toLowerCase()
 if (['privatekey', 'private_key', 'pkcs8', 'secret'].some((term) => serialized.includes(term))) {
   throw new Error('Rust identity harness exposed private-material naming')
 }
@@ -155,6 +202,9 @@ console.log(JSON.stringify({
   schemaVersion: 1,
   rustToWebCryptoVerified: true,
   rejectedSignedClaimMutations: mutations.length,
+  durableRegistrationVerified: true,
+  rejectedRegistrationMutations: registrationMutations.length,
+  oneInstallationKeyReused: true,
   privateMaterialExposed: false,
   exactSameSessionReplayRejected: false,
   replayBoundary: 'proof binds project, document, participant, awareness client, and random session nonce; no trusted clock or revocation authority exists yet',

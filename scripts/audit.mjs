@@ -189,15 +189,18 @@ record(
     collaborationIdentitySource.includes('org.penumbra.syzygy.collaboration-identity') &&
     collaborationIdentitySource.includes('installation-ed25519-v1') &&
     collaborationIdentitySource.includes('syzygy-device-presence-v1') &&
+    collaborationIdentitySource.includes('syzygy-project-device-registration-v1') &&
     collaborationIdentitySource.includes('installation-device-not-human-identity') &&
     collaborationIdentitySource.includes('private_key_pkcs8: String') &&
     collaborationIdentitySource.includes('Zeroizing') &&
     collaborationIdentitySource.includes('self.private_key_pkcs8.zeroize()') &&
     collaborationIdentitySource.includes('IDENTITY_LOCK') &&
     collaborationIdentitySource.includes('collaboration_identity_sign_presence') &&
-    (collaborationIdentitySource.match(/#\[tauri::command\]/g)?.length ?? 0) === 2 &&
+    collaborationIdentitySource.includes('collaboration_identity_sign_registration') &&
+    (collaborationIdentitySource.match(/#\[tauri::command\]/g)?.length ?? 0) === 3 &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_status') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_presence') &&
+    collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_registration') &&
     collaborationIdentityFrontend.includes("Object.keys(value).sort().join(',')") &&
     collaborationIdentityFrontend.includes("return 'unavailable'") &&
     collaborationIdentityFrontend.includes("? 'verified-device'") &&
@@ -211,6 +214,8 @@ record(
     frontendPackage.scripts?.['test:collaboration:identity'] === 'node ../scripts/collaboration-identity-interop.mjs' &&
     collaborationIdentityInterop.includes('deadlineMs: 30_000') &&
     collaborationIdentityInterop.includes('WebCrypto accepted a mutated Rust claim') &&
+    collaborationIdentityInterop.includes('durableRegistrationVerified: true') &&
+    collaborationIdentityInterop.includes('oneInstallationKeyReused: true') &&
     collaborationIdentityEvidence.includes('"rustToWebCryptoVerified": true') &&
     collaborationIdentityEvidence.includes('"exactSameSessionReplayRejected": false') &&
     collaborationIdentityEvidence.includes('"humanIdentityAuthenticated": false') &&
@@ -253,6 +258,40 @@ record(
     collaborationTrustEvidence.includes('"fullValidationPending": false') &&
     collaborationTrustEvidence.includes('"status": "implemented_unverified"'),
   '1 MiB/64-project/64-key native current-state registry, strict stale transitions, synced recovery replace, one-at-a-time local controls, and explicit shared-identity/relay/tamper nonclaims are present',
+)
+
+const projectDeviceDirectorySource = text('frontend/src/workspace/projectDeviceDirectory.ts')
+const projectDeviceDirectoryTest = text('frontend/src/workspace/projectDeviceDirectory.test.ts')
+const projectDeviceResearchInspection = text('frontend/src/workspace/researchStateInspection.ts')
+const projectDeviceMcp = text('frontend/src-tauri/src/mcp.rs')
+const projectDeviceEvidence = text('docs/audits/runs/SIGNED-PROJECT-DEVICE-DIRECTORY-2026-08-11.json')
+record(
+  'signed project device registrations remain explicit, bounded, convergent, inspectable, and authority-honest',
+  projectDeviceDirectorySource.includes("PROJECT_DEVICE_REGISTRATION_PREFIX = 'collaboration-device-registration:v1:'") &&
+    projectDeviceDirectorySource.includes('MAX_PROJECT_DEVICE_REGISTRATIONS = 200') &&
+    projectDeviceDirectorySource.includes('MAX_PROJECT_SETTINGS_SCAN = 1_000') &&
+    projectDeviceDirectorySource.includes('MAX_REGISTRATION_VERIFICATION_CONCURRENCY = 8') &&
+    projectDeviceDirectorySource.includes("'participant-claim-conflict'") &&
+    projectDeviceDirectorySource.includes("'syzygy-project-device-registration'") &&
+    projectDeviceDirectoryTest.includes('converges disconnected devices, and reopens offline') &&
+    projectDeviceDirectoryTest.includes('without selecting an identity') &&
+    projectDeviceDirectoryTest.includes('poisoned directories before write') &&
+    collaborationIdentityPresence.includes('Register this device in project') &&
+    collaborationIdentityPresence.includes('correlate this installation across') &&
+    collaborationIdentityPresence.includes('Local approval or revocation does not grant or remove relay access') &&
+    projectDeviceResearchInspection.includes('projectDevices:') &&
+    projectDeviceResearchInspection.includes('stable public fingerprints and self-reported participant IDs') &&
+    projectDeviceMcp.includes('signed device registrations') &&
+    projectDeviceEvidence.includes('"sameInstallationKeyReusedAcrossDomains": true') &&
+    projectDeviceEvidence.includes('"registrationAutomatic": false') &&
+    projectDeviceEvidence.includes('"durableRegistrationReplayRejected": false') &&
+    projectDeviceEvidence.includes('"bearerPeerDeletionOrFloodPrevented": false') &&
+    projectDeviceEvidence.includes('"sharedEnrollmentOrRoleImplemented": false') &&
+    projectDeviceEvidence.includes('"fullFrontendTestsPassed": 505') &&
+    projectDeviceEvidence.includes('"structuralAuditPassed": true') &&
+    projectDeviceEvidence.includes('"fullValidationPending": false') &&
+    projectDeviceEvidence.includes('"status": "implemented_unverified"'),
+  'separate same-key signature domain, explicit correlation disclosure, 200/1000/eight-way bounds, disconnected/offline/conflict/poison proofs, read-only MCP metadata, and replay/deletion/identity/authority nonclaims are present',
 )
 
 const sourceFiles = [

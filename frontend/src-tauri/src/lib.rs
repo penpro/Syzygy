@@ -226,6 +226,7 @@ pub fn run() {
             collaboration_relay_runtime::collaboration_relay_configure,
             collaboration_identity::collaboration_identity_status,
             collaboration_identity::collaboration_identity_sign_presence,
+            collaboration_identity::collaboration_identity_sign_registration,
             collaboration_device_trust::collaboration_device_trust_status,
             collaboration_device_trust::collaboration_device_trust_change,
             mcp_setup::mcp_connection_info,

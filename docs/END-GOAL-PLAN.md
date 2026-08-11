@@ -158,10 +158,14 @@ claim binds the project, document, self-reported participant, awareness client, 
 nonce; legacy/invalid/unavailable states remain visible and do not block editing. This does not
 authenticate a person: keys are self-issued, but a verified fingerprint can now receive one bounded
 per-installation, per-project approved/revoked label with exact-state native mutations. Those labels
-are local user preferences and explicitly do not alter relay access. Trusted project-shared
-enrollment, roles, propagated revocation, rotation/recovery, exact same-session replay rejection,
-durable Yjs event signatures, physical two-install cursor proof, and five-client soak remain open,
-so P-11 is `implemented_unverified`.
+are local user preferences and explicitly do not alter relay access. A second typed signature now
+supports explicit deterministic project-device registration in bounded Yjs state. Registrations
+converge across disconnected peers, reopen offline, remain locally approvable while the peer is
+absent, expose stable-key correlation, retain conflicting participant claims, and appear in bounded
+read-only MCP inspection. They are self-registration evidence, not shared approval. Trusted
+project-shared enrollment, roles, propagated revocation, rotation/recovery, exact same-session replay
+rejection, signed durable research events, physical two-install product proof, and five-client soak
+remain open, so P-11 is `implemented_unverified`.
 
 
 P-04 now has a Penumbra-original typed Yjs domain service and deterministic headless evidence for
@@ -422,10 +426,11 @@ signaling/privacy/reliability spike passes.
 Current identity progress is deliberately narrower than the phase auth hook: one OS-vault Ed25519
 key signs a typed ephemeral presence claim, and Rust-to-WebCrypto interop rejects changed
 project/document/participant/client fields. The first fingerprint approval/revocation increment is
-implemented only as a local project-scoped current-state label and never changes relay access. The
-next identity increment must define trusted shared enrollment, project-scoped roles, revocation
-propagation, durable event signatures, key rotation/recovery, and a replay policy before the product
-may say authenticated.
+implemented only as a local project-scoped current-state label and never changes relay access. A
+signed durable self-registration directory now makes fingerprints inspectable offline but grants no
+authority and is replayable/deletable by bearer peers. The next identity increment must define
+trusted shared enrollment, project-scoped roles, revocation propagation, durable research-event
+signatures, key rotation/recovery, and a replay policy before the product may say authenticated.
 
 Gate: five-client rapid-edit soak converges; stale presence disappears; restart/partition loses
 no edit; schema is unchanged when switching providers; P-11/P-12/S-05 pass.

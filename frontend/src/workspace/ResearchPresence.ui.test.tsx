@@ -2,7 +2,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { DevicePresenceProof } from '../tauri'
 import type { PresenceInspection } from './presenceModel'
-import { ResearchPresenceView } from './ResearchPresence'
+import type { ProjectDeviceDirectoryInspection } from './projectDeviceDirectory'
+import { ProjectDeviceDirectoryView, ResearchPresenceView } from './ResearchPresence'
 
 const inspection: PresenceInspection = {
   healthy: true,
@@ -35,6 +36,28 @@ const signedRemoteInspection: PresenceInspection = {
   ...inspection,
   participants: inspection.participants.map((participant) =>
     participant.clientId === 2 ? { ...participant, deviceProof } : participant),
+}
+
+const directoryInspection: ProjectDeviceDirectoryInspection = {
+  healthy: true,
+  registrationCount: 1,
+  verifiedRegistrations: [{
+    keyId: deviceProof.keyId,
+    publicKey: deviceProof.publicKey,
+    participantId: 'alice',
+  }],
+  devices: [{
+    keyId: deviceProof.keyId,
+    publicKey: deviceProof.publicKey,
+    fingerprint: 'A'.repeat(43),
+    participantIds: ['alice'],
+    registrationCount: 1,
+    status: 'registered-device',
+  }],
+  conflictingDevices: 0,
+  invalidRecords: 0,
+  unavailableRecords: 0,
+  excessRecords: 0,
 }
 
 describe('research presence surface', () => {
@@ -117,5 +140,92 @@ describe('research presence surface', () => {
     }} />)
     expect(html).toContain('2 invalid or excess presence records hidden')
     expect(html).toContain('role="alert"')
+  })
+})
+
+describe('project device directory surface', () => {
+  it('requires explicit registration and discloses persistence, correlation, identity, role, and access boundaries', () => {
+    const html = renderToStaticMarkup(<ProjectDeviceDirectoryView
+      mode="drive-polling"
+      inspection={{ ...directoryInspection, registrationCount: 0, verifiedRegistrations: [], devices: [] }}
+      state="ready"
+      localKeyId={deviceProof.keyId}
+      identityState="ready"
+      trustState="ready"
+      participantId="alice"
+      onRegister={() => {}}
+    />)
+    expect(html).toContain('Register this device in project')
+    expect(html).toContain('stable public fingerprint')
+    expect(html).toContain('correlate this installation across projects')
+    expect(html).toContain('Registration does not verify a person or assign a role')
+    expect(html).toContain('does not grant or remove relay access')
+  })
+
+  it('shows durable registered state, short fingerprint, conflicts, and fail-closed health', () => {
+    const registered = renderToStaticMarkup(<ProjectDeviceDirectoryView
+      mode="live"
+      inspection={directoryInspection}
+      state="ready"
+      localKeyId={deviceProof.keyId}
+      identityState="ready"
+      trustState="ready"
+      participantId="alice"
+    />)
+    expect(registered).toContain('1 signed device key registered in shared project state')
+    expect(registered).toContain('key AAAAAAAAAAAA')
+    expect(registered).toContain('this device key')
+    expect(registered).toContain('This installation key is registered')
+
+    const approvedRemote = renderToStaticMarkup(<ProjectDeviceDirectoryView
+      mode="drive-polling"
+      inspection={directoryInspection}
+      state="ready"
+      localKeyId={`ed25519-sha256:${'B'.repeat(43)}`}
+      identityState="ready"
+      trustState="ready"
+      trustDecisions={new Map([[deviceProof.keyId, 'approved']])}
+      participantId="local-researcher"
+      onRevokeDevice={() => {}}
+    />)
+    expect(approvedRemote).toContain('key approved locally')
+    expect(approvedRemote).toContain('Revoke key')
+
+    const unhealthy = renderToStaticMarkup(<ProjectDeviceDirectoryView
+      mode="live"
+      inspection={{
+        ...directoryInspection,
+        healthy: false,
+        conflictingDevices: 1,
+        invalidRecords: 1,
+        devices: [{
+          ...directoryInspection.devices[0],
+          participantIds: ['alice', 'mallory'],
+          status: 'participant-claim-conflict',
+        }],
+      }}
+      state="ready"
+      localKeyId={null}
+      identityState="unavailable"
+      trustState="ready"
+      participantId="alice"
+      onRegister={() => {}}
+    />)
+    expect(unhealthy).toContain('Registration is blocked')
+    expect(unhealthy).toContain('conflicting self-reported names')
+    expect(unhealthy).toContain('OS device identity is unavailable')
+    expect(unhealthy).toContain('disabled=""')
+  })
+
+  it('does not expose the shared directory in a local-only project', () => {
+    expect(renderToStaticMarkup(<ProjectDeviceDirectoryView
+      mode="local-only"
+      inspection={directoryInspection}
+      state="ready"
+      localKeyId={deviceProof.keyId}
+      identityState="ready"
+      trustState="ready"
+      participantId="alice"
+    />)).toBe('')
   })
 })

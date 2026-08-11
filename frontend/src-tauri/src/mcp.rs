@@ -321,7 +321,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "inspect_research_state",
-            "Inspect bounded read-only metadata and integrity checks for the active project's collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and immutable policy-version history. Omits policy text, scenario/annotation/voter bodies, label-event bodies, heuristic guidance/edit values, and version notes; grants no mutation authority.",
+            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and immutable policy-version history. Device entries expose stable public fingerprints plus self-reported participant IDs but grant no identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
             object_schema(&[], &[]),
         ),
         tool(

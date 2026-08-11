@@ -304,8 +304,10 @@ signature states, legacy unsigned compatibility, one native signing call per liv
 restoration after Lexical focus/blur republishes its original awareness data, an all-signed-field
 verification cache key, and 200-pending/400-cache-entry bounds. Run
 `npm run test:collaboration:identity` to build the exact Rust harness under a 120-second deadline and
-verify its canonical signature plus four claim mutations through Node WebCrypto; the proof output
-must contain no private-material field. The native `collaboration_device_trust` tests additionally
+verify the same generated installation key signs the canonical ephemeral-presence and durable
+project-registration domains, with four presence and two registration claim mutations rejected by
+Node WebCrypto; the proof output must contain no private-material field. The native
+`collaboration_device_trust` tests additionally
 require exact-state approve/revoke/re-approve transitions, per-project isolation, corrupt-primary
 fail-closed behavior, missing-primary recovery, primary precedence, canonical key IDs, and unchanged
 saved bytes after 64-device or 64-project bound rejection. `ResearchPresence.ui.test.tsx` requires
@@ -317,6 +319,18 @@ project record or access-control boundary. It does not prove trusted/shared key 
 identity, roles, relay authorization, propagated revocation, same-session replay prevention, key
 rotation/recovery, durable event signatures, a physical two-install cursor run, or the Phase 5
 five-client soak.
+
+`projectDeviceDirectory.test.ts` is the durable registration gate. It requires explicit strict
+Ed25519 project/participant registration proofs, idempotent publish, disconnected merge convergence,
+offline full-state reopen, cross-project and participant-mutation rejection, exact storage-key
+binding, visible same-key participant conflicts, 200-registration and 1,000-settings fail-closed
+bounds, and no write into a poisoned directory. Signature verification runs in batches of at most
+eight. `ResearchPresence.ui.test.tsx` requires explicit registration, stable-fingerprint correlation
+copy, offline local approval controls, conflict/integrity warnings, and no directory surface in a
+local-only project. `researchStateInspection.test.ts` proves the existing read-only MCP route returns
+only bounded public device metadata and omits hostile record bodies. This does not prove that a
+registration is append-only against a bearer peer, trusted enrollment, identity, role, shared
+approval/revocation, relay authorization, or a signed durable research event.
 
 The same suite includes `heuristicsModel.test.ts`. Forty seeded delivery orders prove concurrent
 field edits retain both values and attribution events, and another forty prove concurrent additions

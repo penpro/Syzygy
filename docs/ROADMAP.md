@@ -159,13 +159,18 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   discard the proof. This proves only possession of a self-issued device key for the current bounded
   session. Verified fingerprints can now be approved, revoked, and re-approved in a bounded native
   current-state registry scoped to one installation and project. The UI explicitly denies that these
-  local labels change relay access. Trusted/shared enrollment, human identity, roles, propagated
-  revocation, key rotation/recovery, durable-event signatures, physical two-install cursor proof,
-  and five-client soak do not exist, so P-11 remains
+  local labels change relay access. An explicit second signature now publishes a deterministic
+  project/participant/key registration into bounded shared Yjs state. Disconnected registrations
+  converge and reopen offline; same-key participant conflicts stay visible; Drive/live UI and the
+  read-only MCP inspection expose the exact device-only boundary; offline entries can receive local
+  approval labels. Trusted/shared enrollment, human identity, roles, propagated revocation, key
+  rotation/recovery, signed durable research events, physical two-install product proof, and
+  five-client soak do not exist, so P-11 remains
   `implemented_unverified`. Evidence:
   `docs/audits/runs/PRESENCE-LIFECYCLE-2026-07-18.json` and
   `docs/audits/runs/SIGNED-DEVICE-PRESENCE-2026-08-11.json` and
-  `docs/audits/runs/LOCAL-DEVICE-TRUST-2026-08-11.json`.
+  `docs/audits/runs/LOCAL-DEVICE-TRUST-2026-08-11.json` and
+  `docs/audits/runs/SIGNED-PROJECT-DEVICE-DIRECTORY-2026-08-11.json`.
 - P-16 now connects selected scenarios to one bounded provider-neutral response contract. Local
   generation uses the optional loopback model; OpenAI, Anthropic, Gemini, and xAI reuse the native
   Send once boundary. Output enters the existing collaborative response lineage only when the exact
@@ -607,8 +612,10 @@ collaborators are not required to download large project folders.
    identity foundation now gives each installation an OS-vault Ed25519 key and signs only bounded
    ephemeral presence. Cross-language mutation tests pass, and a local project-scoped registry now
    labels verified fingerprints approved or revoked without changing relay access. Keys remain
-   self-issued; decisions are neither shared nor authoritative, exact same-session replay and
-   participant-ID impersonation remain possible, and durable research events are unsigned. Next: add
+   self-issued; an explicit signed project directory now keeps device registrations available
+   offline and exposes participant-claim conflicts, but local decisions are neither shared nor
+   authoritative, exact same-session replay and participant-ID impersonation remain possible, and
+   durable research events are unsigned. Next: add
    trusted project-shared enrollment, roles and revocation propagation, signed durable-event
    envelopes, key rotation/recovery, public WSS operations, compaction/export/backups
    and broader abuse controls, then run packaged physical two-install and five-client soak gates.

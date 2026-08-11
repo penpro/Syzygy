@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { ProjectDeviceRegistrationProof } from '../tauri'
 import { createHeuristic } from './heuristicsModel'
 import { buildHeuristicCheckRequest, HEURISTIC_CHECK_CONTRACT_VERSION } from './heuristicCheck'
 import { commitHeuristicCheckResult } from './heuristicCheckResultModel'
@@ -13,8 +14,40 @@ import { castScenarioVote } from './scenarioVoteModel'
 import { createScenarioLabel, setScenarioLabelAssignment } from './scenarioLabelModel'
 import { createSuggestion } from './suggestionModel'
 import { createProjectManifest } from './schema'
+import { canonicalProjectDeviceRegistrationClaim } from './deviceIdentity'
+import { PROJECT_DEVICE_REGISTRATION_PREFIX, publishProjectDeviceRegistration } from './projectDeviceDirectory'
 
 const manifest = createProjectManifest({ id: 'inspection-project', documentId: 'inspection-document', timestamp: 1 })
+
+function encodeBase64Url(value: Uint8Array): string {
+  let binary = ''
+  for (const byte of value) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+function asArrayBuffer(value: Uint8Array): ArrayBuffer {
+  const copy = new ArrayBuffer(value.byteLength)
+  new Uint8Array(copy).set(value)
+  return copy
+}
+
+async function signedDeviceRegistration(): Promise<ProjectDeviceRegistrationProof> {
+  const claim = { schemaVersion: 1 as const, projectId: manifest.id, participantId: 'researcher-1' }
+  const keys = await crypto.subtle.generateKey({ name: 'Ed25519' }, true, ['sign', 'verify']) as CryptoKeyPair
+  const publicKey = new Uint8Array(await crypto.subtle.exportKey('raw', keys.publicKey))
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', asArrayBuffer(publicKey)))
+  const signature = new Uint8Array(await crypto.subtle.sign(
+    { name: 'Ed25519' }, keys.privateKey, asArrayBuffer(canonicalProjectDeviceRegistrationClaim(claim)),
+  ))
+  return {
+    schemaVersion: 1,
+    algorithm: 'Ed25519',
+    keyId: `ed25519-sha256:${encodeBase64Url(digest)}`,
+    publicKey: encodeBase64Url(publicKey),
+    claim,
+    signature: encodeBase64Url(signature),
+  }
+}
 
 async function populatedDocument() {
   const doc = createProjectDocument(manifest)
@@ -108,12 +141,14 @@ async function populatedDocument() {
     eventId: 'inspection-complete', resultId: 'inspection-result',
     authorId: 'researcher-1', authorDisplayName: 'Researcher One', timestamp: 18,
   })
-  return { doc, version }
+  const registrationProof = await signedDeviceRegistration()
+  await publishProjectDeviceRegistration(settings, manifest.id, registrationProof)
+  return { doc, version, registrationProof }
 }
 
 describe('research state inspection', () => {
   it('returns bounded metadata and a healthy integrity result without research bodies', async () => {
-    const { doc, version } = await populatedDocument()
+    const { doc, version, registrationProof } = await populatedDocument()
     const result = await inspectResearchState(doc, manifest.id)
     expect(result.selfCheck).toEqual({ healthy: true, issues: [] })
     expect(result.heuristics).toMatchObject({ totalRecords: 1, validRecords: 1, invalidRecords: 0 })
@@ -147,6 +182,22 @@ describe('research state inspection', () => {
     expect(result.adversarialReviews).toEqual({
       archiveCount: 0, decisionCount: 0, invalidRecords: 0,
       conflictedRunIds: [], truncated: false, items: [],
+    })
+    expect(result.projectDevices).toEqual({
+      registrationCount: 1,
+      deviceCount: 1,
+      conflictingDevices: 0,
+      invalidRecords: 0,
+      unavailableRecords: 0,
+      excessRecords: 0,
+      truncated: false,
+      items: [{
+        keyId: registrationProof.keyId,
+        fingerprint: registrationProof.keyId.replace('ed25519-sha256:', ''),
+        participantIds: ['researcher-1'],
+        status: 'registered-device',
+        registrationCount: 1,
+      }],
     })
     expect(result.versions).toMatchObject({ totalRecords: 1, validRecords: 1, invalidRecords: 0, headVersionId: version.versionId, headLineageDepth: 1 })
     const serialized = JSON.stringify(result)
@@ -183,6 +234,19 @@ describe('research state inspection', () => {
         'Scenario label assignments target missing scenario source-challenge',
       ],
     })
+  })
+
+  it('reports a malformed signed-device directory record through the read-only MCP projection', async () => {
+    const { doc } = await populatedDocument()
+    getProjectSharedTypes(doc).settings.set(`${PROJECT_DEVICE_REGISTRATION_PREFIX}hostile`, {
+      role: 'admin',
+      secretResearchBody: 'must-not-leak',
+    })
+    const result = await inspectResearchState(doc, manifest.id)
+    expect(result.projectDevices).toMatchObject({ invalidRecords: 1, deviceCount: 1 })
+    expect(result.selfCheck.healthy).toBe(false)
+    expect(result.selfCheck.issues).toContain('1 project device registration(s) failed validation, verification, or bounds')
+    expect(JSON.stringify(result)).not.toContain('must-not-leak')
   })
 
   it('reports a tampered version and invalid head lineage without throwing', async () => {

@@ -137,6 +137,21 @@ export interface DevicePresenceProof {
   signature: string
 }
 
+export interface ProjectDeviceRegistrationClaim {
+  schemaVersion: 1
+  projectId: string
+  participantId: string
+}
+
+export interface ProjectDeviceRegistrationProof {
+  schemaVersion: 1
+  algorithm: 'Ed25519'
+  keyId: string
+  publicKey: string
+  claim: ProjectDeviceRegistrationClaim
+  signature: string
+}
+
 export type DeviceTrustStatus = 'unapproved' | 'approved' | 'revoked'
 export type DeviceTrustAction = 'approve' | 'revoke'
 
@@ -767,6 +782,11 @@ export const collaborationIdentityStatus = (): Promise<CollaborationIdentityRepo
 export const collaborationIdentitySignPresence = (
   claim: PresenceIdentityClaim,
 ): Promise<DevicePresenceProof> => invoke('collaboration_identity_sign_presence', { claim })
+
+/** Sign one replayable project-directory registration; this proves device-key possession, not identity or access. */
+export const collaborationIdentitySignRegistration = (
+  claim: ProjectDeviceRegistrationClaim,
+): Promise<ProjectDeviceRegistrationProof> => invoke('collaboration_identity_sign_registration', { claim })
 
 /** Local project-scoped device-key decisions. This does not return or grant relay authorization. */
 export const collaborationDeviceTrustStatus = (projectId: string): Promise<DeviceTrustReport> =>

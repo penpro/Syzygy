@@ -1,9 +1,9 @@
 //! Native cryptographic installation identity for collaboration attribution.
 //!
 //! The private Ed25519 PKCS#8 document stays in the operating-system credential store. The webview
-//! can request only one typed live-presence signature; there is no arbitrary signing command and no
-//! command returns the private material. A valid signature proves possession of this installation
-//! key, not a person's legal or organizational identity.
+//! can request only typed live-presence or durable project-registration signatures; there is no
+//! arbitrary signing command and no command returns the private material. A valid signature proves
+//! possession of this installation key, not a person's legal or organizational identity.
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;
@@ -20,6 +20,8 @@ const ACCOUNT: &str = "installation-ed25519-v1";
 const IDENTITY_SCHEMA_VERSION: u8 = 1;
 const PRESENCE_SCHEMA_VERSION: u8 = 1;
 const PRESENCE_DOMAIN: &str = "syzygy-device-presence-v1";
+const REGISTRATION_SCHEMA_VERSION: u8 = 1;
+const REGISTRATION_DOMAIN: &str = "syzygy-project-device-registration-v1";
 const MAX_STORED_IDENTITY_BYTES: usize = 1_024;
 static IDENTITY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -48,6 +50,14 @@ pub struct PresenceIdentityClaim {
     pub session_nonce: String,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectDeviceRegistrationClaim {
+    pub schema_version: u8,
+    pub project_id: String,
+    pub participant_id: String,
+}
+
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CollaborationIdentityReport {
@@ -69,6 +79,24 @@ pub struct DevicePresenceProof {
     pub public_key: String,
     pub claim: PresenceIdentityClaim,
     pub signature: String,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectDeviceRegistrationProof {
+    pub schema_version: u8,
+    pub algorithm: String,
+    pub key_id: String,
+    pub public_key: String,
+    pub claim: ProjectDeviceRegistrationClaim,
+    pub signature: String,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct CollaborationIdentityInteropProofs {
+    pub presence: DevicePresenceProof,
+    pub registration: ProjectDeviceRegistrationProof,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -237,6 +265,18 @@ fn validate_claim(claim: &PresenceIdentityClaim) -> Result<(), IdentityError> {
     Ok(())
 }
 
+fn validate_registration_claim(
+    claim: &ProjectDeviceRegistrationClaim,
+) -> Result<(), IdentityError> {
+    if claim.schema_version != REGISTRATION_SCHEMA_VERSION
+        || !stable_id(&claim.project_id)
+        || !stable_id(&claim.participant_id)
+    {
+        return Err(IdentityError::InvalidClaim);
+    }
+    Ok(())
+}
+
 pub fn canonical_presence_claim(claim: &PresenceIdentityClaim) -> Result<Vec<u8>, String> {
     validate_claim(claim).map_err(|error| error.to_string())?;
     Ok(format!(
@@ -246,6 +286,17 @@ pub fn canonical_presence_claim(claim: &PresenceIdentityClaim) -> Result<Vec<u8>
         claim.participant_id,
         claim.awareness_client_id,
         claim.session_nonce,
+    )
+    .into_bytes())
+}
+
+pub fn canonical_registration_claim(
+    claim: &ProjectDeviceRegistrationClaim,
+) -> Result<Vec<u8>, String> {
+    validate_registration_claim(claim).map_err(|error| error.to_string())?;
+    Ok(format!(
+        "{REGISTRATION_DOMAIN}\n{}\n{}",
+        claim.project_id, claim.participant_id,
     )
     .into_bytes())
 }
@@ -261,6 +312,25 @@ fn sign_presence(
     let signature = key_pair.sign(&message);
     Ok(DevicePresenceProof {
         schema_version: PRESENCE_SCHEMA_VERSION,
+        algorithm: "Ed25519".into(),
+        key_id: format!("ed25519-sha256:{fingerprint}"),
+        public_key: URL_SAFE_NO_PAD.encode(public_key),
+        claim,
+        signature: URL_SAFE_NO_PAD.encode(signature.as_ref()),
+    })
+}
+
+fn sign_registration(
+    identity: &StoredIdentity,
+    claim: ProjectDeviceRegistrationClaim,
+) -> Result<ProjectDeviceRegistrationProof, IdentityError> {
+    let message = canonical_registration_claim(&claim).map_err(|_| IdentityError::InvalidClaim)?;
+    let key_pair = key_pair(identity)?;
+    let public_key = key_pair.public_key().as_ref();
+    let fingerprint = fingerprint(public_key);
+    let signature = key_pair.sign(&message);
+    Ok(ProjectDeviceRegistrationProof {
+        schema_version: REGISTRATION_SCHEMA_VERSION,
         algorithm: "Ed25519".into(),
         key_id: format!("ed25519-sha256:{fingerprint}"),
         public_key: URL_SAFE_NO_PAD.encode(public_key),
@@ -291,11 +361,52 @@ pub fn verify_presence_proof(proof: &DevicePresenceProof) -> Result<(), String> 
         .map_err(|_| "Collaboration device signature did not verify".to_string())
 }
 
+pub fn verify_registration_proof(proof: &ProjectDeviceRegistrationProof) -> Result<(), String> {
+    if proof.schema_version != REGISTRATION_SCHEMA_VERSION || proof.algorithm != "Ed25519" {
+        return Err("Project device registration header is invalid".into());
+    }
+    let public_key = URL_SAFE_NO_PAD
+        .decode(&proof.public_key)
+        .map_err(|_| "Project device registration public key is invalid".to_string())?;
+    let signature = URL_SAFE_NO_PAD
+        .decode(&proof.signature)
+        .map_err(|_| "Project device registration signature is invalid".to_string())?;
+    if public_key.len() != 32
+        || signature.len() != 64
+        || proof.key_id != format!("ed25519-sha256:{}", fingerprint(&public_key))
+    {
+        return Err("Project device registration identity is invalid".into());
+    }
+    let message = canonical_registration_claim(&proof.claim)?;
+    UnparsedPublicKey::new(&ED25519, public_key)
+        .verify(&message, &signature)
+        .map_err(|_| "Project device registration signature did not verify".to_string())
+}
+
 pub fn ephemeral_presence_proof(
     claim: PresenceIdentityClaim,
 ) -> Result<DevicePresenceProof, String> {
     let identity = generate_identity().map_err(|error| error.to_string())?;
     sign_presence(&identity, claim).map_err(|error| error.to_string())
+}
+
+pub fn ephemeral_registration_proof(
+    claim: ProjectDeviceRegistrationClaim,
+) -> Result<ProjectDeviceRegistrationProof, String> {
+    let identity = generate_identity().map_err(|error| error.to_string())?;
+    sign_registration(&identity, claim).map_err(|error| error.to_string())
+}
+
+pub fn ephemeral_identity_interop_proofs(
+    presence_claim: PresenceIdentityClaim,
+    registration_claim: ProjectDeviceRegistrationClaim,
+) -> Result<CollaborationIdentityInteropProofs, String> {
+    let identity = generate_identity().map_err(|error| error.to_string())?;
+    Ok(CollaborationIdentityInteropProofs {
+        presence: sign_presence(&identity, presence_claim).map_err(|error| error.to_string())?,
+        registration: sign_registration(&identity, registration_claim)
+            .map_err(|error| error.to_string())?,
+    })
 }
 
 #[tauri::command]
@@ -316,6 +427,17 @@ pub fn collaboration_identity_sign_presence(
         .map_err(|_| "OS collaboration identity storage is unavailable".to_string())?;
     let identity = load_or_create(&OsIdentityStore).map_err(|error| error.to_string())?;
     sign_presence(&identity, claim).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn collaboration_identity_sign_registration(
+    claim: ProjectDeviceRegistrationClaim,
+) -> Result<ProjectDeviceRegistrationProof, String> {
+    let _guard = IDENTITY_LOCK
+        .lock()
+        .map_err(|_| "OS collaboration identity storage is unavailable".to_string())?;
+    let identity = load_or_create(&OsIdentityStore).map_err(|error| error.to_string())?;
+    sign_registration(&identity, claim).map_err(|error| error.to_string())
 }
 
 #[cfg(test)]
@@ -350,6 +472,14 @@ mod tests {
             participant_id: "participant-1".into(),
             awareness_client_id: 42,
             session_nonce: "n4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
+        }
+    }
+
+    fn registration_claim() -> ProjectDeviceRegistrationClaim {
+        ProjectDeviceRegistrationClaim {
+            schema_version: 1,
+            project_id: "project-1".into(),
+            participant_id: "participant-1".into(),
         }
     }
 
@@ -403,5 +533,25 @@ mod tests {
                 .to_string(),
             "Saved collaboration identity is invalid"
         );
+    }
+
+    #[test]
+    fn typed_project_registration_is_deterministic_and_project_bound() {
+        let identity = generate_identity().unwrap();
+        let first = sign_registration(&identity, registration_claim()).unwrap();
+        let second = sign_registration(&identity, registration_claim()).unwrap();
+        assert_eq!(first, second);
+        verify_registration_proof(&first).unwrap();
+
+        let mut changed = first.clone();
+        changed.claim.project_id = "project-2".into();
+        assert!(verify_registration_proof(&changed)
+            .unwrap_err()
+            .contains("did not verify"));
+        changed = first.clone();
+        changed.claim.participant_id = "participant-2".into();
+        assert!(verify_registration_proof(&changed)
+            .unwrap_err()
+            .contains("did not verify"));
     }
 }

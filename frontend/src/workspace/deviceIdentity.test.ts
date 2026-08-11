@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import type { DevicePresenceProof, PresenceIdentityClaim } from '../tauri'
+import type {
+  DevicePresenceProof,
+  PresenceIdentityClaim,
+  ProjectDeviceRegistrationProof,
+} from '../tauri'
 import {
   canonicalPresenceClaim,
+  canonicalProjectDeviceRegistrationClaim,
   createPresenceSessionNonce,
   devicePresenceProofCacheKey,
   parseDevicePresenceProof,
+  parseProjectDeviceRegistrationProof,
+  projectDeviceRegistrationStorageKey,
   verifyDevicePresenceProof,
+  verifyProjectDeviceRegistrationProof,
 } from './deviceIdentity'
 
 function encodeBase64Url(value: Uint8Array): string {
@@ -36,6 +44,32 @@ async function signedProof(): Promise<DevicePresenceProof> {
     { name: 'Ed25519' },
     keys.privateKey,
     asArrayBuffer(canonicalPresenceClaim(claim)),
+  ))
+  return {
+    schemaVersion: 1,
+    algorithm: 'Ed25519',
+    keyId: `ed25519-sha256:${encodeBase64Url(digest)}`,
+    publicKey: encodeBase64Url(publicKey),
+    claim,
+    signature: encodeBase64Url(signature),
+  }
+}
+
+async function signedRegistration(
+  projectId = 'project-a',
+  participantId = 'participant-a',
+  keys?: CryptoKeyPair,
+): Promise<ProjectDeviceRegistrationProof> {
+  const claim = { schemaVersion: 1 as const, projectId, participantId }
+  const signingKeys = keys ?? await crypto.subtle.generateKey(
+    { name: 'Ed25519' }, true, ['sign', 'verify'],
+  ) as CryptoKeyPair
+  const publicKey = new Uint8Array(await crypto.subtle.exportKey('raw', signingKeys.publicKey))
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', asArrayBuffer(publicKey)))
+  const signature = new Uint8Array(await crypto.subtle.sign(
+    { name: 'Ed25519' },
+    signingKeys.privateKey,
+    asArrayBuffer(canonicalProjectDeviceRegistrationClaim(claim)),
   ))
   return {
     schemaVersion: 1,
@@ -90,5 +124,35 @@ describe('signed device presence', () => {
     expect(devicePresenceProofCacheKey({ ...proof, publicKey: 'A'.repeat(43) }, expected)).not.toBe(original)
     expect(devicePresenceProofCacheKey({ ...proof, signature: 'A'.repeat(86) }, expected)).not.toBe(original)
     expect(devicePresenceProofCacheKey(proof, { ...expected, projectId: 'project-b' })).not.toBe(original)
+  })
+})
+
+describe('signed project device registration', () => {
+  it('strictly verifies a deterministic project-bound registration and storage identity', async () => {
+    const keys = await crypto.subtle.generateKey({ name: 'Ed25519' }, true, ['sign', 'verify']) as CryptoKeyPair
+    const first = await signedRegistration('project-a', 'participant-a', keys)
+    const second = await signedRegistration('project-a', 'participant-a', keys)
+    expect(second).toEqual(first)
+    expect(parseProjectDeviceRegistrationProof(first)).toEqual(first)
+    await expect(verifyProjectDeviceRegistrationProof(first, 'project-a')).resolves.toBe('verified-device')
+    expect(projectDeviceRegistrationStorageKey(first)).toContain(`${first.keyId}:participant-a`)
+  })
+
+  it('rejects project replay, participant mutation, identity mutation, and extra authority fields', async () => {
+    const proof = await signedRegistration()
+    await expect(verifyProjectDeviceRegistrationProof(proof, 'project-b')).resolves.toBe('invalid')
+    await expect(verifyProjectDeviceRegistrationProof({
+      ...proof,
+      claim: { ...proof.claim, participantId: 'participant-b' },
+    }, 'project-a')).resolves.toBe('invalid')
+    await expect(verifyProjectDeviceRegistrationProof({
+      ...proof,
+      keyId: `${proof.keyId}x`,
+    }, 'project-a')).resolves.toBe('invalid')
+    expect(parseProjectDeviceRegistrationProof({ ...proof, role: 'admin' })).toBeNull()
+    expect(parseProjectDeviceRegistrationProof({
+      ...proof,
+      claim: { ...proof.claim, approved: true },
+    })).toBeNull()
   })
 })

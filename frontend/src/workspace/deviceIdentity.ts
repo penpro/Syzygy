@@ -1,6 +1,12 @@
-import type { DevicePresenceProof, PresenceIdentityClaim } from '../tauri'
+import type {
+  DevicePresenceProof,
+  PresenceIdentityClaim,
+  ProjectDeviceRegistrationClaim,
+  ProjectDeviceRegistrationProof,
+} from '../tauri'
 
 export type DeviceProofStatus = 'unsigned' | 'checking' | 'verified-device' | 'invalid' | 'unavailable'
+export type ProjectDeviceRegistrationStatus = 'verified-device' | 'invalid' | 'unavailable'
 
 export interface ExpectedPresenceIdentity {
   projectId: string
@@ -66,11 +72,41 @@ function readClaim(value: unknown): PresenceIdentityClaim | null {
   }
 }
 
+function readRegistrationClaim(value: unknown): ProjectDeviceRegistrationClaim | null {
+  if (!record(value) || !exactKeys(value, ['schemaVersion', 'projectId', 'participantId'])) return null
+  if (value.schemaVersion !== 1 || typeof value.projectId !== 'string' || !ID_PATTERN.test(value.projectId) ||
+    typeof value.participantId !== 'string' || !ID_PATTERN.test(value.participantId)) return null
+  return {
+    schemaVersion: 1,
+    projectId: value.projectId,
+    participantId: value.participantId,
+  }
+}
+
 export function parseDevicePresenceProof(value: unknown): DevicePresenceProof | null {
   if (!record(value) || !exactKeys(value, [
     'schemaVersion', 'algorithm', 'keyId', 'publicKey', 'claim', 'signature',
   ])) return null
   const claim = readClaim(value.claim)
+  if (value.schemaVersion !== 1 || value.algorithm !== 'Ed25519' ||
+    typeof value.keyId !== 'string' || value.keyId.length > 100 ||
+    typeof value.publicKey !== 'string' || !decodeBase64Url(value.publicKey, 32) ||
+    typeof value.signature !== 'string' || !decodeBase64Url(value.signature, 64) || !claim) return null
+  return {
+    schemaVersion: 1,
+    algorithm: 'Ed25519',
+    keyId: value.keyId,
+    publicKey: value.publicKey,
+    claim,
+    signature: value.signature,
+  }
+}
+
+export function parseProjectDeviceRegistrationProof(value: unknown): ProjectDeviceRegistrationProof | null {
+  if (!record(value) || !exactKeys(value, [
+    'schemaVersion', 'algorithm', 'keyId', 'publicKey', 'claim', 'signature',
+  ])) return null
+  const claim = readRegistrationClaim(value.claim)
   if (value.schemaVersion !== 1 || value.algorithm !== 'Ed25519' ||
     typeof value.keyId !== 'string' || value.keyId.length > 100 ||
     typeof value.publicKey !== 'string' || !decodeBase64Url(value.publicKey, 32) ||
@@ -94,6 +130,18 @@ export function canonicalPresenceClaim(claim: PresenceIdentityClaim): Uint8Array
     String(claim.awarenessClientId),
     claim.sessionNonce,
   ].join('\n'))
+}
+
+export function canonicalProjectDeviceRegistrationClaim(claim: ProjectDeviceRegistrationClaim): Uint8Array {
+  return new TextEncoder().encode([
+    'syzygy-project-device-registration-v1',
+    claim.projectId,
+    claim.participantId,
+  ].join('\n'))
+}
+
+export function projectDeviceRegistrationStorageKey(proof: ProjectDeviceRegistrationProof): string {
+  return `collaboration-device-registration:v1:${proof.keyId}:${proof.claim.participantId}`
 }
 
 export function devicePresenceProofCacheKey(
@@ -147,6 +195,34 @@ export async function verifyDevicePresenceProof(
       key,
       asArrayBuffer(signature),
       asArrayBuffer(canonicalPresenceClaim(proof.claim)),
+    )
+      ? 'verified-device'
+      : 'invalid'
+  } catch (error) {
+    return error instanceof Error && error.name === 'NotSupportedError' ? 'unavailable' : 'invalid'
+  }
+}
+
+export async function verifyProjectDeviceRegistrationProof(
+  value: unknown,
+  expectedProjectId: string,
+): Promise<ProjectDeviceRegistrationStatus> {
+  const proof = parseProjectDeviceRegistrationProof(value)
+  if (!proof || !ID_PATTERN.test(expectedProjectId) || proof.claim.projectId !== expectedProjectId) return 'invalid'
+  const subtle = globalThis.crypto?.subtle
+  if (!subtle) return 'unavailable'
+  const publicKey = decodeBase64Url(proof.publicKey, 32)
+  const signature = decodeBase64Url(proof.signature, 64)
+  if (!publicKey || !signature) return 'invalid'
+  try {
+    const digest = new Uint8Array(await subtle.digest('SHA-256', asArrayBuffer(publicKey)))
+    if (proof.keyId !== `ed25519-sha256:${encodeBase64Url(digest)}`) return 'invalid'
+    const key = await subtle.importKey('raw', asArrayBuffer(publicKey), { name: 'Ed25519' }, false, ['verify'])
+    return await subtle.verify(
+      { name: 'Ed25519' },
+      key,
+      asArrayBuffer(signature),
+      asArrayBuffer(canonicalProjectDeviceRegistrationClaim(proof.claim)),
     )
       ? 'verified-device'
       : 'invalid'

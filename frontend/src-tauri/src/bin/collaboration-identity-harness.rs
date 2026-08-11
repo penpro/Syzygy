@@ -1,4 +1,6 @@
-use app_lib::collaboration_identity::{ephemeral_presence_proof, PresenceIdentityClaim};
+use app_lib::collaboration_identity::{
+    ephemeral_identity_interop_proofs, PresenceIdentityClaim, ProjectDeviceRegistrationClaim,
+};
 
 fn main() {
     let claim = PresenceIdentityClaim {
@@ -9,7 +11,12 @@ fn main() {
         awareness_client_id: 4_294_967_000,
         session_nonce: "n4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
     };
-    match ephemeral_presence_proof(claim).and_then(|proof| {
+    let registration_claim = ProjectDeviceRegistrationClaim {
+        schema_version: 1,
+        project_id: "project-cross-language".into(),
+        participant_id: "participant-cross-language".into(),
+    };
+    match ephemeral_identity_interop_proofs(claim, registration_claim).and_then(|proof| {
         serde_json::to_string(&proof).map_err(|_| "Could not encode identity proof".into())
     }) {
         Ok(proof) => println!("{proof}"),

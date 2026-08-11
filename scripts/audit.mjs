@@ -177,6 +177,48 @@ record(
   'same-executable child mode, private bind, bounded synced document log, awareness exclusion, crash-tail repair, lifecycle verification, real empty-client recovery, and explicit auth/backup nonclaims are present',
 )
 
+const collaborationIdentitySource = text('frontend/src-tauri/src/collaboration_identity.rs')
+const collaborationIdentityFrontend = text('frontend/src/workspace/deviceIdentity.ts')
+const collaborationIdentityPresence = text('frontend/src/workspace/ResearchPresence.tsx')
+const collaborationIdentitySettings = text('frontend/src/components/CollaborationIdentitySettings.tsx')
+const collaborationIdentityInterop = text('scripts/collaboration-identity-interop.mjs')
+const collaborationIdentityEvidence = text('docs/audits/runs/SIGNED-DEVICE-PRESENCE-2026-08-11.json')
+record(
+  'signed-device presence remains narrow, cross-language verified, and identity-honest',
+  collaborationRelayCargo.includes('ring = "=0.17.14"') &&
+    collaborationIdentitySource.includes('org.penumbra.syzygy.collaboration-identity') &&
+    collaborationIdentitySource.includes('installation-ed25519-v1') &&
+    collaborationIdentitySource.includes('syzygy-device-presence-v1') &&
+    collaborationIdentitySource.includes('installation-device-not-human-identity') &&
+    collaborationIdentitySource.includes('private_key_pkcs8: String') &&
+    collaborationIdentitySource.includes('Zeroizing') &&
+    collaborationIdentitySource.includes('self.private_key_pkcs8.zeroize()') &&
+    collaborationIdentitySource.includes('IDENTITY_LOCK') &&
+    collaborationIdentitySource.includes('collaboration_identity_sign_presence') &&
+    (collaborationIdentitySource.match(/#\[tauri::command\]/g)?.length ?? 0) === 2 &&
+    collaborationRelayLib.includes('collaboration_identity::collaboration_identity_status') &&
+    collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_presence') &&
+    collaborationIdentityFrontend.includes("Object.keys(value).sort().join(',')") &&
+    collaborationIdentityFrontend.includes("return 'unavailable'") &&
+    collaborationIdentityFrontend.includes("? 'verified-device'") &&
+    collaborationIdentityFrontend.includes('MAX_DEVICE_PROOF_CACHE_ENTRIES = 400') &&
+    collaborationIdentityFrontend.includes('MAX_DEVICE_PROOF_VERIFICATIONS = 200') &&
+    collaborationIdentityFrontend.includes('proof.claim.sessionNonce') &&
+    collaborationIdentityPresence.includes('installSignedPresencePublisher') &&
+    collaborationIdentityPresence.includes('signed device') &&
+    collaborationIdentityPresence.includes('does not verify a person') &&
+    collaborationIdentitySettings.includes('not a verified person or organization') &&
+    frontendPackage.scripts?.['test:collaboration:identity'] === 'node ../scripts/collaboration-identity-interop.mjs' &&
+    collaborationIdentityInterop.includes('deadlineMs: 30_000') &&
+    collaborationIdentityInterop.includes('WebCrypto accepted a mutated Rust claim') &&
+    collaborationIdentityEvidence.includes('"rustToWebCryptoVerified": true') &&
+    collaborationIdentityEvidence.includes('"exactSameSessionReplayRejected": false') &&
+    collaborationIdentityEvidence.includes('"humanIdentityAuthenticated": false') &&
+    collaborationIdentityEvidence.includes('"durableResearchEventsSigned": false') &&
+    collaborationIdentityEvidence.includes('"status": "implemented_unverified"'),
+  'OS-vault private key, typed canonical signing only, strict WebCrypto parsing, focus-proof restoration, bounded interop mutation proof, and explicit enrollment/replay/human/durable-event nonclaims are present',
+)
+
 const sourceFiles = [
   ...filesBelow('frontend/src', ['.ts', '.tsx']),
   ...filesBelow('frontend/src-tauri/src', ['.rs']),
@@ -548,7 +590,8 @@ record(
     presenceRegistrySource.includes('registrations.get(projectId)?.token !== token') &&
     presenceRegistryTestSource.includes('identity-safe lifecycle cleanup') &&
     researchPresenceSource.includes('does not provide live cursors or online status') &&
-    researchPresenceSource.includes('self-reported, not authenticated') &&
+    researchPresenceSource.includes('does not verify a person') &&
+    researchPresenceSource.includes('Names remain self-reported') &&
     researchPresenceTestSource.includes('does not misrepresent Drive polling') &&
     localPresenceSource.includes("'local-only'") &&
     drivePresenceSource.includes("'drive-polling'") &&

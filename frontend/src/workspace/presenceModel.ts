@@ -1,6 +1,9 @@
 import type { Awareness } from 'y-protocols/awareness'
+import type { DevicePresenceProof } from '../tauri'
+import { parseDevicePresenceProof } from './deviceIdentity'
 
-export const PRESENCE_SCHEMA_VERSION = 1 as const
+export const PRESENCE_SCHEMA_VERSION = 2 as const
+export const LEGACY_PRESENCE_SCHEMA_VERSION = 1 as const
 export const MAX_PRESENCE_STATES = 200
 
 export interface PresenceParticipant {
@@ -9,6 +12,7 @@ export interface PresenceParticipant {
   displayName: string
   focusing: boolean
   local: boolean
+  deviceProof: DevicePresenceProof | null
 }
 
 export interface PresenceInspection {
@@ -30,18 +34,26 @@ const displayName = (value: unknown): value is string =>
   !/[\u0000-\u001f\u007f]/.test(value)
 
 function readParticipant(clientId: number, state: unknown, localClientId: number): PresenceParticipant | null {
-  if (!Number.isSafeInteger(clientId) || clientId < 0 || !record(state) ||
+  if (!Number.isSafeInteger(clientId) || clientId < 0 || clientId > 0xffff_ffff || !record(state) ||
     !displayName(state.name) || typeof state.focusing !== 'boolean' || !record(state.awarenessData) ||
     !record(state.awarenessData.syzygy)) return null
   const identity = state.awarenessData.syzygy
-  if (Object.keys(identity).sort().join(',') !== 'participantId,schemaVersion' ||
-    identity.schemaVersion !== PRESENCE_SCHEMA_VERSION || !stableId(identity.participantId)) return null
+  if (!stableId(identity.participantId)) return null
+  let deviceProof: DevicePresenceProof | null = null
+  if (identity.schemaVersion === LEGACY_PRESENCE_SCHEMA_VERSION) {
+    if (Object.keys(identity).sort().join(',') !== 'participantId,schemaVersion') return null
+  } else if (identity.schemaVersion === PRESENCE_SCHEMA_VERSION) {
+    if (Object.keys(identity).sort().join(',') !== 'deviceProof,participantId,schemaVersion') return null
+    deviceProof = parseDevicePresenceProof(identity.deviceProof)
+    if (!deviceProof) return null
+  } else return null
   return {
     clientId,
     participantId: identity.participantId,
     displayName: state.name.trim(),
     focusing: state.focusing,
     local: clientId === localClientId,
+    deviceProof,
   }
 }
 

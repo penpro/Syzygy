@@ -81,7 +81,11 @@
 | `frontend/src/workspace/memoryProvider.ts` | Penumbra original | Deterministic two-editor live/partition convergence transport used only by the headless contract suite |
 | `frontend/src/workspace/presenceModel.ts` | Penumbra original | Bounded fail-closed projection of schema-versioned ephemeral researcher awareness metadata |
 | `frontend/src/workspace/presenceRegistry.ts` | Penumbra original | Identity-safe active-provider presence lifecycle plus content-free MCP session-count inspection |
-| `frontend/src/workspace/ResearchPresence.tsx` | Penumbra original | Accessible transport-honest local/Drive/live presence surface with invalid-state disclosure |
+| `frontend/src/workspace/deviceIdentity.ts` | Penumbra original | Strict canonical Ed25519 presence-proof parser/verifier with project/document/participant/client/session binding and explicit unsupported-verifier state |
+| `frontend/src/workspace/ResearchPresence.tsx` | Penumbra original | Accessible transport-honest local/Drive/live presence surface, one-signature-per-session publisher, focus-update proof restoration, and device-only trust disclosure |
+| `frontend/src/components/CollaborationIdentitySettings.tsx` | Penumbra original | Public installation fingerprint/status with OS-vault, self-issued-device, and no-human-verification disclosure |
+| `frontend/src-tauri/src/collaboration_identity.rs` | Penumbra original | OS-vault Ed25519 installation key plus narrowly typed canonical live-presence signing surface with zeroized private material |
+| `frontend/src-tauri/src/bin/collaboration-identity-harness.rs` and `scripts/collaboration-identity-interop.mjs` | Penumbra original | Bounded Rust-to-WebCrypto canonical-signature, mutation-rejection, and private-material-absence proof |
 | `frontend/src/workspace/nodes/PolicyBlockNode.ts` | Penumbra original | Stable-identity policy placement/projection node with review state and strict JSON round-trip |
 | `frontend/src/workspace/policyContentModel.ts` | Penumbra original | Bounded deterministic policy-ID Y.Text content/status record with character/format/embed merge operations |
 | `frontend/src/workspace/policyContentLexical.ts` | Penumbra original | Strict bidirectional adapter between supported Lexical inline children and stable policy-content deltas |
@@ -145,6 +149,12 @@ fake IndexedDB implementation is Apache-2.0. No example/playground source or UI 
 
 The generated full SBOM/license inventory remains an open Phase 0 gate; this ledger approves only
 the dependencies introduced by the first editor slice.
+
+The signed-device slice directly pins `ring` 0.17.14, already present transitively in the locked
+Rust graph, for Ed25519 generation/signing/verification. Upstream is
+<https://github.com/briansmith/ring>; the crate ships its permissive `LICENSE`, BoringSSL,
+other-bits, Apache-2.0, and MIT license files. This direct use does not import editor or PolicyPad
+implementation material.
 
 The CI audit currently fails if Tiptap, Firebase, or PolicyPad packages/imports enter the source
 tree. It is a guardrail, not proof of clean-room authorship; human and adversarial review remain

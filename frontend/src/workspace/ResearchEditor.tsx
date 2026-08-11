@@ -291,7 +291,11 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
           <SuggestionProvider projectId={project.id}>
           <AutomationEditorRegistration projectId={project.id} />
           <Toolbar sharedMode={project.transport.kind === 'local' ? null : project.transport.kind} />
-          <ResearchPresence projectId={project.id} />
+          <ResearchPresence
+            projectId={project.id}
+            documentId={project.documentId}
+            participantId={researcherId}
+          />
           <ResearchTableOfContents />
           <div className="research-paper">
           <RichTextPlugin

@@ -152,9 +152,13 @@ P-11 now has bounded schema-versioned ephemeral awareness, an identity-safe acti
 registry, migrated researcher identity in Lexical, remote cursor classes, an accessible capability
 strip, and content-free MCP session counts. The Memory transport proves live two-client updates,
 immediate disconnect cleanup, and reconnect tombstones. Local and Drive modes state that they do
-not provide remote live presence; Drive edit polling is unchanged. A packaged live network
-provider, authenticated identity, physical two-install cursor proof, and five-client soak remain
-open, so P-11 is `implemented_unverified`.
+not provide remote live presence; Drive edit polling is unchanged. Live WebSocket sessions now add
+an independently verified, domain-separated Ed25519 proof from an OS-vault installation key. The
+claim binds the project, document, self-reported participant, awareness client, and random session
+nonce; legacy/invalid/unavailable states remain visible and do not block editing. This does not
+authenticate a person: keys are self-issued, peers are not approved, exact same-session replay is
+not rejected, and durable Yjs events are not signed. Trusted enrollment, roles/revocation, physical
+two-install cursor proof, and five-client soak remain open, so P-11 is `implemented_unverified`.
 
 
 P-04 now has a Penumbra-original typed Yjs domain service and deterministic headless evidence for
@@ -411,6 +415,12 @@ interruption/process-loss/quota and physical two-install repair evidence remain 
 Deliver provider-neutral awareness UI and a documented self-hostable WebSocket deployment with
 health, persistence, auth hook, quotas, backup, and pinned versions. WebRTC ships only if its
 signaling/privacy/reliability spike passes.
+
+Current identity progress is deliberately narrower than the phase auth hook: one OS-vault Ed25519
+key signs a typed ephemeral presence claim, and Rust-to-WebCrypto interop rejects changed
+project/document/participant/client fields. The next identity increment must define peer enrollment,
+fingerprint approval/rejection, project-scoped roles, revocation propagation, durable event
+signatures, key rotation/recovery, and a replay policy before the product may say authenticated.
 
 Gate: five-client rapid-edit soak converges; stale presence disappears; restart/partition loses
 no edit; schema is unchanged when switching providers; P-11/P-12/S-05 pass.

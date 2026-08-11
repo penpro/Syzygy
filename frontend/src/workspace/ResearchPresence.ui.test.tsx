@@ -9,8 +9,8 @@ const inspection: PresenceInspection = {
   invalidRecords: 0,
   truncated: false,
   participants: [
-    { clientId: 1, participantId: 'ada', displayName: 'Ada', focusing: true, local: true },
-    { clientId: 2, participantId: 'bob', displayName: 'Bob', focusing: false, local: false },
+    { clientId: 1, participantId: 'ada', displayName: 'Ada', focusing: true, local: true, deviceProof: null },
+    { clientId: 2, participantId: 'bob', displayName: 'Bob', focusing: false, local: false, deviceProof: null },
   ],
 }
 
@@ -20,7 +20,20 @@ describe('research presence surface', () => {
     expect(html).toContain('2 live editing sessions')
     expect(html).toContain('Ada · this device')
     expect(html).toContain('Bob · viewing')
-    expect(html).toContain('self-reported, not authenticated')
+    expect(html).toContain('unsigned device')
+    expect(html).toContain('does not verify a person')
+    expect(html).toContain('Names remain self-reported')
+  })
+
+  it('distinguishes verified installation keys from invalid proofs without claiming a person', () => {
+    const html = renderToStaticMarkup(<ResearchPresenceView
+      mode="live"
+      inspection={inspection}
+      proofStatuses={new Map([[1, 'verified-device'], [2, 'invalid']])}
+    />)
+    expect(html).toContain('Ada · this device · signed device')
+    expect(html).toContain('Bob · viewing · invalid device proof')
+    expect(html).toContain('does not verify a person')
   })
 
   it('does not misrepresent Drive polling or a local project as live presence', () => {

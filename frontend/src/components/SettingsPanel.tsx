@@ -11,6 +11,7 @@ import { McpSetupModal } from './McpSetupModal'
 import { RemoteProviderSettings } from './RemoteProviderSettings'
 import { LanAgentSettings } from './LanAgentSettings'
 import { CollaborationRelaySettings } from './CollaborationRelaySettings'
+import { CollaborationIdentitySettings } from './CollaborationIdentitySettings'
 import { NetworkBoundarySummary } from './NetworkBoundarySummary'
 import { crashReportsAvailable, startCrashReports, stopCrashReports } from '../crashReports'
 import { useConfirm } from './ConfirmDialog'
@@ -256,6 +257,8 @@ export function SettingsPanel({
         <LanAgentSettings />
 
         <CollaborationRelaySettings />
+
+        <CollaborationIdentitySettings />
 
         <RemoteProviderSettings />
         <label className="field">

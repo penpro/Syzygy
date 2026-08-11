@@ -99,6 +99,7 @@ packaged MCP surface before succeeding.
 | `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses, Anthropic Messages, Gemini Interactions, and xAI Responses one-shot/SSE wire contracts have fake-server evidence with bounded controls, custom-function schema mapping, non-executing proposal normalization, a depth/node/keyword-bounded schema subset, and exact post-assembly argument validation. Validation always separates structural status from unreviewed domain semantics and false execution authority. xAI's boolean ZDR response header is required before event dispatch and preserved in the run record. |
 | `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. Ordinary tasks use one native Send-once decision whose disclosure includes any tool names, descriptions, and argument schemas; normalized proposals stay transient and are never executed, while the content-free output hash commits to their bodies and validation state. The runtime matches calls only to definitions from the approved request and authors valid/invalid/missing-definition status before returning the final outcome. Adversarial execution uses one content-bound batch decision that freezes exact research bytes, graph/routes/dependencies/order/limits/budgets; atomically consumes calls; verifies upstream output hashes; derives phase prompts; uses fixed built-in endpoints and the OS vault; rejects unsafe JSON; and records content-free provenance. The product executor is reachable through typed Tauri wrappers and revision-guarded resumable MCP jobs. Loopback transport is proven; packaged dialog interaction and live-provider behavior are not. |
 | `provider_stream.rs` | Incremental provider SSE normalization. OpenAI, Anthropic, Gemini, and xAI decoders handle fragmented frames, text/usage/finish lifecycles, unknown future events, sanitized provider errors, and bounded malformed/truncated input. Custom function calls normalize to one bounded start/delta/complete proposal lifecycle; orphaned, mismatched, malformed, duplicate, or unfinished calls fail closed. Anthropic/Gemini private-thinking bodies remain omitted. |
+| `collaboration_identity.rs` | OS-vault Ed25519 installation key, public fingerprint report, and one narrowly typed live-presence signing command; it exposes no arbitrary signing or private-key read surface. |
 | `credential_vault.rs` | Provider-secret abstraction backed by Windows Credential Manager, macOS Keychain, or Linux Secret Service/keyutils. Unit tests use only a memory implementation; a separate live harness creates and deletes a random OS-store canary. |
 
 **Security posture:** the model only ever sees selected text; the webview never sees OAuth
@@ -223,6 +224,24 @@ the local copy. Store v4 is the idempotent persistence boundary; offline archive
 the endpoint and bearer room. The webview CSP permits dynamic WS/WSS connections because endpoints
 are user-configured, while the application parser retains the private-plaintext boundary. The room
 identifier grants project access but does not authenticate participant identity.
+
+Live WebSocket awareness can add a schema-v2 self-signed installation proof. Rust creates one
+Ed25519 key per installation and persists its PKCS#8 private bytes only in the operating-system
+credential store. The only signing command accepts exact bounded project, document, participant, Yjs-awareness
+client, and 32-byte random session-nonce fields. The frontend independently reconstructs the
+domain-separated canonical bytes and verifies the public-key fingerprint and signature with
+WebCrypto before showing **signed device**. Legacy schema-v1 awareness remains explicitly unsigned,
+and a missing vault or unsupported verifier never prevents collaboration. Focus/blur republishing
+restores the same proof without invoking the signer again. Verification deduplicates at most 200
+in-flight proofs and retains at most 400 exact all-field cache entries, so peer-controlled awareness
+cannot create an unbounded crypto queue or reuse a result after mutating a signed field. Awareness
+and its proof remain ephemeral.
+
+This is a device-key continuity foundation, not participant authentication. Keys are self-issued;
+there is no trusted enrollment, peer approval, role, revocation list, trusted clock, or binding from
+a fingerprint to a person or organization. A holder can claim any participant ID, and an exact
+captured proof can still be replayed for the same project/document/client/nonce context. Durable
+Yjs research events are not signed. The relay continues to authorize rooms only by bearer ID.
 
 The optional app-managed relay is a separate child mode of the installed Syzygy executable. Its
 saved native configuration contains only enabled/listen/port; room IDs never appear in process

@@ -198,9 +198,15 @@ projects say that no remote editing session is connected. Drive-shared projects 
 but live cursors and online status are unavailable. The self-hosted live provider shows bounded
 session chips with **this device**, **editing**, or **viewing** state. Invalid/excess peer records
 produce an accessible warning rather than rendering attacker-controlled identity data. Live mode
-must state that presence is ephemeral and collaborator names are self-reported, not authenticated.
-Self-hosted WS/WSS synchronization and an app-managed private-LAN relay are implemented;
-authenticated participant identity, public WSS hosting, and backup administration remain open. The portable archive is still a separate
+labels schema-v1 peers **unsigned device** and a valid schema-v2 Ed25519 session proof **signed
+device**; invalid or unverifiable proofs remain visibly distinct. Copy must say that the proof
+establishes possession of a self-issued installation key for this session, not a verified person or
+organization, and that names remain self-reported. Settings exposes only the local public
+fingerprint and repeats the same boundary; it offers no rotate control before revocation semantics
+exist. Signature failure must degrade to explicit unsigned presence without blocking editing.
+Self-hosted WS/WSS synchronization and an app-managed private-LAN relay are implemented. Trusted
+device enrollment, peer approval, roles/revocation, durable-event signatures, public WSS hosting,
+and backup administration remain open. The portable archive is still a separate
 handoff that creates independent local state after import and contains no relay invitation.
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,
 empty, integrity-error, and mutation-error states; creates and selects stable scenarios; edits title,

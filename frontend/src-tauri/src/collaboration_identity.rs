@@ -1,0 +1,407 @@
+//! Native cryptographic installation identity for collaboration attribution.
+//!
+//! The private Ed25519 PKCS#8 document stays in the operating-system credential store. The webview
+//! can request only one typed live-presence signature; there is no arbitrary signing command and no
+//! command returns the private material. A valid signature proves possession of this installation
+//! key, not a person's legal or organizational identity.
+
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine as _;
+use ring::rand::SystemRandom;
+use ring::signature::{Ed25519KeyPair, KeyPair, UnparsedPublicKey, ED25519};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::fmt;
+use std::time::{SystemTime, UNIX_EPOCH};
+use zeroize::{Zeroize, Zeroizing};
+
+const SERVICE: &str = "org.penumbra.syzygy.collaboration-identity";
+const ACCOUNT: &str = "installation-ed25519-v1";
+const IDENTITY_SCHEMA_VERSION: u8 = 1;
+const PRESENCE_SCHEMA_VERSION: u8 = 1;
+const PRESENCE_DOMAIN: &str = "syzygy-device-presence-v1";
+const MAX_STORED_IDENTITY_BYTES: usize = 1_024;
+static IDENTITY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct StoredIdentity {
+    schema_version: u8,
+    created_at_ms: u64,
+    private_key_pkcs8: String,
+}
+
+impl Drop for StoredIdentity {
+    fn drop(&mut self) {
+        self.private_key_pkcs8.zeroize();
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PresenceIdentityClaim {
+    pub schema_version: u8,
+    pub project_id: String,
+    pub document_id: String,
+    pub participant_id: String,
+    pub awareness_client_id: u64,
+    pub session_nonce: String,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct CollaborationIdentityReport {
+    pub schema_version: u8,
+    pub algorithm: String,
+    pub key_id: String,
+    pub public_key: String,
+    pub fingerprint: String,
+    pub created_at_ms: u64,
+    pub scope: String,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DevicePresenceProof {
+    pub schema_version: u8,
+    pub algorithm: String,
+    pub key_id: String,
+    pub public_key: String,
+    pub claim: PresenceIdentityClaim,
+    pub signature: String,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum IdentityError {
+    Unavailable,
+    InvalidStoredIdentity,
+    InvalidClaim,
+    SigningFailed,
+}
+
+impl fmt::Display for IdentityError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unavailable => {
+                formatter.write_str("OS collaboration identity storage is unavailable")
+            }
+            Self::InvalidStoredIdentity => {
+                formatter.write_str("Saved collaboration identity is invalid")
+            }
+            Self::InvalidClaim => formatter.write_str("Collaboration identity claim is invalid"),
+            Self::SigningFailed => {
+                formatter.write_str("Could not sign collaboration identity claim")
+            }
+        }
+    }
+}
+
+trait IdentityStore {
+    fn load(&self) -> Result<Option<Zeroizing<String>>, IdentityError>;
+    fn save(&self, secret: &str) -> Result<(), IdentityError>;
+}
+
+#[derive(Clone, Copy, Default)]
+struct OsIdentityStore;
+
+impl OsIdentityStore {
+    fn entry() -> Result<keyring::Entry, IdentityError> {
+        keyring::Entry::new(SERVICE, ACCOUNT).map_err(|_| IdentityError::Unavailable)
+    }
+}
+
+impl IdentityStore for OsIdentityStore {
+    fn load(&self) -> Result<Option<Zeroizing<String>>, IdentityError> {
+        match Self::entry()?.get_password() {
+            Ok(value) => Ok(Some(Zeroizing::new(value))),
+            Err(keyring::Error::NoEntry) => Ok(None),
+            Err(_) => Err(IdentityError::Unavailable),
+        }
+    }
+
+    fn save(&self, secret: &str) -> Result<(), IdentityError> {
+        Self::entry()?
+            .set_password(secret)
+            .map_err(|_| IdentityError::Unavailable)
+    }
+}
+
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .try_into()
+        .unwrap_or(u64::MAX)
+}
+
+fn generate_identity() -> Result<StoredIdentity, IdentityError> {
+    let pkcs8 = Ed25519KeyPair::generate_pkcs8(&SystemRandom::new())
+        .map_err(|_| IdentityError::SigningFailed)?;
+    Ok(StoredIdentity {
+        schema_version: IDENTITY_SCHEMA_VERSION,
+        created_at_ms: now_ms(),
+        private_key_pkcs8: URL_SAFE_NO_PAD.encode(pkcs8.as_ref()),
+    })
+}
+
+fn decode_key(identity: &StoredIdentity) -> Result<Zeroizing<Vec<u8>>, IdentityError> {
+    if identity.schema_version != IDENTITY_SCHEMA_VERSION
+        || identity.created_at_ms == 0
+        || identity.private_key_pkcs8.is_empty()
+        || identity.private_key_pkcs8.len() > MAX_STORED_IDENTITY_BYTES
+    {
+        return Err(IdentityError::InvalidStoredIdentity);
+    }
+    let decoded = URL_SAFE_NO_PAD
+        .decode(&identity.private_key_pkcs8)
+        .map_err(|_| IdentityError::InvalidStoredIdentity)?;
+    if decoded.is_empty() || decoded.len() > MAX_STORED_IDENTITY_BYTES {
+        return Err(IdentityError::InvalidStoredIdentity);
+    }
+    Ok(Zeroizing::new(decoded))
+}
+
+fn parse_identity(value: &str) -> Result<StoredIdentity, IdentityError> {
+    if value.is_empty() || value.len() > MAX_STORED_IDENTITY_BYTES * 2 {
+        return Err(IdentityError::InvalidStoredIdentity);
+    }
+    let identity: StoredIdentity =
+        serde_json::from_str(value).map_err(|_| IdentityError::InvalidStoredIdentity)?;
+    let key_bytes = decode_key(&identity)?;
+    Ed25519KeyPair::from_pkcs8(key_bytes.as_ref())
+        .map_err(|_| IdentityError::InvalidStoredIdentity)?;
+    Ok(identity)
+}
+
+fn load_or_create(store: &dyn IdentityStore) -> Result<StoredIdentity, IdentityError> {
+    if let Some(secret) = store.load()? {
+        return parse_identity(&secret);
+    }
+    let identity = generate_identity()?;
+    let encoded =
+        Zeroizing::new(serde_json::to_string(&identity).map_err(|_| IdentityError::SigningFailed)?);
+    store.save(&encoded)?;
+    Ok(identity)
+}
+
+fn key_pair(identity: &StoredIdentity) -> Result<Ed25519KeyPair, IdentityError> {
+    let key_bytes = decode_key(identity)?;
+    Ed25519KeyPair::from_pkcs8(key_bytes.as_ref()).map_err(|_| IdentityError::InvalidStoredIdentity)
+}
+
+fn fingerprint(public_key: &[u8]) -> String {
+    URL_SAFE_NO_PAD.encode(Sha256::digest(public_key))
+}
+
+fn report(identity: &StoredIdentity) -> Result<CollaborationIdentityReport, IdentityError> {
+    let key_pair = key_pair(identity)?;
+    let public_key = key_pair.public_key().as_ref();
+    let fingerprint = fingerprint(public_key);
+    Ok(CollaborationIdentityReport {
+        schema_version: IDENTITY_SCHEMA_VERSION,
+        algorithm: "Ed25519".into(),
+        key_id: format!("ed25519-sha256:{fingerprint}"),
+        public_key: URL_SAFE_NO_PAD.encode(public_key),
+        fingerprint,
+        created_at_ms: identity.created_at_ms,
+        scope: "installation-device-not-human-identity".into(),
+    })
+}
+
+fn stable_id(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 200
+        && bytes[0].is_ascii_alphanumeric()
+        && bytes.iter().all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'@' | b'-')
+        })
+}
+
+fn validate_claim(claim: &PresenceIdentityClaim) -> Result<(), IdentityError> {
+    if claim.schema_version != PRESENCE_SCHEMA_VERSION
+        || !stable_id(&claim.project_id)
+        || !stable_id(&claim.document_id)
+        || !stable_id(&claim.participant_id)
+        || claim.awareness_client_id > u32::MAX as u64
+    {
+        return Err(IdentityError::InvalidClaim);
+    }
+    let nonce = URL_SAFE_NO_PAD
+        .decode(&claim.session_nonce)
+        .map_err(|_| IdentityError::InvalidClaim)?;
+    if nonce.len() != 32 || URL_SAFE_NO_PAD.encode(&nonce) != claim.session_nonce {
+        return Err(IdentityError::InvalidClaim);
+    }
+    Ok(())
+}
+
+pub fn canonical_presence_claim(claim: &PresenceIdentityClaim) -> Result<Vec<u8>, String> {
+    validate_claim(claim).map_err(|error| error.to_string())?;
+    Ok(format!(
+        "{PRESENCE_DOMAIN}\n{}\n{}\n{}\n{}\n{}",
+        claim.project_id,
+        claim.document_id,
+        claim.participant_id,
+        claim.awareness_client_id,
+        claim.session_nonce,
+    )
+    .into_bytes())
+}
+
+fn sign_presence(
+    identity: &StoredIdentity,
+    claim: PresenceIdentityClaim,
+) -> Result<DevicePresenceProof, IdentityError> {
+    let message = canonical_presence_claim(&claim).map_err(|_| IdentityError::InvalidClaim)?;
+    let key_pair = key_pair(identity)?;
+    let public_key = key_pair.public_key().as_ref();
+    let fingerprint = fingerprint(public_key);
+    let signature = key_pair.sign(&message);
+    Ok(DevicePresenceProof {
+        schema_version: PRESENCE_SCHEMA_VERSION,
+        algorithm: "Ed25519".into(),
+        key_id: format!("ed25519-sha256:{fingerprint}"),
+        public_key: URL_SAFE_NO_PAD.encode(public_key),
+        claim,
+        signature: URL_SAFE_NO_PAD.encode(signature.as_ref()),
+    })
+}
+
+pub fn verify_presence_proof(proof: &DevicePresenceProof) -> Result<(), String> {
+    if proof.schema_version != PRESENCE_SCHEMA_VERSION || proof.algorithm != "Ed25519" {
+        return Err("Collaboration device proof header is invalid".into());
+    }
+    let public_key = URL_SAFE_NO_PAD
+        .decode(&proof.public_key)
+        .map_err(|_| "Collaboration device public key is invalid".to_string())?;
+    let signature = URL_SAFE_NO_PAD
+        .decode(&proof.signature)
+        .map_err(|_| "Collaboration device signature is invalid".to_string())?;
+    if public_key.len() != 32
+        || signature.len() != 64
+        || proof.key_id != format!("ed25519-sha256:{}", fingerprint(&public_key))
+    {
+        return Err("Collaboration device proof identity is invalid".into());
+    }
+    let message = canonical_presence_claim(&proof.claim)?;
+    UnparsedPublicKey::new(&ED25519, public_key)
+        .verify(&message, &signature)
+        .map_err(|_| "Collaboration device signature did not verify".to_string())
+}
+
+pub fn ephemeral_presence_proof(
+    claim: PresenceIdentityClaim,
+) -> Result<DevicePresenceProof, String> {
+    let identity = generate_identity().map_err(|error| error.to_string())?;
+    sign_presence(&identity, claim).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn collaboration_identity_status() -> Result<CollaborationIdentityReport, String> {
+    let _guard = IDENTITY_LOCK
+        .lock()
+        .map_err(|_| "OS collaboration identity storage is unavailable".to_string())?;
+    let identity = load_or_create(&OsIdentityStore).map_err(|error| error.to_string())?;
+    report(&identity).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn collaboration_identity_sign_presence(
+    claim: PresenceIdentityClaim,
+) -> Result<DevicePresenceProof, String> {
+    let _guard = IDENTITY_LOCK
+        .lock()
+        .map_err(|_| "OS collaboration identity storage is unavailable".to_string())?;
+    let identity = load_or_create(&OsIdentityStore).map_err(|error| error.to_string())?;
+    sign_presence(&identity, claim).map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    #[derive(Default)]
+    struct MemoryStore(Mutex<Option<String>>);
+
+    impl IdentityStore for MemoryStore {
+        fn load(&self) -> Result<Option<Zeroizing<String>>, IdentityError> {
+            Ok(self
+                .0
+                .lock()
+                .map_err(|_| IdentityError::Unavailable)?
+                .clone()
+                .map(Zeroizing::new))
+        }
+
+        fn save(&self, secret: &str) -> Result<(), IdentityError> {
+            *self.0.lock().map_err(|_| IdentityError::Unavailable)? = Some(secret.to_string());
+            Ok(())
+        }
+    }
+
+    fn claim() -> PresenceIdentityClaim {
+        PresenceIdentityClaim {
+            schema_version: 1,
+            project_id: "project-1".into(),
+            document_id: "document-1".into(),
+            participant_id: "participant-1".into(),
+            awareness_client_id: 42,
+            session_nonce: "n4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
+        }
+    }
+
+    #[test]
+    fn one_vault_identity_is_stable_and_private() {
+        let store = MemoryStore::default();
+        let first = load_or_create(&store).unwrap();
+        let second = load_or_create(&store).unwrap();
+        assert_eq!(report(&first).unwrap(), report(&second).unwrap());
+        let serialized_report = serde_json::to_string(&report(&first).unwrap()).unwrap();
+        assert!(!serialized_report.contains("private"));
+        assert!(!serialized_report.contains(&first.private_key_pkcs8));
+    }
+
+    #[test]
+    fn typed_presence_proof_verifies_and_mutation_or_replay_identity_fails() {
+        let identity = generate_identity().unwrap();
+        let proof = sign_presence(&identity, claim()).unwrap();
+        verify_presence_proof(&proof).unwrap();
+
+        let mut changed = proof.clone();
+        changed.claim.participant_id = "participant-2".into();
+        assert!(verify_presence_proof(&changed)
+            .unwrap_err()
+            .contains("did not verify"));
+        changed = proof.clone();
+        changed.claim.awareness_client_id += 1;
+        assert!(verify_presence_proof(&changed)
+            .unwrap_err()
+            .contains("did not verify"));
+        changed = proof.clone();
+        changed.key_id = "ed25519-sha256:wrong".into();
+        assert!(verify_presence_proof(&changed)
+            .unwrap_err()
+            .contains("identity"));
+    }
+
+    #[test]
+    fn claims_and_stored_keys_fail_closed_without_secret_echo() {
+        for value in ["", "../escape", "line\nbreak", &"x".repeat(201)] {
+            let mut candidate = claim();
+            candidate.participant_id = value.into();
+            assert_eq!(validate_claim(&candidate), Err(IdentityError::InvalidClaim));
+        }
+        let mut candidate = claim();
+        candidate.session_nonce = "weak".into();
+        assert_eq!(validate_claim(&candidate), Err(IdentityError::InvalidClaim));
+        assert_eq!(
+            parse_identity("private-key-canary")
+                .unwrap_err()
+                .to_string(),
+            "Saved collaboration identity is invalid"
+        );
+    }
+}

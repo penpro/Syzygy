@@ -109,6 +109,34 @@ export interface CollaborationRelayReport {
   lastError: string | null
 }
 
+export interface CollaborationIdentityReport {
+  schemaVersion: 1
+  algorithm: 'Ed25519'
+  keyId: string
+  publicKey: string
+  fingerprint: string
+  createdAtMs: number
+  scope: 'installation-device-not-human-identity'
+}
+
+export interface PresenceIdentityClaim {
+  schemaVersion: 1
+  projectId: string
+  documentId: string
+  participantId: string
+  awarenessClientId: number
+  sessionNonce: string
+}
+
+export interface DevicePresenceProof {
+  schemaVersion: 1
+  algorithm: 'Ed25519'
+  keyId: string
+  publicKey: string
+  claim: PresenceIdentityClaim
+  signature: string
+}
+
 export interface ProviderToolDefinition {
   name: string
   description: string
@@ -714,6 +742,15 @@ export const collaborationRelaySettings = (): Promise<CollaborationRelayReport> 
 export const collaborationRelayConfigure = (
   config: CollaborationRelayConfig,
 ): Promise<CollaborationRelayReport> => invoke('collaboration_relay_configure', { config })
+
+/** Public installation-key metadata. The private Ed25519 key never crosses this boundary. */
+export const collaborationIdentityStatus = (): Promise<CollaborationIdentityReport> =>
+  invoke('collaboration_identity_status')
+
+/** Sign only the bounded live-presence claim; this is not an arbitrary signing surface. */
+export const collaborationIdentitySignPresence = (
+  claim: PresenceIdentityClaim,
+): Promise<DevicePresenceProof> => invoke('collaboration_identity_sign_presence', { claim })
 
 /** Pick the pairing-key file without reading its contents into the webview. */
 export async function pickLanPairingKeyFile(): Promise<string | null> {

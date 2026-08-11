@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "runId": "SIGNED-DEVICE-PRESENCE-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "5a88004",
+  "capabilities": ["P-11"],
+  "status": "implemented_unverified",
+  "claim": "Live WebSocket presence can prove possession of a self-issued OS-vault installation key for one bounded awareness session; this is not trusted device enrollment, human identity, authorization, revocation, or durable-event attribution.",
+  "commands": [
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path src-tauri/Cargo.toml collaboration_identity --lib",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm test -- --run src/workspace/deviceIdentity.test.ts src/workspace/signedPresencePublisher.test.ts src/workspace/presenceModel.test.ts src/workspace/ResearchPresence.ui.test.tsx src/components/CollaborationIdentitySettings.ui.test.tsx",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run test:collaboration:identity",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run check:supervised"
+  ],
+  "result": {
+    "rustIdentityTestsPassed": 3,
+    "focusedFrontendFilesPassed": 5,
+    "focusedFrontendTestsPassed": 15,
+    "rustToWebCryptoVerified": true,
+    "rejectedSignedClaimMutations": 4,
+    "privateMaterialExposed": false,
+    "focusRepublishRestoredProof": true,
+    "signingCallsPerProviderSession": 1,
+    "legacyUnsignedPresenceSupported": true,
+    "exactSameSessionReplayRejected": false,
+    "trustedEnrollmentImplemented": false,
+    "humanIdentityAuthenticated": false,
+    "authorizationOrRevocationImplemented": false,
+    "durableResearchEventsSigned": false,
+    "packagedTwoInstallUsed": false,
+    "fullFrontendFilesPassed": 119,
+    "fullFrontendFilesSkipped": 3,
+    "fullFrontendTestsPassed": 493,
+    "fullFrontendTestsSkipped": 3,
+    "frontendProductionBuildPassed": true,
+    "frontendModulesTransformed": 1259,
+    "structuralAuditPassed": true,
+    "rustCheckPassed": true,
+    "supervisedCheckRunId": "20260811-112004-d783c3",
+    "supervisedCheckElapsedSeconds": 16,
+    "fullValidationPending": false
+  },
+  "proved": [
+    "Private Ed25519 PKCS#8 persistence is confined to the OS credential store; owned encoded/decoded buffers zeroize on drop, and commands return only public metadata or one typed presence proof.",
+    "The signing surface accepts only exact project, document, participant, u32 awareness-client, and canonical 32-byte random session-nonce fields.",
+    "Rust and WebCrypto reconstruct the same domain-separated bytes, and claim mutation invalidates the signature.",
+    "Strict frontend parsing rejects unknown fields, noncanonical base64url, wrong sizes, bad bounds, key-ID mismatch, and invalid signatures; verification keys include every signed field and cap pending/cached work at 200/400 entries.",
+    "Lexical focus/blur awareness republishing restores the existing schema-v2 proof without another signing call.",
+    "The product labels verified, unsigned, invalid, and unavailable states while explicitly denying human or organizational verification."
+  ],
+  "notProved": [
+    "A self-issued key is trusted, approved, or bound to a person, organization, account, or role.",
+    "Participant-ID impersonation by a newly generated key or exact captured-proof replay in the same context is prevented.",
+    "Peer enrollment, fingerprint approval, revocation, rotation/recovery, trusted clocks, or relay room authorization exists.",
+    "Durable Yjs research events, Drive attribution, immutable versions, votes, notes, labels, or MCP writes are signed.",
+    "Physical packaged two-install verification, cross-platform OS-vault behavior, or five-client soak has passed."
+  ],
+  "implementationAnchors": [
+    "frontend/src-tauri/src/collaboration_identity.rs",
+    "frontend/src/workspace/deviceIdentity.ts",
+    "frontend/src/workspace/ResearchPresence.tsx",
+    "frontend/src/components/CollaborationIdentitySettings.tsx",
+    "scripts/collaboration-identity-interop.mjs"
+  ]
+}

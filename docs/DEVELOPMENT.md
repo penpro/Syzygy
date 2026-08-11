@@ -292,15 +292,24 @@ action and unchanged-content copy. This does not prove authenticated identity, p
 interaction, an MCP application route, or semantic correctness of the proposed policy. Evidence:
 `docs/audits/runs/SUGGESTION-APPLICATION-2026-07-19.json`.
 
-`presenceModel.test.ts`, `presenceRegistry.test.ts`,
-`memoryProvider.presence.test.ts`, and `ResearchPresence.ui.test.tsx` are the P-11 gates.
+`presenceModel.test.ts`, `presenceRegistry.test.ts`, `deviceIdentity.test.ts`,
+`signedPresencePublisher.test.ts`, `memoryProvider.presence.test.ts`, and
+`ResearchPresence.ui.test.tsx` are the P-11 gates.
 They require a 200-state hostile-input bound, schema-versioned researcher identity, content-free
 projection, identity-safe provider replacement, two-client live awareness, immediate disconnect
 cleanup, reconnect tombstones, and honest local/Drive/live copy. The editor must pass the migrated
-installation identity to Lexical instead of a fixed username. `presenceResearchInspection.test.ts`
+installation identity to Lexical instead of a fixed username. Schema v2 additionally requires an
+exact Ed25519 proof parser, project/document/participant/awareness-client/session binding, invalid
+signature states, legacy unsigned compatibility, one native signing call per live provider session,
+restoration after Lexical focus/blur republishes its original awareness data, an all-signed-field
+verification cache key, and 200-pending/400-cache-entry bounds. Run
+`npm run test:collaboration:identity` to build the exact Rust harness under a 120-second deadline and
+verify its canonical signature plus four claim mutations through Node WebCrypto; the proof output
+must contain no private-material field. `presenceResearchInspection.test.ts`
 requires MCP to expose only transport mode and session/integrity counts. This is provider-neutral
-and product-visible evidence, but it does not prove a packaged live network provider, authenticated
-identity, a physical two-install cursor run, or the Phase 5 five-client soak.
+and product-visible evidence, but it does not prove trusted key enrollment, human identity,
+authorization/revocation, same-session replay prevention, durable event signatures, a physical
+two-install cursor run, or the Phase 5 five-client soak.
 
 The same suite includes `heuristicsModel.test.ts`. Forty seeded delivery orders prove concurrent
 field edits retain both values and attribution events, and another forty prove concurrent additions

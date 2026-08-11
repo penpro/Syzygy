@@ -153,10 +153,15 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   connected peers disappear immediately, and a partitioned stale peer cannot resurrect presence
   after reconnect. Local and Drive modes are deliberately honest; Drive polling still synchronizes
   edits but does not claim live cursors or online status. Focused tests and the production build
-  pass. A live WebSocket provider plus bundled private-LAN relay now exist, but authenticated
-  identity, physical two-install cursor proof, and five-client soak do not, so P-11 remains
+  pass. A live WebSocket provider plus bundled private-LAN relay now exist. Live schema-v2 presence
+  is self-signed by an OS-vault Ed25519 installation key and independently verified in WebCrypto;
+  legacy, invalid, and unsupported-verifier states remain explicit, and focus changes cannot silently
+  discard the proof. This proves only possession of a self-issued device key for the current bounded
+  session. Trusted enrollment, human identity, authorization/revocation, durable-event signatures,
+  physical two-install cursor proof, and five-client soak do not exist, so P-11 remains
   `implemented_unverified`. Evidence:
-  `docs/audits/runs/PRESENCE-LIFECYCLE-2026-07-18.json`.
+  `docs/audits/runs/PRESENCE-LIFECYCLE-2026-07-18.json` and
+  `docs/audits/runs/SIGNED-DEVICE-PRESENCE-2026-08-11.json`.
 - P-16 now connects selected scenarios to one bounded provider-neutral response contract. Local
   generation uses the optional loopback model; OpenAI, Anthropic, Gemini, and xAI reuse the native
   Send once boundary. Output enters the existing collaborative response lineage only when the exact
@@ -594,8 +599,12 @@ collaborators are not required to download large project folders.
    a bundled Syzygy child with saved enable/listen/port settings, supervised restart, graceful
    shutdown plus listener-release verification, and bounded document-sync recovery logs that exclude
    awareness. A native-executable harness proves all-source-client exit, process restart, server-only
-   recovery into an empty client, product-provider compatibility, and listener reuse. Next: add
-   authenticated identity/authorization/revocation, public WSS operations, compaction/export/backups
+   recovery into an empty client, product-provider compatibility, and listener reuse. A first
+   identity foundation now gives each installation an OS-vault Ed25519 key and signs only bounded
+   ephemeral presence. Cross-language mutation tests pass, but keys remain self-issued and unapproved;
+   exact same-session replay and participant-ID impersonation remain possible, and durable research
+   events are unsigned. Next: add peer approval, authorization/revocation and signed durable-event
+   envelopes, public WSS operations, compaction/export/backups
    and broader abuse controls, then run packaged physical two-install and five-client soak gates.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.
    v0.1.14 added same-name folder codes and the bounded MCP/LAN diagnostic; the two-physical-install

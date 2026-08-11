@@ -677,8 +677,8 @@ collaborators are not required to download large project folders.
    when the installation is an unconflicted registered device for the participant claim; inspection
    re-resolves the live event hash and retained author, rejecting cross-author claims, and omits proof
    and research bodies or label names. Signing failure is explicitly unsigned and never rolls back
-   the mutation or checkpoint. Three other named research-event domains still lack production
-   resolvers/adoption. Device-bound admin credentials now expose a strict reserved
+   the mutation or checkpoint. Suggestion, heuristic, and scenario-rerun adoption now complete the
+   exact retained-state resolver set for all ten named research-event domains. Device-bound admin credentials now expose a strict reserved
    control channel: the relay consumes the ordinary fresh proof, verifies a second action/revision
    signature, durably mutates/reloads membership, and evicts room peers. The product exposes those
    controls on a remotely hosted project only for the enrolled admin installation. A repeatable exact
@@ -695,8 +695,8 @@ collaborators are not required to download large project folders.
    rejections, and stale replay. Host-only MCP automation now reads authoritative content-minimized
    policy state and applies an exact-revision install/remove transition using eligible registered
    key IDs. Next: run packaged physical two-install policy interaction, then
-   recovery when no admin survives (which still requires the relay host), durable-event attestation
-   adoption for scenario-rerun, device-key rotation/recovery, trusted time and replacement-invitation
+   recovery when no admin survives (which still requires the relay host), device-key
+   rotation/recovery, trusted time and replacement-invitation
    delivery, public WSS operations, compaction/export/backups
    and broader abuse controls, then run packaged physical two-install gates.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.

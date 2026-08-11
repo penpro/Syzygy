@@ -334,7 +334,7 @@ It fails unless:
 2. replace/append operations change the same editor and reject a stale revision;
 3. the loopback parser accepts an authenticated request and rejects browser origins;
 4. MCP initialization negotiates the current `2025-11-25` protocol revision;
-5. all thirty-nine semantic tools are discoverable and route to their intended live operation, including bounded Drive project catalog/share/join, exact shared-title rename/retention guards, exact scenario sibling reconciliation, and adversarial archive/decision actions;
+5. all 46 semantic tools are discoverable and route to their intended live operation, including bounded Drive project catalog/share/join, exact shared-title rename/retention guards, exact scenario sibling reconciliation, suggestion proposal/decision, and adversarial archive/decision actions;
 6. self-description returns absolute paths and copy-ready configuration without a GUI;
 7. platform contracts parse, keep provider-run/adversarial/plugin schemas strict, and do not
    overstate unimplemented runtimes; and

@@ -21,6 +21,7 @@ pub mod mcp;
 mod mcp_setup;
 pub mod model_provider;
 mod platform_contracts;
+pub mod plugin_runtime;
 #[doc(hidden)]
 pub mod provider_runtime;
 pub mod provider_stream;
@@ -252,6 +253,7 @@ pub fn run() {
             provider_runtime::provider_credential_set,
             provider_runtime::provider_credential_status,
             provider_runtime::provider_credential_delete,
+            plugin_runtime::plugin_component_run,
             updates::app_version
         ])
         .run(tauri::generate_context!())

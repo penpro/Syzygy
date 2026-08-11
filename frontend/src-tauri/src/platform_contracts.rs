@@ -58,8 +58,9 @@ pub fn current() -> Result<Value, String> {
             "adversarialRunner": "native-multi-provider-executor-resumable-mcp-pending-human-review",
             "pluginCertifier": "contract-certified-runner",
             "pluginAuthorityBroker": "implemented-non-executing",
-            "pluginWitContract": "published-zero-imports-no-runtime",
-            "pluginLoader": "contract-only",
+            "pluginWitContract": "zero-import-subprocess-runtime-bounded",
+            "pluginRuntimeIsolation": "one-shot-child-process-fuel-epoch-store-and-parent-deadline",
+            "pluginLoader": "in-memory-runtime-no-discovery-install-ui",
             "scenarioPackCodec": "product-import-export-checksummed-atomic",
             "networkBoundaryTrace": "source-copy-origin-harness-no-os-packet-capture"
         },
@@ -123,6 +124,7 @@ pub fn current() -> Result<Value, String> {
             "credentialLiveCommand": "npm run test:credentials:live",
             "pluginCertifierCommand": "npm run test:plugin-sdk",
             "pluginAuthorityBrokerCommand": "npm run test:plugin-host",
+            "pluginRuntimeCommand": "npm run test:plugin-runtime",
             "modelAdapterCertifierCommand": "npm run test:model-adapter-sdk",
             "adversarialCommand": "npm run test:adversarial",
             "mcpCommand": "npm run test:mcp",
@@ -188,7 +190,15 @@ mod tests {
         );
         assert_eq!(
             contracts["implementationStatus"]["pluginWitContract"],
-            "published-zero-imports-no-runtime"
+            "zero-import-subprocess-runtime-bounded"
+        );
+        assert_eq!(
+            contracts["implementationStatus"]["pluginRuntimeIsolation"],
+            "one-shot-child-process-fuel-epoch-store-and-parent-deadline"
+        );
+        assert_eq!(
+            contracts["implementationStatus"]["pluginLoader"],
+            "in-memory-runtime-no-discovery-install-ui"
         );
         assert_eq!(contracts["pluginWitWorld"], "syzygy:research/plugin@1.0.0");
         assert!(contracts["pluginWitContract"]

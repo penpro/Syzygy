@@ -2,8 +2,9 @@
 
 **Status:** native content-bound adversarial execution, resumable MCP orchestration, explicit
 collaborative archival, and immutable human decision history are implemented with loopback/Yjs
-conformance evidence; plugin loading remains unimplemented.
-**Research date:** 2026-07-14; implementation evidence updated 2026-07-29. This document records
+conformance evidence; bounded zero-import component execution is implemented, while plugin package
+discovery/install/UI and capability-bearing hosts remain unimplemented.
+**Research date:** 2026-07-14; implementation evidence updated 2026-08-11. This document records
 the evidence and falsifiers so another person or model can challenge both the design and claims.
 
 ## Claim under test
@@ -79,12 +80,20 @@ accept/reject history with no draft mutation. Authenticated identity, physical t
 interaction, public benchmark corpus, live-provider evidence, scalable worst-case archive rendering,
 quality statistics, and any superiority claim remain unimplemented or unproved.
 
-The researcher-plugin side now publishes `syzygy:research/plugin@1.0.0` as a zero-import WIT
-world. It receives only a bounded optional project snapshot and returns only no-change or typed
+The researcher-plugin side publishes `syzygy:research/plugin@1.0.0` as a zero-import WIT world.
+It receives only a bounded optional project snapshot and returns only no-change or typed
 revision-guarded proposals. The same envelope is validated in TypeScript and the WIT source is
-embedded in the MCP platform contract. This establishes a portable least-authority interface;
-component binary inspection, resource limits, instantiation, and denied-operation runtime proof
-remain open.
+embedded in the MCP platform contract. Rust now rejects every top-level component import and runs
+that exact world with an empty Wasmtime linker, bounded binary/envelope/linear-memory/fuel/time
+resources, exact output revalidation, and no WASI dependency. Each run lives in a fresh hidden
+child process under a five-second kill-and-reap parent deadline. The Windows hostile-fuel fixture
+terminates only that worker and a clean successor still succeeds. This establishes the portable
+no-authority execution baseline; package discovery/install/upgrade, signed publisher trust,
+authority-broker product composition, contribution UI, capability-bearing interfaces, and useful
+third-party behavior remain open.
+
+Machine-readable runtime limits, commands, results, proved claims, and explicit non-claims are in
+`docs/audits/runs/PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11.json`.
 
 ## Benchmark before product claims
 

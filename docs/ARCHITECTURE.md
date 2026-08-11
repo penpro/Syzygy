@@ -96,6 +96,7 @@ packaged MCP surface before succeeding.
 | `lan_agent.rs` | Packaged outbound encrypted agent that proxies the installed stdio MCP to an authenticated private-LAN coordinator without rebinding the GUI bridge. |
 | `mcp_setup.rs` | Running-executable discovery plus copy-ready JSON/TOML configuration and connection prompts shared by the UI and MCP. |
 | `platform_contracts.rs` | Machine-readable provider-run, adversarial-review, and researcher-plugin schemas/status exposed to headless MCP clients. |
+| `plugin_runtime.rs` | One-shot no-authority WebAssembly Component execution. It rejects every top-level import, links an empty host, bounds component/envelope/linear-memory/fuel/time resources, and runs only in a kill-and-reap child process. |
 | `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses, Anthropic Messages, Gemini Interactions, and xAI Responses one-shot/SSE wire contracts have fake-server evidence with bounded controls, custom-function schema mapping, non-executing proposal normalization, a depth/node/keyword-bounded schema subset, and exact post-assembly argument validation. Validation always separates structural status from unreviewed domain semantics and false execution authority. xAI's boolean ZDR response header is required before event dispatch and preserved in the run record. |
 | `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. Ordinary tasks use one native Send-once decision whose disclosure includes any tool names, descriptions, and argument schemas; normalized proposals stay transient and are never executed, while the content-free output hash commits to their bodies and validation state. The runtime matches calls only to definitions from the approved request and authors valid/invalid/missing-definition status before returning the final outcome. Adversarial execution uses one content-bound batch decision that freezes exact research bytes, graph/routes/dependencies/order/limits/budgets; atomically consumes calls; verifies upstream output hashes; derives phase prompts; uses fixed built-in endpoints and the OS vault; rejects unsafe JSON; and records content-free provenance. The product executor is reachable through typed Tauri wrappers and revision-guarded resumable MCP jobs. Loopback transport is proven; packaged dialog interaction and live-provider behavior are not. |
 | `provider_stream.rs` | Incremental provider SSE normalization. OpenAI, Anthropic, Gemini, and xAI decoders handle fragmented frames, text/usage/finish lifecycles, unknown future events, sanitized provider errors, and bounded malformed/truncated input. Custom function calls normalize to one bounded start/delta/complete proposal lifecycle; orphaned, mismatched, malformed, duplicate, or unfinished calls fail closed. Anthropic/Gemini private-thinking bodies remain omitted. |
@@ -648,8 +649,10 @@ declarative custom model-adapter profiles, public Draft 2020-12 schemas, and hea
 tests. The adversarial runner keeps route identity outside judge-visible artifacts, forwards only
 exact completed upstream bytes, and can return only a pending non-mutating result. The job registry
 limits concurrency, heartbeats every 30 seconds, aborts at 15 minutes, and retains terminal results
-for one hour. Plugin and adapter certifiers still inspect packages without executing them; plugin
-loading and custom-adapter execution remain unavailable.
+for one hour. Plugin and adapter certifiers still inspect packages without executing them; the
+separate component runtime accepts only an already-selected in-memory binary and invocation.
+Package discovery/install/upgrade, contribution UI, authority-broker product wiring, and
+custom-adapter execution remain unavailable.
 
 The non-executing plugin authority broker turns a validated manifest plus explicit grant into a
 short-lived in-memory session. It returns detached project snapshots, pending revision-guarded
@@ -658,9 +661,21 @@ provider call, Drive call, or mutation implementation.
 
 The first plugin WIT world is a separate public contract with zero imports. It accepts only a
 bounded typed invocation and exports only no-change or proposal output; TypeScript validates the
-same envelope before the future host may call the authority broker. The world is embedded in MCP
-for installed-binary inspection. No component loader/runtime is present, so this is not a sandbox
-availability claim.
+same envelope before the product may call the authority broker. Rust now compiles and invokes that
+exact world with Wasmtime through an empty linker. It explicitly rejects any top-level component
+import and has no `wasmtime-wasi` dependency, so filesystem, network, environment, clock, random,
+Drive, model, and project-mutation host calls cannot be linked. Components are capped at 8 MiB;
+invocation and output envelopes at 1 MiB; linear memory at 32 MiB; sources at 200; proposals at 32;
+and execution at fixed fuel plus a two-second epoch deadline.
+
+Every invocation runs in a fresh hidden child process. The GUI-side parent serializes execution,
+validates the component and invocation before spawn, suppresses worker stderr, bounds worker I/O,
+revalidates the exact response, and kills and reaps the worker after five seconds. This process
+boundary is required defense in depth: a hostile fuel-exhaustion fixture can terminate the pinned
+runtime on the current Windows toolchain, and the integration gate proves that failure cannot take
+down the host and that the next clean worker succeeds. The world remains embedded in MCP for
+installed-binary inspection. This is real in-memory baseline execution, not package discovery,
+installation, permission-grant UI, capability-bearing WIT, or direct mutation authority.
 
 | What | Where |
 |---|---|
@@ -732,8 +747,9 @@ availability claim.
   output is an inspectable transient proposal with no MCP, Drive, filesystem, plugin, editor, network,
   or shared-project mutation authority. Safe-subset schema validation is structural only: domain state
   remains explicitly unreviewed and execution remains false even when arguments match.
-  Plugins declare capabilities and submit revision-guarded proposals. No plugin
-  code executes in the webview and no contract-only feature may report itself as available. See
+  Plugins declare capabilities and submit revision-guarded proposals. Baseline component code
+  executes only in the zero-import child runtime; no plugin code executes in the webview and no
+  package/install/capability feature may report itself as available. See
   `PROVIDER-API.md`, `PLUGIN-API.md`, and ADR-0002/0003.
 
 ## Network-boundary evidence gate

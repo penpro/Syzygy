@@ -77,7 +77,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   strict plugin/proposal schemas, the public adversarial record, native content-bound
   multi-provider execution, and three resumable MCP job tools. The execution path is loopback
   conformance-tested and remains non-mutating/pending-human-review; live-provider compatibility,
-  durable run UI/history, benchmark quality, and plugin loading remain open. Evidence and
+  durable run UI/history, benchmark quality, plugin package lifecycle, and capability-bearing
+  plugin hosts remain open. The zero-import in-memory component runtime is now implemented.
+  Evidence and
   falsifiers are in `RESEARCH-EXTENSIONS.md`; APIs are in `ADVERSARIAL-API.md`,
   `PROVIDER-API.md`, and `PLUGIN-API.md`.
 - The same slice adds a provider-neutral collaboration lifecycle and a deterministic two-editor
@@ -304,22 +306,29 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   citation-auditor example. Draft 2020-12 schemas, bounded JSON, real-path containment, valid and
   invalid proposal fixtures, plugin identity, documentation/license/runtime-file presence, and
   seven explicit authority allow/deny probes run headlessly. The report says
-  `contract-certified`, never runtime-safe; plugin discovery, install, WASI execution, permission
-  brokerage, UI, lifecycle, and output-flood/crash tests remain open.
+  `contract-certified`, never runtime-safe; plugin discovery, install, permission-broker product
+  composition, UI, lifecycle, and capability-bearing interfaces remain open.
 - The non-executing plugin authority broker now enforces explicit grant subsets in 15-minute
   sessions, detached bounded project snapshots, pending revision-guarded proposals, selected-Drive
   identity, granted HTTPS host patterns, and configured model providers. It returns decisions only:
-  no loader, fetch, provider call, Drive call, or mutation is wired. WASI/native hosts, install
-  lifecycle, DNS/redirect enforcement, UI, and runtime failure tests remain open.
+  no package loader, fetch, provider call, Drive call, or mutation is wired. The separate
+  zero-import component executor has no route to these decisions; install lifecycle,
+  DNS/redirect enforcement, UI, native-MCP hosting, and composition tests remain open.
   Evidence: `docs/audits/runs/PLUGIN-AUTHORITY-BROKER-2026-07-15.json`.
 - The public `syzygy:research/plugin@1.0.0` WIT world now has zero host imports and one bounded
   invocation/output surface. Tests reject ambient fields, duplicate sources, cyclic/oversized
   envelopes, direct mutation, and malformed proposals; pinned upstream `wit-parser` resolves one
-  zero-import/one-export world; MCP embeds the exact WIT and reports
-  `published-zero-imports-no-runtime`. Component parsing/instantiation, import inspection,
-  fuel/memory/time limits, traps, install lifecycle, and any capability-bearing WIT world remain
-  open. This is an interface proof, not sandbox execution.
-  Evidence: `docs/audits/runs/PLUGIN-WIT-CONTRACT-2026-07-15.json`.
+  zero-import/one-export world. Rust now inspects and instantiates that exact world with an empty
+  linker, explicit top-level import denial, 8-MiB component/1-MiB envelope/32-MiB memory limits,
+  200-source/32-proposal bounds, fixed fuel, a two-second epoch deadline, and exact output identity/
+  revision checks. Every invocation runs in a hidden one-shot child under a five-second parent
+  kill-and-reap deadline. The Windows hostile-fuel fixture may abort the worker; the integration
+  proof requires the parent and a clean successor to survive. MCP reports
+  `zero-import-subprocess-runtime-bounded`. Package discovery/install/upgrade, authority-broker
+  product composition, UI, useful third-party artifacts, and every capability-bearing WIT world
+  remain open.
+  Evidence: `docs/audits/runs/PLUGIN-WIT-CONTRACT-2026-07-15.json` and
+  `docs/audits/runs/PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11.json`.
 - The adversarial protocol now has an executable run-record validator and synthetic benchmark
   fixture. Eight tests enforce blinded artifacts, complete candidates/critiques, claim-level source
   audits, planned reversed judge order, equal actual call budgets, supported-minority retention,
@@ -619,8 +628,9 @@ collaborators are not required to download large project folders.
    settings/task workflow, scoped OpenAI/Anthropic/Gemini/xAI streaming event bridge, and bounded
    proposal-only tool normalization and safe-subset schema-validation proof have landed; next add
    opt-in live/provider-policy evidence and explicit domain/authority design before any tool-result loop.
-   Build the adversarial benchmark before
-   claiming panel quality; implement a no-authority WASI host before loading third-party code.
+   Build the adversarial benchmark before claiming panel quality. The no-authority component host
+   has landed; next compose it with explicit grants, package lifecycle, human proposal review, and
+   third-party certification before loading user-selected plugin code.
 4. **Harden collaboration beyond the first Drive transport** — append-only Yjs Drive sharing,
    share/join UI, deterministic partition convergence, a real Drive canary, persistent outbound LAN
    agents, guarded MCP catalog/share/join tooling, and exact scenario sibling reconciliation have

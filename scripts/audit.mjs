@@ -2153,7 +2153,7 @@ record(
     pluginManifestSchema.additionalProperties === false &&
     pluginProposalSchema.additionalProperties === false &&
     pluginCertificationSchema.additionalProperties === false &&
-    platformContractsSource.includes('"pluginLoader": "contract-only"') &&
+    platformContractsSource.includes('"pluginLoader": "in-memory-runtime-no-discovery-install-ui"') &&
     platformContractsSource.includes('"pluginCertifier": "contract-certified-runner"') &&
     platformContractsSource.includes('"automaticSharedMutation": false'),
   'strict v1 schemas, honest runtime status, and proposal-only shared mutation',
@@ -2192,7 +2192,7 @@ record(
     pluginAuthorityBrokerTestSource.includes('permission-denied') &&
     frontendPackage.scripts?.['test:plugin-host']?.includes('pluginAuthorityBroker.test.ts') &&
     platformContractsSource.includes('"pluginAuthorityBroker": "implemented-non-executing"') &&
-    platformContractsSource.includes('"pluginLoader": "contract-only"'),
+    platformContractsSource.includes('"pluginLoader": "in-memory-runtime-no-discovery-install-ui"'),
   'short-lived explicit grants, detached snapshots, pending revision-guarded proposals, target-only decisions, sanitized denial, and no runtime/network/model execution',
 )
 record(
@@ -2211,9 +2211,53 @@ record(
     cargoManifestSource.includes('wit-parser = "=0.223.1"') &&
     platformContractsSource.includes('plugin_wit_parses_as_one_zero_import_world') &&
     platformContractsSource.includes('world.imports.is_empty()') &&
-    platformContractsSource.includes('"pluginWitContract": "published-zero-imports-no-runtime"') &&
+    platformContractsSource.includes('"pluginWitContract": "zero-import-subprocess-runtime-bounded"') &&
     platformContractsSource.includes('"pluginWitWorld": "syzygy:research/plugin@1.0.0"'),
-  'pinned upstream parser resolves one zero-import world; typed envelopes cap snapshots/output and accept only no-change or schema-validated revision-guarded proposals; no runtime is claimed',
+  'pinned upstream parser resolves one zero-import world; typed envelopes cap snapshots/output and accept only no-change or schema-validated revision-guarded proposals',
+)
+const pluginRuntimeSource = text('frontend/src-tauri/src/plugin_runtime.rs')
+const pluginRuntimeWorkerTestSource = text('frontend/src-tauri/tests/plugin_runtime_worker.rs')
+const pluginRuntimeEvidence = JSON.parse(
+  text('docs/audits/runs/PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11.json'),
+)
+const appMainSource = text('frontend/src-tauri/src/main.rs')
+record(
+  'plugin component execution remains zero-authority, bounded, and process-contained',
+  cargoManifestSource.includes('wasmtime = { version = "=20.0.2"') &&
+    cargoManifestSource.includes('wasmparser = "=0.202.0"') &&
+    cargoManifestSource.includes('psm = "=0.1.21"') &&
+    cargoManifestSource.includes('wat = "=1.202.0"') &&
+    !cargoLockSource.includes('name = "wasmtime-wasi"') &&
+    pluginRuntimeSource.includes('Payload::ComponentImportSection') &&
+    pluginRuntimeSource.includes('return Err(error("imports-denied"))') &&
+    pluginRuntimeSource.includes('Linker::<RuntimeStore>::new(&engine)') &&
+    pluginRuntimeSource.includes('.consume_fuel(true)') &&
+    pluginRuntimeSource.includes('.epoch_interruption(true)') &&
+    pluginRuntimeSource.includes('StoreLimitsBuilder::new()') &&
+    pluginRuntimeSource.includes('MAX_LINEAR_MEMORY_BYTES') &&
+    pluginRuntimeSource.includes('WORKER_DEADLINE') &&
+    pluginRuntimeSource.includes('child.kill()') &&
+    pluginRuntimeSource.includes('child.wait()') &&
+    pluginRuntimeSource.includes('stderr(Stdio::null())') &&
+    pluginRuntimeSource.includes('validate_worker_result') &&
+    !/std::fs|reqwest|TcpStream|UdpSocket/.test(pluginRuntimeSource) &&
+    pluginRuntimeWorkerTestSource.includes('plugin_runtime_worker_abort_is_reaped_and_the_host_remains_reusable') &&
+    pluginRuntimeWorkerTestSource.includes('plugin_runtime_parent_deadline_covers_a_worker_that_never_reads_stdin') &&
+    pluginRuntimeWorkerTestSource.includes('a fresh bounded worker should run after the hostile worker exits') &&
+    appMainSource.includes('--plugin-runtime-worker') &&
+    rustWiringSource.includes('plugin_runtime::plugin_component_run') &&
+    tauriSource.includes("invoke('plugin_component_run'") &&
+    frontendPackage.scripts?.['test:plugin-runtime']?.includes('plugin_runtime') &&
+    platformContractsSource.includes('"pluginRuntimeIsolation": "one-shot-child-process-fuel-epoch-store-and-parent-deadline"') &&
+    pluginRuntimeEvidence.runtimeStatus === 'zero-import-subprocess-runtime-bounded' &&
+    pluginRuntimeEvidence.loaderStatus === 'in-memory-runtime-no-discovery-install-ui' &&
+    pluginRuntimeEvidence.isolationStatus === 'one-shot-child-process-fuel-epoch-store-and-parent-deadline' &&
+    pluginRuntimeEvidence.verificationStatus === 'synthetic-component-and-hostile-worker-verified' &&
+    pluginRuntimeEvidence.result?.pluginRuntimeUnitTestsPassed === 6 &&
+    pluginRuntimeEvidence.result?.pluginRuntimeWorkerIntegrationTestsPassed === 2 &&
+    pluginRuntimeEvidence.notProved?.some((claim) => claim.includes('operating-system-level cap')) &&
+    pluginRuntimeEvidence.notProved?.some((claim) => claim.includes('useful third-party plugin artifact')),
+  'empty linker, explicit top-level import denial, 8-MiB component/1-MiB envelope/32-MiB memory bounds, fuel plus epoch interruption, five-second kill-and-reap parent deadline, sanitized stderr, exact post-worker validation, and crash-recovery harness',
 )
 const adversarialRecordSource = text('frontend/src/extensions/adversarialRunRecord.ts')
 const adversarialRunnerSource = text('frontend/src/extensions/adversarialRunner.ts')

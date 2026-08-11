@@ -1616,7 +1616,12 @@ mod tests {
         );
         assert_eq!(
             response["result"]["structuredContent"]["implementationStatus"]["pluginLoader"],
-            "contract-only"
+            "in-memory-runtime-no-discovery-install-ui"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["implementationStatus"]
+                ["pluginRuntimeIsolation"],
+            "one-shot-child-process-fuel-epoch-store-and-parent-deadline"
         );
     }
 }

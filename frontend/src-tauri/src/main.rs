@@ -23,6 +23,14 @@ fn main() {
             eprintln!("Syzygy collaboration relay stopped: {error}");
             std::process::exit(1);
         }
+    } else if arguments
+        .iter()
+        .any(|argument| argument == "--plugin-runtime-worker")
+    {
+        if let Err(error) = app_lib::plugin_runtime::run_worker() {
+            eprintln!("Syzygy plugin runtime worker stopped: {error}");
+            std::process::exit(1);
+        }
     } else {
         app_lib::run();
     }

@@ -196,9 +196,10 @@ async function proveStdioContract() {
   const contracts = byId.get(6)?.result?.structuredContent
   if (byId.get(6)?.result?.isError !== false) throw new Error('platform contracts tool failed without a live GUI')
   if (contracts?.contractVersion !== 1) throw new Error('platform contract version is missing')
-  if (contracts?.implementationStatus?.pluginLoader !== 'contract-only') throw new Error('plugin loader status is overstated')
+  if (contracts?.implementationStatus?.pluginLoader !== 'in-memory-runtime-no-discovery-install-ui') throw new Error('plugin loader status is inaccurate')
   if (contracts?.implementationStatus?.pluginAuthorityBroker !== 'implemented-non-executing') throw new Error('plugin authority broker status is inaccurate')
-  if (contracts?.implementationStatus?.pluginWitContract !== 'published-zero-imports-no-runtime') throw new Error('plugin WIT contract status is inaccurate')
+  if (contracts?.implementationStatus?.pluginWitContract !== 'zero-import-subprocess-runtime-bounded') throw new Error('plugin WIT contract status is inaccurate')
+  if (contracts?.implementationStatus?.pluginRuntimeIsolation !== 'one-shot-child-process-fuel-epoch-store-and-parent-deadline') throw new Error('plugin runtime isolation status is inaccurate')
   if (contracts?.pluginWitWorld !== 'syzygy:research/plugin@1.0.0') throw new Error('plugin WIT world is missing or unversioned')
   if (!contracts?.pluginWitContract?.includes('world plugin') || /^\s*import\s/m.test(contracts.pluginWitContract)) throw new Error('plugin WIT contract is not a zero-import world')
   if (contracts?.pluginManifestSchema?.additionalProperties !== false) throw new Error('plugin manifest schema is not strict')

@@ -726,9 +726,10 @@ Schema alone cannot establish.
 
 Manifest/proposal/certification schema v1, TypeScript validators, and a non-executing headless
 package certifier have landed. The runner proves bounded schema/path/fixture/authority metadata and
-deliberately labels results `contract-certified`, not runtime-safe. Next deliver a no-authority
-WASI host/WIT world on the implemented non-executing authority broker, declarative contribution rendering, local
-install/disable/upgrade, and the advanced native MCP trust tier. Marketplace control is optional;
+deliberately labels results `contract-certified`, not runtime-safe. The first no-authority
+WebAssembly Component host has now landed for the zero-import WIT world. Next compose it with the
+implemented authority broker, declarative contribution rendering, local install/disable/upgrade,
+and the advanced native MCP trust tier. Marketplace control is optional;
 local packages and open documentation are required.
 
 The authority broker now opens 15-minute sessions only from a strict manifest plus explicit grant
@@ -738,8 +739,13 @@ It contains no loader or external operation and is reported separately from `plu
 
 The first public WIT contract is also landed as `syzygy:research/plugin@1.0.0`. It has no imports,
 accepts a bounded optional project snapshot, and returns only no-change or revision-guarded
-proposals. The exact source is headlessly inspectable through MCP. No WebAssembly parser, loader,
-resource limiter, or component execution is claimed yet.
+proposals. The exact source is headlessly inspectable through MCP. A pinned Wasmtime host now
+rejects all top-level imports, links no WASI or other host interface, bounds binary/envelope/memory/
+fuel/time resources, and revalidates exact proposal identity and revision. Each invocation runs in
+a fresh hidden child under a five-second parent kill-and-reap deadline. The hostile Windows fuel
+fixture proves a worker abort does not terminate the host and that a subsequent clean worker runs.
+This is an in-memory execution boundary, not plugin discovery/install/upgrade, publisher trust,
+broker/product composition, capability-bearing WIT, contribution UI, or direct mutation.
 
 Gate: unknown/undeclared authority fails closed; WASI begins with no project, Drive, network,
 model, or filesystem access; native MCP is never described as sandboxed; all mutations are bounded
@@ -750,7 +756,11 @@ live-provider certification separate from local conformance and report:
 `native-multi-provider-executor-resumable-mcp-pending-human-review` for adversarial execution,
 `native-content-bound-call-graph-authorizer` for batch authorization,
 `native-atomic-dependency-bound-executor` for native reservation/execution, and
-`contract-only` for custom-adapter execution and plugin loading.
+`contract-only` for custom-adapter execution,
+`in-memory-runtime-no-discovery-install-ui` for plugin loading, and
+`one-shot-child-process-fuel-epoch-store-and-parent-deadline` for plugin runtime isolation.
+The machine-readable synthetic and hostile-worker proof, including explicit non-claims, is
+`docs/audits/runs/PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11.json`.
 
 Progress: OpenAI Responses one-shot request construction, bounded whole-operation timeout,
 idempotent in-flight/inter-event cancellation, and fake-network incremental SSE dispatch now pass
@@ -869,7 +879,8 @@ Do not use the web port or upstream source as an implementation input. First:
    Drive/WebSocket providers to pass the same contract;
 6. render it in paper and all retained dark themes;
 7. measure bundle/startup/editor latency; and
-8. stop for audit before scenarios, provider calls, plugin execution, or Drive CRDT state.
+8. stop for audit before expanding plugin execution beyond the zero-import child boundary or adding
+   any capability-bearing host interface.
 
 This tests the riskiest assumptions—license, Tauri integration, schema, Yjs, persistence, and
 design—without creating another monolith.

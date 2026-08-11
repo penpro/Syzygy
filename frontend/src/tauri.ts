@@ -1142,6 +1142,69 @@ export const providerCredentialStatus = (provider: RemoteProviderId): Promise<bo
 export const providerCredentialDelete = (provider: RemoteProviderId): Promise<void> =>
   invoke('provider_credential_delete', { provider })
 
+// ---------- sandboxed researcher plugins ----------
+
+export interface PluginRuntimeSourceSnapshot {
+  snapshotId: string
+  label: string
+  content: string
+}
+
+export interface PluginRuntimeProjectSnapshot {
+  projectId: string
+  revision: string
+  documentText: string
+  sources: PluginRuntimeSourceSnapshot[]
+}
+
+export interface PluginRuntimeInvocation {
+  invocationVersion: 1
+  pluginId: string
+  contributionId: string
+  project: PluginRuntimeProjectSnapshot | null
+}
+
+export interface PluginRuntimeChangeProposal {
+  proposalVersion: 1
+  proposalId: string
+  pluginId: string
+  projectId: string
+  expectedRevision: string
+  summary: string
+  content: string
+  operation: 'append' | 'replace'
+}
+
+export type PluginRuntimeOutput =
+  | { kind: 'no-change'; reason: string }
+  | { kind: 'proposals'; proposals: PluginRuntimeChangeProposal[] }
+
+export interface PluginRuntimeResult {
+  runtimeVersion: 1
+  world: 'syzygy:research/plugin@1.0.0'
+  output: PluginRuntimeOutput
+  limits: {
+    maxComponentBytes: number
+    maxEnvelopeBytes: number
+    maxLinearMemoryBytes: number
+    maxSources: number
+    maxProposals: number
+    executionFuel: number
+    executionDeadlineMs: number
+    ambientImportsLinked: false
+  }
+}
+
+/**
+ * Execute one in-memory component in the zero-import baseline world. This boundary links no WASI,
+ * network, Drive, model, filesystem, clock, random, environment, or project-mutation authority.
+ * Returned proposals remain untrusted until the separate authority broker and human-review path.
+ */
+export const pluginComponentRun = (
+  componentBase64: string,
+  invocation: PluginRuntimeInvocation,
+): Promise<PluginRuntimeResult> => invoke('plugin_component_run', { componentBase64, invocation })
+
 /** Complete one semantic automation request. Content is returned only to its authenticated caller. */
 export const automationRespond = (
   id: string,

@@ -25,6 +25,7 @@
     "test:adversarial": "vitest run src/extensions/adversarialProtocol.test.ts src/extensions/adversarialRunRecord.test.ts src/extensions/adversarialRunner.test.ts src/extensions/adversarialNativePlan.test.ts src/extensions/adversarialNativeExecutor.test.ts src/extensions/adversarialAutomation.test.ts src/extensions/adversarialHistory.test.ts src/workspace/AdversarialReviewWorkspace.ui.test.tsx --reporter=verbose",
     "test:plugin-sdk": "node --test ../scripts/plugin-certifier.test.mjs",
     "test:plugin-host": "vitest run src/extensions/pluginAuthorityBroker.test.ts --reporter=verbose",
+    "test:plugin-runtime": "cargo test --manifest-path src-tauri/Cargo.toml plugin_runtime -- --nocapture",
     "certify:plugin": "node ../scripts/plugin-certifier.mjs",
     "test:model-adapter-sdk": "node --test ../scripts/model-adapter-certifier.test.mjs",
     "certify:model-adapter": "node ../scripts/model-adapter-certifier.mjs",

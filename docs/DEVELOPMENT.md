@@ -23,6 +23,7 @@ npm run test:contracts     # public provider-run/adversarial/plugin schemas and 
 npm run test:provider-streams # fragmented/multiline/unknown/malformed SSE conformance
 npm run test:credentials   # memory-backed credential-vault contract; no OS store mutation
 npm run test:plugin-sdk    # non-executing package/schema/path/authority certification
+npm run test:plugin-runtime # zero-import component execution + hostile worker containment
 npm run test:model-adapter-sdk # non-executing custom adapter profile/endpoint certification
 cargo fmt --all -- --check # Rust formatting
 ```
@@ -821,6 +822,7 @@ credential store and is therefore not part of the default headless suite.
 cd D:\PolicyPad\syzygy\frontend
 npm run test:plugin-sdk
 npm run test:plugin-host
+npm run test:plugin-runtime
 npm run certify:plugin -- ..\examples\plugins\citation-auditor
 ```
 
@@ -829,13 +831,34 @@ npm run certify:plugin -- ..\examples\plugins\citation-auditor
 validators. The Rust platform-contract suite uses pinned `wit-parser` 0.223.1 to resolve the public
 package and prove the world has zero imports and one export. TypeScript proves unknown/ambient
 fields, duplicate source identity, unbounded/cyclic payloads,
-direct mutation, and malformed proposals fail closed. It does not instantiate WebAssembly; MCP and
-the structural audit must continue to report `published-zero-imports-no-runtime` until a real host
-passes resource, trap, and denied-import tests.
+direct mutation, and malformed proposals fail closed.
 
-The first command tests schema rejection, real-path containment, wildcard-domain semantics, and
-undeclared-authority denial. The second emits a JSON certification report for the interface-only
-example. Neither command executes plugin code; runtime/WASI certification remains a separate gate.
+`npm run test:plugin-runtime` instantiates the exact world through the pinned Wasmtime component
+API. It proves the empty linker and explicit top-level import rejection deny filesystem, network,
+environment, clock, and random-shaped imports; accepts exact no-change and revision-guarded proposal
+output; rejects malformed/core-module/oversized binaries, duplicate or oversized input, cross-plugin
+or stale proposals, output floods, traps, and memory-limit attempts; and returns only content-free
+error codes. Production links no `wasmtime-wasi` crate. The executor caps components at 8 MiB,
+invocation/output envelopes at 1 MiB, linear memory at 32 MiB, source count at 200, proposal count at
+32, and guest work with fixed fuel plus a two-second epoch deadline.
+
+The runtime pins Wasmtime 20.0.2 and wasm-tools 0.202-era parsers. It also pins transitive `psm`
+0.1.21 because Wasmtime's broad 0.1 range otherwise resolves to a release requiring Rust 1.88;
+the pin preserves this crate's declared Rust 1.77.2 floor. Do not remove it without running the
+actual minimum-toolchain build and updating `rust-version` intentionally.
+
+The packaged app never runs guest code in the GUI process. It starts itself with
+`--plugin-runtime-worker`, sends one bounded request over inherited pipes, suppresses worker stderr,
+revalidates the response, and kills and reaps the worker after five seconds. The hostile-fuel
+integration fixture intentionally covers a Windows behavior where the pinned runtime worker can
+abort; the test must prove the parent survives and a fresh follow-up worker succeeds. Do not move
+component execution back into the GUI process or weaken that gate merely because an upstream
+runtime version begins returning a normal fuel trap.
+
+The SDK/certification commands test schema rejection, real-path containment, wildcard-domain
+semantics, undeclared-authority denial, and the interface-only example without executing its marker
+artifact. Runtime execution is the separate third gate and accepts only an explicitly supplied
+in-memory component; it does not make a contract-certified package runtime-safe.
 The host test exercises the separate in-process authority broker: explicit grant subsets,
 detached bounded snapshots, revision/identity-guarded pending proposals, HTTPS/domain decisions,
 model/Drive target decisions, expiry, revocation, and content-free errors. It performs no network,

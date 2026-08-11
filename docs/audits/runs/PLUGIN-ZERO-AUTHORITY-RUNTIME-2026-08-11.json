@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "runId": "PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "runtimeStatus": "zero-import-subprocess-runtime-bounded",
+  "loaderStatus": "in-memory-runtime-no-discovery-install-ui",
+  "isolationStatus": "one-shot-child-process-fuel-epoch-store-and-parent-deadline",
+  "verificationStatus": "synthetic-component-and-hostile-worker-verified",
+  "limits": {
+    "componentBytes": 8388608,
+    "invocationBytes": 1048576,
+    "outputBytes": 1048576,
+    "guestMemoryBytes": 33554432,
+    "sources": 200,
+    "proposals": 32,
+    "fuel": 50000000,
+    "guestEpochDeadlineSeconds": 2,
+    "parentWorkerDeadlineSeconds": 5
+  },
+  "commands": [
+    "npm run test:plugin-runtime",
+    "npm run test:mcp",
+    "npm run check:supervised -- run 20260811-211028-213684",
+    "npm run audit",
+    "cargo check --locked",
+    "git diff --check"
+  ],
+  "result": {
+    "passed": true,
+    "pluginRuntimeUnitTestsPassed": 6,
+    "pluginRuntimeWorkerIntegrationTestsPassed": 2,
+    "mcpEditorContractTestsPassed": 10,
+    "mcpRustRoutingTestsPassed": 21,
+    "mcpPlatformContractTestsPassed": 2,
+    "mcpToolCount": 46,
+    "mcpProtocolClean": true,
+    "supervisedRun": "20260811-211028-213684",
+    "supervisedRunElapsedSeconds": 17,
+    "externalNetworkUsedByRuntimeTests": false,
+    "realCredentialsUsed": false,
+    "realModelCalls": 0,
+    "usefulThirdPartyPluginArtifactsExecuted": 0
+  },
+  "proved": [
+    "A valid synthetic WebAssembly Component implementing syzygy:research/plugin@1.0.0 executes through the typed Tauri boundary and returns a typed no-change or proposal result.",
+    "Core modules, malformed binaries, components over 8 MiB, and every top-level component import fail closed before execution.",
+    "The production Wasmtime linker is empty and the dependency graph does not include wasmtime-wasi, leaving the baseline world without filesystem, network, environment, clock, randomness, Drive, model, or project-mutation imports.",
+    "Invocation, output, source, proposal, guest-memory, fuel, guest-epoch, and parent-worker limits are enforced and covered by synthetic tests.",
+    "Returned proposals are revalidated against the exact plugin, project, and document-revision identity after crossing the worker boundary.",
+    "Each invocation runs in a hidden one-shot child process with bounded stdin and stdout, suppressed stderr, and a five-second parent kill-and-reap deadline.",
+    "A hostile fuel-exhaustion fixture may abort the Windows worker, but the parent survives, reaps it, and successfully executes a clean successor invocation.",
+    "A worker that never reads stdin is killed and reaped by the whole-worker parent deadline.",
+    "MCP exposes the exact runtime, loader, and isolation status without claiming package lifecycle or product composition."
+  ],
+  "notProved": [
+    "Plugin package discovery, installation, upgrade, rollback, signing, publisher trust, or marketplace behavior.",
+    "Automatic composition between a certified package, the authority broker, the low-level executor, and product review UI.",
+    "Any capability-bearing WIT world or safe filesystem, network, Drive, provider, or model capability grant.",
+    "A useful third-party plugin artifact; the citation-auditor example remains an intentionally non-executable marker.",
+    "Native MCP plugins are sandboxed; they remain an explicitly higher-authority process tier.",
+    "An operating-system-level cap on total worker process memory outside the Wasmtime guest store.",
+    "Bounded compilation CPU independent of the component-size and five-second parent deadline.",
+    "Release-package startup time, installer size, or packaged Windows worker behavior.",
+    "Semantic safety, research quality, determinism across Wasmtime versions, or protection from vulnerabilities in the pinned runtime itself."
+  ],
+  "sources": [
+    "docs/wit/syzygy-research-plugin-v1.wit",
+    "frontend/src-tauri/src/plugin_runtime.rs",
+    "frontend/src-tauri/tests/plugin_runtime_worker.rs",
+    "frontend/src-tauri/src/bin/plugin-runtime-harness.rs",
+    "frontend/src-tauri/src/bin/plugin-runtime-hanging-harness.rs",
+    "frontend/src/tauri.ts",
+    "frontend/src-tauri/src/platform_contracts.rs",
+    "scripts/audit.mjs"
+  ]
+}

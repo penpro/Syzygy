@@ -131,10 +131,15 @@ versions/evaluation evidence.
   proof remain release evidence gaps.
 - A WIT file is not a sandbox by itself. The published plugin baseline has no imports and bounded
   typed input/output validators, which prevents the contract from naming filesystem, network,
-  environment, clock, randomness, Drive, model, or mutation authority. A future host must still
-  reject components with unexpected imports, enforce memory/fuel/wall-time/output ceilings,
-  contain traps, and pass the plugin output through the authority broker. Until then the status is
-  `published-zero-imports-no-runtime`.
+  environment, clock, randomness, Drive, model, or mutation authority. The baseline host now
+  explicitly rejects top-level imports, uses an empty Wasmtime linker with no WASI dependency,
+  enforces component/envelope/linear-memory/fuel/epoch ceilings, and revalidates output. Every run
+  occurs in a fresh hidden child process; the parent bounds pipes, suppresses stderr, kills and reaps
+  at five seconds, and proves recovery after a hostile Windows fuel-exhaustion worker abort. The
+  status is `zero-import-subprocess-runtime-bounded`. This does not authorize package installation,
+  trust publisher claims, compose authority-broker decisions, or make capability-bearing worlds
+  safe. Every future host interface and every proposal acceptance still requires its own target,
+  revision, disclosure, and human-review gate.
 - Collaborative heuristics treat peer CRDT data as untrusted. Reads accept only the current schema,
   bounded stable IDs/text, known priorities, booleans, finite timestamps, and a complete valid edit
   map. Within a replica, update IDs are one-use: identical replay is idempotent and conflicting

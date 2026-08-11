@@ -1,9 +1,10 @@
 # Research plugin API
 
 **Manifest version:** 1. **Runtime status:** strict schemas/validators, a non-executing package
-certifier, a non-executing host authority broker, and a versioned zero-import WIT world with
-bounded TypeScript envelopes are implemented; discovery, installation, WASI/native execution, and
-UI are not yet implemented.
+certifier, a non-executing host authority broker, and a versioned zero-import WIT world now have a
+bounded in-memory WebAssembly Component executor. Discovery, installation, contribution UI,
+capability-bearing host interfaces, native-MCP execution, and broker-to-runtime product wiring are
+not yet implemented.
 
 The API is deliberately contribution-open and authority-closed. Researchers can add tools,
 evaluators, importers, and exporters without receiving ambient project, Drive, network, model, or
@@ -20,6 +21,8 @@ filesystem access.
 - Host authority broker: `frontend/src/extensions/pluginAuthorityBroker.ts`
 - Zero-import WIT world: `docs/wit/syzygy-research-plugin-v1.wit`
 - WIT invocation/output validator: `frontend/src/extensions/pluginWasiContract.ts`
+- Zero-authority component runtime: `frontend/src-tauri/src/plugin_runtime.rs`
+- Hostile-worker containment gate: `frontend/src-tauri/tests/plugin_runtime_worker.rs`
 - Headless package certifier: `scripts/plugin-certifier.mjs`
 - Complete interface-only example: `examples/plugins/citation-auditor`
 - Machine-readable inspection: MCP tool `syzygy_platform_contracts`
@@ -70,12 +73,13 @@ requests, not authority. Syzygy revalidates every operation and target at execut
 Plugins never construct authoritative provider-run records: the future host records each accepted
 model call, including denial, timeout, cancellation, usage, retention attestation, and cost.
 Simple compatible endpoints use the separate declarative model-adapter profile and certifier;
-arbitrary model protocols require the future WASI host and the same `model.invoke` authority gate.
+arbitrary model protocols require a future capability-bearing WIT host and the same `model.invoke`
+authority gate.
 
 ## Host authority broker
 
-`ResearchPluginAuthorityBroker` is the executable policy layer that a future WASI or native-MCP
-host must call. Opening a 15-minute session requires a schema-valid manifest, an explicit grant
+`ResearchPluginAuthorityBroker` is the executable policy layer that the component product adapter
+or a future native-MCP host must call. Opening a 15-minute session requires a schema-valid manifest, an explicit grant
 that is a strict subset of the manifest request, and one bounded project/revision/source snapshot.
 The broker copies session input so plugin-side mutation cannot alter host state, returns detached
 snapshots only with `project.read`, and returns proposals only as `pending-human-review` after
@@ -93,7 +97,8 @@ authorizations for a separate host implementation:
   another target check when the operation executes; and
 - session expiry or revocation fails closed with a content-free error code.
 
-This is `implemented-non-executing`, not a loader or sandbox. Run `npm run test:plugin-host` to
+This broker remains `implemented-non-executing`: it is neither the component executor nor a package
+loader. Run `npm run test:plugin-host` to
 exercise grant escalation, detached snapshots, stale/cross-target proposals, network/SSRF-shaped
 targets, model scope, Drive workspace scope, expiry, revocation, and error redaction.
 Evidence and explicit non-claims:
@@ -101,8 +106,8 @@ Evidence and explicit non-claims:
 
 ## Runtime tiers
 
-1. `wasi-component` is preferred. Components begin without ambient authority; Syzygy links only
-   the approved host interfaces. The published `syzygy:research/plugin@1.0.0` world deliberately
+1. `wasi-component` is preferred. Components begin without ambient authority. The published
+   `syzygy:research/plugin@1.0.0` world deliberately
    imports nothing and exports one typed `run` function. Its invocation can contain only plugin and
    contribution identity plus an optional bounded project snapshot; its result is either a bounded
    no-change reason or revision-guarded proposals. The host must omit the project when
@@ -118,14 +123,35 @@ rendered by Syzygy components and theme tokens; arbitrary HTML, script, CSS, and
 rejected.
 
 The WIT file is embedded verbatim in `syzygy_platform_contracts`, alongside the world identifier
-and the truthful status `published-zero-imports-no-runtime`. A pinned parser-only Bytecode Alliance
+and the truthful status `zero-import-subprocess-runtime-bounded`. A pinned Bytecode Alliance
 `wit-parser` test resolves the package and proves the world has zero imports and one export;
 contract tests also prove the JSON-side envelopes reject unknown fields, duplicate source identity,
 cyclic/unbounded payloads, direct-mutation output, empty/oversized proposal batches, and malformed
-revision guards. This proves an interface, not a WebAssembly binary or sandbox runtime. Before the
-status can advance, a real component host must inspect component imports, enforce memory/fuel/time
-limits, contain traps and output floods, and prove denied filesystem/network/environment/clock/
-random access.
+revision guards.
+
+The native baseline executor accepts one base64-encoded in-memory component and one typed
+invocation through the sole Tauri boundary. Before compilation it rejects malformed binaries,
+core modules, files over 8 MiB, and every top-level component import. Wasmtime receives an empty
+linker and the production dependency graph contains no `wasmtime-wasi`, so there is no filesystem,
+network, environment, clock, random, Drive, model, or mutation interface to call. The store caps
+linear memory at 32 MiB, sources at 200, proposals at 32, envelopes at 1 MiB, and guest execution
+with fixed fuel plus a two-second epoch deadline. Returned proposals must repeat the exact plugin,
+project, and revision identity and remain untrusted pending authority-broker and human review.
+
+Execution is isolated in a fresh hidden child process with bounded stdin/stdout and suppressed
+stderr. The parent serializes runs, revalidates the response, and kills and reaps the child at a
+five-second whole-worker deadline. This is intentional defense in depth: on the current Windows
+toolchain, the hostile fuel-exhaustion fixture can terminate the pinned Wasmtime worker rather than
+return normally. The integration gate proves the parent survives, reaps that process, and completes
+a clean follow-up invocation. The runtime therefore contains this failure instead of pretending it
+does not exist.
+
+Run `npm run test:plugin-runtime` for exact-world execution, proposal identity/revision checks,
+ambient-import denial, malformed/core-module/size rejection, memory-limit/trap/output validation,
+sanitized failures, hostile-worker containment, and post-failure reuse. This proves the low-level
+baseline executor. It does not prove package discovery/install/upgrade, signer trust, broker/product
+composition, capability-bearing worlds, useful plugin behavior, or a third-party runtime artifact;
+the citation-auditor example intentionally remains an interface-only non-executable marker.
 
 Design basis: the upstream Component Model describes WIT worlds as the strict import/export
 boundary and explicitly notes that a component without a relevant import cannot access that host
@@ -136,8 +162,11 @@ design against the primary references:
 - <https://component-model.bytecodealliance.org/design/wit.html>
 - <https://component-model.bytecodealliance.org/design/components.html>
 
-Reproducible results and non-claims are recorded in
-`docs/audits/runs/PLUGIN-WIT-CONTRACT-2026-07-15.json`.
+Reproducible results and non-claims are recorded separately for the published interface and the
+executor:
+
+- `docs/audits/runs/PLUGIN-WIT-CONTRACT-2026-07-15.json`
+- `docs/audits/runs/PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11.json`
 
 ## Mutation protocol
 
@@ -181,7 +210,7 @@ plugin identity, plus allow/deny authority probes. Later execution certification
 - prompt injection in project/Drive content;
 - determinism declaration and fixture output where applicable;
 - no secrets in stdout/stderr/logs/artifacts;
-- WASI no-authority baseline and each granted capability; and
+- every future granted capability world (the no-authority baseline now has separate runtime evidence); and
 - install, disable, upgrade, downgrade, and removal without project corruption.
 
 The in-process validator now also rejects unknown manifest/runtime/permission/contribution and

@@ -1,9 +1,10 @@
 //! Native cryptographic installation identity for collaboration attribution.
 //!
 //! The private Ed25519 PKCS#8 document stays in the operating-system credential store. The webview
-//! can request only typed live-presence or durable project-registration signatures; there is no
-//! arbitrary signing command and no command returns the private material. A valid signature proves
-//! possession of this installation key, not a person's legal or organizational identity.
+//! can request only typed live-presence, durable project-registration, relay access/admin,
+//! post-mutation decision, or pre-mutation approval signatures; there is no arbitrary signing
+//! command and no command returns the private material. A valid signature proves possession of this
+//! installation key, not a person's legal or organizational identity.
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;
@@ -28,6 +29,9 @@ const RELAY_ADMIN_SCHEMA_VERSION: u8 = 1;
 const RELAY_ADMIN_DOMAIN: &str = "syzygy-relay-admin-action-v1";
 const RELAY_ADMIN_DECISION_SCHEMA_VERSION: u8 = 1;
 const RELAY_ADMIN_DECISION_DOMAIN: &str = "syzygy-project-relay-admin-decision-v1";
+const RELAY_ADMIN_APPROVAL_SCHEMA_VERSION: u8 = 1;
+const RELAY_ADMIN_APPROVAL_DOMAIN: &str = "syzygy-project-relay-admin-approval-v1";
+const MAX_RELAY_ADMIN_APPROVAL_LIFETIME_MS: u64 = 7 * 24 * 60 * 60 * 1_000;
 const MAX_STORED_IDENTITY_BYTES: usize = 1_024;
 static IDENTITY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -104,6 +108,19 @@ pub struct ProjectRelayAdminDecisionClaim {
     pub decision_nonce: String,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectRelayAdminApprovalClaim {
+    pub schema_version: u8,
+    pub project_id: String,
+    pub room_id: String,
+    pub expected_revision: u64,
+    pub action_sha256: String,
+    pub approved_at_ms: u64,
+    pub expires_at_ms: u64,
+    pub approval_nonce: String,
+}
+
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CollaborationIdentityReport {
@@ -171,12 +188,24 @@ pub struct ProjectRelayAdminDecisionProof {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+pub struct ProjectRelayAdminApprovalProof {
+    pub schema_version: u8,
+    pub algorithm: String,
+    pub key_id: String,
+    pub public_key: String,
+    pub claim: ProjectRelayAdminApprovalClaim,
+    pub signature: String,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct CollaborationIdentityInteropProofs {
     pub presence: DevicePresenceProof,
     pub registration: ProjectDeviceRegistrationProof,
     pub relay_access: RelayAccessIdentityProof,
     pub relay_admin: RelayAdminIdentityProof,
     pub relay_admin_decision: ProjectRelayAdminDecisionProof,
+    pub relay_admin_approval: ProjectRelayAdminApprovalProof,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -434,6 +463,34 @@ fn validate_relay_admin_decision_claim(
     Ok(())
 }
 
+fn validate_relay_admin_approval_claim(
+    claim: &ProjectRelayAdminApprovalClaim,
+) -> Result<(), IdentityError> {
+    if claim.schema_version != RELAY_ADMIN_APPROVAL_SCHEMA_VERSION
+        || !stable_id(&claim.project_id)
+        || !stable_id(&claim.room_id)
+        || !(32..=128).contains(&claim.room_id.len())
+        || claim.expected_revision == 0
+        || claim.approved_at_ms == 0
+        || claim.expires_at_ms <= claim.approved_at_ms
+        || claim
+            .expires_at_ms
+            .checked_sub(claim.approved_at_ms)
+            .is_none_or(|duration| duration > MAX_RELAY_ADMIN_APPROVAL_LIFETIME_MS)
+    {
+        return Err(IdentityError::InvalidClaim);
+    }
+    for value in [&claim.action_sha256, &claim.approval_nonce] {
+        let decoded = URL_SAFE_NO_PAD
+            .decode(value)
+            .map_err(|_| IdentityError::InvalidClaim)?;
+        if decoded.len() != 32 || URL_SAFE_NO_PAD.encode(&decoded) != *value {
+            return Err(IdentityError::InvalidClaim);
+        }
+    }
+    Ok(())
+}
+
 pub fn canonical_presence_claim(claim: &PresenceIdentityClaim) -> Result<Vec<u8>, String> {
     validate_claim(claim).map_err(|error| error.to_string())?;
     Ok(format!(
@@ -502,6 +559,23 @@ pub fn canonical_relay_admin_decision_claim(
         claim.action_sha256,
         claim.recorded_at_ms,
         claim.decision_nonce,
+    )
+    .into_bytes())
+}
+
+pub fn canonical_relay_admin_approval_claim(
+    claim: &ProjectRelayAdminApprovalClaim,
+) -> Result<Vec<u8>, String> {
+    validate_relay_admin_approval_claim(claim).map_err(|error| error.to_string())?;
+    Ok(format!(
+        "{RELAY_ADMIN_APPROVAL_DOMAIN}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+        claim.project_id,
+        claim.room_id,
+        claim.expected_revision,
+        claim.action_sha256,
+        claim.approved_at_ms,
+        claim.expires_at_ms,
+        claim.approval_nonce,
     )
     .into_bytes())
 }
@@ -597,6 +671,25 @@ fn sign_relay_admin_decision(
     })
 }
 
+fn sign_relay_admin_approval(
+    identity: &StoredIdentity,
+    claim: ProjectRelayAdminApprovalClaim,
+) -> Result<ProjectRelayAdminApprovalProof, IdentityError> {
+    let message =
+        canonical_relay_admin_approval_claim(&claim).map_err(|_| IdentityError::InvalidClaim)?;
+    let key_pair = key_pair(identity)?;
+    let public_key = key_pair.public_key().as_ref();
+    let fingerprint = fingerprint(public_key);
+    Ok(ProjectRelayAdminApprovalProof {
+        schema_version: RELAY_ADMIN_APPROVAL_SCHEMA_VERSION,
+        algorithm: "Ed25519".into(),
+        key_id: format!("ed25519-sha256:{fingerprint}"),
+        public_key: URL_SAFE_NO_PAD.encode(public_key),
+        claim,
+        signature: URL_SAFE_NO_PAD.encode(key_pair.sign(&message).as_ref()),
+    })
+}
+
 pub fn validate_relay_device_identity(key_id: &str, public_key: &str) -> Result<Vec<u8>, String> {
     let decoded = URL_SAFE_NO_PAD
         .decode(public_key)
@@ -667,6 +760,25 @@ pub fn verify_project_relay_admin_decision_proof(
         .map_err(|_| "Project relay administrator decision signature did not verify".to_string())
 }
 
+pub fn verify_project_relay_admin_approval_proof(
+    proof: &ProjectRelayAdminApprovalProof,
+) -> Result<(), String> {
+    if proof.schema_version != RELAY_ADMIN_APPROVAL_SCHEMA_VERSION || proof.algorithm != "Ed25519" {
+        return Err("Project relay administrator approval proof header is invalid".into());
+    }
+    let public_key = validate_relay_device_identity(&proof.key_id, &proof.public_key)?;
+    let signature = URL_SAFE_NO_PAD
+        .decode(&proof.signature)
+        .map_err(|_| "Project relay administrator approval signature is invalid".to_string())?;
+    if signature.len() != 64 || URL_SAFE_NO_PAD.encode(&signature) != proof.signature {
+        return Err("Project relay administrator approval signature is invalid".into());
+    }
+    let message = canonical_relay_admin_approval_claim(&proof.claim)?;
+    UnparsedPublicKey::new(&ED25519, public_key)
+        .verify(&message, &signature)
+        .map_err(|_| "Project relay administrator approval signature did not verify".to_string())
+}
+
 pub fn verify_presence_proof(proof: &DevicePresenceProof) -> Result<(), String> {
     if proof.schema_version != PRESENCE_SCHEMA_VERSION || proof.algorithm != "Ed25519" {
         return Err("Collaboration device proof header is invalid".into());
@@ -731,6 +843,7 @@ pub fn ephemeral_identity_interop_proofs(
     relay_access_claim: RelayAccessIdentityClaim,
     relay_admin_claim: RelayAdminIdentityClaim,
     relay_admin_decision_claim: ProjectRelayAdminDecisionClaim,
+    relay_admin_approval_claim: ProjectRelayAdminApprovalClaim,
 ) -> Result<CollaborationIdentityInteropProofs, String> {
     let identity = generate_identity().map_err(|error| error.to_string())?;
     Ok(CollaborationIdentityInteropProofs {
@@ -742,6 +855,8 @@ pub fn ephemeral_identity_interop_proofs(
         relay_admin: sign_relay_admin(&identity, relay_admin_claim)
             .map_err(|error| error.to_string())?,
         relay_admin_decision: sign_relay_admin_decision(&identity, relay_admin_decision_claim)
+            .map_err(|error| error.to_string())?,
+        relay_admin_approval: sign_relay_admin_approval(&identity, relay_admin_approval_claim)
             .map_err(|error| error.to_string())?,
     })
 }
@@ -808,6 +923,17 @@ pub fn collaboration_identity_sign_relay_admin_decision(
         .map_err(|_| "OS collaboration identity storage is unavailable".to_string())?;
     let identity = load_or_create(&OsIdentityStore).map_err(|error| error.to_string())?;
     sign_relay_admin_decision(&identity, claim).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn collaboration_identity_sign_relay_admin_approval(
+    claim: ProjectRelayAdminApprovalClaim,
+) -> Result<ProjectRelayAdminApprovalProof, String> {
+    let _guard = IDENTITY_LOCK
+        .lock()
+        .map_err(|_| "OS collaboration identity storage is unavailable".to_string())?;
+    let identity = load_or_create(&OsIdentityStore).map_err(|error| error.to_string())?;
+    sign_relay_admin_approval(&identity, claim).map_err(|error| error.to_string())
 }
 
 #[cfg(test)]
@@ -890,6 +1016,19 @@ mod tests {
             action_sha256: "h4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
             recorded_at_ms: 1_700_000_000_100,
             decision_nonce: "d4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
+        }
+    }
+
+    fn relay_admin_approval_claim() -> ProjectRelayAdminApprovalClaim {
+        ProjectRelayAdminApprovalClaim {
+            schema_version: 1,
+            project_id: "project-relay-admin".into(),
+            room_id: "room_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+            expected_revision: 7,
+            action_sha256: "h4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
+            approved_at_ms: 1_700_000_000_100,
+            expires_at_ms: 1_700_086_400_100,
+            approval_nonce: "a4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
         }
     }
 
@@ -1043,5 +1182,35 @@ mod tests {
             mutate(&mut changed.claim);
             assert!(verify_project_relay_admin_decision_proof(&changed).is_err());
         }
+    }
+
+    #[test]
+    fn shared_relay_admin_approval_binds_action_revision_expiry_and_nonce() {
+        let identity = generate_identity().unwrap();
+        let proof = sign_relay_admin_approval(&identity, relay_admin_approval_claim()).unwrap();
+        verify_project_relay_admin_approval_proof(&proof).unwrap();
+
+        for mutate in [
+            |claim: &mut ProjectRelayAdminApprovalClaim| claim.project_id.push('x'),
+            |claim: &mut ProjectRelayAdminApprovalClaim| claim.expected_revision += 1,
+            |claim: &mut ProjectRelayAdminApprovalClaim| {
+                claim.action_sha256.replace_range(..1, "i")
+            },
+            |claim: &mut ProjectRelayAdminApprovalClaim| claim.expires_at_ms += 1,
+            |claim: &mut ProjectRelayAdminApprovalClaim| {
+                claim.approval_nonce.replace_range(..1, "b")
+            },
+        ] {
+            let mut changed = proof.clone();
+            mutate(&mut changed.claim);
+            assert!(verify_project_relay_admin_approval_proof(&changed).is_err());
+        }
+
+        let mut too_long = relay_admin_approval_claim();
+        too_long.expires_at_ms = too_long.approved_at_ms + MAX_RELAY_ADMIN_APPROVAL_LIFETIME_MS + 1;
+        assert_eq!(
+            validate_relay_admin_approval_claim(&too_long),
+            Err(IdentityError::InvalidClaim)
+        );
     }
 }

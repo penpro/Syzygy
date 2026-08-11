@@ -15,6 +15,7 @@ import { inspectScenarioLabels, listScenarioIdsForLabel, listScenarioLabels } fr
 import { inspectSuggestions, listSuggestions } from './suggestionModel'
 import { inspectRegisteredProjectPresence } from './presenceRegistry'
 import { inspectProjectDeviceDirectory } from './projectDeviceDirectory'
+import { inspectProjectRelayAdminApprovals } from './projectRelayAdminApproval'
 
 const MAX_RETURNED_ITEMS = 200
 
@@ -64,6 +65,11 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   const suggestionInspection = inspectSuggestions(discussions)
   const presence = inspectRegisteredProjectPresence(expectedProjectId)
   const projectDevices = await inspectProjectDeviceDirectory(settings, expectedProjectId)
+  const relayAdminApprovals = await inspectProjectRelayAdminApprovals(
+    settings,
+    expectedProjectId,
+    projectDevices,
+  )
   const adversarialReviewInspection = await inspectAdversarialReviewHistory(discussions)
   const allVersions = await listPolicyVersions(versionMap)
   const versions = allVersions.filter((version) => version.projectId === expectedProjectId)
@@ -94,6 +100,12 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   }
   if (projectDevices.conflictingDevices > 0) {
     issues.push(`${projectDevices.conflictingDevices} project device key(s) claim conflicting participant IDs`)
+  }
+  if (!relayAdminApprovals.healthy) {
+    issues.push(`${relayAdminApprovals.invalidRecords + relayAdminApprovals.unavailableRecords} relay administration approval(s) failed validation, verification, or bounds`)
+  }
+  if (relayAdminApprovals.conflictingSigners > 0) {
+    issues.push(`${relayAdminApprovals.conflictingSigners} project device(s) approved conflicting relay actions at the same revision`)
   }
   if (invalidVersionRecords > 0) issues.push(`${invalidVersionRecords} version record(s) failed hash/schema validation`)
   if (foreignProjectVersions > 0) issues.push(`${foreignProjectVersions} version record(s) belong to another project`)
@@ -133,6 +145,26 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
         status: device.status,
         registrationCount: device.registrationCount,
       })),
+    },
+    relayAdminApprovals: {
+      approvalCount: relayAdminApprovals.approvalCount,
+      activeIntentCount: relayAdminApprovals.intents.length,
+      activeApprovalCount: relayAdminApprovals.intents.reduce(
+        (total, intent) => total + intent.approvalCount,
+        0,
+      ),
+      conflictingSigners: relayAdminApprovals.conflictingSigners,
+      expiredApprovals: relayAdminApprovals.expiredApprovals,
+      invalidRecords: relayAdminApprovals.invalidRecords,
+      unavailableRecords: relayAdminApprovals.unavailableRecords,
+      excessRecords: relayAdminApprovals.excessRecords,
+      truncated: relayAdminApprovals.intents.length > MAX_RETURNED_ITEMS,
+      items: relayAdminApprovals.intents.slice(0, MAX_RETURNED_ITEMS).map((intent) => ({
+        expectedRevision: intent.expectedRevision,
+        actionKind: intent.action.kind,
+        approvalCount: intent.approvalCount,
+      })),
+      enforcement: 'not-configured-at-relay' as const,
     },
     heuristics: {
       totalRecords: heuristicMap.size,

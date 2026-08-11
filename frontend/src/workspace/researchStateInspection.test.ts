@@ -199,6 +199,19 @@ describe('research state inspection', () => {
         registrationCount: 1,
       }],
     })
+    expect(result.relayAdminApprovals).toEqual({
+      approvalCount: 0,
+      activeIntentCount: 0,
+      activeApprovalCount: 0,
+      conflictingSigners: 0,
+      expiredApprovals: 0,
+      invalidRecords: 0,
+      unavailableRecords: 0,
+      excessRecords: 0,
+      truncated: false,
+      items: [],
+      enforcement: 'not-configured-at-relay',
+    })
     expect(result.versions).toMatchObject({ totalRecords: 1, validRecords: 1, invalidRecords: 0, headVersionId: version.versionId, headLineageDepth: 1 })
     const serialized = JSON.stringify(result)
     expect(serialized).not.toContain('Secret guidance')

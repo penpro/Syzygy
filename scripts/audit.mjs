@@ -157,6 +157,11 @@ const projectRelayAdminDecisionTest = text('frontend/src/workspace/projectRelayA
 const projectRelayAdminDecisionUiTest = text('frontend/src/workspace/SelfHostedProjectControls.ui.test.tsx')
 const projectRelayAdminDecisionEvidence = text('docs/audits/runs/SIGNED-PROJECT-RELAY-ADMIN-DECISIONS-2026-08-11.json')
 const relayRemoteAdminEvidence = text('docs/audits/runs/MANAGED-RELAY-REMOTE-ADMIN-SOAK-2026-08-11.json')
+const projectRelayAdminApprovalSource = text('frontend/src/workspace/projectRelayAdminApproval.ts')
+const projectRelayAdminApprovalTest = text('frontend/src/workspace/projectRelayAdminApproval.test.ts')
+const projectRelayAdminApprovalEvidence = text('docs/audits/runs/SIGNED-PROJECT-RELAY-ADMIN-APPROVALS-2026-08-11.json')
+const relayAdminApprovalTauriSource = text('frontend/src/tauri.ts')
+const relayAdminApprovalResearchInspection = text('frontend/src/workspace/researchStateInspection.ts')
 const relayAdminRecoveryUiTest = text('frontend/src/workspace/WorkspaceView.ui.test.ts')
 const relayAdminRecoveryEvidence = text('docs/audits/runs/MANAGED-RELAY-ADMIN-RECOVERY-2026-08-11.json')
 record(
@@ -294,6 +299,34 @@ record(
   'exact result/action signature, verified-directory signer, bounded Yjs inspection, conflict retention, capability exclusion, and relay/human-authority nonclaims are present',
 )
 record(
+  'shared relay administration approvals remain exact, bounded, convergent, and explicitly non-enforcing',
+  collaborationIdentitySource.includes('syzygy-project-relay-admin-approval-v1') &&
+    collaborationIdentitySource.includes('collaboration_identity_sign_relay_admin_approval') &&
+    relayAdminApprovalTauriSource.includes('collaborationIdentitySignRelayAdminApproval') &&
+    relayAdminApprovalTauriSource.includes('does not authorize the relay') &&
+    projectRelayAdminApprovalSource.includes("PROJECT_RELAY_ADMIN_APPROVAL_PREFIX = 'collaboration-relay-admin-approval:v1:'") &&
+    projectRelayAdminApprovalSource.includes('MAX_PROJECT_RELAY_ADMIN_APPROVALS = 500') &&
+    projectRelayAdminApprovalSource.includes('MAX_RELAY_ADMIN_APPROVAL_SETTINGS_SCAN = 2_000') &&
+    projectRelayAdminApprovalSource.includes('MAX_RELAY_ADMIN_APPROVAL_VERIFICATION_CONCURRENCY = 8') &&
+    projectRelayAdminApprovalSource.includes("state: 'active' | 'expired' | 'signer-conflict'") &&
+    projectRelayAdminApprovalSource.includes('conflictingSignerKeys') &&
+    projectRelayAdminApprovalSource.includes('does not grant or constrain relay') &&
+    projectRelayAdminApprovalTest.includes('converges disconnected approvals and reopens') &&
+    projectRelayAdminApprovalTest.includes('excludes one signer that equivocates') &&
+    projectRelayAdminApprovalTest.includes("not.toContain('capability')") &&
+    collaborationIdentityInterop.includes('relayAdminApprovalVerified: true') &&
+    collaborationIdentityInterop.includes('rejectedRelayAdminApprovalMutations') &&
+    relayAdminApprovalResearchInspection.includes("enforcement: 'not-configured-at-relay'") &&
+    projectRelayAdminApprovalEvidence.includes('"relayEnforcementConfigured": false') &&
+    projectRelayAdminApprovalEvidence.includes('"supervisedRunId": "20260811-160007-9f9b7f"') &&
+    projectRelayAdminApprovalEvidence.includes('"frontendTestsPassed": 531') &&
+    projectRelayAdminApprovalEvidence.includes('"rustAppRecompiled": true') &&
+    projectRelayAdminApprovalEvidence.includes('"repositoryAuditPassed": true') &&
+    projectRelayAdminApprovalEvidence.includes('"fullValidationPending": false') &&
+    projectRelayAdminApprovalEvidence.includes('"status": "implemented_unverified"'),
+  'registered-device exact action/revision/expiry signatures, duplicate counting, equivocation exclusion, offline convergence, content-minimized inspection, and relay-enforcement nonclaims are present',
+)
+record(
   'surviving-administrator recovery remains exact, replacement-bound, and escrow-free',
   relayRemoteAdminSoak.includes('survivingAdministratorRecovery: true') &&
     relayRemoteAdminSoak.includes('lostAdministratorDenied: true') &&
@@ -358,13 +391,14 @@ record(
     collaborationIdentitySource.includes('IDENTITY_LOCK') &&
     collaborationIdentitySource.includes('collaboration_identity_sign_presence') &&
     collaborationIdentitySource.includes('collaboration_identity_sign_registration') &&
-    (collaborationIdentitySource.match(/#\[tauri::command\]/g)?.length ?? 0) === 6 &&
+    (collaborationIdentitySource.match(/#\[tauri::command\]/g)?.length ?? 0) === 7 &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_status') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_presence') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_registration') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_relay_access') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_relay_admin') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_relay_admin_decision') &&
+    collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_relay_admin_approval') &&
     collaborationIdentityFrontend.includes("Object.keys(value).sort().join(',')") &&
     collaborationIdentityFrontend.includes("return 'unavailable'") &&
     collaborationIdentityFrontend.includes("? 'verified-device'") &&

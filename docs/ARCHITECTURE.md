@@ -99,7 +99,7 @@ packaged MCP surface before succeeding.
 | `model_provider.rs` | Rust-owned remote-model HTTP/normalization boundary. OpenAI Responses, Anthropic Messages, Gemini Interactions, and xAI Responses one-shot/SSE wire contracts have fake-server evidence with bounded controls, custom-function schema mapping, non-executing proposal normalization, a depth/node/keyword-bounded schema subset, and exact post-assembly argument validation. Validation always separates structural status from unreviewed domain semantics and false execution authority. xAI's boolean ZDR response header is required before event dispatch and preserved in the run record. |
 | `provider_runtime.rs` | Built-in provider task/vault/provenance bridge. Ordinary tasks use one native Send-once decision whose disclosure includes any tool names, descriptions, and argument schemas; normalized proposals stay transient and are never executed, while the content-free output hash commits to their bodies and validation state. The runtime matches calls only to definitions from the approved request and authors valid/invalid/missing-definition status before returning the final outcome. Adversarial execution uses one content-bound batch decision that freezes exact research bytes, graph/routes/dependencies/order/limits/budgets; atomically consumes calls; verifies upstream output hashes; derives phase prompts; uses fixed built-in endpoints and the OS vault; rejects unsafe JSON; and records content-free provenance. The product executor is reachable through typed Tauri wrappers and revision-guarded resumable MCP jobs. Loopback transport is proven; packaged dialog interaction and live-provider behavior are not. |
 | `provider_stream.rs` | Incremental provider SSE normalization. OpenAI, Anthropic, Gemini, and xAI decoders handle fragmented frames, text/usage/finish lifecycles, unknown future events, sanitized provider errors, and bounded malformed/truncated input. Custom function calls normalize to one bounded start/delta/complete proposal lifecycle; orphaned, mismatched, malformed, duplicate, or unfinished calls fail closed. Anthropic/Gemini private-thinking bodies remain omitted. |
-| `collaboration_identity.rs` | OS-vault Ed25519 installation key, public fingerprint report, and narrowly typed live-presence, durable project-registration, plus fresh relay-member connection signing commands; it exposes no arbitrary signing or private-key read surface. |
+| `collaboration_identity.rs` | OS-vault Ed25519 installation key, public fingerprint report, and narrowly typed live-presence, durable project-registration, relay access/administration, post-mutation decision, and pre-mutation shared-approval signing commands; it exposes no arbitrary signing or private-key read surface. |
 | `collaboration_device_trust.rs` | Bounded per-installation, per-project current-state approval/revocation registry for verified collaboration device fingerprints; exact-state mutations use a serialized crash-recoverable native replace and do not grant relay access. |
 | `credential_vault.rs` | Provider-secret abstraction backed by Windows Credential Manager, macOS Keychain, or Linux Secret Service/keyutils. Unit tests use only a memory implementation; a separate live harness creates and deletes a random OS-store canary. |
 
@@ -333,6 +333,19 @@ relay-host operator remains the recovery authority; loss of both is not recovera
 is device-authorized capability administration, not participant authentication. The
 Drive provider publishes to the UI/MCP automation registry only after local reopen plus its initial
 remote pull, and a live canary proves the underlying Google create/list/readback/cleanup path.
+
+The shared project can also retain capability-free
+`syzygy-project-relay-admin-approval-v1` records. Each registered installation signs one exact
+project, room, registry revision, action hash, bounded expiry, and nonce. Inspection verifies the
+same public key against the project device directory in batches of eight, caps the collection at
+500 records and the surrounding settings scan at 2,000, counts a device once per action, excludes
+expired records, and deterministically excludes a signer that approves conflicting actions at the
+same room revision. Yjs retains disconnected approvals and reopens them offline. The read-only
+research-state projection exposes counts/action kinds and explicitly reports
+`not-configured-at-relay`; it omits action bodies, public keys, signatures, and participant IDs.
+This is a cryptographic prerequisite, not yet an access-control policy: the relay does not consume
+an approval bundle or enforce a quorum, a Yjs writer can delete records, and registration still
+does not authenticate a person or organization.
 Drive project titles are a second, metadata-only append path rather than a mutable manifest field.
 Each zero-body `title-event-<sha256>.json` record carries its strict event envelope in Drive
 description metadata, names zero or more exact parent event hashes, and is rehashed on every read.

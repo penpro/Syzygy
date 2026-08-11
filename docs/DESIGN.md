@@ -215,6 +215,14 @@ and role remain, and the replacement invitation is shown once. If no other admin
 the relay-host operator is required. Never promise private-key export/escrow, recovery after both all
 admins and the relay host are lost, or automatic delivery to the replacement installation.
 
+Shared project-device approvals are currently an inspection-only foundation, not a product
+authorization control. Any future approval surface must show the exact relay action and registry
+revision, the registered installation fingerprint/participant claim, the bounded expiry, duplicate
+and conflicting-signer state, and whether the relay has an enforcement policy installed. Until the
+relay reports an installed quorum policy and verifies the exact approval bundle, say
+**not configured at relay** and do not imply that a shared approval constrains an administrator.
+Registration is self-issued installation continuity, not verified human or organizational identity.
+
 After a successful remote issue, rotate, or revoke, the controls attempt to add an
 installation-signed statement to **Shared signed decisions** in the collaborative project. Show the
 action, resulting relay revision, short installation fingerprint, and record time, never a member

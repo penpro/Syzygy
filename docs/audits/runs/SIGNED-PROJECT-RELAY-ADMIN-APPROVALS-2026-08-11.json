@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "runId": "SIGNED-PROJECT-RELAY-ADMIN-APPROVALS-2026-08-11",
+  "date": "2026-08-11",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "807b1dc",
+  "capabilities": ["P-11", "S-05"],
+  "status": "implemented_unverified",
+  "claim": "Registered project installations can publish capability-free Ed25519 approvals for one exact relay action and registry revision. Independent approvals converge and reopen offline; expiry and same-signer equivocation are excluded from active intent counts. The relay does not yet install or enforce a signer/quorum policy.",
+  "commands": [
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm test -- --run src/workspace/projectRelayAdminApproval.test.ts src/workspace/researchStateInspection.test.ts",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/collaboration-identity-interop.mjs",
+    "node ../../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --lib collaboration_identity --locked",
+    "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm run check:supervised"
+  ],
+  "result": {
+    "nativeApprovalSigningDomainImplemented": true,
+    "rustToWebCryptoApprovalVerified": true,
+    "signedApprovalMutationCasesRejected": 5,
+    "focusedFrontendTestFilesPassed": 2,
+    "focusedFrontendTestsPassed": 9,
+    "focusedRustIdentityTestsPassed": 8,
+    "disconnectedApprovalsConverged": true,
+    "offlineFullStateReopenMatched": true,
+    "distinctSignerCounting": true,
+    "duplicateSignerCountingPrevented": true,
+    "sameSignerEquivocationExcluded": true,
+    "expiredApprovalExcluded": true,
+    "capabilityStored": false,
+    "privateKeyExported": false,
+    "mcpProjectionContentMinimized": true,
+    "relayEnforcementConfigured": false,
+    "quorumPolicyInstalled": false,
+    "physicalPackagedTwoInstallUsed": false,
+    "supervisedRunId": "20260811-160007-9f9b7f",
+    "frontendTestFilesPassed": 126,
+    "frontendTestFilesSkipped": 3,
+    "frontendTestsPassed": 531,
+    "frontendTestsSkipped": 3,
+    "frontendModulesTransformed": 1264,
+    "rustAppRecompiled": true,
+    "repositoryAuditPassed": true,
+    "supervisedElapsedSeconds": 16,
+    "fullValidationPending": false
+  },
+  "proved": [
+    "A separately domain-scoped native Ed25519 command signs project, room, exact registry revision, action hash, approval time, bounded expiry, and a 32-byte nonce.",
+    "WebCrypto independently verifies the Rust-produced signature and rejects mutations to project, revision, action hash, expiry, and nonce.",
+    "Strict Yjs records accept only unconflicted registered project-device keys, cap 500 approvals and 2,000 settings, and verify in batches of eight.",
+    "Two disconnected registered installations approving one exact action converge into one two-signer intent and reopen from a full Yjs update.",
+    "Expired approvals do not count. A signer approving two different actions at one room revision is retained for inspection but excluded from every active intent.",
+    "Read-only research-state inspection returns only counts, expected revision, action kind, and the explicit not-configured-at-relay state."
+  ],
+  "notProved": [
+    "Relay-side signer-set or quorum-policy installation, proof-bundle verification, or mutation refusal.",
+    "That a registered installation belongs to an authenticated person or organization or that its participant claim is truthful.",
+    "Trusted time, approval withdrawal, deletion resistance, completeness, or availability against a Yjs writer.",
+    "Product proposal/approval interaction, packaged physical two-install behavior, or public WSS operation."
+  ],
+  "implementationAnchors": [
+    "frontend/src-tauri/src/collaboration_identity.rs",
+    "frontend/src-tauri/src/bin/collaboration-identity-harness.rs",
+    "frontend/src/tauri.ts",
+    "frontend/src/workspace/projectRelayAdminApproval.ts",
+    "frontend/src/workspace/projectRelayAdminApproval.test.ts",
+    "frontend/src/workspace/researchStateInspection.ts",
+    "scripts/collaboration-identity-interop.mjs"
+  ]
+}

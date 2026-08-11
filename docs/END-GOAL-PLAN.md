@@ -472,6 +472,10 @@ viewer reconnect, replay/stale-revision denial, and remote issue/rotate/revoke. 
 phase but does not complete it: authenticated human identity, shared-directory approval, recovery
 when no separately enrolled admin or relay host survives, trusted time, automatic replacement delivery, public WSS operation, compaction/export/
 backups, broader abuse controls, and packaged physical two-install use remain open.
+The shared directory now has a bounded, convergent, installation-signed pre-mutation approval
+record with exact action/revision binding, expiry, and signer-equivocation exclusion. It remains a
+non-enforcing prerequisite until the relay host installs a signer/quorum policy and the relay
+verifies a sufficient exact approval bundle.
 
 ### Phase 6 — scenario workflow (`XL`)
 

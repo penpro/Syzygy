@@ -188,6 +188,34 @@ function parseRelayAdminDecisionProof(value) {
   return value
 }
 
+function parseRelayAdminApprovalProof(value) {
+  if (!exactKeys(value, ['schemaVersion', 'algorithm', 'keyId', 'publicKey', 'claim', 'signature']) ||
+    value.schemaVersion !== 1 || value.algorithm !== 'Ed25519') {
+    throw new Error('Rust project relay administrator approval proof header was not exact')
+  }
+  if (!exactKeys(value.claim, [
+    'schemaVersion', 'projectId', 'roomId', 'expectedRevision', 'actionSha256',
+    'approvedAtMs', 'expiresAtMs', 'approvalNonce',
+  ]) || value.claim.schemaVersion !== 1 ||
+    !/^[A-Za-z0-9][A-Za-z0-9._:@-]{0,199}$/.test(value.claim.projectId) ||
+    !/^[A-Za-z0-9_-]{32,128}$/.test(value.claim.roomId) ||
+    !Number.isSafeInteger(value.claim.expectedRevision) || value.claim.expectedRevision < 1 ||
+    !Number.isSafeInteger(value.claim.approvedAtMs) || value.claim.approvedAtMs < 1 ||
+    !Number.isSafeInteger(value.claim.expiresAtMs) ||
+    value.claim.expiresAtMs <= value.claim.approvedAtMs ||
+    value.claim.expiresAtMs - value.claim.approvedAtMs > 7 * 24 * 60 * 60 * 1_000) {
+    throw new Error('Rust project relay administrator approval claim was not exact')
+  }
+  decodeBase64Url(value.claim.actionSha256, 32)
+  decodeBase64Url(value.claim.approvalNonce, 32)
+  decodeBase64Url(value.publicKey, 32)
+  decodeBase64Url(value.signature, 64)
+  if (!/^ed25519-sha256:[A-Za-z0-9_-]{43}$/.test(value.keyId)) {
+    throw new Error('Rust project relay administrator approval key ID was malformed')
+  }
+  return value
+}
+
 function canonicalPresenceClaim(claim) {
   return Buffer.from([
     'syzygy-device-presence-v1',
@@ -247,6 +275,19 @@ function canonicalRelayAdminDecisionClaim(claim) {
   ].join('\n'), 'utf8')
 }
 
+function canonicalRelayAdminApprovalClaim(claim) {
+  return Buffer.from([
+    'syzygy-project-relay-admin-approval-v1',
+    claim.projectId,
+    claim.roomId,
+    String(claim.expectedRevision),
+    claim.actionSha256,
+    String(claim.approvedAtMs),
+    String(claim.expiresAtMs),
+    claim.approvalNonce,
+  ].join('\n'), 'utf8')
+}
+
 async function verifies(proof, canonicalClaim) {
   return verifiesWithPublicKey(proof, canonicalClaim, proof.publicKey)
 }
@@ -280,7 +321,9 @@ const run = await runBounded(executable, [], {
 const lines = run.stdout.trim().split(/\r?\n/)
 if (lines.length !== 1) throw new Error('Rust identity harness did not emit exactly one JSON record')
 const output = JSON.parse(lines[0])
-if (!exactKeys(output, ['presence', 'registration', 'relayAccess', 'relayAdmin', 'relayAdminDecision'])) {
+if (!exactKeys(output, [
+  'presence', 'registration', 'relayAccess', 'relayAdmin', 'relayAdminDecision', 'relayAdminApproval',
+])) {
   throw new Error('Rust identity harness output was not exact')
 }
 const proof = parsePresenceProof(output.presence)
@@ -288,9 +331,11 @@ const registration = parseRegistrationProof(output.registration)
 const relayAccess = parseRelayAccessProof(output.relayAccess)
 const relayAdmin = parseRelayAdminProof(output.relayAdmin)
 const relayAdminDecision = parseRelayAdminDecisionProof(output.relayAdminDecision)
+const relayAdminApproval = parseRelayAdminApprovalProof(output.relayAdminApproval)
 if (proof.keyId !== registration.keyId || proof.keyId !== relayAccess.keyId ||
   proof.keyId !== relayAdmin.keyId || proof.keyId !== relayAdminDecision.keyId ||
-  proof.publicKey !== registration.publicKey || proof.publicKey !== relayAdminDecision.publicKey) {
+  proof.keyId !== relayAdminApproval.keyId || proof.publicKey !== registration.publicKey ||
+  proof.publicKey !== relayAdminDecision.publicKey || proof.publicKey !== relayAdminApproval.publicKey) {
   throw new Error('Rust identity harness did not reuse one installation key')
 }
 if (!await verifies(proof, canonicalPresenceClaim)) {
@@ -307,6 +352,9 @@ if (!await verifiesWithPublicKey(relayAdmin, canonicalRelayAdminClaim, proof.pub
 }
 if (!await verifies(relayAdminDecision, canonicalRelayAdminDecisionClaim)) {
   throw new Error('WebCrypto rejected the canonical Rust project relay administrator decision signature')
+}
+if (!await verifies(relayAdminApproval, canonicalRelayAdminApprovalClaim)) {
+  throw new Error('WebCrypto rejected the canonical Rust project relay administrator approval signature')
 }
 
 const mutations = [
@@ -365,6 +413,18 @@ for (const mutation of relayAdminDecisionMutations) {
     throw new Error('WebCrypto accepted a mutated Rust project relay administrator decision')
   }
 }
+const relayAdminApprovalMutations = [
+  { ...relayAdminApproval, claim: { ...relayAdminApproval.claim, projectId: 'project-mutated' } },
+  { ...relayAdminApproval, claim: { ...relayAdminApproval.claim, expectedRevision: 12 } },
+  { ...relayAdminApproval, claim: { ...relayAdminApproval.claim, actionSha256: 'z'.repeat(43) } },
+  { ...relayAdminApproval, claim: { ...relayAdminApproval.claim, expiresAtMs: relayAdminApproval.claim.expiresAtMs + 1 } },
+  { ...relayAdminApproval, claim: { ...relayAdminApproval.claim, approvalNonce: 'z'.repeat(43) } },
+]
+for (const mutation of relayAdminApprovalMutations) {
+  if (await verifies(mutation, canonicalRelayAdminApprovalClaim)) {
+    throw new Error('WebCrypto accepted a mutated Rust project relay administrator approval')
+  }
+}
 const serialized = JSON.stringify(output).toLowerCase()
 if (['privatekey', 'private_key', 'pkcs8', 'secret'].some((term) => serialized.includes(term))) {
   throw new Error('Rust identity harness exposed private-material naming')
@@ -383,6 +443,8 @@ console.log(JSON.stringify({
   rejectedRelayAdminMutations: relayAdminMutations.length,
   relayAdminDecisionVerified: true,
   rejectedRelayAdminDecisionMutations: relayAdminDecisionMutations.length,
+  relayAdminApprovalVerified: true,
+  rejectedRelayAdminApprovalMutations: relayAdminApprovalMutations.length,
   privateMaterialExposed: false,
   exactSameSessionReplayRejected: false,
   replayBoundary: 'presence proof binds project, document, participant, awareness client, and random session nonce but remains replayable in that exact awareness context; relay access uses a separate fresh-proof boundary',

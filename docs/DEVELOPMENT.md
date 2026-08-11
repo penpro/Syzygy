@@ -344,6 +344,19 @@ mutations. This proves a registered installation can publish its own post-mutati
 not a relay-signed receipt, human identity, shared role grant, general research-event signature, or
 protection against deletion by a Yjs writer.
 
+`projectRelayAdminApproval.test.ts` is the pre-mutation shared-approval foundation gate. It creates
+real independent WebCrypto Ed25519 installations and requires an exact native-compatible approval
+domain over project, room, action hash, registry revision, bounded expiry, and nonce. Two
+disconnected signers converge into one intent, reopen from a full Yjs update, and count once each.
+Expired records do not count; one signer approving different actions at the same room revision is
+retained but excluded from every intent. Cross-project, unregistered, mutated, malformed, excessive,
+and poisoned records fail closed under 500-approval/2,000-setting/eight-verification bounds.
+`researchStateInspection.test.ts` requires body-free counts/action kinds plus the explicit
+`not-configured-at-relay` state. `npm run test:collaboration:identity` verifies the Rust-produced
+approval in Node WebCrypto and rejects five signed-field mutations. These gates do not prove relay
+quorum enforcement, policy installation, withdrawal, trusted time, authenticated participants, or
+resistance to deletion by a Yjs writer.
+
 The same suite includes `heuristicsModel.test.ts`. Forty seeded delivery orders prove concurrent
 field edits retain both values and attribution events, and another forty prove concurrent additions
 plus delete-versus-edit converge without resurrection. Invalid identity and conflicting edit-ID

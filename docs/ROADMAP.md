@@ -94,6 +94,10 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   replacement installation without private-key export/escrow; the old capability/key is denied and
   the replacement can administer. Authenticated human identity, shared-directory approval,
   recovery with no surviving admin or relay host, and packaged multi-install proof remain open.
+  A bounded capability-free signed approval ledger now supplies the shared-directory prerequisite:
+  registered devices can converge exact action/revision approvals, while expiry, mutation, unknown
+  signers, and same-signer equivocation fail closed. It is honestly reported as
+  `not-configured-at-relay`; quorum policy installation and relay enforcement remain the next gate.
 - The first original product node is now implemented but not yet interaction-verified: a Lexical
   `PolicyBlockNode` with stable
   identity, editable text, draft/review/approved state, strict JSON import, theme-token UI, and a
@@ -649,7 +653,10 @@ collaborators are not required to download large project folders.
    awareness recovery, replay/stale-revision denial, forced reauthentication, and remote issue/
    rotate/revoke. A surviving-admin recovery gate now rotates the lost original admin onto a
    replacement installation, denies the lost binding, and proves the replacement can administer
-   without private-key export or escrow. Next: add shared-directory administration policy and
+   without private-key export or escrow. The shared project now has an exact-revision signed
+   approval ledger with convergence/equivocation/expiry gates, but the relay does not enforce it.
+   Next: add host-configured signer/quorum policy plus exact approval-bundle relay enforcement and
+   product proposal/approval controls, then
    recovery when no admin survives (which still requires the relay host), signed durable-event
    envelopes, device-key rotation/recovery, trusted time and replacement-invitation delivery, public WSS operations, compaction/export/backups
    and broader abuse controls, then run packaged physical two-install gates.

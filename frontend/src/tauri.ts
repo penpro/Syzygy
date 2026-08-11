@@ -257,6 +257,26 @@ export interface ProjectRelayAdminDecisionProof {
   signature: string
 }
 
+export interface ProjectRelayAdminApprovalClaim {
+  schemaVersion: 1
+  projectId: string
+  roomId: string
+  expectedRevision: number
+  actionSha256: string
+  approvedAtMs: number
+  expiresAtMs: number
+  approvalNonce: string
+}
+
+export interface ProjectRelayAdminApprovalProof {
+  schemaVersion: 1
+  algorithm: 'Ed25519'
+  keyId: string
+  publicKey: string
+  claim: ProjectRelayAdminApprovalClaim
+  signature: string
+}
+
 export type DeviceTrustStatus = 'unapproved' | 'approved' | 'revoked'
 export type DeviceTrustAction = 'approve' | 'revoke'
 
@@ -964,6 +984,15 @@ export const collaborationIdentitySignRelayAdminDecision = (
   claim: ProjectRelayAdminDecisionClaim,
 ): Promise<ProjectRelayAdminDecisionProof> =>
   invoke('collaboration_identity_sign_relay_admin_decision', { claim })
+
+/**
+ * Sign one exact-revision shared-directory approval. This record does not authorize the relay
+ * until an independently configured relay policy requires and verifies an approval bundle.
+ */
+export const collaborationIdentitySignRelayAdminApproval = (
+  claim: ProjectRelayAdminApprovalClaim,
+): Promise<ProjectRelayAdminApprovalProof> =>
+  invoke('collaboration_identity_sign_relay_admin_approval', { claim })
 
 /** Local project-scoped device-key decisions. This does not return or grant relay authorization. */
 export const collaborationDeviceTrustStatus = (projectId: string): Promise<DeviceTrustReport> =>

@@ -121,6 +121,86 @@ from the stale operation.
 8. If authority is unavailable, record and skip that operation while continuing independent work.
 9. Notify the user that recovery occurred; remain quiet for routine healthy progress.
 
+## Codex Windows sandbox incident — 2026-08-10
+
+### What happened
+
+Sandboxed commands failed before PowerShell, Node, or Git could start:
+
+`helper_unknown_error: apply deny-read ACLs`
+
+This was a Codex Windows sandbox initialization failure, not a Syzygy repository failure.
+Restarting Codex and creating a new project did not initially help because the broken state lived
+under the user-level Codex sandbox directory, outside the repository.
+
+The sandbox error file contained:
+
+`%USERPROFILE%\.codex\.sandbox\setup_error.json`
+
+```json
+{
+  "code": "helper_unknown_error",
+  "message": "apply deny-read ACLs"
+}
+```
+
+No `sandbox.log` was created, indicating that setup failed very early.
+
+The likely cause was malformed persistent deny-read state at:
+
+`%USERPROFILE%\.codex\.sandbox\deny_read_acl_state.json`
+
+A known Windows failure can replace the expected JSON with NUL bytes. Codex then reuses the
+corrupted file after restarts or reinstalls.
+
+### Recovery
+
+Codex was fully exited and its sandbox state was repaired/regenerated. Preserve suspect files by
+renaming them rather than modifying repository permissions:
+
+```powershell
+$stamp = Get-Date -Format yyyyMMdd-HHmmss
+$dir = "$env:USERPROFILE\.codex\.sandbox"
+
+Rename-Item `
+  -LiteralPath "$dir\deny_read_acl_state.json" `
+  -NewName "deny_read_acl_state.json.broken-$stamp"
+
+Rename-Item `
+  -LiteralPath "$dir\setup_error.json" `
+  -NewName "setup_error.json.broken-$stamp"
+```
+
+After restarting Codex, the exact repository health check succeeded:
+
+```powershell
+node scripts\run-with-heartbeat.mjs `
+  --timeout-seconds 120 `
+  --heartbeat-seconds 30 `
+  -- git status --short --branch
+```
+
+Result: exit code 0; elapsed time approximately one second. The expected uncommitted scenario-v2
+work remained intact.
+
+Git warned that it could not read `%USERPROFILE%\.config\git\ignore`. That warning was
+non-blocking and unrelated to repository integrity.
+
+### Required response if it recurs
+
+1. Run the bounded health check above before doing repository work.
+2. If it fails with `apply deny-read ACLs`, stop immediately.
+3. Do not retry repeatedly or create a loop of approval requests.
+4. Do not reset, clean, clone, or modify the repository.
+5. Do not run broad `icacls` resets; the project is not the cause.
+6. Inspect `setup_error.json` and `deny_read_acl_state.json`.
+7. Fully exit Codex, preserve and rename malformed sandbox-state files, restart, and rerun the
+   health check.
+8. Resume development only after an ordinary sandboxed command exits successfully.
+
+The repository cannot prevent this Codex state-file failure. Its protection is to fail fast,
+preserve the worktree, and avoid mistaking a sandbox bootstrap failure for repository corruption.
+
 ## Completion checklist
 
 - The goal objective is actually satisfied.

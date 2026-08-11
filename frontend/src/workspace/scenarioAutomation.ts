@@ -1,6 +1,6 @@
 import type * as Y from 'yjs'
 import { getProjectSharedTypes, projectStateFingerprint } from './projectModel'
-import { addScenarioTurn, createScenario, inspectScenarioGraph, readScenario, type ScenarioStatus, type ScenarioTurnRole, updateScenarioTurn } from './scenarioModel'
+import { addScenarioTurn, createScenario, inspectScenarioGraph, readScenario, reconcileScenarioTurn, type ScenarioStatus, type ScenarioTurnRole, updateScenarioTurn } from './scenarioModel'
 import { castScenarioVote, type ScenarioVoteChoice } from './scenarioVoteModel'
 import {
   createScenarioAnnotation,
@@ -35,6 +35,11 @@ export interface MutateAutomationScenarioTurnInput {
   participantId: string
   timestamp: number
   editId: string
+}
+
+export interface ReconcileAutomationScenarioTurnInput extends MutateAutomationScenarioTurnInput {
+  expectedCurrentEditId: string
+  expectedTipEditIds: string[]
 }
 
 export interface ReadAutomationScenarioInput {
@@ -145,7 +150,8 @@ export function readAutomationScenario(doc: Y.Doc, expectedProjectId: string, in
     },
     turns: scenario.turns.map((turn) => ({
       id: turn.id, role: turn.role, createdBy: turn.createdBy, createdAt: turn.createdAt,
-      revisionCount: turn.revisions.length, currentEditId: turn.revisions[turn.revisions.length - 1]!.editId,
+      revisionCount: turn.revisions.length, currentEditId: turn.headEditId,
+      tipEditIds: [...turn.tipEditIds], requiresReconciliation: turn.tipEditIds.length > 1,
     })),
     researchRevision: projectStateFingerprint(doc),
   }
@@ -167,9 +173,9 @@ export function readAutomationScenarioTurnRevision(
     ? turn.revisions.find((candidate) => candidate.editId === input.revisionEditId)
     : input.revisionIndex !== undefined
       ? turn.revisions[input.revisionIndex]
-      : turn.revisions[turn.revisions.length - 1]
+      : turn.revisions.find((candidate) => candidate.editId === turn.headEditId)
   if (!revision) throw new Error('Scenario turn revision not found')
-  const current = turn.revisions[turn.revisions.length - 1]!
+  const current = turn.revisions.find((candidate) => candidate.editId === turn.headEditId)!
   return {
     scenario: {
       id: scenario.id, title: scenario.title, status: scenario.status,
@@ -179,6 +185,7 @@ export function readAutomationScenarioTurnRevision(
     turn: {
       id: turn.id, createdBy: turn.createdBy, createdAt: turn.createdAt,
       revisionCount: turn.revisions.length, currentEditId: current.editId,
+      tipEditIds: [...turn.tipEditIds], requiresReconciliation: turn.tipEditIds.length > 1,
     },
     revision: { ...revision }, revisionIndex: turn.revisions.indexOf(revision),
     currentEditId: current.editId,
@@ -215,11 +222,24 @@ export function reviseAutomationScenarioTurn(doc: Y.Doc, expectedProjectId: stri
   const scenarios = guardedScenarios(doc, expectedProjectId, input.expectedResearchRevision)
   const current = readScenario(scenarios, input.scenarioId)
   const currentTurn = current?.turns.find((turn) => turn.id === input.turnId)
-  const expectedCurrentEditId = currentTurn?.revisions[currentTurn.revisions.length - 1]?.editId
+  const expectedCurrentEditId = currentTurn?.headEditId
   if (!expectedCurrentEditId) throw new Error('Scenario turn not found or invalid')
   const scenario = updateScenarioTurn(scenarios, {
     scenarioId: input.scenarioId, turnId: input.turnId, role: input.role, content: input.content,
     authorId: input.participantId, timestamp: input.timestamp, editId: input.editId, expectedCurrentEditId,
+  })
+  const turn = scenario.turns.find((candidate) => candidate.id === input.turnId)!
+  return { scenario, turn, researchRevision: projectStateFingerprint(doc) }
+}
+
+export function reconcileAutomationScenarioTurn(
+  doc: Y.Doc, expectedProjectId: string, input: ReconcileAutomationScenarioTurnInput,
+) {
+  const scenarios = guardedScenarios(doc, expectedProjectId, input.expectedResearchRevision)
+  const scenario = reconcileScenarioTurn(scenarios, {
+    scenarioId: input.scenarioId, turnId: input.turnId, role: input.role, content: input.content,
+    authorId: input.participantId, timestamp: input.timestamp, editId: input.editId,
+    expectedCurrentEditId: input.expectedCurrentEditId, expectedTipEditIds: input.expectedTipEditIds,
   })
   const turn = scenario.turns.find((candidate) => candidate.id === input.turnId)!
   return { scenario, turn, researchRevision: projectStateFingerprint(doc) }

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { createProjectDocument, getProjectSharedTypes, projectStateFingerprint } from './projectModel'
+import * as Y from 'yjs'
+import { createProjectDocument, encodeProjectState, getProjectSharedTypes, projectStateFingerprint } from './projectModel'
 import { readScenario } from './scenarioModel'
 import {
   addAutomationScenarioTurn, castAutomationScenarioVote, createAutomationScenario,
   createAutomationScenarioAnnotation, createAutomationScenarioLabel,
-  readAutomationScenario, readAutomationScenarioTurnRevision, renameAutomationScenarioLabel, resolveAutomationScenarioAnnotation,
+  readAutomationScenario, readAutomationScenarioTurnRevision, reconcileAutomationScenarioTurn,
+  renameAutomationScenarioLabel, resolveAutomationScenarioAnnotation,
   reviseAutomationScenarioTurn, setAutomationScenarioLabelAssignment, updateAutomationScenarioAnnotation,
 } from './scenarioAutomation'
 import { readScenarioAnnotations } from './scenarioAnnotationModel'
@@ -134,6 +136,54 @@ describe('automation scenario creation', () => {
       { id: 'question-turn', content: 'Question?', revisions: [{ editId: 'add-question-turn' }] },
     ])
     expect(added.researchRevision).toBe(projectStateFingerprint(doc))
+  })
+
+  it('reconciles the complete exact sibling set and rejects stale automation without writes', () => {
+    const origin = createProjectDocument(manifest)
+    const created = createAutomationScenario(origin, manifest.id, {
+      expectedResearchRevision: projectStateFingerprint(origin), scenarioId: 'automation-merge',
+      title: 'Merge', background: '', participantId: 'author-a', createdAt: 10, editId: 'create-automation-merge',
+    })
+    addAutomationScenarioTurn(origin, manifest.id, {
+      expectedResearchRevision: created.researchRevision, scenarioId: 'automation-merge', turnId: 'merge-turn',
+      role: 'assistant', content: 'Base.', participantId: 'author-a', timestamp: 11, editId: 'merge-base',
+    })
+    const replica = () => {
+      const doc = new Y.Doc({ guid: origin.guid })
+      Y.applyUpdate(doc, encodeProjectState(origin))
+      return doc
+    }
+    const left = replica()
+    const right = replica()
+    reviseAutomationScenarioTurn(left, manifest.id, {
+      expectedResearchRevision: projectStateFingerprint(left), scenarioId: 'automation-merge', turnId: 'merge-turn',
+      role: 'assistant', content: 'Left.', participantId: 'author-left', timestamp: 12, editId: 'merge-left',
+    })
+    reviseAutomationScenarioTurn(right, manifest.id, {
+      expectedResearchRevision: projectStateFingerprint(right), scenarioId: 'automation-merge', turnId: 'merge-turn',
+      role: 'assistant', content: 'Right.', participantId: 'author-right', timestamp: 12, editId: 'merge-right',
+    })
+    Y.applyUpdate(left, encodeProjectState(right))
+    const index = readAutomationScenario(left, manifest.id, { scenarioId: 'automation-merge' })
+    expect(index.turns[0]).toMatchObject({
+      tipEditIds: ['merge-left', 'merge-right'], requiresReconciliation: true,
+    })
+    const before = Array.from(encodeProjectState(left))
+    expect(() => reconcileAutomationScenarioTurn(left, manifest.id, {
+      expectedResearchRevision: 'stale', expectedCurrentEditId: index.turns[0].currentEditId,
+      expectedTipEditIds: index.turns[0].tipEditIds, scenarioId: 'automation-merge', turnId: 'merge-turn',
+      role: 'assistant', content: 'Must not land.', participantId: 'author-merge', timestamp: 13, editId: 'stale-merge',
+    })).toThrow('Research state revision conflict')
+    expect(Array.from(encodeProjectState(left))).toEqual(before)
+
+    const reconciled = reconcileAutomationScenarioTurn(left, manifest.id, {
+      expectedResearchRevision: index.researchRevision, expectedCurrentEditId: index.turns[0].currentEditId,
+      expectedTipEditIds: index.turns[0].tipEditIds, scenarioId: 'automation-merge', turnId: 'merge-turn',
+      role: 'assistant', content: 'Merged.', participantId: 'author-merge', timestamp: 14, editId: 'merge-resolution',
+    })
+    expect(reconciled.turn).toMatchObject({
+      headEditId: 'merge-resolution', tipEditIds: ['merge-resolution'], content: 'Merged.',
+    })
   })
 
   it('casts, revises, and withdraws one participant vote through chained revisions', () => {

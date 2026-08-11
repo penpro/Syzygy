@@ -7,6 +7,7 @@ import type { Settings, Expert, Ask } from './types'
 import { defaultExperts } from './seed'
 import { isResearchProjectManifest, type ResearchProjectManifest } from './workspace/schema'
 import { getProjectSharedTypes } from './workspace/projectModel'
+import { migrateScenarioCollectionToV2, type ScenarioCollectionMigrationResult } from './workspace/scenarioModel'
 import {
   getPolicyContentText,
   initializePolicyContent,
@@ -31,6 +32,11 @@ export interface PolicyContentDocumentMigrationResult {
   schemaVersion: typeof POLICY_CONTENT_SCHEMA_VERSION
   initialized: number
   existing: number
+}
+
+/** Idempotently upgrades every valid scenario record after local/remote state has loaded. */
+export function migrateScenarioDocument(doc: Y.Doc): ScenarioCollectionMigrationResult {
+  return migrateScenarioCollectionToV2(getProjectSharedTypes(doc).scenarios)
 }
 
 /**

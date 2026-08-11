@@ -159,7 +159,8 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   deterministic parent diffs. `projectArchive.ts` exports a size-bounded, SHA-256-protected
   envelope containing only the project manifest and exact Yjs state. Import validates both project
   and document identity, refuses manifest/document collisions and different orphaned IndexedDB
-  state, resets transport to local, persists before opening, and never carries settings, model
+  state before accepting migration failures from that state, resets transport to local, persists
+  before opening, and never carries settings, model
   configuration, OAuth state, or provider credentials. `ProjectArchiveControls.tsx` exposes the
   same engine-free import path with or without an existing project. Because the archive carries
   exact Yjs state, stable scenario IDs, parent IDs, ordered turns, revision history, and graph
@@ -175,7 +176,8 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   diagnostics. It produces explicit checked-folder/count results and a bounded, content-free
   diagnostic projection. The product browser separately calls the native bounded cross-workspace
   Syzygy-root catalog; Join persists the exact parent workspace before constructing the Drive-bound
-  project.- `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
+  project.
+- `automationBridge.ts` — semantic live-app dispatcher for MCP status, walkthrough, project
   navigation, revision-guarded editor reads/writes, and bounded read-only research-state integrity
   inspection. `scenarioAutomation.ts` creates scenarios, adds/revises attributed turns, and casts
   immutable participant vote events, and manages parent-linked flag/note lifecycle only against
@@ -323,21 +325,30 @@ neutral side-by-side evidence, and uses the existing typed native Save helper fo
 The open Draft 2020-12 schema documents structural bounds; runtime checks remain authoritative for
 semantic joins and checksums. Research-state MCP inspection adds only a compatible-pair count.
 
-`scenarioModel.ts` stores each scenario, ordered turn collection, turn revision collection, and
-scenario edit history as nested Yjs types. Public scenario, turn, and edit identities are stored
-under peer-specific internal keys so disconnected collisions survive merge and make projection
-fail closed. Independent scalar edits and turn insertions converge; turn revisions retain every
-attributed alternative and select a deterministic current value. Turn updates require the exact
-current revision identity, while exact retries remain idempotent. A graph inspector detects invalid
-records, missing parents, and cycles. `ScenarioWorkspace.tsx` provides an engine-free product gallery
+`scenarioModel.ts` stores each scenario, ordered turn collection, turn revision DAG, and scenario
+edit history as nested Yjs types. Public scenario, turn, and edit identities are stored under peer-
+specific internal keys so disconnected collisions survive merge and make projection fail closed.
+Each turn persists one selected `headEditId`; every revision persists its complete parent set and
+source (`create`, `edit`, `reconcile`, or `migration-v1`). Projection validates the complete acyclic
+graph and derives every unconsumed tip. Independent scalar edits and turn insertions converge;
+simultaneous exact-parent edits remain sibling tips rather than overwriting one another. Ordinary
+turn updates require the exact single current tip. A reconciliation requires the exact research
+revision, selected head, and complete current tip set, then appends one attributed merge revision
+whose parents retain every sibling. Stale or incomplete reconciliation is zero-write, exact retries
+remain idempotent, and a later-arriving sibling reopens the conflict. A graph inspector detects
+invalid records, missing parents, and cycles. `ScenarioWorkspace.tsx` provides an engine-free product gallery
 with create/select/edit/status and attributed vote/withdraw controls against the same live Y.Doc.
 `ScenarioTurnWorkspace.tsx` owns manual ordered turn creation and exact-parent revision editing,
-keeps stale drafts visible until the researcher reloads shared state, and bounds both conversation
-pages and visible lineage to 50 items without discarding retained history. The broad MCP research
+keeps stale drafts visible until the researcher reloads shared state, visibly disables ordinary
+editing when sibling tips exist, and lets the researcher retain a selected sibling through an
+explicit all-parent merge. It bounds both conversation pages and visible lineage to 50 items without
+discarding retained history. The broad MCP research
 inspection remains body-free; `read_scenario` is a separate explicit disclosure that validates one
 scenario and returns its background plus bounded ordered turn identity/head metadata without turn
 bodies. `read_scenario_turn_revision` then returns exactly one chosen current, named, or indexed
-revision body. Both reads are detached, graph-validated, and zero-write.
+revision body and exposes the persisted head, complete tip set, and reconciliation requirement.
+Both reads are detached, graph-validated, and zero-write. `reconcile_scenario_turn` exposes the
+same exact-head/complete-tip merge contract to MCP without granting model authority.
 `ScenarioCollaborationPanel.tsx` adds scenario/turn note and flag create/edit/resolve/reopen plus
 project-label create/rename/assignment controls. It pages both projections at 50 items, captures
 exact event parents when editing, and rechecks graph, annotation, and label integrity immediately
@@ -345,9 +356,12 @@ before every write. The workspace observes peer updates, refuses stale detail sa
 edit identity changed, and makes integrity failures read-only. P-16 adds optional generation without making the gallery
 dependent on AI: local inference is available only while the model is loaded, remote routes reuse
 the native one-shot disclosure boundary, and both write through the attributed response domain only
-if the selected scenario revision is unchanged. Turn revision editing, arbitrary historical-parent
-regeneration, and response conflict resolution remain outside this slice. Portable scenario packs
-are handled by the independent open codec and product controls described above.
+if the selected scenario revision is unchanged. Arbitrary historical-parent regeneration and
+response-variant conflict resolution remain outside this slice. Portable scenario packs emit the
+strict v2 revision-DAG schema while accepting checksummed v1 packs through deterministic in-memory
+migration. Existing project scenario records are upgraded only through `migrations.ts`, after local
+IndexedDB or the initial Drive pull and before automation publication; archive imports migrate
+before persistence fingerprinting. Strict preflight makes malformed/future input zero-write.
 
 `scenarioVoteModel.ts` stores immutable vote events in peer-specific, version-prefixed buckets
 inside the reserved discussions collection. This avoids namespace collisions with future notes and

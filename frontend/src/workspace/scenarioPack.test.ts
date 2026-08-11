@@ -10,6 +10,7 @@ import {
   updateScenarioTurn,
 } from './scenarioModel'
 import {
+  canonicalScenarioPackJson,
   createScenarioPack,
   decodeScenarioPack,
   importScenarioPack,
@@ -18,6 +19,16 @@ import {
 } from './scenarioPack'
 
 const manifest = createProjectManifest({ id: 'pack-project', documentId: 'pack-document', timestamp: 1 })
+
+async function resignPack(pack: Record<string, unknown>): Promise<string> {
+  const unsigned = Object.fromEntries(Object.entries(pack).filter(([key]) => key !== 'checksum'))
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonicalScenarioPackJson(unsigned)))
+  const value = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+  return JSON.stringify({
+    ...unsigned,
+    checksum: { algorithm: 'SHA-256', canonicalization: 'syzygy-json-v1', value },
+  })
+}
 
 function seedGraph() {
   const doc = createProjectDocument(manifest)
@@ -67,7 +78,7 @@ describe('portable scenario packs', () => {
   it('round-trips a branch graph with ordered turns and full edit attribution', async () => {
     const text = await encodedPack()
     const pack = await decodeScenarioPack(text)
-    expect(pack).toMatchObject({ format: SCENARIO_PACK_FORMAT, schemaVersion: 1, license: 'CC0-1.0' })
+    expect(pack).toMatchObject({ format: SCENARIO_PACK_FORMAT, schemaVersion: 2, license: 'CC0-1.0' })
     expect(pack.scenarios.map((scenario) => scenario.id)).toEqual(['branch-scenario', 'root-scenario'])
 
     const destination = createProjectDocument(createProjectManifest({
@@ -131,11 +142,11 @@ describe('portable scenario packs', () => {
     await expect(decodeScenarioPack(JSON.stringify(unknown))).rejects.toThrow('unknown or missing fields')
 
     const future = JSON.parse(text)
-    future.schemaVersion = 2
+    future.schemaVersion = 3
     await expect(decodeScenarioPack(JSON.stringify(future))).rejects.toThrow('Unsupported scenario pack')
 
     const missingParent = JSON.parse(text)
     missingParent.scenarios = missingParent.scenarios.filter((scenario: { id: string }) => scenario.id !== 'root-scenario')
-    await expect(decodeScenarioPack(JSON.stringify(missingParent))).rejects.toThrow('missing parent')
+    await expect(decodeScenarioPack(await resignPack(missingParent))).rejects.toThrow('missing parent')
   })
 })

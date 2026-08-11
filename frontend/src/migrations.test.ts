@@ -4,12 +4,14 @@ import {
   mergePersisted,
   migrateLocalPolicyContentDocument,
   migratePersistedVersion,
+  migrateScenarioDocument,
   PERSISTED_STORE_VERSION,
 } from './migrations'
 import { defaultSettings } from './seed'
 import { createProjectManifest } from './workspace/schema'
-import { createProjectDocument, getProjectSharedTypes } from './workspace/projectModel'
+import { createProjectDocument, getProjectSharedTypes, projectStateFingerprint } from './workspace/projectModel'
 import { readPolicyContent, readPolicyContentStatus } from './workspace/policyContentModel'
+import { createScenario, readScenario, updateScenarioTurn } from './workspace/scenarioModel'
 
 const current = {
   settings: defaultSettings,
@@ -88,6 +90,115 @@ describe('persisted-store migrations', () => {
     const future = new Y.Doc({ guid: 'future-policy-document' })
     getProjectSharedTypes(future).metadata.set('policyContentSchemaVersion', 99)
     expect(() => migrateLocalPolicyContentDocument(future, [])).toThrow('unsupported')
+  })
+
+  it('upgrades legacy scenario heads and parents atomically and idempotently', () => {
+    const manifest = createProjectManifest({ id: 'scenario-migration', documentId: 'scenario-migration-doc', timestamp: 1 })
+    const doc = createProjectDocument(manifest)
+    const scenarios = getProjectSharedTypes(doc).scenarios
+    createScenario(scenarios, {
+      id: 'legacy-scenario', title: 'Legacy', background: '', authorId: 'author-a', timestamp: 1,
+      editId: 'create-legacy', turns: [{ id: 'legacy-turn', role: 'user', content: 'First', editId: 'legacy-first' }],
+    })
+    updateScenarioTurn(scenarios, {
+      scenarioId: 'legacy-scenario', turnId: 'legacy-turn', role: 'user', content: 'Second',
+      authorId: 'author-b', timestamp: 2, editId: 'legacy-second', expectedCurrentEditId: 'legacy-first',
+    })
+    const record = Array.from(scenarios.values())[0] as Y.Map<unknown>
+    const turn = Array.from((record.get('turns') as Y.Map<unknown>).values())[0] as Y.Map<unknown>
+    const revisions = turn.get('revisions') as Y.Map<Record<string, unknown>>
+    for (const [key, revision] of revisions.entries()) {
+      const { parentEditIds: _parents, source: _source, ...legacy } = revision
+      revisions.set(key, legacy)
+    }
+    turn.delete('headEditId')
+    record.set('schemaVersion', 1)
+    expect(readScenario(scenarios, 'legacy-scenario')).toBeNull()
+
+    expect(migrateScenarioDocument(doc)).toEqual({
+      schemaVersion: 2, upgradedScenarioIds: ['legacy-scenario'], existingScenarioIds: [],
+    })
+    expect(migrateScenarioDocument(doc)).toEqual({
+      schemaVersion: 2, upgradedScenarioIds: [], existingScenarioIds: ['legacy-scenario'],
+    })
+    const migrated = readScenario(scenarios, 'legacy-scenario')!.turns[0]
+    expect(migrated).toMatchObject({ headEditId: 'legacy-second', tipEditIds: ['legacy-second'], content: 'Second' })
+    expect(migrated.revisions).toMatchObject([
+      { editId: 'legacy-first', parentEditIds: [], source: 'migration-v1' },
+      { editId: 'legacy-second', parentEditIds: ['legacy-first'], source: 'migration-v1' },
+    ])
+  })
+
+  it('rejects hostile legacy scenario data before the first migration write', () => {
+    const manifest = createProjectManifest({ id: 'scenario-migration-hostile', documentId: 'scenario-migration-hostile-doc', timestamp: 1 })
+    const doc = createProjectDocument(manifest)
+    const scenarios = getProjectSharedTypes(doc).scenarios
+    createScenario(scenarios, {
+      id: 'hostile-scenario', title: 'Hostile', background: '', authorId: 'author-a', timestamp: 1,
+      editId: 'create-hostile', turns: [{ id: 'hostile-turn', role: 'user', content: 'Body', editId: 'hostile-first' }],
+    })
+    const record = Array.from(scenarios.values())[0] as Y.Map<unknown>
+    const turn = Array.from((record.get('turns') as Y.Map<unknown>).values())[0] as Y.Map<unknown>
+    const revisions = turn.get('revisions') as Y.Map<Record<string, unknown>>
+    for (const [key, revision] of revisions.entries()) {
+      const { parentEditIds: _parents, source: _source, ...legacy } = revision
+      revisions.set(key, legacy)
+    }
+    turn.delete('headEditId')
+    turn.set('ambientAuthority', { network: true })
+    record.set('schemaVersion', 1)
+    const before = Array.from(Y.encodeStateAsUpdate(doc))
+    expect(() => migrateScenarioDocument(doc)).toThrow('cannot be migrated safely')
+    expect(Array.from(Y.encodeStateAsUpdate(doc))).toEqual(before)
+    expect(record.get('schemaVersion')).toBe(1)
+
+    const future = createProjectDocument(createProjectManifest({
+      id: 'scenario-migration-future', documentId: 'scenario-migration-future-doc', timestamp: 1,
+    }))
+    const futureScenarios = getProjectSharedTypes(future).scenarios
+    createScenario(futureScenarios, {
+      id: 'future-scenario', title: 'Future', background: '', authorId: 'author-a', timestamp: 1,
+      editId: 'create-future',
+    })
+    const futureRecord = Array.from(futureScenarios.values())[0] as Y.Map<unknown>
+    futureRecord.set('schemaVersion', 99)
+    const futureBefore = Array.from(Y.encodeStateAsUpdate(future))
+    expect(() => migrateScenarioDocument(future)).toThrow('cannot be migrated safely')
+    expect(Array.from(Y.encodeStateAsUpdate(future))).toEqual(futureBefore)
+  })
+
+  it('converges deterministic migrations performed by disconnected peers', () => {
+    const manifest = createProjectManifest({ id: 'scenario-migration-peers', documentId: 'scenario-migration-peers-doc', timestamp: 1 })
+    const source = createProjectDocument(manifest)
+    const scenarios = getProjectSharedTypes(source).scenarios
+    createScenario(scenarios, {
+      id: 'peer-legacy', title: 'Peer legacy', background: '', authorId: 'author-a', timestamp: 1,
+      editId: 'create-peer-legacy', turns: [{ id: 'peer-turn', role: 'user', content: 'First', editId: 'peer-first' }],
+    })
+    updateScenarioTurn(scenarios, {
+      scenarioId: 'peer-legacy', turnId: 'peer-turn', role: 'assistant', content: 'Second',
+      authorId: 'author-b', timestamp: 2, editId: 'peer-second', expectedCurrentEditId: 'peer-first',
+    })
+    const record = Array.from(scenarios.values())[0] as Y.Map<unknown>
+    const turn = Array.from((record.get('turns') as Y.Map<unknown>).values())[0] as Y.Map<unknown>
+    const revisions = turn.get('revisions') as Y.Map<Record<string, unknown>>
+    for (const [key, revision] of revisions.entries()) {
+      const { parentEditIds: _parents, source: _source, ...legacy } = revision
+      revisions.set(key, legacy)
+    }
+    turn.delete('headEditId')
+    record.set('schemaVersion', 1)
+    const left = new Y.Doc({ guid: source.guid })
+    const right = new Y.Doc({ guid: source.guid })
+    Y.applyUpdate(left, Y.encodeStateAsUpdate(source))
+    Y.applyUpdate(right, Y.encodeStateAsUpdate(source))
+    migrateScenarioDocument(left)
+    migrateScenarioDocument(right)
+    Y.applyUpdate(left, Y.encodeStateAsUpdate(right))
+    Y.applyUpdate(right, Y.encodeStateAsUpdate(left))
+    expect(projectStateFingerprint(left)).toBe(projectStateFingerprint(right))
+    expect(readScenario(getProjectSharedTypes(left).scenarios, 'peer-legacy'))
+      .toEqual(readScenario(getProjectSharedTypes(right).scenarios, 'peer-legacy'))
   })
 
   it('drops malformed manifests and selects a valid surviving project', () => {

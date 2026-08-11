@@ -140,12 +140,14 @@ record(
     projectArchiveSource.includes('Project archive manifest contains unsupported fields') &&
     projectArchiveSource.includes("transport: { kind: 'local' }") &&
     projectArchiveSource.includes('project.id === manifest.id || project.documentId === manifest.documentId') &&
+    projectArchiveSource.includes('migrateScenarioDocument(decoded.doc)') &&
     projectArchiveSource.includes('Local storage already contains different state for this project') &&
     projectArchiveTestSource.includes('round-trips every shared collection with stable identity and a local import binding') &&
     projectArchiveTestSource.includes('persists an imported archive and reopens it from IndexedDB without a network provider') &&
     projectArchiveTestSource.includes('refuses to merge an archive with different orphaned local state') &&
     scenarioArchiveGraphTestSource.includes('survives export, local import persistence, and disconnected reopen with exact content and ancestry') &&
     scenarioArchiveGraphTestSource.includes('does not launder a missing-parent integrity failure during archive import') &&
+    scenarioArchiveGraphTestSource.includes('migrates a v1 branched archive exactly once when the imported project reopens') &&
     projectArchiveUiSource.includes('subscribeAutomationProjectDocument(project.id') &&
     projectArchiveUiSource.includes('assertProjectArchiveImportAvailable(decoded.manifest, useStore.getState().projects)') &&
     projectArchiveUiSource.includes('if (file.size > PROJECT_ARCHIVE_MAX_FILE_BYTES)') &&
@@ -155,7 +157,7 @@ record(
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-22", "phase": 6, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/PORTABLE-ARCHIVE-2026-07-16.json')) &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-BRANCH-ARCHIVE-2026-07-19.json')),
-  'checksummed exact-state envelope, bounded input, fail-closed manifest/document identity, local rebinding, collision/orphan refusal, exact scenario graph and integrity retention, offline IndexedDB reopen, accessible product controls, and truthful P-22/S-04 statuses are present',
+  'checksummed exact-state envelope, bounded input, fail-closed manifest/document identity, migration-before-fingerprint local rebinding, collision/orphan refusal, exact scenario graph and integrity retention, v1 and current offline IndexedDB reopen, accessible product controls, and truthful P-22/S-04 statuses are present',
 )
 
 const editorStructureSource = text('frontend/src/workspace/editorStructure.ts')
@@ -286,7 +288,8 @@ const scenarioPackTestSource = text('frontend/src/workspace/scenarioPack.test.ts
 const scenarioPackSchemaTestSource = text('frontend/src/workspace/scenarioPackSchema.test.ts')
 const scenarioPackPanelSource = text('frontend/src/workspace/ScenarioPackControls.tsx')
 const scenarioPackPanelTestSource = text('frontend/src/workspace/ScenarioPackControls.ui.test.tsx')
-const scenarioPackSchemaSource = text('docs/schemas/syzygy-scenario-pack-v1.schema.json')
+const scenarioPackLegacySchemaSource = text('docs/schemas/syzygy-scenario-pack-v1.schema.json')
+const scenarioPackSchemaSource = text('docs/schemas/syzygy-scenario-pack-v2.schema.json')
 const scenarioPackSampleSource = text('docs/samples/source-review.syzygy-scenarios.json')
 const scenarioPackPlatformContractSource = text('frontend/src-tauri/src/platform_contracts.rs')
 record(
@@ -576,6 +579,8 @@ record(
 record(
   'portable scenario packs remain open, bounded, lossless, collision-safe, and authority-free',
   scenarioPackSource.includes("SCENARIO_PACK_FORMAT = 'syzygy-scenario-pack'") &&
+    scenarioPackSource.includes('SCENARIO_PACK_SCHEMA_VERSION = 2') &&
+    scenarioPackSource.includes('LEGACY_SCENARIO_PACK_SCHEMA_VERSION = 1') &&
     scenarioPackSource.includes('SCENARIO_PACK_MAX_FILE_BYTES = 64 * 1024 * 1024') &&
     scenarioPackSource.includes('selectScenarioClosure') &&
     scenarioPackSource.includes("await sha256(canonicalScenarioPackJson(unsigned))") &&
@@ -583,20 +588,26 @@ record(
     scenarioPackSource.includes('export function planScenarioPackImport') &&
     scenarioPackSource.includes('return importScenarioSnapshots(collection, pack.scenarios)') &&
     scenarioPackTestSource.includes('round-trips a branch graph with ordered turns and full edit attribution') &&
+    scenarioPackSchemaTestSource.includes('validates the committed sample structurally and semantically') &&
+    scenarioPackSchemaTestSource.includes('emits a closed v2 pack with durable heads and revision parents') &&
     scenarioPackTestSource.includes('aborts atomically on a same-ID/different-content collision') &&
     scenarioPackTestSource.includes('rejects tampering, unknown authority, future schemas, and malformed graphs') &&
-    scenarioPackSchemaTestSource.includes('validates the committed sample structurally and semantically') &&
     scenarioPackPanelSource.includes('Import validated pack') &&
     scenarioPackPanelSource.includes('Excludes votes, annotations, labels, model outputs, policies, and project files') &&
     scenarioPackPanelSource.includes('Import does not contact a model or network') &&
     scenarioPackPanelTestSource.includes('requires explicit confirmation after validation') &&
     scenarioPackSchemaSource.includes('https://json-schema.org/draft/2020-12/schema') &&
     scenarioPackSchemaSource.includes('"additionalProperties": false') &&
+    scenarioPackSchemaSource.includes('"parentEditIds"') &&
+    scenarioPackSchemaSource.includes('"headEditId"') &&
+    scenarioPackLegacySchemaSource.includes('"schemaVersion"') &&
     scenarioPackSampleSource.includes('"license": "CC0-1.0"') &&
+    scenarioPackPlatformContractSource.includes('syzygy-scenario-pack-v2.schema.json') &&
     scenarioPackPlatformContractSource.includes('"scenarioPackSchema": scenario_pack_schema') &&
     editorLedgerSource.includes('"id": "P-33", "phase": 6, "status": "implemented_unverified"') &&
-    existsSync(join(root, 'docs/audits/runs/SCENARIO-PACKS-2026-07-19.json')),
-  'ancestor-closed authoring history, canonical SHA-256, strict schema/sample, adversarial decode, atomic collision refusal, explicit no-model/network product flow, MCP schema discovery, and truthful P-33 status are present',
+    existsSync(join(root, 'docs/audits/runs/SCENARIO-PACKS-2026-07-19.json')) &&
+    existsSync(join(root, 'docs/audits/runs/SCENARIO-TURN-RECONCILIATION-2026-08-10.json')),
+  'ancestor-closed authoring history, durable revision heads/parents, canonical SHA-256, strict current schema plus v1 migration, adversarial decode, atomic collision refusal, explicit no-model/network product flow, MCP schema discovery, and truthful P-33 status are present',
 )
 
 const networkBoundaryManifestSource = text('docs/audits/NETWORK-BOUNDARIES.json')
@@ -660,23 +671,49 @@ const scenarioModelSource = text('frontend/src/workspace/scenarioModel.ts')
 const scenarioModelTestSource = text('frontend/src/workspace/scenarioModel.test.ts')
 record(
   'collaborative scenarios remain ordered, attributed, collision-safe, and convergent',
-  scenarioModelSource.includes('SCENARIO_SCHEMA_VERSION = 1') &&
+  scenarioModelSource.includes('SCENARIO_SCHEMA_VERSION = 2') &&
     scenarioModelSource.includes('new Y.Array<string>()') &&
     scenarioModelSource.includes('new Y.Map<ScenarioTurnRevision>()') &&
+    scenarioModelSource.includes('orderedRevisionGraph') &&
+    scenarioModelSource.includes("source: 'reconcile'") &&
+    scenarioModelSource.includes('expectedTipEditIds: string[]') &&
     scenarioModelSource.includes('scenarioEntries') &&
     scenarioModelSource.includes("collection.doc.transact(operation, 'syzygy-scenarios')") &&
     scenarioModelSource.includes('inspectScenarioGraph') &&
     scenarioModelSource.includes('expectedCurrentEditId: string') &&
     scenarioModelSource.includes('Scenario turn revision conflict') &&
+    scenarioModelSource.includes('Scenario turn has sibling revisions that require reconciliation') &&
     scenarioModelTestSource.includes('lifecycle CRUD, attributed multi-turn revisions, and branch lineage') &&
+    scenarioModelTestSource.includes('requires an exact complete sibling set, preserves zero-write failures, and reopens on a late sibling') &&
     (scenarioModelTestSource.match(/seed <= 40/g) ?? []).length === 2 &&
     scenarioModelTestSource.includes('one public turn identity') &&
     scenarioModelTestSource.includes('one public scenario identity') &&
     scenarioModelTestSource.includes('top-level deletion authoritative') &&
     scenarioModelTestSource.includes('malformed turn order') &&
+    existsSync(join(root, 'docs/audits/runs/SCENARIO-TURN-RECONCILIATION-2026-08-10.json')) &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-14", "phase": 6, "status": "implemented_unverified"') &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-15", "phase": 6, "status": "implemented_unverified"'),
-  'nested ordered turn/revision/edit CRDTs, exact-current conflict refusal, idempotent retry, peer-collision fail-closed IDs, branch inspection, lifecycle/multi-turn CRUD, 80 delivery orders, delete authority, malformed-input tests, and truthful P-14/P-15 statuses are present',
+  'nested ordered turn/edit CRDTs plus acyclic revision DAGs, durable heads and complete tips, exact-current/tip reconciliation guards, idempotent retry, sibling retention and late-conflict reopening, peer-collision fail-closed IDs, branch inspection, lifecycle/multi-turn CRUD, 80 delivery orders, delete authority, malformed-input tests, and truthful P-14/P-15 statuses are present',
+)
+
+const scenarioMigrationSource = text('frontend/src/migrations.ts')
+const localScenarioProviderSource = text('frontend/src/workspace/localProvider.ts')
+const driveScenarioProviderSource = text('frontend/src/workspace/driveProjectProvider.ts')
+record(
+  'scenario v1 migration is deterministic, zero-write on rejection, and runs at every persistence boundary',
+  scenarioModelSource.includes('migrateScenarioCollectionToV2') &&
+    scenarioModelSource.includes("source: 'migration-v1'") &&
+    scenarioMigrationSource.includes('migrateScenarioCollectionToV2(getProjectSharedTypes(doc).scenarios)') &&
+    policyContentMigrationTestSource.includes('upgrades legacy scenario heads and parents atomically and idempotently') &&
+    policyContentMigrationTestSource.includes('rejects hostile legacy scenario data before the first migration write') &&
+    policyContentMigrationTestSource.includes('converges deterministic migrations performed by disconnected peers') &&
+    localScenarioProviderSource.includes('migrateScenarioDocument(this.doc)') &&
+    text('frontend/src/workspace/localProvider.test.ts').includes('rejects readiness and withholds automation when persisted scenario data cannot migrate') &&
+    driveScenarioProviderSource.includes('migrateScenarioDocument(this.doc)') &&
+    text('frontend/src/workspace/localProvider.test.ts').includes("source: 'migration-v1'") &&
+    text('frontend/src/workspace/driveProjectProvider.test.ts').includes('migrates a legacy scenario only after the initial remote pull and republishes v2 state') &&
+    projectArchiveSource.includes('migrateScenarioDocument(decoded.doc)'),
+  'strict v1 preflight, deterministic parent-chain backfill, idempotence and disconnected convergence, IndexedDB reopen, post-pull Drive republish, and archive migration-before-fingerprint are present',
 )
 
 const scenarioVoteSource = text('frontend/src/workspace/scenarioVoteModel.ts')
@@ -697,7 +734,10 @@ record(
     scenarioWorkspaceSource.includes('identity is not authenticated') &&
     scenarioTurnWorkspaceSource.includes('createHumanScenarioTurn') &&
     scenarioTurnWorkspaceSource.includes('editHumanScenarioTurn') &&
+    scenarioTurnWorkspaceSource.includes('reconcileHumanScenarioTurn') &&
     scenarioTurnWorkspaceSource.includes('expectedCurrentEditId') &&
+    scenarioTurnWorkspaceSource.includes('Resolve sibling turn revisions') &&
+    scenarioTurnWorkspaceSource.includes('records every sibling as a parent') &&
     scenarioTurnWorkspaceSource.includes('This turn changed while you were editing') &&
     scenarioTurnWorkspaceSource.includes('TURN_PAGE_SIZE = 50') &&
     scenarioTurnWorkspaceSource.includes('TURN_LINEAGE_SIZE = 50') &&
@@ -706,6 +746,7 @@ record(
     scenarioWorkspaceTestSource.includes('changes the stale-edit revision when any scenario edit identity appears') &&
     scenarioTurnWorkspaceTestSource.includes('rejects a stale turn save before mutating the shared document') &&
     scenarioTurnWorkspaceTestSource.includes('retains disconnected exact-parent edits and converges deterministically') &&
+    scenarioTurnWorkspaceTestSource.includes("source: 'reconcile', parentEditIds: ['turn-left', 'turn-right']") &&
     scenarioTurnWorkspaceTestSource.includes('fails closed on hostile scenario data without adding a turn revision') &&
     scenarioTurnWorkspaceTestSource.includes('bounds visible turn lineage and exposes conversation pagination') &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-14", "phase": 6, "status": "implemented_unverified"') &&
@@ -713,7 +754,7 @@ record(
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-19", "phase": 6, "status": "implemented_unverified"') &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-WORKSPACE-2026-07-16.json')) &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-TURN-WORKSPACE-2026-08-01.json')),
-  'live Y.Doc subscription, scenario CRUD/status, exact-current manual turn add/edit, visible stale-draft recovery, deterministic sibling retention, bounded conversation/lineage, vote/withdraw, graph-integrity write denial, accessible states, and truthful P-14/P-15/P-19 statuses are present',
+  'live Y.Doc subscription, scenario CRUD/status, exact-current manual turn add/edit, visible stale-draft recovery, explicit accessible sibling reconciliation with every tip retained as a merge parent, bounded conversation/lineage, vote/withdraw, graph-integrity write denial, accessible states, and truthful P-14/P-15/P-19 statuses are present',
 )
 
 const scenarioVoteTestSource = text('frontend/src/workspace/scenarioVoteModel.test.ts')
@@ -932,6 +973,7 @@ const advertisedMcpTools = [
   'create_scenario',
   'add_scenario_turn',
   'revise_scenario_turn',
+  'reconcile_scenario_turn',
   'cast_scenario_vote',
   'create_scenario_annotation',
   'update_scenario_annotation',
@@ -1043,7 +1085,7 @@ record(
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioIndexReadback') &&
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioSiblingMerge') &&
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioStaleRevisionRejected') &&
-    text('scripts/lan-drive-live-harness.mjs').includes('item.toolCount >= 36') &&
+    text('scripts/lan-drive-live-harness.mjs').includes('item.toolCount >= 37') &&
     existsSync(join(root, 'docs/audits/runs/MCP-SCENARIO-INDEX-2026-08-05.json')),
   'one bounded scenario background/turn-head index, one exact current/named/indexed body, graph and identity validation, zero-write proof, named live routes, packaged traversal assertion, and two-node discovery/sibling/stale gates are present',
 )
@@ -1092,6 +1134,7 @@ record(
     scenarioAutomationSource.includes('createScenario(scenarios') &&
     scenarioAutomationSource.includes('addScenarioTurn(scenarios') &&
     scenarioAutomationSource.includes('updateScenarioTurn(scenarios') &&
+    scenarioAutomationSource.includes('reconcileScenarioTurn(scenarios') &&
     scenarioAutomationSource.includes('castScenarioVote(discussions, scenarios') &&
     scenarioAutomationSource.includes('createScenarioAnnotation(discussions, scenarios') &&
     scenarioAutomationSource.includes('updateScenarioAnnotation(discussions, scenarios') &&
@@ -1103,6 +1146,7 @@ record(
     scenarioAutomationTestSource.includes('rejects a stale revision without mutating scenario state') &&
     scenarioAutomationTestSource.includes('adds and revises a turn through successive exact research revisions') &&
     scenarioAutomationTestSource.includes('rejects stale turn add and revision without changing turn history') &&
+    scenarioAutomationTestSource.includes('reconciles the complete exact sibling set and rejects stale automation without writes') &&
     scenarioAutomationTestSource.includes('casts, revises, and withdraws one participant vote through chained revisions') &&
     scenarioAutomationTestSource.includes('rejects a stale vote without adding a vote event') &&
     scenarioAutomationTestSource.includes('creates, edits, resolves, and reopens an annotation through dual revision guards') &&
@@ -1112,6 +1156,7 @@ record(
     text('frontend/src/automationBridge.ts').includes("case 'project.createScenario'") &&
     text('frontend/src/automationBridge.ts').includes("case 'project.addScenarioTurn'") &&
     text('frontend/src/automationBridge.ts').includes("case 'project.reviseScenarioTurn'") &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.reconcileScenarioTurn'") &&
     text('frontend/src/automationBridge.ts').includes("case 'project.castScenarioVote'") &&
     text('frontend/src/automationBridge.ts').includes("case 'project.createScenarioAnnotation'") &&
     text('frontend/src/automationBridge.ts').includes("case 'project.updateScenarioAnnotation'") &&
@@ -1122,6 +1167,7 @@ record(
     mcpSource.includes('"create_scenario" => live("project.createScenario"') &&
     mcpSource.includes('"add_scenario_turn" => live("project.addScenarioTurn"') &&
     mcpSource.includes('"revise_scenario_turn" => live("project.reviseScenarioTurn"') &&
+    mcpSource.includes('"reconcile_scenario_turn" => live("project.reconcileScenarioTurn"') &&
     mcpSource.includes('"cast_scenario_vote" => live("project.castScenarioVote"') &&
     mcpSource.includes('"create_scenario_annotation" => live("project.createScenarioAnnotation"') &&
     mcpSource.includes('"update_scenario_annotation" => live("project.updateScenarioAnnotation"') &&
@@ -1139,7 +1185,7 @@ record(
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioAnnotationRejected: true') &&
     text('scripts/mcp-live-harness.mjs').includes('scenarioLabelLifecycleGuarded: true') &&
     text('scripts/mcp-live-harness.mjs').includes('staleScenarioLabelRejected: true'),
-  'stable inspection revision, zero-write stale rejection, live Y.Doc scenario/turn/vote/annotation/label routes, twenty-fourth MCP tool set, and packaged-live assertions are present',
+  'stable inspection revision, exact-head/tip sibling reconciliation, zero-write stale rejection, live Y.Doc scenario/turn/vote/annotation/label routes, 37-tool MCP surface, and packaged-live assertions are present',
 )
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))
@@ -1319,7 +1365,7 @@ record(
     researchStateInspectionSource.includes('adversarial-review question/source/result/decision-note bodies') &&
     mcpSource.includes('"save_adversarial_review"') &&
     mcpSource.includes('"decide_adversarial_review"') &&
-    mcpHarnessSource.includes('tools.length < 36') &&
+    mcpHarnessSource.includes('tools.length < 37') &&
     frontendPackage.scripts?.['test:adversarial']?.includes('adversarialHistory.test.ts'),
   'full archives persist only by explicit revision-guarded save; canonical hashes, provider provenance, peer convergence, exact-parent decision history, fail-closed conflicts, content-minimized inspection, and zero draft authority are enforced',
 )
@@ -1620,6 +1666,9 @@ const lanHostSource = text('scripts/lan-mcp-host.mjs')
 const lanAttachSource = text('scripts/lan-mcp-attach.mjs')
 const lanDevModeTestSource = text('scripts/lan-dev-mode.test.mjs')
 const lanSupervisorSource = text('scripts/lan-agent-supervisor.mjs')
+const lanMcpHarnessSource = text('scripts/lan-mcp-harness.mjs')
+const lanPackagedHarnessSource = text('scripts/lan-packaged-agent-harness.mjs')
+const lanLocalMcpSource = text('scripts/lan-local-mcp.mjs')
 const lanDriveHarnessSource = text('scripts/lan-drive-live-harness.mjs')
 const lanSettingsSource = text('frontend/src/components/LanAgentSettings.tsx')
 record(
@@ -1651,17 +1700,26 @@ record(
     lanAttachSource.includes("createHmac('sha256', pairingKey)") &&
     lanDevModeTestSource.includes('releases both listeners') &&
     lanSupervisorSource.includes('RESTART_DELAYS_MS') &&
+    lanMcpHarnessSource.includes("'--control-port', String(controlPort)") &&
+    lanMcpHarnessSource.includes('if (child.kill()) return') &&
+    lanPackagedHarnessSource.includes("'--control-port', String(controlPort)") &&
+    lanPackagedHarnessSource.includes('if (child.kill()) return') &&
+    lanPackagedHarnessSource.includes('tools.structuredContent.tools.length >= 37') &&
+    lanLocalMcpSource.includes('if (child.kill()) return') &&
     lanSettingsSource.includes('Private LAN test connection') &&
     lanSettingsSource.includes('pickLanPairingKeyFile') &&
     lanSettingsSource.includes('Host the collaboration developer network on this computer') &&
     lanSettingsSource.includes('PowerShell is diagnostic-only') &&
     lanDriveHarnessSource.includes("'--mutate'") &&
+    lanDriveHarnessSource.includes('absoluteDeadline = Date.now() + 2 * 60_000') &&
     lanDriveHarnessSource.includes('Math.min(timeoutMs, 60_000)') &&
     lanDriveHarnessSource.includes('staleRevisionRejected') &&
-    lanDriveHarnessSource.includes('item.toolCount >= 36') &&
+    lanDriveHarnessSource.includes('item.toolCount >= 37') &&
     lanDriveHarnessSource.includes('scenarioIndexReadback') &&
     lanDriveHarnessSource.includes('scenarioSiblingMerge') &&
     lanDriveHarnessSource.includes('scenarioCurrentConverged') &&
+    lanDriveHarnessSource.includes('scenarioSiblingReconciliation') &&
+    lanDriveHarnessSource.includes("'reconcile_scenario_turn'") &&
     lanDriveHarnessSource.includes('scenarioStaleRevisionRejected') &&
     existsSync(join(root, 'scripts/lan-mcp-host.mjs')) &&
     existsSync(join(root, 'scripts/lan-mcp-attach.mjs')) &&
@@ -1673,7 +1731,7 @@ record(
     existsSync(join(root, 'docs/audits/runs/LAN-COLLABORATION-SUPERVISION-2026-07-17.json')) &&
     existsSync(join(root, 'docs/audits/runs/LAN-DEV-MODE-LIFECYCLE-2026-07-18.json')) &&
     existsSync(join(root, 'docs/audits/runs/MCP-SCENARIO-TURN-READBACK-2026-08-02.json')),
-  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, 36-tool discovery, explicit scenario-index and sibling-body readback, deterministic current convergence, and stale-write gates are present',
+  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, 37-tool discovery, explicit scenario-index and sibling-body readback, deterministic current convergence, exact sibling reconciliation, and stale-write gates are present',
 )
 const ledger = JSON.parse(text('docs/audits/CAPABILITIES.json'))
 const expectedIds = [

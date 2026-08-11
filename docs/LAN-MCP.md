@@ -139,7 +139,7 @@ node scripts\run-with-heartbeat.mjs --timeout-seconds 60 --heartbeat-seconds 15 
 node scripts\run-with-heartbeat.mjs --timeout-seconds 60 --heartbeat-seconds 15 -- node --test scripts\lan-dev-mode.test.mjs
 node scripts\run-with-heartbeat.mjs --timeout-seconds 90 --heartbeat-seconds 15 -- node scripts\lan-mcp-harness.mjs
 node scripts\run-with-heartbeat.mjs --timeout-seconds 90 --heartbeat-seconds 15 -- node scripts\lan-packaged-agent-harness.mjs
-node scripts\run-with-heartbeat.mjs --timeout-seconds 360 --heartbeat-seconds 15 -- node scripts\lan-drive-live-harness.mjs --listen 192.168.1.20 --port 37663 --key-file "$env:USERPROFILE\.syzygy-lan.key" --local-executable "$env:LOCALAPPDATA\Syzygy\Syzygy.exe" --primary office-primary --secondary office-secondary --mutate
+node scripts\run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts\lan-drive-live-harness.mjs --listen 192.168.1.20 --port 37663 --key-file "$env:USERPROFILE\.syzygy-lan.key" --local-executable "$env:LOCALAPPDATA\Syzygy\Syzygy.exe" --primary-node office-primary --secondary-node office-secondary --mutate
 ```
 
 The first suite checks authentication, key separation, encryption, tamper detection, replay
@@ -149,19 +149,27 @@ two-node harness starts a coordinator and two isolated fake
 installations, proves independent mutation routing, rejects an invalid key, and proves disconnect
 cleanup. The third connects the compiled Rust `Syzygy.exe --lan-agent` to the Node coordinator,
 discovers all native MCP tools, and calls installation self-description through the encrypted path.
+Both harnesses reserve agent and control ports independently, wait for both listeners, terminate
+only their owned child handles before a checked `taskkill` fallback, wait for agent exit, and close
+the coordinator through stdin. A discarded Windows termination failure is a test failure; success
+must return to the command prompt rather than merely printing JSON and leaving a process alive.
 The physical `--mutate` gate additionally creates one proof scenario and turn, makes simultaneous
 exact-revision edits on both installations, explicitly reads both immutable sibling bodies back
-from both nodes, requires the same deterministic current revision on each, and proves a stale
-follow-up adds no fourth revision. Output remains limited to booleans and counts.
+from both nodes, requires the same selected head and complete two-tip set on each, invokes
+`reconcile_scenario_turn` with those exact guards, and requires one four-revision merge head whose
+parents are both siblings on both nodes. A stale follow-up must add no fifth revision. Output remains
+limited to booleans and counts. The harness and its outer watchdog both have a two-minute absolute
+deadline; individual polling waits heartbeat every 15 seconds and never exceed one minute.
 
 ## Honest current limit
 
 The deterministic component gates pass, but the decisive packaged two-install run must be rerun and
-recorded after both profiles install a build exposing all 36 native tools. The physical harness fails
+recorded after both profiles install a build exposing all 37 native tools. The physical harness fails
 unless the exact two nodes connect, expose guarded catalog/share/join plus explicit scenario index and
 turn-revision readback, discover the same turn identity/head on both nodes, converge the document
 baseline and concurrent appends, retain both simultaneous scenario revision bodies on both
-installations, project the same current revision, and reject stale document and scenario writes
+installations, project the same selected head and complete tip set, converge the explicit all-parent
+merge revision, and reject stale document and scenario writes
 without printing proof text. That proves the tested Drive path only; it does not
 claim presence, sub-second delivery, WebSocket or peer transport, authenticated human identity,
-explicit branch reconciliation, or arbitrary crash recovery.
+packaged pointer interaction, or arbitrary crash recovery.

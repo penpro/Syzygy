@@ -21,7 +21,7 @@ const primaryNode = option(options, '--primary-node', 'office-primary')
 const secondaryNode = option(options, '--secondary-node', 'office-secondary')
 const mutate = options.has('--mutate')
 const proofTitle = option(options, '--proof-title', 'Syzygy live collaboration proof')
-const absoluteDeadline = Date.now() + 5 * 60_000
+const absoluteDeadline = Date.now() + 2 * 60_000
 
 function terminate(child) {
   if (!child?.pid || child.exitCode !== null) return
@@ -199,6 +199,7 @@ const evidence = {
   scenarioIndexReadback: false,
   scenarioSiblingMerge: false,
   scenarioCurrentConverged: false,
+  scenarioSiblingReconciliation: false,
   scenarioStaleRevisionRejected: false,
 }
 
@@ -226,7 +227,7 @@ try {
   const selectedProbes = probe.structuredContent.probes.filter((item) =>
     item.nodeId === primaryNode || item.nodeId === secondaryNode)
   assert.equal(selectedProbes.length, 2)
-  assert.equal(selectedProbes.every((item) => item.ok && item.toolCount >= 36), true)
+  assert.equal(selectedProbes.every((item) => item.ok && item.toolCount >= 37), true)
 
   if (!mutate) {
     const [primary, secondary] = await Promise.all([
@@ -376,11 +377,47 @@ try {
         && primary.turn.currentEditId === secondary.turn.currentEditId
         && primary.revision.editId === secondary.revision.editId
         && primary.revision.content === secondary.revision.content
-        && primary.turn.revisionCount === 3 && secondary.turn.revisionCount === 3,
+        && primary.turn.revisionCount === 3 && secondary.turn.revisionCount === 3
+        && primary.turn.requiresReconciliation === true && secondary.turn.requiresReconciliation === true
+        && primary.turn.tipEditIds.length === 2 && secondary.turn.tipEditIds.length === 2
+        && primary.turn.tipEditIds.includes(primaryEditId) && primary.turn.tipEditIds.includes(secondaryEditId)
+        && secondary.turn.tipEditIds.includes(primaryEditId) && secondary.turn.tipEditIds.includes(secondaryEditId),
       60_000,
       'deterministic current scenario turn on both installations',
     )
     evidence.scenarioCurrentConverged = currentTurns[0].revision.editId === currentTurns[1].revision.editId
+
+    const reconciliationBody = `Reconciled scenario branch ${runId}`
+    const reconciled = await lanCall(session, primaryNode, 'reconcile_scenario_turn', {
+      expectedResearchRevision: currentTurns[0].researchRevision,
+      expectedCurrentEditId: currentTurns[0].turn.currentEditId,
+      expectedTipEditIds: currentTurns[0].turn.tipEditIds,
+      scenarioId,
+      turnId,
+      role: 'assistant',
+      content: reconciliationBody,
+      participantId: 'lan-primary',
+    })
+    const mergeEditId = reconciled.turn.currentEditId
+    const reconciledTurns = await waitFor(
+      async () => Promise.all([
+        optionalLanCall(session, primaryNode, 'read_scenario_turn_revision', { scenarioId, turnId }),
+        optionalLanCall(session, secondaryNode, 'read_scenario_turn_revision', { scenarioId, turnId }),
+      ]),
+      ([primary, secondary]) => Boolean(primary && secondary)
+        && primary.revision.editId === mergeEditId && secondary.revision.editId === mergeEditId
+        && primary.revision.content === reconciliationBody && secondary.revision.content === reconciliationBody
+        && primary.turn.revisionCount === 4 && secondary.turn.revisionCount === 4
+        && primary.turn.requiresReconciliation === false && secondary.turn.requiresReconciliation === false
+        && primary.turn.tipEditIds.length === 1 && primary.turn.tipEditIds[0] === mergeEditId
+        && secondary.turn.tipEditIds.length === 1 && secondary.turn.tipEditIds[0] === mergeEditId,
+      60_000,
+      'explicit scenario sibling reconciliation on both installations',
+    )
+    const expectedMergeParents = [primaryEditId, secondaryEditId].sort()
+    evidence.scenarioSiblingReconciliation = reconciledTurns.every((value) =>
+      value.revision.source === 'reconcile'
+      && JSON.stringify([...value.revision.parentEditIds].sort()) === JSON.stringify(expectedMergeParents))
 
     try {
       await lanCall(session, primaryNode, 'revise_scenario_turn', {
@@ -394,7 +431,7 @@ try {
       lanCall(session, primaryNode, 'read_scenario_turn_revision', { scenarioId, turnId }),
       lanCall(session, secondaryNode, 'read_scenario_turn_revision', { scenarioId, turnId }),
     ])
-    assert.equal(afterStaleScenario.every((value) => value.turn.revisionCount === 3), true)
+    assert.equal(afterStaleScenario.every((value) => value.turn.revisionCount === 4), true)
     evidence.passed = evidence.exactSharedIdentity
       && evidence.primaryToSecondary
       && evidence.secondaryToPrimary
@@ -404,6 +441,7 @@ try {
       && evidence.scenarioIndexReadback
       && evidence.scenarioSiblingMerge
       && evidence.scenarioCurrentConverged
+      && evidence.scenarioSiblingReconciliation
       && evidence.scenarioStaleRevisionRejected
   }
   process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`)

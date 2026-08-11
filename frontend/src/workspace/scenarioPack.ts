@@ -6,7 +6,8 @@ import {
 } from './scenarioModel'
 
 export const SCENARIO_PACK_FORMAT = 'syzygy-scenario-pack' as const
-export const SCENARIO_PACK_SCHEMA_VERSION = 1 as const
+export const SCENARIO_PACK_SCHEMA_VERSION = 2 as const
+export const LEGACY_SCENARIO_PACK_SCHEMA_VERSION = 1 as const
 export const SCENARIO_PACK_EXTENSION = '.syzygy-scenarios.json'
 export const SCENARIO_PACK_MAX_FILE_BYTES = 64 * 1024 * 1024
 export const SCENARIO_PACK_MAX_SCENARIOS = 10_000
@@ -28,7 +29,7 @@ export interface ScenarioPackChecksum {
 
 export interface ScenarioPack {
   format: typeof SCENARIO_PACK_FORMAT
-  schemaVersion: typeof SCENARIO_PACK_SCHEMA_VERSION
+  schemaVersion: typeof SCENARIO_PACK_SCHEMA_VERSION | typeof LEGACY_SCENARIO_PACK_SCHEMA_VERSION
   packId: string
   title: string
   description: string
@@ -78,6 +79,51 @@ async function sha256(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
+function migrateLegacyScenarios(value: unknown): ResearchScenario[] {
+  if (!Array.isArray(value) || value.length === 0 || value.length > SCENARIO_PACK_MAX_SCENARIOS ||
+    !value.every(isRecord)) throw new Error('Legacy scenario pack scenarios are invalid or exceed the limit')
+  const migrated = value.map((scenarioValue) => {
+    if (!exactKeys(scenarioValue, [
+      'schemaVersion', 'id', 'title', 'background', 'status', 'parentScenarioId',
+      'createdBy', 'createdAt', 'turns', 'edits',
+    ]) || scenarioValue.schemaVersion !== LEGACY_SCENARIO_PACK_SCHEMA_VERSION ||
+      !Array.isArray(scenarioValue.turns) || !Array.isArray(scenarioValue.edits)) {
+      throw new Error('Legacy scenario pack contains an invalid scenario record')
+    }
+    const turns = scenarioValue.turns.map((turnValue) => {
+      if (!isRecord(turnValue) || !exactKeys(turnValue, [
+        'id', 'createdBy', 'createdAt', 'role', 'content', 'revisions',
+      ]) || !Array.isArray(turnValue.revisions) || turnValue.revisions.length === 0 ||
+        turnValue.revisions.length > 10_000 || !turnValue.revisions.every(isRecord)) {
+        throw new Error('Legacy scenario pack contains an invalid turn record')
+      }
+      const legacyRevisions = turnValue.revisions as Record<string, unknown>[]
+      const revisions = legacyRevisions.map((revisionValue, index) => {
+        if (!exactKeys(revisionValue, ['editId', 'role', 'content', 'authorId', 'timestamp'])) {
+          throw new Error('Legacy scenario pack contains an invalid turn revision')
+        }
+        return {
+          ...revisionValue,
+          parentEditIds: index === 0 ? [] : [legacyRevisions[index - 1].editId],
+          source: 'migration-v1',
+        }
+      })
+      const finalLegacy = legacyRevisions[legacyRevisions.length - 1]
+      if (turnValue.role !== finalLegacy.role || turnValue.content !== finalLegacy.content) {
+        throw new Error('Legacy scenario pack current turn projection is invalid')
+      }
+      return {
+        ...turnValue,
+        headEditId: finalLegacy.editId,
+        tipEditIds: [finalLegacy.editId],
+        revisions,
+      }
+    })
+    return { ...scenarioValue, schemaVersion: 2, turns }
+  })
+  return normalizedScenarios(migrated)
+}
+
 function normalizedScenarios(value: unknown): ResearchScenario[] {
   if (!Array.isArray(value) || value.length === 0 || value.length > SCENARIO_PACK_MAX_SCENARIOS ||
     !value.every(isRecord)) throw new Error('Scenario pack scenarios are invalid or exceed the limit')
@@ -110,7 +156,9 @@ function parseUnsigned(value: unknown): UnsignedScenarioPack {
   if (!isRecord(value) || !exactKeys(value, [
     'format', 'schemaVersion', 'packId', 'title', 'description', 'license', 'source', 'scenarios',
   ])) throw new Error('Scenario pack envelope has unknown or missing fields')
-  if (value.format !== SCENARIO_PACK_FORMAT || value.schemaVersion !== SCENARIO_PACK_SCHEMA_VERSION) {
+  if (value.format !== SCENARIO_PACK_FORMAT ||
+    (value.schemaVersion !== SCENARIO_PACK_SCHEMA_VERSION &&
+      value.schemaVersion !== LEGACY_SCENARIO_PACK_SCHEMA_VERSION)) {
     throw new Error('Unsupported scenario pack format or schema version')
   }
   if (!stableId(value.packId) || !validText(value.title, 200) || !validText(value.description, 20_000, true) ||
@@ -119,13 +167,15 @@ function parseUnsigned(value: unknown): UnsignedScenarioPack {
   }
   return {
     format: SCENARIO_PACK_FORMAT,
-    schemaVersion: SCENARIO_PACK_SCHEMA_VERSION,
+    schemaVersion: value.schemaVersion,
     packId: value.packId,
     title: value.title,
     description: value.description,
     license: value.license as string | null,
     source: parseSource(value.source),
-    scenarios: normalizedScenarios(value.scenarios),
+    scenarios: value.schemaVersion === LEGACY_SCENARIO_PACK_SCHEMA_VERSION
+      ? migrateLegacyScenarios(value.scenarios)
+      : normalizedScenarios(value.scenarios),
   }
 }
 
@@ -198,12 +248,16 @@ export async function decodeScenarioPack(text: string): Promise<ScenarioPack> {
   if (!isRecord(parsed) || !exactKeys(parsed, [
     'format', 'schemaVersion', 'packId', 'title', 'description', 'license', 'source', 'scenarios', 'checksum',
   ])) throw new Error('Scenario pack envelope has unknown or missing fields')
+  if (parsed.format !== SCENARIO_PACK_FORMAT ||
+    (parsed.schemaVersion !== SCENARIO_PACK_SCHEMA_VERSION &&
+      parsed.schemaVersion !== LEGACY_SCENARIO_PACK_SCHEMA_VERSION)) {
+    throw new Error('Unsupported scenario pack format or schema version')
+  }
   const checksum = parseChecksum(parsed.checksum)
-  const unsigned = parseUnsigned(Object.fromEntries(
-    Object.entries(parsed).filter(([key]) => key !== 'checksum'),
-  ))
-  const actual = await sha256(canonicalScenarioPackJson(unsigned))
+  const rawUnsigned = Object.fromEntries(Object.entries(parsed).filter(([key]) => key !== 'checksum'))
+  const actual = await sha256(canonicalScenarioPackJson(rawUnsigned))
   if (actual !== checksum.value) throw new Error('Scenario pack checksum does not match its contents')
+  const unsigned = parseUnsigned(rawUnsigned)
   return { ...unsigned, checksum }
 }
 

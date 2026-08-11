@@ -1,4 +1,5 @@
 import * as Y from 'yjs'
+import { migrateScenarioDocument } from '../migrations'
 import { LocalProjectProvider } from './localProvider'
 import { applyProjectUpdate, encodeProjectState, getProjectSharedTypes, projectStateFingerprint } from './projectModel'
 import { parseProjectManifest, type ResearchProjectManifest } from './schema'
@@ -257,14 +258,23 @@ export function assertProjectArchiveImportAvailable(
 
 export async function persistDecodedProjectArchive(decoded: DecodedProjectArchive): Promise<void> {
   const storageKey = `syzygy-project-v1:${decoded.manifest.id}`
+  migrateScenarioDocument(decoded.doc)
   const before = projectStateFingerprint(decoded.doc)
   const provider = new LocalProjectProvider(decoded.doc, storageKey, decoded.manifest.id)
-  try {
-    provider.connect()
-    await provider.whenReady()
+  const assertNoOrphanedState = () => {
     if (projectStateFingerprint(decoded.doc) !== before) {
       throw new Error('Local storage already contains different state for this project; import was not applied')
     }
+  }
+  try {
+    provider.connect()
+    try {
+      await provider.whenReady()
+    } catch (error) {
+      assertNoOrphanedState()
+      throw error
+    }
+    assertNoOrphanedState()
     await provider.flush()
   } finally {
     await provider.destroy()

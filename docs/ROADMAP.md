@@ -447,10 +447,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   Three MCP tools expose exact bounded Drive catalog/share/join actions; share requires the current
   document revision and join refetches exact workspace/project/document identity before registration.
   Two explicit MCP reads now provide a bounded scenario traversal chain while broad inspection stays
-  body-free: `read_scenario` returns one background plus ordered turn identity/head metadata, then
-  `read_scenario_turn_revision` returns one chosen current, named, or indexed body. The five-minute
-  physical harness now requires both nodes and all 36 tools; it discovers the turn on both installations,
-  reads both simultaneous scenario siblings, requires the same deterministic current revision, and
+  body-free: `read_scenario` returns one background plus ordered turn identity/head/tip metadata,
+  then `read_scenario_turn_revision` returns one chosen selected-head, named, or indexed body. The
+  two-minute physical harness now requires both nodes and all 37 tools; it discovers the turn on
+  both installations, reads both simultaneous scenario siblings, requires the same head/tip set,
+  appends one exact all-parent reconciliation, requires the four-revision merge on both nodes, and
   rejects stale document and scenario writes with boolean-only output. Component, Rust, MCP, and synthetic host gates pass;
   S-07 stays `implemented_unverified` until this build is installed on both profiles and the physical
   harness produces its evidence record. Presence, bounded compaction, shared rename, and non-Drive
@@ -494,6 +495,16 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   Evidence: `docs/audits/runs/ADVERSARIAL-PRODUCT-WORKFLOW-2026-07-30.json` and
   `docs/audits/runs/ADVERSARIAL-EVIDENCE-PAGING-2026-07-31.json`.
 
+- Scenario turn history now uses schema v2: every turn persists one selected head, every revision
+  persists its parent set and source, and projection derives the complete acyclic tip set. Concurrent
+  exact-parent edits remain visible siblings; ordinary edits stop until an exact all-tip merge is
+  appended. The engine-free UI exposes explicit sibling selection without deleting alternatives,
+  and MCP discovery now exposes 37 tools including `reconcile_scenario_turn`. Valid v1 IndexedDB,
+  Drive, project-archive, and scenario-pack histories migrate deterministically; malformed/future
+  records fail before the first migration write. Headless domain, provider, archive, schema, Rust,
+  stdio, and structural gates pass. A packaged physical two-install merge remains unverified and is
+  required before this collaboration slice can move beyond `implemented_unverified`.
+
 ## Current completion snapshot
 
 The machine-readable end-goal ledger currently contains **42 capabilities**: **42 are
@@ -526,8 +537,9 @@ collaborators are not required to download large project folders.
    claiming panel quality; implement a no-authority WASI host before loading third-party code.
 4. **Harden collaboration beyond the first Drive transport** — append-only Yjs Drive sharing,
    share/join UI, deterministic partition convergence, a real Drive canary, persistent outbound LAN
-   agents, and guarded MCP catalog/share/join tooling have landed. Next: run and record the packaged
-   two-install convergence harness, then bounded compaction, conflict-safe shared rename, and presence.
+   agents, guarded MCP catalog/share/join tooling, and exact scenario sibling reconciliation have
+   landed. Next: run and record the packaged two-install convergence-and-reconciliation harness,
+   then bounded compaction, conflict-safe shared rename, and presence.
    The v0.1.13 hotfix kept shared-project discovery reachable from every active-project state.
    v0.1.14 added same-name folder codes and the bounded MCP/LAN diagnostic; the two-physical-install
    run then proved the client had no selected workspace rather than a failed project upload.

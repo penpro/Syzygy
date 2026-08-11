@@ -92,7 +92,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, adversarial review archives/decisions, and immutable history. Use read_scenario for one explicit scenario background and its bounded turn identity/head index, then read_scenario_turn_revision for one current, named, or indexed revision body; both are content-disclosing reads. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. On any conflict, read again and reconcile. Adversarial model review starts with start_adversarial_review followed by inspect_adversarial_review or cancel_adversarial_review; it requires configured built-in provider credentials and one native disclosure approval, and its result remains transient and pending human review. Call save_adversarial_review only with explicit authority to make the full question, selected source excerpts, and results shared project content that can synchronize through Drive. Call decide_adversarial_review separately to append an immutable accept/reject event; it never edits the draft. Never claim real-time collaborator presence is available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, adversarial review archives/decisions, and immutable history. Use read_scenario for one explicit scenario background and its bounded turn identity/head index, then read_scenario_turn_revision for one current, named, or indexed revision body; both are content-disclosing reads. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. When a scenario turn reports sibling tips, read the candidate revisions and call reconcile_scenario_turn with the exact research revision, selected head, and complete tip set; ordinary revision writes fail closed until reconciliation. Adversarial model review starts with start_adversarial_review followed by inspect_adversarial_review or cancel_adversarial_review; it requires configured built-in provider credentials and one native disclosure approval, and its result remains transient and pending human review. Call save_adversarial_review only with explicit authority to make the full question, selected source excerpts, and results shared project content that can synchronize through Drive. Call decide_adversarial_review separately to append an immutable accept/reject event; it never edits the draft. Never claim real-time collaborator presence is available."
             })
         }
         "ping" => json!({}),
@@ -142,6 +142,7 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "create_scenario" => live("project.createScenario", arguments),
         "add_scenario_turn" => live("project.addScenarioTurn", arguments),
         "revise_scenario_turn" => live("project.reviseScenarioTurn", arguments),
+        "reconcile_scenario_turn" => live("project.reconcileScenarioTurn", arguments),
         "cast_scenario_vote" => live("project.castScenarioVote", arguments),
         "create_scenario_annotation" => live("project.createScenarioAnnotation", arguments),
         "update_scenario_annotation" => live("project.updateScenarioAnnotation", arguments),
@@ -366,6 +367,23 @@ fn tool_definitions() -> Vec<Value> {
             "revise_scenario_turn",
             "Append an attributed immutable revision to an existing scenario turn against the exact current research revision. Prior turn revisions remain available in domain history.",
             scenario_turn_schema(),
+        ),
+        tool(
+            "reconcile_scenario_turn",
+            "Resolve a visible scenario-turn sibling conflict by appending one attributed merge revision whose parents are the complete exact tip set. Every sibling remains in history; no model is invoked.",
+            object_schema(
+                &[
+                    ("expectedResearchRevision", string_schema("Exact research revision from read_scenario or read_scenario_turn_revision.")),
+                    ("expectedCurrentEditId", string_schema("Exact selected head returned by the latest scenario read.")),
+                    ("expectedTipEditIds", json!({ "type": "array", "minItems": 2, "maxItems": 10000, "uniqueItems": true, "items": { "type": "string" }, "description": "Complete exact sibling-tip set returned by the latest scenario read." })),
+                    ("scenarioId", string_schema("Existing stable scenario ID.")),
+                    ("turnId", string_schema("Existing stable turn ID with sibling tips.")),
+                    ("role", string_schema("Resolved turn role: system, user, or assistant.")),
+                    ("content", string_schema("Resolved content, either selected from a sibling or explicitly merged by the caller.")),
+                    ("participantId", string_schema("Caller-supplied participant ID; identity is not authenticated across installs.")),
+                ],
+                &["expectedResearchRevision", "expectedCurrentEditId", "expectedTipEditIds", "scenarioId", "turnId", "role", "content", "participantId"],
+            ),
         ),
         tool(
             "cast_scenario_vote",
@@ -760,6 +778,7 @@ mod tests {
         assert!(names.contains(&"create_scenario"));
         assert!(names.contains(&"add_scenario_turn"));
         assert!(names.contains(&"revise_scenario_turn"));
+        assert!(names.contains(&"reconcile_scenario_turn"));
         assert!(names.contains(&"cast_scenario_vote"));
         assert!(names.contains(&"create_scenario_annotation"));
         assert!(names.contains(&"update_scenario_annotation"));
@@ -774,7 +793,7 @@ mod tests {
         assert!(names.contains(&"cancel_adversarial_review"));
         assert!(names.contains(&"save_adversarial_review"));
         assert!(names.contains(&"decide_adversarial_review"));
-        assert_eq!(names.len(), 36);
+        assert_eq!(names.len(), 37);
         assert!(names.contains(&"replace_active_document"));
     }
 
@@ -990,6 +1009,34 @@ mod tests {
                 "4.5.6"
             );
         }
+    }
+
+    #[test]
+    fn routes_scenario_turn_reconciliation_with_exact_heads() {
+        let response = dispatch_message(
+            &json!({
+                "jsonrpc": "2.0",
+                "id": "turn-reconcile-1",
+                "method": "tools/call",
+                "params": {
+                    "name": "reconcile_scenario_turn",
+                    "arguments": {
+                        "expectedResearchRevision": "7.8.9",
+                        "expectedCurrentEditId": "turn-left",
+                        "expectedTipEditIds": ["turn-left", "turn-right"],
+                        "scenarioId": "test-scenario",
+                        "turnId": "answer-turn",
+                        "role": "assistant",
+                        "content": "Merged answer",
+                        "participantId": "researcher-merge"
+                    }
+                }
+            }),
+            &fake_live,
+        )
+        .unwrap();
+        assert_eq!(response["result"]["structuredContent"]["method"], "project.reconcileScenarioTurn");
+        assert_eq!(response["result"]["structuredContent"]["params"]["expectedTipEditIds"][1], "turn-right");
     }
 
     #[test]

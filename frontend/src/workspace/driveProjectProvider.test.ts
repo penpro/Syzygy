@@ -7,9 +7,12 @@ import type {
   ProjectProviderListener,
 } from './collaborationProvider'
 import {
+  bytesToBase64,
   DriveProjectProvider,
   type DriveProjectRemote,
 } from './driveProjectProvider'
+import { getProjectSharedTypes } from './projectModel'
+import { createScenario, readScenario, updateScenarioTurn } from './scenarioModel'
 import type { ResearchProjectManifest } from './schema'
 
 class ImmediateLocalProvider implements ProjectCollaborationProvider {
@@ -98,6 +101,45 @@ describe('DriveProjectProvider', () => {
     })
     expect(docB.getMap('research').toJSON()).toEqual(docA.getMap('research').toJSON())
     expect(Y.encodeStateVector(docB)).toEqual(Y.encodeStateVector(docA))
+  })
+
+  it('migrates a legacy scenario only after the initial remote pull and republishes v2 state', async () => {
+    const hub = new FakeDriveHub()
+    const legacy = new Y.Doc({ guid: manifest.documentId })
+    const scenarios = getProjectSharedTypes(legacy).scenarios
+    createScenario(scenarios, {
+      id: 'drive-legacy', title: 'Drive legacy', background: '', authorId: 'author-a', timestamp: 1,
+      editId: 'drive-legacy-create', turns: [{ id: 'drive-legacy-turn', role: 'user', content: 'First', editId: 'drive-first' }],
+    })
+    updateScenarioTurn(scenarios, {
+      scenarioId: 'drive-legacy', turnId: 'drive-legacy-turn', role: 'assistant', content: 'Second',
+      authorId: 'author-b', timestamp: 2, editId: 'drive-second', expectedCurrentEditId: 'drive-first',
+    })
+    const record = Array.from(scenarios.values())[0] as Y.Map<unknown>
+    const turn = Array.from((record.get('turns') as Y.Map<unknown>).values())[0] as Y.Map<unknown>
+    const revisions = turn.get('revisions') as Y.Map<Record<string, unknown>>
+    for (const [storageKey, revision] of revisions.entries()) {
+      const { parentEditIds: _parents, source: _source, ...legacyRevision } = revision
+      revisions.set(storageKey, legacyRevision)
+    }
+    turn.delete('headEditId')
+    record.set('schemaVersion', 1)
+    await hub.push(manifest.id, manifest.documentId, 'legacy-seed', bytesToBase64(Y.encodeStateAsUpdate(legacy)))
+
+    const firstDoc = new Y.Doc({ guid: manifest.documentId })
+    const first = provider(firstDoc, hub)
+    first.connect()
+    await first.whenReady()
+    expect(readScenario(getProjectSharedTypes(firstDoc).scenarios, 'drive-legacy')?.turns[0]).toMatchObject({
+      headEditId: 'drive-second', tipEditIds: ['drive-second'], content: 'Second',
+    })
+
+    const secondDoc = new Y.Doc({ guid: manifest.documentId })
+    const second = provider(secondDoc, hub)
+    second.connect()
+    await second.whenReady()
+    expect(readScenario(getProjectSharedTypes(secondDoc).scenarios, 'drive-legacy'))
+      .toEqual(readScenario(getProjectSharedTypes(firstDoc).scenarios, 'drive-legacy'))
   })
 
   it('fails readiness closed when Drive returns malformed update bytes', async () => {

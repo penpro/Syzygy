@@ -82,7 +82,10 @@ has an immutable schema-v1 `manifest.json` and an `updates/` folder of content-a
 append-only update envelopes. A writer never replaces another writer's project state. The frontend
 coalesces local Yjs updates, appends them, polls unseen Drive file IDs, validates base64/identity/
 SHA-256/size bounds in Rust, and gives the decoded updates to Yjs as the merge authority. IndexedDB
-remains the local offline cache.
+remains the local offline cache. Scenario schema migration runs only after the initial remote pull
+and before the document is exposed to UI/MCP automation. A valid v1 scenario history receives
+deterministic heads and revision parents and is republished as an ordinary append-only v2 Yjs update;
+malformed or future records fail provider readiness without a partial migration write.
 
 **Drive & shared projects** is always available from the project sidebar, with a second permanent
 **Drive** footer destination. Both open the collaboration home without archiving the current project.
@@ -112,7 +115,12 @@ Drive editor to become ready. These explicit calls use the live product boundary
 ambient Drive authority.
 
 `scripts/lan-drive-live-harness.mjs` drives those tools through two exact physical node labels. Its
-mutating mode proves guarded share/join, bidirectional and concurrent-edit convergence, and stale-
+mutating mode proves guarded share/join, bidirectional and concurrent document convergence, stale-
+write rejection, simultaneous scenario-turn siblings, explicit reads of both bodies on both nodes,
+and one exact-head/complete-tip reconciliation whose merge revision retains both siblings as parents.
+The bounded harness must observe that four-revision merged head on both installations. This remains
+pending physical packaged execution for each new build; component or single-profile tests do not
+substitute for it.
 
 `npm run test:drive-project-live` creates a temporary project through the real Google endpoints,
 appends two logical-writer records, lists/reads them back, and trashes the project folder. The

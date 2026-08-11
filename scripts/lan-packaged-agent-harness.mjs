@@ -20,7 +20,11 @@ writeFileSync(keyFile, `${randomBytes(32).toString('base64url')}\n`, { mode: 0o6
 function terminate(child) {
   if (!child?.pid || child.exitCode !== null) return
   if (process.platform === 'win32') {
-    spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f'], { stdio: 'ignore', windowsHide: true })
+    if (child.kill()) return
+    const result = spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f'], { stdio: 'ignore', windowsHide: true })
+    if (result.error || (result.status !== 0 && child.exitCode === null && child.signalCode === null)) {
+      throw new Error(`Could not terminate packaged harness process ${child.pid}`)
+    }
   } else child.kill('SIGTERM')
 }
 
@@ -76,6 +80,14 @@ class Session {
         message.error ? waiter.reject(new Error(message.error.message)) : waiter.resolve(message.result)
       }
     })
+    child.once('exit', (code, signal) => {
+      const detail = child.output.stderr.trim().slice(-1_000)
+      for (const waiter of this.pending.values()) {
+        clearTimeout(waiter.timer)
+        waiter.reject(new Error(`Coordinator exited code=${code} signal=${signal ?? 'none'}${detail ? `: ${detail}` : ''}`))
+      }
+      this.pending.clear()
+    })
   }
 
   request(method, params = {}) {
@@ -98,9 +110,18 @@ class Session {
 const children = []
 try {
   const port = await reservePort()
-  const coordinator = captured(process.execPath, [coordinatorScript, '--listen', '127.0.0.1', '--port', String(port), '--key-file', keyFile])
+  let controlPort = await reservePort()
+  while (controlPort === port) controlPort = await reservePort()
+  const coordinator = captured(process.execPath, [
+    coordinatorScript,
+    '--listen', '127.0.0.1',
+    '--port', String(port),
+    '--control-port', String(controlPort),
+    '--key-file', keyFile,
+  ])
   children.push(coordinator)
   await waitFor(() => coordinator.output.stderr.includes(`127.0.0.1:${port}`), 5_000, 'coordinator')
+  await waitFor(() => coordinator.output.stderr.includes(`127.0.0.1:${controlPort}`), 5_000, 'coordinator control listener')
   const session = new Session(coordinator)
   await session.request('initialize', {
     protocolVersion: '2025-11-25',
@@ -123,7 +144,7 @@ try {
   assert.equal(nodes.structuredContent.nodes[0].metadata.packagedAgent, true)
   const tools = await session.tool('lan_node_tools', { nodeId: 'packaged-office', timeoutMs: 10_000 })
   assert.equal(tools.isError, false)
-  assert.equal(tools.structuredContent.tools.length >= 29, true)
+  assert.equal(tools.structuredContent.tools.length >= 37, true)
   const installation = await session.tool('lan_call', {
     nodeId: 'packaged-office',
     name: 'syzygy_installation',
@@ -141,8 +162,13 @@ try {
     installationSelfDescription: true,
   }, null, 2)}\n`)
   terminate(agent)
+  await waitFor(
+    () => agent.exitCode !== null || agent.signalCode !== null,
+    10_000,
+    'packaged agent exit',
+  )
   coordinator.stdin.end()
-  await waitFor(() => coordinator.exitCode !== null, 5_000, 'coordinator shutdown')
+  await waitFor(() => coordinator.exitCode !== null, 10_000, 'coordinator shutdown')
 } finally {
   for (const child of children) terminate(child)
   rmSync(temp, { recursive: true, force: true })

@@ -25,9 +25,9 @@ const policyVersion: PolicyVersion = {
   scenarioIds: [], author: { participantId: 'alice', displayName: 'Alice' }, createdAt: 1, note: null,
 }
 const scenario: ResearchScenario = {
-  schemaVersion: 1, id: 'denial-scenario', title: 'Service denial', background: 'A resident is denied service.',
+  schemaVersion: 2, id: 'denial-scenario', title: 'Service denial', background: 'A resident is denied service.',
   status: 'ready', parentScenarioId: null, createdBy: 'alice', createdAt: 1,
-  turns: [{ id: 'turn-1', createdBy: 'alice', createdAt: 1, role: 'user', content: 'How can I appeal?', revisions: [{ editId: 'turn-edit', authorId: 'alice', timestamp: 1, role: 'user', content: 'How can I appeal?' }] }],
+  turns: [{ id: 'turn-1', createdBy: 'alice', createdAt: 1, role: 'user', content: 'How can I appeal?', headEditId: 'turn-edit', tipEditIds: ['turn-edit'], revisions: [{ editId: 'turn-edit', authorId: 'alice', timestamp: 1, role: 'user', content: 'How can I appeal?', parentEditIds: [], source: 'create' }] }],
   edits: [{ editId: 'scenario-create', authorId: 'alice', timestamp: 1, fields: ['title'], changes: { title: 'Service denial' } }],
 }
 

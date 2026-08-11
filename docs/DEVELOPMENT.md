@@ -137,7 +137,8 @@ Portable archives are covered by `projectArchive.test.ts` and
 `ProjectArchiveControls.ui.test.ts`. The domain fixture exports the exact Yjs state, reopens every
 reserved shared collection through IndexedDB without a network provider, and rejects corrupted
 hashes, future schemas, unknown envelope/manifest fields, project/document collisions, identity
-mismatch, oversized input, and different orphaned local state. The server-rendered UI contract
+mismatch, oversized input, and different orphaned local state even when that orphan contains
+malformed scenario records. The server-rendered UI contract
 requires import with no current project, disables export before the live document is ready, and
 announces errors. `scenarioArchiveGraph.test.ts` is the additional P-22 gate: a four-node,
 two-level graph with ordered turn/revision content must survive archive decoding, local persistence,
@@ -258,13 +259,22 @@ Drive/WebSocket transport remain separate gates.
 round-trip, attributed immutable turn revisions, exact-current conflict refusal, exact-retry
 idempotence, branch lineage, independent concurrent field and turn additions, delete-versus-nested-
 edit, peer-colliding public scenario/turn IDs, exact record shapes, malformed order, and missing-
-parent inspection. Eighty seeded duplicate/reordered delivery checks must converge.
+parent inspection. It also requires a durable selected head, the complete derived sibling-tip set,
+zero-write rejection of stale or incomplete reconciliation, an all-parent merge revision, and
+conflict reopening when a late sibling arrives. Eighty seeded duplicate/reordered delivery checks
+must converge.
 `ScenarioWorkspace.ui.test.ts` covers the engine-free gallery shell. The product-level
 `ScenarioTurnWorkspace.ui.test.tsx` gate proves manual no-AI add/edit, immutable attribution, stale
 zero-write recovery with the draft retained, hostile-state write refusal, deterministic disconnected
-sibling convergence, accessible empty/identity copy, and 50-item conversation/lineage bounds. These
-headless gates do not prove authenticated identity or time, explicit sibling reconciliation,
-packaged pointer/focus/screen-reader behavior, physical two-install reconnect, or near-limit latency.
+sibling convergence, Save denial when a sibling arrives under an already-open editor without moving
+the selected head, visible conflict controls, explicit all-parent reconciliation, accessible
+empty/identity copy, and 50-item conversation/lineage bounds. `migrations.test.ts`,
+`localProvider.test.ts`, `driveProjectProvider.test.ts`, and `scenarioArchiveGraph.test.ts` prove
+strict zero-write v1 preflight, deterministic/idempotent migration, disconnected convergence,
+IndexedDB reopen, migration after the initial Drive pull with v2 republish, and archive migration
+before persistence fingerprinting. These headless gates do not prove authenticated identity or
+time, packaged pointer/focus/screen-reader behavior, a physical two-install reconciliation, or
+near-limit latency.
 
 `scenarioVoteModel.test.ts` is the P-19 domain gate. It covers exact replay idempotency, attributed
 re-voting, abstention, withdrawal without history erasure, disconnected first-vote merge,
@@ -358,11 +368,12 @@ npm test -- --run src/workspace/scenarioPack.test.ts src/workspace/scenarioPackS
 ```
 
 The gates require automatic ancestor closure, canonical SHA-256 verification, strict Draft 2020-12
-alignment, full ordered turn/revision/edit attribution round-trip into a different project, exact-
+v2 alignment with durable heads and parent sets, deterministic checksummed-v1 migration, full
+ordered turn/revision/edit attribution round-trip into a different project, exact-
 duplicate idempotency, whole-import refusal on any same-ID/different-content collision, and explicit
 included/excluded-data copy. The sample at `docs/samples/source-review.syzygy-scenarios.json` is CC0
 and must pass both the public schema and runtime decoder. Rust platform-contract tests prove the same
-schema is returned by `syzygy_platform_contracts`. These gates do not prove authenticated identity,
+current v2 schema is returned by `syzygy_platform_contracts`. These gates do not prove authenticated identity,
 trusted clocks, semantic quality, packaged OS file dialogs, or third-party reader interoperability.
 
 ## Headless live-MCP contract proof
@@ -378,7 +389,7 @@ node ..\scripts\mcp-harness.mjs --executable <absolute-Syzygy.exe>
 ```
 
 The harness compiles the real application binary, starts `app --mcp` over stdio, negotiates MCP
-`2025-11-25`, discovers all thirty-five tools, checks notification framing and ping, calls a typed live
+`2025-11-25`, discovers all thirty-seven tools, checks notification framing and ping, calls a typed live
 status result, then calls `syzygy_installation` without a GUI. That self-description must contain
 absolute executable/install-folder paths plus configuration and a connection prompt derived from
 the executable. Separate frontend tests prove structured Lexical reads, replace/append behavior,
@@ -398,10 +409,14 @@ Yjs state-vector revision and rejects an internally inconsistent read if state c
 asynchronous hash checks. Creation requires that exact revision, rechecks project identity, and
 mutates the registered live Y.Doc synchronously. `read_scenario` validates exact project/graph/
 scenario identity and returns one detached background plus at most 1,000 ordered turn identities,
-roles, revision counts, and current edit IDs without turn bodies. `read_scenario_turn_revision` then
+roles, revision counts, selected heads, complete tip sets, and conflict state without turn bodies.
+`read_scenario_turn_revision` then
 returns one detached current, named, or zero-based indexed body. Both reads leave the Y.Doc byte-
 identical. Add-turn and revise-turn require the revision from inspection or the immediately preceding
-mutation; revisions retain both authors and bodies. Stale tests prove zero scenario/turn writes. Rust
+mutation; revisions retain both authors and bodies. Ordinary revision is blocked when more than one
+tip exists. `reconcile_scenario_turn` requires the exact current research revision, selected head,
+and complete tip set, then appends one attributed merge revision with every sibling as a parent.
+Stale and incomplete reconciliation tests prove zero scenario/turn writes. Rust
 routing and the packaged live harness cover each named scenario read/mutation tool; the live harness
 proves the scenario-index-to-indexed-revision traversal chain. The voting
 gate chains support, re-vote, and withdrawal events, then proves a stale call adds no vote event;
@@ -446,13 +461,15 @@ node scripts\run-with-heartbeat.mjs --timeout-seconds 60 --heartbeat-seconds 15 
 node scripts\run-with-heartbeat.mjs --timeout-seconds 60 --heartbeat-seconds 15 -- node --test scripts\lan-dev-mode.test.mjs
 node scripts\run-with-heartbeat.mjs --timeout-seconds 90 --heartbeat-seconds 15 -- node scripts\lan-mcp-harness.mjs
 node scripts\run-with-heartbeat.mjs --timeout-seconds 90 --heartbeat-seconds 15 -- node scripts\lan-packaged-agent-harness.mjs
-node scripts\run-with-heartbeat.mjs --timeout-seconds 360 --heartbeat-seconds 15 -- node scripts\lan-drive-live-harness.mjs --listen 192.168.1.20 --port 37663 --key-file "$env:USERPROFILE\.syzygy-lan.key" --local-executable "$env:LOCALAPPDATA\Syzygy\Syzygy.exe" --primary office-primary --secondary office-secondary --mutate
+node scripts\run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts\lan-drive-live-harness.mjs --listen 192.168.1.20 --port 37663 --key-file "$env:USERPROFILE\.syzygy-lan.key" --local-executable "$env:LOCALAPPDATA\Syzygy\Syzygy.exe" --primary-node office-primary --secondary-node office-secondary --mutate
 ```
 
 The unit suite proves pairing-key/node/nonce binding, directional session keys, authenticated
 AES-GCM framing, replay and tamper rejection, bounded node identities, and the one-minute request
 ceiling. The two-node harness proves discovery, read-only fleet probing, independent per-node
-mutation routing, invalid-key rejection, and disconnect cleanup. The packaged harness is the
+mutation routing, invalid-key rejection, and disconnect cleanup. It reserves agent and control
+ports independently, waits for both listeners, synchronizes owned-child exit before asserting
+disconnect, and surfaces termination failures instead of discarding `taskkill` results. The packaged harness is the
 cross-language gate: compiled Rust `Syzygy --lan-agent` must authenticate to the Node coordinator,
 discover at least twenty-five native tools, and return exact installation self-description through
 the encrypted route. `docs/audits/runs/LAN-MCP-CONTROL-PLANE-2026-07-16.json` records the evidence
@@ -465,13 +482,14 @@ the app-owned input, and proves the coordinator, attachment process, private lis
 listener all exit within bounded deadlines. Rust and server-rendered UI tests separately cover saved
 agent/host configuration, private-address/key-path validation, startup order, disable/reconfigure
 replacement, graceful two-second shutdown, kill-and-reap fallback, and shutdown order. The physical
-harness requires two exact node labels and all thirty-five native tools on each installation. Its
+harness requires two exact node labels and all thirty-seven native tools on each installation. Its
 default mode performs only catalog/identity checks; `--mutate` uses a dedicated proof project, exact
 revisions, guarded share/join, partition-like concurrent document appends, bidirectional readback,
 and stale-write rejection. It also creates one scenario turn, makes simultaneous revisions, reads
-both exact sibling bodies from both nodes, requires the same deterministic current revision, and
-rejects a stale fourth write. It prints content-free booleans and counts and has its own 15-second
-heartbeat and five-minute deadline in addition to the outer watchdog. A passing
+both exact sibling bodies from both nodes, requires the same selected head and complete two-tip set,
+calls explicit all-parent reconciliation, requires the four-revision merged head on both nodes, and
+rejects a stale follow-up write. It prints content-free booleans and counts and has its own 15-second
+heartbeat and two-minute absolute deadline in addition to the outer watchdog. A passing
 synthetic or single-profile test never substitutes for this two-installed-profile gate.
 
 ## Headless remote-provider boundary proof

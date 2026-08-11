@@ -14,6 +14,7 @@ import type {
 import { LocalProjectProvider } from './localProvider'
 import { createProjectDocument } from './projectModel'
 import type { ResearchProjectManifest } from './schema'
+import { migrateScenarioDocument } from '../migrations'
 import { registerAutomationProjectDocument } from './workspaceAutomationRegistry'
 import { publishDriveProjectStatus, type DriveProjectSyncStatus } from './driveProjectStatus'
 import { registerProjectPresence } from './presenceRegistry'
@@ -163,6 +164,7 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
       this.doc.on('update', this.forwardUpdate)
       this.updatesAttached = true
       await this.pullRemote()
+      migrateScenarioDocument(this.doc)
       await this.pushUpdate(Y.encodeStateAsUpdate(this.doc))
       await this.flushPending()
       if (!this.connected || generation !== this.generation) return

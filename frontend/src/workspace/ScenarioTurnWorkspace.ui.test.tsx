@@ -7,6 +7,8 @@ import type { ResearchProjectManifest } from './schema'
 import {
   createHumanScenarioTurn,
   editHumanScenarioTurn,
+  hasScenarioTurnEditConflict,
+  reconcileHumanScenarioTurn,
   ScenarioTurnWorkspaceContent,
   type ScenarioTurnWorkspaceContentProps,
 } from './ScenarioTurnWorkspace'
@@ -56,6 +58,7 @@ function contentProps(overrides: Partial<ScenarioTurnWorkspaceContentProps> = {}
     error: '',
     onOpenCreate: vi.fn(),
     onOpenEdit: vi.fn(),
+    onReconcile: vi.fn(),
     onRole: vi.fn(),
     onContent: vi.fn(),
     onSave: vi.fn(),
@@ -126,7 +129,72 @@ describe('editable shared scenario turn product workflow', () => {
     expect(leftTurn?.revisions.map(({ editId }) => editId)).toEqual([
       'turn-root-revision', 'turn-left', 'turn-right',
     ])
-    expect(leftTurn?.content).toBe('Right question?')
+    expect(leftTurn?.tipEditIds).toEqual(['turn-left', 'turn-right'])
+    expect(['Left question?', 'Right question?']).toContain(leftTurn?.content)
+    const conflictHtml = renderToStaticMarkup(<ScenarioTurnWorkspaceContent {...contentProps({
+      turns: [leftTurn!], totalTurns: 1,
+    })} />)
+    expect(conflictHtml).toContain('2 sibling revisions')
+    expect(conflictHtml).toContain('records every sibling as a parent')
+    expect(conflictHtml).toContain('aria-label="Resolve sibling turn revisions"')
+    expect(conflictHtml).toMatch(/>Edit<\/button>/)
+    expect(conflictHtml).toMatch(/type="button" disabled="">Edit/)
+
+    const selected = leftTurn!.revisions.find(({ editId }) => editId === 'turn-right')!
+    reconcileHumanScenarioTurn(left, {
+      scenarioId: 'scenario-turn-ui', turnId: 'turn-root', role: selected.role, content: selected.content,
+      authorId: 'researcher-merge', timestamp: 30, editId: 'turn-merged',
+      expectedCurrentEditId: leftTurn!.headEditId, expectedTipEditIds: leftTurn!.tipEditIds,
+    })
+    applyProjectUpdate(right, encodeProjectState(left))
+    const reconciled = readScenario(getProjectSharedTypes(right).scenarios, 'scenario-turn-ui')!.turns[0]
+    expect(reconciled).toMatchObject({ content: 'Right question?', headEditId: 'turn-merged', tipEditIds: ['turn-merged'] })
+    expect(reconciled.revisions.find(({ editId }) => editId === 'turn-merged')).toMatchObject({
+      source: 'reconcile', parentEditIds: ['turn-left', 'turn-right'], authorId: 'researcher-merge',
+    })
+  })
+
+  it('blocks an already-open editor when a sibling arrives without changing the selected head', () => {
+    const doc = seededDocument()
+    editHumanScenarioTurn(doc, {
+      scenarioId: 'scenario-turn-ui', turnId: 'turn-root', role: 'user', content: 'Selected shared question?',
+      authorId: 'researcher-current', timestamp: 10, editId: 'turn-current', expectedCurrentEditId: 'turn-root-revision',
+    })
+    const turn = readScenario(getProjectSharedTypes(doc).scenarios, 'scenario-turn-ui')!.turns[0]
+    const siblingTurn: ScenarioTurn = {
+      ...turn,
+      revisions: [
+        ...turn.revisions,
+        {
+          editId: 'turn-sibling',
+          role: 'user',
+          content: 'Concurrent question?',
+          authorId: 'researcher-sibling',
+          timestamp: 20,
+          parentEditIds: ['turn-root-revision'],
+          source: 'edit',
+        },
+      ],
+      headEditId: 'turn-current',
+      tipEditIds: ['turn-current', 'turn-sibling'],
+    }
+    const editSession = {
+      mode: 'edit' as const,
+      turnId: turn.id,
+      expectedCurrentEditId: 'turn-current',
+    }
+
+    expect(hasScenarioTurnEditConflict(editSession, siblingTurn)).toBe(true)
+    const html = renderToStaticMarkup(<ScenarioTurnWorkspaceContent {...contentProps({
+      turns: [siblingTurn],
+      totalTurns: 1,
+      editSession,
+      content: 'My draft remains intact.',
+      conflict: hasScenarioTurnEditConflict(editSession, siblingTurn),
+    })} />)
+    expect(html).toContain('My draft remains intact.')
+    expect(html).toContain('changed while you were editing')
+    expect(html).toMatch(/type="submit" disabled=""/)
   })
 
   it('fails closed on hostile scenario data without adding a turn revision', () => {
@@ -173,10 +241,13 @@ describe('editable shared scenario turn product workflow', () => {
       content: `Turn content ${index}`,
       authorId: 'researcher-1',
       timestamp: index,
+      parentEditIds: index === 0 ? [] : [`turn-revision-${index - 1}`],
+      source: index === 0 ? 'create' : 'edit',
     }))
     const turn: ScenarioTurn = {
       id: 'turn-many', createdBy: 'researcher-1', createdAt: 0,
-      role: 'user', content: 'Turn content 50', revisions,
+      role: 'user', content: 'Turn content 50', headEditId: 'turn-revision-50',
+      tipEditIds: ['turn-revision-50'], revisions,
     }
     const html = renderToStaticMarkup(<ScenarioTurnWorkspaceContent {...contentProps({
       turns: [turn], totalTurns: 101, page: 1, pageCount: 3,

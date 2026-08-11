@@ -9,6 +9,7 @@ import type {
 } from './collaborationProvider'
 import { createProjectDocument } from './projectModel'
 import type { ResearchProjectManifest } from './schema'
+import { migrateScenarioDocument } from '../migrations'
 import { registerAutomationProjectDocument } from './workspaceAutomationRegistry'
 import { registerProjectPresence } from './presenceRegistry'
 
@@ -44,6 +45,12 @@ export class LocalProjectProvider implements ProjectCollaborationProvider {
     // A void lifecycle makes cleanup immediate; the readiness continuation is generation-safe.
     void this.persistence.whenSynced.then(() => {
       if (!this.connected || generation !== this.connectionGeneration) return
+      try {
+        migrateScenarioDocument(this.doc)
+      } catch (error) {
+        this.emit('status', { status: 'error', error: String(error) })
+        return
+      }
       if (this.registerAutomation) {
         this.unregisterAutomation = registerAutomationProjectDocument(this.projectId, this.doc)
       }
@@ -54,6 +61,9 @@ export class LocalProjectProvider implements ProjectCollaborationProvider {
 
   async whenReady(): Promise<void> {
     await this.persistence.whenSynced
+    // connect() owns publication and status events; callers awaiting readiness must independently
+    // observe the same fail-closed migration result instead of treating a rejected document as ready.
+    migrateScenarioDocument(this.doc)
   }
 
   disconnect(): void {

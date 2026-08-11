@@ -22,7 +22,8 @@ import { inspectResearchState } from './workspace/researchStateInspection'
 import {
   addAutomationScenarioTurn, castAutomationScenarioVote, createAutomationScenario,
   createAutomationScenarioAnnotation, createAutomationScenarioLabel,
-  readAutomationScenario, readAutomationScenarioTurnRevision, renameAutomationScenarioLabel, resolveAutomationScenarioAnnotation,
+  readAutomationScenario, readAutomationScenarioTurnRevision, reconcileAutomationScenarioTurn,
+  renameAutomationScenarioLabel, resolveAutomationScenarioAnnotation,
   reviseAutomationScenarioTurn, setAutomationScenarioLabelAssignment,
   updateAutomationScenarioAnnotation,
 } from './workspace/scenarioAutomation'
@@ -340,6 +341,31 @@ export async function dispatchAutomationRequest(
       const changed = request.method === 'project.addScenarioTurn'
         ? addAutomationScenarioTurn(getAutomationProjectDocument(project.id), project.id, input)
         : reviseAutomationScenarioTurn(getAutomationProjectDocument(project.id), project.id, input)
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        scenario: summarizeScenario(changed.scenario),
+        turn: summarizeScenarioTurn(changed.turn),
+        researchRevision: changed.researchRevision,
+      }
+    }
+    case 'project.reconcileScenarioTurn': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const changed = reconcileAutomationScenarioTurn(getAutomationProjectDocument(project.id), project.id, {
+        expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
+        expectedCurrentEditId: requiredString(params, 'expectedCurrentEditId'),
+        expectedTipEditIds: requiredStringArray(params, 'expectedTipEditIds', 2, 10_000),
+        scenarioId: requiredString(params, 'scenarioId'),
+        turnId: requiredString(params, 'turnId'),
+        role: requiredScenarioTurnRole(params),
+        content: requiredString(params, 'content', true),
+        participantId: requiredString(params, 'participantId'),
+        timestamp: Date.now(),
+        editId: `mcp-${crypto.randomUUID()}`,
+      })
       return {
         project: summarizeProject(project, latest.activeProjectId),
         scenario: summarizeScenario(changed.scenario),
@@ -723,7 +749,8 @@ function summarizeScenarioTurn(turn: ScenarioTurn) {
   return {
     id: turn.id, role: turn.role, content: turn.content, createdBy: turn.createdBy,
     createdAt: turn.createdAt, revisionCount: turn.revisions.length,
-    currentEditId: turn.revisions[turn.revisions.length - 1]?.editId ?? null,
+    currentEditId: turn.headEditId, tipEditIds: [...turn.tipEditIds],
+    requiresReconciliation: turn.tipEditIds.length > 1,
   }
 }
 
@@ -759,6 +786,18 @@ function asObject(value: unknown): Record<string, unknown> {
   if (value === undefined || value === null) return {}
   if (typeof value !== 'object' || Array.isArray(value)) throw new Error('Automation parameters must be an object')
   return value as Record<string, unknown>
+}
+
+function requiredStringArray(
+  params: Record<string, unknown>, name: string, minimum: number, maximum: number,
+): string[] {
+  const value = params[name]
+  if (!Array.isArray(value) || value.length < minimum || value.length > maximum ||
+    value.some((item) => typeof item !== 'string' || item.length === 0) ||
+    new Set(value).size !== value.length) {
+    throw new Error(`Automation parameter ${name} must be a unique string array with ${minimum}-${maximum} items`)
+  }
+  return [...value]
 }
 
 function requiredString(

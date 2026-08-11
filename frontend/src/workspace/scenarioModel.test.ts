@@ -10,6 +10,7 @@ import {
   inspectScenarioGraph,
   listScenarios,
   readScenario,
+  reconcileScenarioTurn,
   updateScenario,
   updateScenarioTurn,
 } from './scenarioModel'
@@ -135,6 +136,57 @@ describe('collaborative scenario model', () => {
       shuffled([...leftUpdates, ...rightUpdates, ...leftUpdates], seed).forEach((update) => applyProjectUpdate(merged, update))
       expect(readScenario(getProjectSharedTypes(merged).scenarios, 'source-review')).toBeNull()
     }
+  })
+
+  it('requires an exact complete sibling set, preserves zero-write failures, and reopens on a late sibling', () => {
+    const origin = createProjectDocument(manifest)
+    seedScenario(origin)
+    const left = replica(origin)
+    const right = replica(origin)
+    updateScenarioTurn(getProjectSharedTypes(left).scenarios, {
+      scenarioId: 'source-review', turnId: 'turn-answer', role: 'assistant', content: 'Left evidence.',
+      authorId: 'researcher-left', timestamp: 40, editId: 'turn-left', expectedCurrentEditId: 'create-turn-answer',
+    })
+    updateScenarioTurn(getProjectSharedTypes(right).scenarios, {
+      scenarioId: 'source-review', turnId: 'turn-answer', role: 'assistant', content: 'Right evidence.',
+      authorId: 'researcher-right', timestamp: 40, editId: 'turn-right', expectedCurrentEditId: 'create-turn-answer',
+    })
+    const merged = replica(origin)
+    applyProjectUpdate(merged, encodeProjectState(left))
+    applyProjectUpdate(merged, encodeProjectState(right))
+    const scenarios = getProjectSharedTypes(merged).scenarios
+    const conflicted = readScenario(scenarios, 'source-review')!.turns.find(({ id }) => id === 'turn-answer')!
+    expect(conflicted.tipEditIds).toEqual(['turn-left', 'turn-right'])
+    const before = Array.from(encodeProjectState(merged))
+    expect(() => updateScenarioTurn(scenarios, {
+      scenarioId: 'source-review', turnId: 'turn-answer', role: 'assistant', content: 'Silent overwrite.',
+      authorId: 'researcher-third', timestamp: 41, editId: 'turn-third', expectedCurrentEditId: conflicted.headEditId,
+    })).toThrow('require reconciliation')
+    expect(() => reconcileScenarioTurn(scenarios, {
+      scenarioId: 'source-review', turnId: 'turn-answer', role: 'assistant', content: 'Stale merge.',
+      authorId: 'researcher-merge', timestamp: 42, editId: 'turn-stale-merge',
+      expectedCurrentEditId: 'wrong-head', expectedTipEditIds: conflicted.tipEditIds,
+    })).toThrow('reconciliation conflict')
+    expect(Array.from(encodeProjectState(merged))).toEqual(before)
+
+    const resolved = reconcileScenarioTurn(scenarios, {
+      scenarioId: 'source-review', turnId: 'turn-answer', role: 'assistant', content: 'Both sources retained.',
+      authorId: 'researcher-merge', timestamp: 43, editId: 'turn-merge',
+      expectedCurrentEditId: conflicted.headEditId, expectedTipEditIds: conflicted.tipEditIds,
+    }).turns.find(({ id }) => id === 'turn-answer')!
+    expect(resolved).toMatchObject({ headEditId: 'turn-merge', tipEditIds: ['turn-merge'], content: 'Both sources retained.' })
+    expect(resolved.revisions.find(({ editId }) => editId === 'turn-merge')).toMatchObject({
+      source: 'reconcile', parentEditIds: ['turn-left', 'turn-right'],
+    })
+
+    const late = replica(origin)
+    updateScenarioTurn(getProjectSharedTypes(late).scenarios, {
+      scenarioId: 'source-review', turnId: 'turn-answer', role: 'assistant', content: 'Late offline evidence.',
+      authorId: 'researcher-late', timestamp: 44, editId: 'turn-late', expectedCurrentEditId: 'create-turn-answer',
+    })
+    applyProjectUpdate(merged, encodeProjectState(late))
+    expect(readScenario(scenarios, 'source-review')!.turns.find(({ id }) => id === 'turn-answer')!.tipEditIds)
+      .toEqual(['turn-late', 'turn-merge'])
   })
 
   it('fails closed when disconnected peers reuse one public turn identity', () => {

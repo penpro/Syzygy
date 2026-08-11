@@ -8,7 +8,7 @@ import {
 import type { ResearchScenario } from './scenarioModel'
 
 const scenario: ResearchScenario = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   id: 'scenario-ui-1',
   title: 'Evidence request',
   background: 'A user asks for an unsupported claim.',
@@ -22,9 +22,11 @@ const scenario: ResearchScenario = {
     createdAt: 10,
     role: 'user',
     content: 'What evidence supports this?',
+    headEditId: 'turn-edit-1',
+    tipEditIds: ['turn-edit-1'],
     revisions: [{
       editId: 'turn-edit-1', role: 'user', content: 'What evidence supports this?',
-      authorId: 'researcher-1', timestamp: 10,
+      authorId: 'researcher-1', timestamp: 10, parentEditIds: [], source: 'create',
     }],
   }],
   edits: [{

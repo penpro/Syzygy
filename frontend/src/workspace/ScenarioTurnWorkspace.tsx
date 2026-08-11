@@ -7,6 +7,7 @@ import {
   addScenarioTurn,
   inspectScenarioGraph,
   readScenario,
+  reconcileScenarioTurn,
   updateScenarioTurn,
   type ResearchScenario,
   type ScenarioTurn,
@@ -30,6 +31,10 @@ export interface EditHumanScenarioTurnInput extends CreateHumanScenarioTurnInput
   expectedCurrentEditId: string
 }
 
+export interface ReconcileHumanScenarioTurnInput extends EditHumanScenarioTurnInput {
+  expectedTipEditIds: string[]
+}
+
 export function inspectScenarioTurnWorkspace(doc: Y.Doc) {
   const { scenarios } = getProjectSharedTypes(doc)
   return inspectScenarioGraph(scenarios)
@@ -50,6 +55,10 @@ export function editHumanScenarioTurn(doc: Y.Doc, input: EditHumanScenarioTurnIn
   return updateScenarioTurn(writableScenarios(doc), input)
 }
 
+export function reconcileHumanScenarioTurn(doc: Y.Doc, input: ReconcileHumanScenarioTurnInput): ResearchScenario {
+  return reconcileScenarioTurn(writableScenarios(doc), input)
+}
+
 export type TurnEditSession =
   | { mode: 'create' }
   | { mode: 'edit'; turnId: string; expectedCurrentEditId: string }
@@ -68,6 +77,7 @@ export interface ScenarioTurnWorkspaceContentProps {
   error: string
   onOpenCreate: () => void
   onOpenEdit: (turn: ScenarioTurn) => void
+  onReconcile: (turn: ScenarioTurn, revision: ScenarioTurn['revisions'][number]) => void
   onRole: (role: ScenarioTurnRole) => void
   onContent: (content: string) => void
   onSave: (event: FormEvent<HTMLFormElement>) => void
@@ -78,7 +88,15 @@ export interface ScenarioTurnWorkspaceContentProps {
 }
 
 function currentTurnRevision(turn: ScenarioTurn) {
-  return turn.revisions[turn.revisions.length - 1]
+  return turn.revisions.find((revision) => revision.editId === turn.headEditId)
+}
+
+export function hasScenarioTurnEditConflict(
+  editSession: TurnEditSession | null,
+  turn: ScenarioTurn | null | undefined,
+) {
+  return editSession?.mode === 'edit'
+    && (turn?.headEditId !== editSession.expectedCurrentEditId || (turn?.tipEditIds.length ?? 0) > 1)
 }
 
 export function ScenarioTurnWorkspaceContent(props: ScenarioTurnWorkspaceContentProps) {
@@ -170,8 +188,25 @@ export function ScenarioTurnWorkspaceContent(props: ScenarioTurnWorkspaceContent
                   {turn.role} · {turn.revisions.length} revision{turn.revisions.length === 1 ? '' : 's'} · {current?.authorId}
                 </div>
                 <div className="scenario-turn-content">{turn.content || <em>Empty turn</em>}</div>
+                {turn.tipEditIds.length > 1 && (
+                  <div className="scenario-state error" role="alert">
+                    <p>This turn has {turn.tipEditIds.length} sibling revisions. Choose the content to retain; the new resolution records every sibling as a parent.</p>
+                    <div className="scenario-actions" aria-label="Resolve sibling turn revisions">
+                      {turn.tipEditIds.map((editId) => {
+                        const revision = turn.revisions.find((candidate) => candidate.editId === editId)!
+                        return <button
+                          key={editId}
+                          className="btn sm"
+                          type="button"
+                          disabled={props.writesDisabled}
+                          onClick={() => props.onReconcile(turn, revision)}
+                        >Use {revision.authorId} · {editId.slice(0, 12)}</button>
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div className="scenario-actions">
-                  <button className="btn sm" type="button" disabled={props.writesDisabled} onClick={() => props.onOpenEdit(turn)}>Edit</button>
+                  <button className="btn sm" type="button" disabled={props.writesDisabled || turn.tipEditIds.length > 1} onClick={() => props.onOpenEdit(turn)}>Edit</button>
                 </div>
                 <details className="scenario-turn-lineage">
                   <summary>Turn lineage · {turn.revisions.length} retained</summary>
@@ -181,7 +216,9 @@ export function ScenarioTurnWorkspaceContent(props: ScenarioTurnWorkspaceContent
                   <ol>
                     {lineage.map((revision) => (
                       <li key={revision.editId}>
-                        <div className="scenario-turn-meta mono">{revision.role} · {revision.authorId} · {revision.editId.slice(0, 12)}</div>
+                        <div className="scenario-turn-meta mono">
+                          {revision.role} · {revision.authorId} · {revision.editId.slice(0, 12)} · {revision.source} · {revision.parentEditIds.length} parent{revision.parentEditIds.length === 1 ? '' : 's'}
+                        </div>
                         <div className="scenario-turn-content">{revision.content || <em>Empty turn</em>}</div>
                       </li>
                     ))}
@@ -249,8 +286,7 @@ export function ScenarioTurnWorkspace({
   const editingTurn = editSession?.mode === 'edit'
     ? turns.find((turn) => turn.id === editSession.turnId)
     : null
-  const editingHead = editingTurn ? currentTurnRevision(editingTurn)?.editId : undefined
-  const conflict = editSession?.mode === 'edit' && editingHead !== editSession.expectedCurrentEditId
+  const conflict = hasScenarioTurnEditConflict(editSession, editingTurn)
   const writesDisabled = parentWritesDisabled || integrityIssues.length > 0
 
   const identity = () => {
@@ -261,6 +297,10 @@ export function ScenarioTurnWorkspace({
   }
 
   const beginEdit = (turn: ScenarioTurn) => {
+    if (turn.tipEditIds.length > 1) {
+      setError('Resolve the sibling revisions before starting another edit')
+      return
+    }
     const current = currentTurnRevision(turn)
     if (!current) {
       setError('Scenario turn history is invalid')
@@ -278,6 +318,26 @@ export function ScenarioTurnWorkspace({
       return
     }
     beginEdit(editingTurn)
+  }
+
+  const reconcile = (turn: ScenarioTurn, revision: ScenarioTurn['revisions'][number]) => {
+    setError('')
+    try {
+      reconcileHumanScenarioTurn(doc, {
+        scenarioId: scenario.id,
+        turnId: turn.id,
+        role: revision.role,
+        content: revision.content,
+        authorId: identity(),
+        timestamp: now(),
+        editId: `scenario-turn-reconciliation-${uid()}`,
+        expectedCurrentEditId: turn.headEditId,
+        expectedTipEditIds: [...turn.tipEditIds],
+      })
+      if (editSession?.mode === 'edit' && editSession.turnId === turn.id) setEditSession(null)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Scenario turn reconciliation failed')
+    }
   }
 
   const save = (event: FormEvent<HTMLFormElement>) => {
@@ -332,6 +392,7 @@ export function ScenarioTurnWorkspace({
     error={error}
     onOpenCreate={() => { setEditSession({ mode: 'create' }); setRole('user'); setContent(''); setError('') }}
     onOpenEdit={beginEdit}
+    onReconcile={reconcile}
     onRole={setRole}
     onContent={setContent}
     onSave={save}

@@ -19,7 +19,7 @@ const MODEL_ADAPTER_SCHEMA: &str =
 const MODEL_ADAPTER_CERTIFICATION_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-model-adapter-certification-v1.schema.json");
 const SCENARIO_PACK_SCHEMA: &str =
-    include_str!("../../../docs/schemas/syzygy-scenario-pack-v1.schema.json");
+    include_str!("../../../docs/schemas/syzygy-scenario-pack-v2.schema.json");
 const NETWORK_BOUNDARY_MANIFEST: &str =
     include_str!("../../../docs/audits/NETWORK-BOUNDARIES.json");
 const PLUGIN_WIT_CONTRACT: &str = include_str!("../../../docs/wit/syzygy-research-plugin-v1.wit");
@@ -265,6 +265,10 @@ mod tests {
         assert_eq!(
             contracts["scenarioPackSchema"]["properties"]["format"]["const"],
             "syzygy-scenario-pack"
+        );
+        assert_eq!(
+            contracts["scenarioPackSchema"]["properties"]["schemaVersion"]["const"],
+            2
         );
     }
 

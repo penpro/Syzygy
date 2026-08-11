@@ -82,7 +82,7 @@ async function proveStdioContract() {
   if (messages.length !== 6) throw new Error(`expected 6 MCP responses, received ${messages.length}`)
   if (byId.get(1)?.result?.protocolVersion !== '2025-11-25') throw new Error('MCP version negotiation failed')
   const tools = byId.get(2)?.result?.tools
-  if (!Array.isArray(tools) || tools.length < 36) throw new Error('MCP tool discovery is incomplete')
+  if (!Array.isArray(tools) || tools.length < 37) throw new Error('MCP tool discovery is incomplete')
   if (!tools.some((tool) => tool.name === 'workspace_walkthrough')) throw new Error('walkthrough tool is missing')
   if (!tools.some((tool) => tool.name === 'inspect_research_state')) throw new Error('research-state inspection tool is missing')
   if (!tools.some((tool) => tool.name === 'inspect_drive_project_discovery')) throw new Error('Drive project discovery diagnostic is missing')
@@ -92,6 +92,18 @@ async function proveStdioContract() {
   if (!tools.some((tool) => tool.name === 'create_scenario')) throw new Error('scenario creation tool is missing')
   if (!tools.some((tool) => tool.name === 'add_scenario_turn')) throw new Error('scenario turn-add tool is missing')
   if (!tools.some((tool) => tool.name === 'revise_scenario_turn')) throw new Error('scenario turn-revision tool is missing')
+  const reconcileScenarioTurn = tools.find((tool) => tool.name === 'reconcile_scenario_turn')
+  if (!reconcileScenarioTurn) throw new Error('scenario turn-reconciliation tool is missing')
+  if (reconcileScenarioTurn.inputSchema?.additionalProperties !== false) throw new Error('scenario reconciliation schema is not strict')
+  for (const field of ['expectedResearchRevision', 'expectedCurrentEditId', 'expectedTipEditIds']) {
+    if (!reconcileScenarioTurn.inputSchema?.required?.includes(field)) {
+      throw new Error(`scenario reconciliation schema omits ${field}`)
+    }
+  }
+  if (reconcileScenarioTurn.inputSchema?.properties?.expectedTipEditIds?.minItems !== 2 ||
+    reconcileScenarioTurn.inputSchema?.properties?.expectedTipEditIds?.uniqueItems !== true) {
+    throw new Error('scenario reconciliation schema does not require a complete sibling set')
+  }
   if (!tools.some((tool) => tool.name === 'cast_scenario_vote')) throw new Error('scenario voting tool is missing')
   if (!tools.some((tool) => tool.name === 'create_scenario_annotation')) throw new Error('scenario annotation creation tool is missing')
   if (!tools.some((tool) => tool.name === 'update_scenario_annotation')) throw new Error('scenario annotation update tool is missing')

@@ -10,6 +10,7 @@ import {
   deleteScenario,
   inspectScenarioGraph,
   listScenarios,
+  readScenario,
   updateScenario,
 } from './scenarioModel'
 
@@ -76,6 +77,31 @@ function branchedProject(suffix: string) {
   return { manifest, doc }
 }
 
+function downgradeScenarioRecordsToV1(doc: Y.Doc) {
+  const { scenarios } = getProjectSharedTypes(doc)
+  doc.transact(() => {
+    for (const scenario of scenarios.values()) {
+      if (!(scenario instanceof Y.Map)) throw new Error('Expected scenario record')
+      const turns = scenario.get('turns')
+      if (!(turns instanceof Y.Map)) throw new Error('Expected scenario turns')
+      for (const turn of turns.values()) {
+        if (!(turn instanceof Y.Map)) throw new Error('Expected scenario turn')
+        const revisions = turn.get('revisions')
+        if (!(revisions instanceof Y.Map)) throw new Error('Expected scenario turn revisions')
+        for (const [key, revision] of revisions.entries()) {
+          if (!revision || typeof revision !== 'object' || Array.isArray(revision)) {
+            throw new Error('Expected scenario turn revision')
+          }
+          const { parentEditIds: _parentEditIds, source: _source, ...legacyRevision } = revision as Record<string, unknown>
+          revisions.set(key, legacyRevision)
+        }
+        turn.delete('headEditId')
+      }
+      scenario.set('schemaVersion', 1)
+    }
+  }, 'scenario-archive-v1-fixture')
+}
+
 describe('scenario branch graph portable archive', () => {
   it('survives export, local import persistence, and disconnected reopen with exact content and ancestry', async () => {
     const suffix = `roundtrip-${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -126,5 +152,49 @@ describe('scenario branch graph portable archive', () => {
     const decoded = await decodeProjectArchive(await createProjectArchive(manifest, doc, 20))
     expect(inspectScenarioGraph(getProjectSharedTypes(decoded.doc).scenarios)).toEqual(before)
     decoded.doc.destroy()
+  })
+
+  it('migrates a v1 branched archive exactly once when the imported project reopens', async () => {
+    const suffix = `v1-reopen-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const { manifest, doc } = branchedProject(suffix)
+    downgradeScenarioRecordsToV1(doc)
+    const sourceScenarios = getProjectSharedTypes(doc).scenarios
+    expect(readScenario(sourceScenarios, 'root-case')).toBeNull()
+
+    const decoded = await decodeProjectArchive(await createProjectArchive(manifest, doc, 20))
+    const decodedScenarios = getProjectSharedTypes(decoded.doc).scenarios
+    expect(readScenario(decodedScenarios, 'root-case')).toBeNull()
+    await persistDecodedProjectArchive(decoded)
+
+    const storageKey = `syzygy-project-v1:${manifest.id}`
+    const reopenedDoc = new Y.Doc({ guid: manifest.documentId })
+    const reopened = new LocalProjectProvider(reopenedDoc, storageKey, manifest.id)
+    reopened.connect()
+    await reopened.whenReady()
+    try {
+      const migrated = listScenarios(getProjectSharedTypes(reopenedDoc).scenarios)
+      expect(migrated).toHaveLength(4)
+      expect(migrated.every((scenario) => scenario.schemaVersion === 2)).toBe(true)
+      expect(inspectScenarioGraph(getProjectSharedTypes(reopenedDoc).scenarios)).toMatchObject({
+        healthy: true,
+        scenarioCount: 4,
+        invalidRecords: 0,
+      })
+      const rootQuestion = readScenario(getProjectSharedTypes(reopenedDoc).scenarios, 'root-case')?.turns[0]
+      expect(rootQuestion).toMatchObject({
+        headEditId: 'create-root-question',
+        tipEditIds: ['create-root-question'],
+      })
+      expect(rootQuestion?.revisions).toEqual([
+        expect.objectContaining({
+          editId: 'create-root-question',
+          parentEditIds: [],
+          source: 'migration-v1',
+        }),
+      ])
+    } finally {
+      await reopened.clearData()
+      decoded.doc.destroy()
+    }
   })
 })

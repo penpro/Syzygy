@@ -9,7 +9,7 @@ import type { ScenarioAnnotation } from './scenarioAnnotationModel'
 import type { ResearchScenario } from './scenarioModel'
 
 const scenario: ResearchScenario = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   id: 'scenario-collaboration-ui',
   title: 'Procurement exception',
   background: 'A reviewer needs to preserve dissent and context.',
@@ -23,9 +23,11 @@ const scenario: ResearchScenario = {
     createdAt: 10,
     role: 'user',
     content: 'Can this exception be granted?',
+    headEditId: 'turn-collaboration-edit',
+    tipEditIds: ['turn-collaboration-edit'],
     revisions: [{
       editId: 'turn-collaboration-edit', role: 'user', content: 'Can this exception be granted?',
-      authorId: 'researcher-1', timestamp: 10,
+      authorId: 'researcher-1', timestamp: 10, parentEditIds: [], source: 'create',
     }],
   }],
   edits: [{

@@ -90,7 +90,7 @@ Every row needs evidence in `docs/audits/CAPABILITIES.json` before becoming `ver
 | P-12 | simultaneous editing | randomized partition/reorder/reconnect convergence |
 | P-13 | offline editing | independent offline edits merge without text loss |
 | P-14 | scenario gallery | CRUD with loading/empty/error states |
-| P-15 | multi-turn scenario | deterministic fixture round trip |
+| P-15 | multi-turn scenario | durable revision DAG, exact sibling reconciliation, deterministic fixture round trip |
 | P-16 | scenario generation | bounded local/API contract, fake streams, stale-source and hostile-output gates |
 | P-17 | regeneration | exact-parent variants retained; stale and concurrent sibling gates |
 | P-18 | positive/negative examples | attributed add/remove history and disconnected classifications converge |
@@ -175,15 +175,20 @@ interaction, crash-durability injection, and archive interchange remain open.
 
 P-14/P-15 now have a Penumbra-original collaborative scenario domain and engine-free product
 workspace. Stable scenarios contain lifecycle state, background, ordered multi-turn content,
-attributed immutable turn revisions, attributed scenario edits, and optional branch parents.
+attributed immutable turn revisions, attributed scenario edits, and optional branch parents. Each
+turn persists one selected head; every revision persists its parent set and source; projection
+derives the complete acyclic tip set.
 Peer-specific internal keys preserve disconnected public-ID collisions for fail-closed projection;
 graph inspection detects missing/cyclic ancestry. Researchers can create turns and append exact-
 current revisions manually without AI; stale drafts stay visible but add no write, disconnected
-siblings remain auditable and converge deterministically, and product conversation/lineage views are
-bounded. Generation, manual/generated response variants, evaluation, votes, annotations, labels, and
-open scenario-pack interchange are implemented as separately audited layers. Authenticated identity
-and time, explicit branch reconciliation, near-limit performance, packaged accessibility, and
-physical two-install reconnect proof remain open.
+siblings remain auditable and converge deterministically, ordinary edit is blocked during conflict,
+and explicit UI/MCP reconciliation appends an all-parent merge under exact research/head/tip guards.
+Valid v1 local, Drive, archive, and pack histories migrate deterministically before publication;
+hostile/future input is zero-write. Product conversation/lineage views are bounded. Generation,
+manual/generated response variants, evaluation, votes, annotations, labels, and open scenario-pack
+interchange are implemented as separately audited layers. Authenticated identity and time,
+near-limit performance, packaged accessibility, and physical two-install reconciliation proof remain
+open.
 
 P-19 now has a Penumbra-original collaborative vote-event ledger. Exact replay is idempotent;
 re-votes and withdrawals retain attributed history; peer-specific namespaced buckets preserve
@@ -403,11 +408,13 @@ exact-current revision editing, votes, notes/flags, labels, branches, generated/
 variants, examples, evaluation queues/comparison, stable links/spotlights, and open scenario packs.
 Broad MCP inspection remains body-free, while explicit `read_scenario` and
 `read_scenario_turn_revision` tools provide a bounded background/turn-head index followed by exactly
-one selected current, named, or indexed revision body. The physical LAN/Drive harness now discovers
+one selected-head, named, or indexed revision body. `reconcile_scenario_turn` adds an exact-research,
+exact-head, complete-tip all-parent merge path. The physical LAN/Drive harness now discovers
 the same turn identity on both installations before verifying both concurrent sibling bodies and the
-same deterministic current revision. Its component gates pass; installing
+same selected head/tip set, performing that merge, and requiring the four-revision result on both.
+Its component gates pass; installing
 this build on both office computers and recording the physical run, authenticated identity/time,
-explicit branch reconciliation, packaged accessibility, and near-limit performance remain open.
+packaged accessibility, and near-limit performance remain open.
 
 ### Phase 7 — policy assistance and heuristics (`L`)
 
@@ -698,12 +705,15 @@ and recomputed SHA-256/identity/summary checks. MCP exposes only compatible-pair
 reproducibility, causal or semantic improvement, authenticated identity, and packaged pointer/save
 interaction remain unproven, so it is `implemented_unverified`.
 
-P-33 now publishes a strict Draft 2020-12 `syzygy-scenario-pack` schema and CC0 sample, with a
+P-33 now publishes a strict Draft 2020-12 v2 `syzygy-scenario-pack` schema and retains the CC0 v1
+sample as a compatibility fixture, with a
 64-MiB-bounded canonical SHA-256 runtime codec. Product controls export selected scenarios plus required
 ancestors or the full graph, disclose included/excluded state, preview a validated import, skip exact
 duplicates, and abort the complete atomic Yjs import on any same-ID content collision. Full ordered
 turn, revision, edit, lineage, timestamp, and author attribution round-trip into a different project.
-The schema is discoverable through `syzygy_platform_contracts`. Authenticated identity, trusted clocks,
+New packs persist durable heads and parent sets; checksummed v1 packs become deterministic
+`migration-v1` chains before import. The current v2 schema is discoverable through
+`syzygy_platform_contracts`. Authenticated identity, trusted clocks,
 packaged OS file-dialog interaction, and external third-party reader interoperability remain unproven,
 so it is `implemented_unverified`.
 

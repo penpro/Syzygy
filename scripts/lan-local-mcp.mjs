@@ -1,12 +1,19 @@
 import { spawn, spawnSync } from 'node:child_process'
 
 function terminateProcessTree(child) {
-  if (!child.pid) return
+  if (!child.pid || child.exitCode !== null || child.signalCode !== null) return
   if (process.platform === 'win32') {
-    spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f'], {
+    // A sandboxed test process may be allowed to terminate its direct child while taskkill is
+    // denied. Try the owned ChildProcess handle first so close() cannot wait forever on a discarded
+    // taskkill failure; the stdio-owned MCP child also exits when its parent pipe closes.
+    if (child.kill()) return
+    const result = spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f'], {
       stdio: 'ignore',
       windowsHide: true,
     })
+    if (result.error || (result.status !== 0 && child.exitCode === null && child.signalCode === null)) {
+      throw new Error(`Could not terminate MCP process ${child.pid}`)
+    }
   } else {
     child.kill('SIGTERM')
   }

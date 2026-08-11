@@ -21,7 +21,11 @@ writeFileSync(wrongKeyFile, `${randomBytes(32).toString('base64url')}\n`, { mode
 function terminate(child) {
   if (!child?.pid || child.exitCode !== null) return
   if (process.platform === 'win32') {
-    spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f'], { stdio: 'ignore', windowsHide: true })
+    if (child.kill()) return
+    const result = spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f'], { stdio: 'ignore', windowsHide: true })
+    if (result.error || (result.status !== 0 && child.exitCode === null && child.signalCode === null)) {
+      throw new Error(`Could not terminate harness process ${child.pid}`)
+    }
   } else child.kill('SIGTERM')
 }
 
@@ -79,6 +83,21 @@ class CoordinatorSession {
         else waiter.resolve(message.result)
       }
     })
+    child.once('exit', (code, signal) => {
+      const detail = child.output.stderr.trim().slice(-1_000)
+      for (const waiter of this.pending.values()) {
+        clearTimeout(waiter.timer)
+        waiter.reject(new Error(`Coordinator exited code=${code} signal=${signal ?? 'none'}${detail ? `: ${detail}` : ''}`))
+      }
+      this.pending.clear()
+    })
+    child.once('error', (error) => {
+      for (const waiter of this.pending.values()) {
+        clearTimeout(waiter.timer)
+        waiter.reject(error)
+      }
+      this.pending.clear()
+    })
   }
 
   request(method, params = {}) {
@@ -102,9 +121,18 @@ const children = []
 const evidence = { passed: false }
 try {
   const port = await reservePort()
-  const coordinator = spawnCaptured(process.execPath, [coordinatorScript, '--listen', '127.0.0.1', '--port', String(port), '--key-file', keyFile])
+  let controlPort = await reservePort()
+  while (controlPort === port) controlPort = await reservePort()
+  const coordinator = spawnCaptured(process.execPath, [
+    coordinatorScript,
+    '--listen', '127.0.0.1',
+    '--port', String(port),
+    '--control-port', String(controlPort),
+    '--key-file', keyFile,
+  ])
   children.push(coordinator)
   await waitFor(() => coordinator.output.stderr.includes(`127.0.0.1:${port}`), 5_000, 'coordinator listener')
+  await waitFor(() => coordinator.output.stderr.includes(`127.0.0.1:${controlPort}`), 5_000, 'coordinator control listener')
   const session = new CoordinatorSession(coordinator)
   const initialized = await session.request('initialize', {
     protocolVersion: '2025-11-25',
@@ -160,10 +188,15 @@ try {
   terminate(intruder)
 
   terminate(beta)
+  await waitFor(
+    () => beta.exitCode !== null || beta.signalCode !== null,
+    10_000,
+    'terminated node process exit',
+  )
   const afterDisconnect = await waitFor(async () => {
     const result = await session.tool('lan_nodes')
     return result.structuredContent.nodes.length === 1 ? result : null
-  }, 5_000, 'node disconnect cleanup')
+  }, 10_000, 'node disconnect cleanup')
   assert.equal(afterDisconnect.structuredContent.nodes[0].nodeId, 'office-alpha')
 
   evidence.passed = true

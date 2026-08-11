@@ -152,9 +152,16 @@ creates independent local state after import.
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,
 empty, integrity-error, and mutation-error states; creates and selects stable scenarios; edits title,
 background, and workflow state; creates ordered role/content turns; and appends attributed immutable
-turn revisions. An edit session captures the exact current revision. If a peer advances that turn,
-Save is disabled while the unsaved draft remains visible until Reload shared is chosen. Conversation
+turn revisions. An edit session captures the exact current revision. If a peer advances that turn
+or adds a sibling while the selected head remains unchanged, Save is disabled while the unsaved
+draft remains visible until Reload shared is chosen. Conversation
 pages and visible revision lineage are each bounded to 50 items without deleting shared history.
+If disconnected peers create sibling revisions, the turn shows a prominent conflict card with the
+complete sibling count, disables ordinary **Edit**, and offers one explicit action per sibling.
+Choosing a sibling does not erase the others: the confirmation copy states that every sibling is
+recorded as a parent, and the resulting attributed merge revision becomes the new shared head.
+Stale or incomplete sibling choices fail visibly without changing history; a later sibling makes
+the conflict visible again. This flow performs no model call and never labels a selection correct.
 The panel also exposes support, oppose, abstain, and withdraw controls with aggregate counts, shared
 scenario/turn notes and flags with edit, resolve, and reopen history, plus project context-label
 creation, assignment, removal, and rename. A stale detail, turn, annotation, label, or assignment
@@ -162,7 +169,9 @@ write must fail instead of overwriting newer shared history. When scenario, turn
 label integrity fails, the affected mutation controls are disabled. Copy states that installation
 researcher identity and local time are not authenticated.
 
-**Portable scenario packs** sit inside the scenario workspace and remain usable without AI. Researchers
+**Portable scenario packs** sit inside the scenario workspace and remain usable without AI. New
+exports use the strict v2 format with durable turn heads and revision-parent sets; checksummed v1
+packs remain importable through deterministic migration. Researchers
 can export the selected scenario plus its required ancestors or every scenario, and can set a title,
 description, and optional license. Copy names the included authoring history and explicitly excludes
 votes, annotations, labels, model outputs, policies, and project files. Import is two-step: choose and

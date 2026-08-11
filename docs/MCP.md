@@ -62,8 +62,8 @@ Recommended first instruction to an MCP-capable model:
 | `rename_project` | yes | Changes project metadata only |
 | `read_active_project` | no | Returns the manifest plus structured blocks, plain text, and a revision |
 | `inspect_research_state` | no | Validates bounded live scenario/vote/flag/note/label/heuristic/adversarial-review/version/head/lineage state and returns metadata summaries without policy, adversarial question/source/result/decision-note, scenario, annotation, voter, label-event, guidance, edit-value, or version-note bodies |
-| `read_scenario` | explicit scenario content | Reads one validated scenario background plus at most 1,000 ordered turn identities, roles, immutable-revision counts, and current edit IDs; turn bodies remain omitted |
-| `read_scenario_turn_revision` | explicit scenario content | Reads exactly one current, named, or zero-based indexed immutable turn revision body plus bounded turn metadata and the current research revision; no mutation or model authority |
+| `read_scenario` | explicit scenario content | Reads one validated scenario background plus at most 1,000 ordered turn identities, roles, immutable-revision counts, selected heads, complete tip sets, and reconciliation state; turn bodies remain omitted |
+| `read_scenario_turn_revision` | explicit scenario content | Reads exactly one selected-head, named, or zero-based indexed immutable turn revision body plus bounded head/tip metadata and the current research revision; no mutation or model authority |
 | `start_adversarial_review` | remote model job | Freezes selected block indexes from the exact live document revision, complete built-in-provider call graph, and limits; returns a job immediately before one native batch disclosure |
 | `inspect_adversarial_review` | no | Returns bounded lifecycle/heartbeat metadata while running and the validated pending-human-review result after completion |
 | `cancel_adversarial_review` | cancels model job | Aborts the shared job signal and active native provider call without changing project content |
@@ -71,7 +71,8 @@ Recommended first instruction to an MCP-capable model:
 | `decide_adversarial_review` | decision event | Appends an immutable accept/reject event against the exact project revision, archive hash, and prior decision; never edits the draft |
 | `create_scenario` | scenario metadata | Creates one scenario/branch only when `expectedResearchRevision` exactly matches the revision from inspection; no model generation |
 | `add_scenario_turn` | scenario content | Adds one attributed system/user/assistant turn against the exact current research revision; never invokes a model |
-| `revise_scenario_turn` | scenario content | Adds an attributed immutable revision to an existing turn against the exact current research revision |
+| `revise_scenario_turn` | scenario content | Adds an attributed immutable revision to an existing single-tip turn against the exact current research revision; sibling conflicts fail closed |
+| `reconcile_scenario_turn` | scenario content | Resolves visible sibling tips only against the exact research revision, selected head, and complete tip set by appending an attributed all-parent merge revision; no sibling is deleted and no model is invoked |
 | `cast_scenario_vote` | vote event | Casts support/oppose/abstain/withdrawn against the exact current research revision; retains re-vote history and returns aggregate counts |
 | `create_scenario_annotation` | annotation event | Creates a scenario- or turn-level flag/note against the exact research revision; stores but does not return its body |
 | `update_scenario_annotation` | annotation event | Appends a body revision only when both research revision and current annotation event match; prior bodies remain in history and readback omits them |
@@ -151,15 +152,19 @@ MCP host
   supplied, and the tool does not generate turns or make the unavailable gallery appear.
 - `add_scenario_turn` and `revise_scenario_turn` use the same guard. Chain the returned research
   revision into the next mutation. Revision retains earlier turn bodies and attribution; stale
-  calls fail before mutation. These tools store explicit caller content and never contact a model.
+  calls fail before mutation. Ordinary revision also fails while a turn has multiple tips.
+  `reconcile_scenario_turn` then requires the exact selected head and the complete sorted tip set
+  returned by the latest scenario read. It appends one new revision whose parents are every sibling;
+  an incomplete/stale set writes nothing, and a later sibling reopens reconciliation. These tools
+  store explicit caller content and never contact a model.
 - `read_scenario` is the deliberate discovery boundary missing from broad inspection. It validates
   exact project/scenario identity, discloses one scenario background, and returns the ordered IDs,
-  roles, revision counts, and current edit IDs for at most 1,000 turns. It omits every turn body and
-  performs no Yjs write.
+  roles, revision counts, selected heads, complete tip sets, and reconciliation state for at most
+  1,000 turns. It omits every turn body and performs no Yjs write.
 - `read_scenario_turn_revision` then reads one chosen body. It requires exact scenario/turn identity
   and accepts either one immutable edit ID or one zero-based revision index, validates the live graph,
   returns at most one 200,000-character body, and performs no Yjs write. Omitting both selectors reads
-  the deterministic current revision. The returned research revision can be chained into a later
+  the persisted selected-head revision. The returned research revision can be chained into a later
   guarded mutation after the researcher reviews the disclosed content.
 - `cast_scenario_vote` uses the same guard and retains each attributed vote/re-vote/withdrawal as
   an immutable event. Its response and inspection expose only aggregate counts/event totals. A
@@ -233,7 +238,7 @@ It fails unless:
 2. replace/append operations change the same editor and reject a stale revision;
 3. the loopback parser accepts an authenticated request and rejects browser origins;
 4. MCP initialization negotiates the current `2025-11-25` protocol revision;
-5. all thirty-five semantic tools are discoverable and route to their intended live operation, including bounded Drive project catalog/share/join and adversarial archive/decision actions;
+5. all thirty-seven semantic tools are discoverable and route to their intended live operation, including bounded Drive project catalog/share/join, exact scenario sibling reconciliation, and adversarial archive/decision actions;
 6. self-description returns absolute paths and copy-ready configuration without a GUI;
 7. platform contracts parse, keep provider-run/adversarial/plugin schemas strict, and do not
    overstate unimplemented runtimes; and

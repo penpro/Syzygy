@@ -19,6 +19,7 @@ import {
 import { createPolicyVersion } from './policyVersionModel'
 import { initializePolicyContent, readPolicyContent, readPolicyContentStatus } from './policyContentModel'
 import { createProjectManifest, type ResearchProjectManifest } from './schema'
+import { createScenario, readScenario } from './scenarioModel'
 
 function manifest(suffix: string): ResearchProjectManifest {
   return {
@@ -38,7 +39,10 @@ async function fixture(suffix: string) {
   const project = manifest(suffix)
   const doc = createProjectDocument(project)
   const shared = getProjectSharedTypes(doc)
-  shared.scenarios.set('scenario-1', { title: 'Collaborator scenario', state: 'active' })
+  createScenario(shared.scenarios, {
+    id: 'scenario-1', title: 'Collaborator scenario', background: '', status: 'ready',
+    authorId: 'researcher-1', timestamp: 10, editId: 'scenario-1-create',
+  })
   shared.heuristics.set('heuristic-1', { title: 'Cite evidence', priority: 'required' })
   shared.discussions.set('discussion-1', { note: 'Review the counterexample.' })
   shared.settings.set('evaluationMode', 'adversarial')
@@ -79,7 +83,9 @@ describe('portable project archive', () => {
     expect(decoded.doc.guid).toBe(project.documentId)
     expect(projectStateFingerprint(decoded.doc)).toBe(projectStateFingerprint(doc))
     const restored = getProjectSharedTypes(decoded.doc)
-    expect(restored.scenarios.get('scenario-1')).toEqual({ title: 'Collaborator scenario', state: 'active' })
+    expect(readScenario(restored.scenarios, 'scenario-1')).toMatchObject({
+      title: 'Collaborator scenario', status: 'ready',
+    })
     expect(restored.heuristics.get('heuristic-1')).toEqual({ title: 'Cite evidence', priority: 'required' })
     expect(restored.discussions.get('discussion-1')).toEqual({ note: 'Review the counterexample.' })
     expect(restored.settings.get('evaluationMode')).toBe('adversarial')
@@ -149,9 +155,8 @@ describe('portable project archive', () => {
     await reopened.whenReady()
     try {
       expect(projectStateFingerprint(reopenedDoc)).toBe(projectStateFingerprint(doc))
-      expect(getProjectSharedTypes(reopenedDoc).scenarios.get('scenario-1')).toEqual({
-        title: 'Collaborator scenario',
-        state: 'active',
+      expect(readScenario(getProjectSharedTypes(reopenedDoc).scenarios, 'scenario-1')).toMatchObject({
+        title: 'Collaborator scenario', status: 'ready',
       })
       expect(getProjectSharedTypes(reopenedDoc).versions.size).toBe(1)
     } finally {
@@ -178,7 +183,7 @@ describe('portable project archive', () => {
     const cleanupDoc = new Y.Doc({ guid: project.documentId })
     const cleanup = new LocalProjectProvider(cleanupDoc, key, project.id)
     cleanup.connect()
-    await cleanup.whenReady()
+    await expect(cleanup.whenReady()).rejects.toThrow('Scenario migration')
     await cleanup.clearData()
     decoded.doc.destroy()
   })

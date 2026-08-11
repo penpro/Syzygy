@@ -30,6 +30,12 @@ import {
   type PolicyVersion,
 } from './policyVersionModel'
 import {
+  readScenarioTurnRevision,
+  scenarioTurnRevisionSha256,
+  type ResearchScenario,
+  type ScenarioTurnRevision,
+} from './scenarioModel'
+import {
   castScenarioVote,
   readScenarioVoteEvent,
   scenarioVoteEventSha256,
@@ -84,6 +90,12 @@ export interface AttributedScenarioLabelEvent {
   attribution: ResearchEventAttributionResult
 }
 
+export interface AttributedScenarioTurnRevision {
+  scenario: ResearchScenario
+  revision: ScenarioTurnRevision
+  attribution: ResearchEventAttributionResult
+}
+
 const DEFAULT_DEPENDENCIES: ResearchEventAttributionDependencies = {
   inspectDirectory: (document, projectId) => inspectProjectDeviceDirectory(
     getProjectSharedTypes(document).settings,
@@ -105,6 +117,14 @@ export function scenarioLabelAttestationEventId(event: ScenarioLabelResearchEven
     return `a:${event.scenarioId.length}:${event.scenarioId}${event.labelId.length}:${event.labelId}${event.eventId}`
   }
   return `l:${event.labelId.length}:${event.labelId}${event.eventId}`
+}
+
+export function scenarioTurnAttestationEventId(
+  scenarioId: string,
+  turnId: string,
+  revision: ScenarioTurnRevision,
+): string {
+  return `t:${scenarioId.length}:${scenarioId}${turnId.length}:${turnId}${revision.editId}`
 }
 
 function parseLengthPrefixed(
@@ -158,19 +178,47 @@ function parseScenarioLabelAttestationEventId(value: string): ScenarioLabelAttes
   } : null
 }
 
+function parseScenarioTurnAttestationEventId(value: string): {
+  scenarioId: string
+  turnId: string
+  editId: string
+} | null {
+  if (!value.startsWith('t:')) return null
+  const scenario = parseLengthPrefixed(value, 2)
+  if (!scenario) return null
+  const turn = parseLengthPrefixed(value, scenario.cursor)
+  if (!turn) return null
+  const editId = value.slice(turn.cursor)
+  return editId ? { scenarioId: scenario.segment, turnId: turn.segment, editId } : null
+}
+
 export function researchEventAttestationResolver(
   discussions: Y.Map<unknown>,
   settings?: Y.Map<unknown>,
   versions?: Y.Map<unknown>,
+  scenarios?: Y.Map<unknown>,
 ): ProjectResearchEventResolver {
   const cache = new Map<string, Promise<{ eventSha256: string; participantId: string } | null>>()
   return (eventKind, attestationEventId) => {
     if (eventKind !== 'scenario-vote' && eventKind !== 'scenario-annotation' &&
-      eventKind !== 'scenario-label' && eventKind !== 'policy-version') return null
+      eventKind !== 'scenario-label' && eventKind !== 'policy-version' &&
+      eventKind !== 'scenario-turn') return null
     const cacheKey = `${eventKind}:${attestationEventId}`
     const cached = cache.get(cacheKey)
     if (cached) return cached
     const resolved = (async () => {
+      if (eventKind === 'scenario-turn') {
+        if (!scenarios) return null
+        const identity = parseScenarioTurnAttestationEventId(attestationEventId)
+        if (!identity) return null
+        const revision = readScenarioTurnRevision(
+          scenarios, identity.scenarioId, identity.turnId, identity.editId,
+        )
+        return revision ? {
+          eventSha256: await scenarioTurnRevisionSha256(revision),
+          participantId: revision.authorId,
+        } : null
+      }
       if (eventKind === 'policy-version') {
         if (!versions) return null
         const version = await readPolicyVersion(versions, attestationEventId)
@@ -217,7 +265,7 @@ export function researchEventAttestationResolver(
 async function attestResearchEvent(
   document: Y.Doc,
   projectId: string,
-  eventKind: 'scenario-vote' | 'scenario-annotation' | 'scenario-label' | 'policy-version',
+  eventKind: 'scenario-vote' | 'scenario-annotation' | 'scenario-label' | 'policy-version' | 'scenario-turn',
   eventId: string,
   participantId: string,
   eventHash: () => Promise<string>,
@@ -255,12 +303,12 @@ async function attestResearchEvent(
     }
   }
   try {
-    const { discussions, settings, versions } = getProjectSharedTypes(document)
+    const { discussions, settings, versions, scenarios } = getProjectSharedTypes(document)
     const inspection = await publishProjectResearchEventAttestation(
       settings,
       projectId,
       directory,
-      researchEventAttestationResolver(discussions, settings, versions),
+      researchEventAttestationResolver(discussions, settings, versions, scenarios),
       record,
     )
     return {
@@ -358,6 +406,52 @@ export async function attestPolicyVersionEvent(
     () => policyVersionEventSha256(version),
     dependencies,
   )
+}
+
+/** Best-effort device attribution after an immutable scenario-turn revision has committed. */
+export async function attestScenarioTurnRevisionEvent(
+  document: Y.Doc,
+  projectId: string,
+  scenarioId: string,
+  turnId: string,
+  revision: ScenarioTurnRevision,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<ResearchEventAttributionResult> {
+  return attestResearchEvent(
+    document,
+    projectId,
+    'scenario-turn',
+    scenarioTurnAttestationEventId(scenarioId, turnId, revision),
+    revision.authorId,
+    () => scenarioTurnRevisionSha256(revision),
+    dependencies,
+  )
+}
+
+/** Product turn path: validate identity, commit once, resolve the exact revision, then attest. */
+export async function commitScenarioTurnWithAttribution(
+  document: Y.Doc,
+  projectId: string,
+  scenarioId: string,
+  turnId: string,
+  editId: string,
+  commit: () => ResearchScenario,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<AttributedScenarioTurnRevision> {
+  const shared = getProjectSharedTypes(document)
+  if (shared.metadata.get('projectId') !== projectId) {
+    throw new Error('Live collaboration document project identity does not match')
+  }
+  const scenario = commit()
+  const revision = readScenarioTurnRevision(shared.scenarios, scenarioId, turnId, editId)
+  if (!revision) throw new Error('Scenario turn revision was not retained')
+  return {
+    scenario,
+    revision,
+    attribution: await attestScenarioTurnRevisionEvent(
+      document, projectId, scenarioId, turnId, revision, dependencies,
+    ),
+  }
 }
 
 /** Product annotation path: validate project identity, commit once, then attest best-effort. */

@@ -323,7 +323,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "inspect_research_state",
-            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, exact-hash installation attestations for scenario vote, annotation, label, and immutable policy-version events, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and policy-version history. Device/attestation entries expose stable key IDs plus self-reported participant IDs but no proof bodies and grant no human identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
+            "Inspect bounded read-only metadata and integrity checks for the active project's signed device registrations, exact-hash installation attestations for scenario turn, vote, annotation, label, and immutable policy-version events, collaborative scenarios, aggregate votes, annotation lifecycle, context labels, heuristics, and policy-version history. Device/attestation entries expose stable key IDs plus self-reported participant IDs but no proof bodies and grant no human identity, role, revocation, relay access, or mutation authority; research bodies remain omitted.",
             object_schema(&[], &[]),
         ),
         tool(
@@ -431,17 +431,17 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "add_scenario_turn",
-            "Append one user, assistant, or system turn to an existing scenario against the exact current research revision. This stores caller-supplied content; it does not invoke a model.",
+            "Append one user, assistant, or system turn to an existing scenario against the exact current research revision, then attempt a best-effort exact-revision registered-device signature. The response reports signed or explicitly unsigned attribution plus the post-attribution research revision; signing failure never rolls back the turn and does not authenticate a person. This stores caller-supplied content and does not invoke a model.",
             scenario_turn_schema(),
         ),
         tool(
             "revise_scenario_turn",
-            "Append an attributed immutable revision to an existing scenario turn against the exact current research revision. Prior turn revisions remain available in domain history.",
+            "Append an immutable revision to an existing scenario turn against the exact current research revision, then attempt a best-effort exact-revision registered-device signature. The response reports signed or explicitly unsigned attribution plus the post-attribution research revision; signing failure never rolls back the revision and does not authenticate a person. Prior turn revisions remain available in domain history.",
             scenario_turn_schema(),
         ),
         tool(
             "reconcile_scenario_turn",
-            "Resolve a visible scenario-turn sibling conflict by appending one attributed merge revision whose parents are the complete exact tip set. Every sibling remains in history; no model is invoked.",
+            "Resolve a visible scenario-turn sibling conflict by appending one merge revision whose parents are the complete exact tip set, then attempt a best-effort exact-revision registered-device signature. The response reports signed or explicitly unsigned attribution plus the post-attribution research revision; signing failure never rolls back reconciliation and does not authenticate a person. Every sibling remains in history; no model is invoked.",
             object_schema(
                 &[
                     ("expectedResearchRevision", string_schema("Exact research revision from read_scenario or read_scenario_turn_revision.")),

@@ -211,10 +211,10 @@ That distinction is disclosed in the UI and audited in `docs/audits/DECISIONS/AD
   requires the signer key to be an unconflicted project registration for the participant claim, and
   requires the claim participant to equal the retained event author. It then publishes best-effort
   attribution. Failure remains explicitly unsigned and never rolls back or disguises the research
-  mutation. The generic ledger recognizes ten event kinds; scenario votes, annotations, labels, and
-  policy versions currently have production resolvers. Label
-  lifecycle and assignment records use distinct length-prefixed attestation locators so maximum
-  valid scenario/label/event IDs remain unambiguous without changing their existing Yjs schemas.
+  mutation. The generic ledger recognizes ten event kinds; scenario turns, votes, annotations,
+  labels, and policy versions currently have production resolvers. Turn revisions and label
+  lifecycle/assignment records use distinct length-prefixed attestation locators so maximum valid
+  scenario/turn/label/event IDs remain unambiguous without changing their existing Yjs schemas.
   `versionAutomation.ts` maps the exact active semantic editor snapshot into an
   immutable version only after both the document revision and version head pass inside the final
   Yjs transaction. The bridge does not own persistence.
@@ -529,6 +529,9 @@ whose parents retain every sibling. Stale or incomplete reconciliation is zero-w
 remain idempotent, and a later-arriving sibling reopens the conflict. A graph inspector detects
 invalid records, missing parents, and cycles. `ScenarioWorkspace.tsx` provides an engine-free product gallery
 with create/select/edit/status and attributed vote/withdraw controls against the same live Y.Doc.
+Each product/MCP turn create, edit, or reconciliation retains its exact revision before a
+best-effort registered-device attestation over role, content, author, time, parent set, and source;
+signing failure leaves the revision committed and explicitly unsigned.
 `ScenarioTurnWorkspace.tsx` owns manual ordered turn creation and exact-parent revision editing,
 keeps stale drafts visible until the researcher reloads shared state, visibly disables ordinary
 editing when sibling tips exist, and lets the researcher retain a selected sibling through an

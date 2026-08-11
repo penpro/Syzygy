@@ -23,6 +23,7 @@ import {
   attestPolicyVersionEvent,
   attestScenarioAnnotationEvent,
   attestScenarioLabelEvent,
+  attestScenarioTurnRevisionEvent,
   attestScenarioVoteEvent,
 } from './workspace/researchEventAttribution'
 import {
@@ -543,14 +544,19 @@ export async function dispatchAutomationRequest(
         timestamp: Date.now(),
         editId: `mcp-${crypto.randomUUID()}`,
       }
+      const document = getAutomationProjectDocument(project.id)
       const changed = request.method === 'project.addScenarioTurn'
-        ? addAutomationScenarioTurn(getAutomationProjectDocument(project.id), project.id, input)
-        : reviseAutomationScenarioTurn(getAutomationProjectDocument(project.id), project.id, input)
+        ? addAutomationScenarioTurn(document, project.id, input)
+        : reviseAutomationScenarioTurn(document, project.id, input)
+      const attribution = await attestScenarioTurnRevisionEvent(
+        document, project.id, input.scenarioId, input.turnId, changed.revision,
+      )
       return {
         project: summarizeProject(project, latest.activeProjectId),
         scenario: summarizeScenario(changed.scenario),
         turn: summarizeScenarioTurn(changed.turn),
-        researchRevision: changed.researchRevision,
+        attribution,
+        researchRevision: projectStateFingerprint(document),
       }
     }
     case 'project.reconcileScenarioTurn': {
@@ -559,7 +565,8 @@ export async function dispatchAutomationRequest(
         (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
       )
       if (!project) throw new Error('No research project is active; list or create a project first')
-      const changed = reconcileAutomationScenarioTurn(getAutomationProjectDocument(project.id), project.id, {
+      const document = getAutomationProjectDocument(project.id)
+      const input = {
         expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
         expectedCurrentEditId: requiredString(params, 'expectedCurrentEditId'),
         expectedTipEditIds: requiredStringArray(params, 'expectedTipEditIds', 2, 10_000),
@@ -570,12 +577,17 @@ export async function dispatchAutomationRequest(
         participantId: requiredString(params, 'participantId'),
         timestamp: Date.now(),
         editId: `mcp-${crypto.randomUUID()}`,
-      })
+      }
+      const changed = reconcileAutomationScenarioTurn(document, project.id, input)
+      const attribution = await attestScenarioTurnRevisionEvent(
+        document, project.id, input.scenarioId, input.turnId, changed.revision,
+      )
       return {
         project: summarizeProject(project, latest.activeProjectId),
         scenario: summarizeScenario(changed.scenario),
         turn: summarizeScenarioTurn(changed.turn),
-        researchRevision: changed.researchRevision,
+        attribution,
+        researchRevision: projectStateFingerprint(document),
       }
     }
     case 'project.castScenarioVote': {

@@ -77,9 +77,9 @@ Recommended first instruction to an MCP-capable model:
 | `save_adversarial_review` | shared research history | Explicitly stores the completed full question, selected excerpts, results, baselines, and content-free provenance in the collaborative project against the exact research revision; Drive-backed projects can synchronize it |
 | `decide_adversarial_review` | decision event | Appends an immutable accept/reject event against the exact project revision, archive hash, and prior decision; never edits the draft |
 | `create_scenario` | scenario metadata | Creates one scenario/branch only when `expectedResearchRevision` exactly matches the revision from inspection; no model generation |
-| `add_scenario_turn` | scenario content | Adds one attributed system/user/assistant turn against the exact current research revision; never invokes a model |
-| `revise_scenario_turn` | scenario content | Adds an attributed immutable revision to an existing single-tip turn against the exact current research revision; sibling conflicts fail closed |
-| `reconcile_scenario_turn` | scenario content | Resolves visible sibling tips only against the exact research revision, selected head, and complete tip set by appending an attributed all-parent merge revision; no sibling is deleted and no model is invoked |
+| `add_scenario_turn` | scenario content | Adds one system/user/assistant turn against the exact current research revision, then reports signed-device or explicit unsigned exact-revision attribution and the post-attribution research revision; signing failure never rolls back the turn and no model runs |
+| `revise_scenario_turn` | scenario content | Adds an immutable revision to an existing single-tip turn against the exact current research revision, then reports signed-device or explicit unsigned exact-revision attribution and the post-attribution research revision; sibling conflicts fail closed |
+| `reconcile_scenario_turn` | scenario content | Resolves visible sibling tips only against the exact research revision, selected head, and complete tip set by appending an all-parent merge revision, then reports signed-device or explicit unsigned exact-revision attribution and the post-attribution research revision; no sibling is deleted and no model runs |
 | `cast_scenario_vote` | vote event | Casts support/oppose/abstain/withdrawn against the exact current research revision, retains re-vote history, and best-effort publishes an exact-event-hash installation signature when the caller key is an unconflicted registered project device; the response explicitly reports signed-device or unsigned |
 | `create_scenario_annotation` | annotation event | Creates a scenario- or turn-level flag/note against the exact research revision; stores but does not return its body |
 | `update_scenario_annotation` | annotation event | Appends a body revision only when both research revision and current annotation event match; prior bodies remain in history and readback omits them |
@@ -227,6 +227,13 @@ MCP host
   attribution continuity but are self-issued device claims, so the tool is not an authenticated
   election, person/organization identity, or Sybil-resistant consensus. Other research-event kinds
   remain unsigned until their domain resolvers and product/MCP mutation paths adopt the same ledger.
+- Scenario-turn add, revise, and reconcile retain an exact immutable revision before best-effort
+  registered-device signing. The canonical hash binds edit ID, role, body, participant, caller time,
+  complete parent set, and create/edit/reconcile source; a length-prefixed locator binds the scenario
+  and turn identities. Cross-author claims and changed retained bodies fail verification. Signing
+  failure leaves the turn committed and explicit unsigned, inspection omits turn/proof bodies, and
+  every response returns the post-attribution research revision. The signature proves only
+  installation-key possession.
 - Annotation create uses the research revision guard. Edit/resolve/reopen additionally require the
   exact `currentEventId` returned by the preceding mutation or inspection. Both stale-research and
   stale-lifecycle conflicts fail before an event is added. Bodies are accepted for create/edit and

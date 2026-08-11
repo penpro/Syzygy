@@ -56,6 +56,8 @@ function contentProps(overrides: Partial<ScenarioTurnWorkspaceContentProps> = {}
     writesDisabled: false,
     integrityIssues: [],
     error: '',
+    turnAttribution: null,
+    turnAttributionPending: false,
     onOpenCreate: vi.fn(),
     onOpenEdit: vi.fn(),
     onReconcile: vi.fn(),
@@ -217,6 +219,36 @@ describe('editable shared scenario turn product workflow', () => {
     expect(html).toContain('Add turn')
     expect(html).toContain('without starting a model')
     expect(html).toContain('No turns yet')
+  })
+
+  it('shows pending, signed-device, and unsigned turn attribution without claiming a person', () => {
+    const pending = renderToStaticMarkup(<ScenarioTurnWorkspaceContent {...contentProps({
+      turnAttributionPending: true,
+    })} />)
+    expect(pending).toContain('Turn change saved. Checking registered-device attribution')
+
+    const signed = renderToStaticMarkup(<ScenarioTurnWorkspaceContent {...contentProps({
+      turnAttribution: {
+        status: 'signed-device',
+        keyId: 'ed25519-sha256:abcdefghijklmnopqrstuv0123456789ABCDEFG',
+        eventKind: 'scenario-turn',
+        eventId: 'turn-event',
+        eventSha256: 'abcdefghijklmnopqrstuv0123456789ABCDEFG',
+        attestationCount: 1,
+        authority: 'installation-device-not-human-identity',
+      },
+    })} />)
+    expect(signed).toContain('Turn revision signed by registered device')
+    expect(signed).toContain('not a person or organization')
+
+    const unsigned = renderToStaticMarkup(<ScenarioTurnWorkspaceContent {...contentProps({
+      turnAttribution: {
+        status: 'unsigned',
+        reason: 'signing-or-registration-unavailable',
+        authority: 'installation-device-not-human-identity',
+      },
+    })} />)
+    expect(unsigned).toContain('Turn change saved without a device signature')
   })
 
   it('keeps stale content visible, blocks save, and offers shared reload', () => {

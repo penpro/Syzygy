@@ -429,6 +429,7 @@ export function ScenarioWorkspace({ project }: { project: ResearchProjectManifes
       turnWorkspace={doc && selected ? <ScenarioTurnWorkspace
         key={selected.id}
         doc={doc}
+        projectId={project.id}
         scenario={selected}
         parentWritesDisabled={snapshot.issues.length > 0}
       /> : undefined}

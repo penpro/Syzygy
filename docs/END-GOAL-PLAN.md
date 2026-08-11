@@ -197,6 +197,10 @@ graph inspection detects missing/cyclic ancestry. Researchers can create turns a
 current revisions manually without AI; stale drafts stay visible but add no write, disconnected
 siblings remain auditable and converge deterministically, ordinary edit is blocked during conflict,
 and explicit UI/MCP reconciliation appends an all-parent merge under exact research/head/tip guards.
+Product and MCP turn create/edit/reconcile retain the exact revision before best-effort
+registered-device attribution; cross-author claims or changed retained bodies fail verification,
+while signing failure leaves the turn committed and explicitly unsigned. MCP returns the
+post-attribution research revision and product copy denies human-identity implications.
 Valid v1 local, Drive, archive, and pack histories migrate deterministically before publication;
 hostile/future input is zero-write. Product conversation/lineage views are bounded. Generation,
 manual/generated response variants, evaluation, votes, annotations, labels, and open scenario-pack
@@ -451,7 +455,8 @@ project/room/revision/action-bound quorum, while no-policy rooms remain compatib
 retains emergency local authority. Product controls publish partial approvals and submit a completed
 bundle automatically. A parallel bounded attestation ledger now binds exact event hashes to the
 same installation key and registered participant claim without changing every event schema; the
-first production adopters are scenario voting, annotation lifecycle, and label lifecycle/assignment through both product and MCP,
+first production adopters are scenario-turn revision, scenario voting, annotation lifecycle,
+label lifecycle/assignment, and immutable policy-version events through both product and MCP,
 with explicit unsigned fallback and body-free inspection. The next identity increments are adoption across the remaining
 research-event domains,
 device-key rotation/recovery, authenticated human/organizational enrollment, trusted time, and

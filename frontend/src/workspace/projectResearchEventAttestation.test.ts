@@ -23,11 +23,14 @@ import {
   attestPolicyVersionEvent,
   attestScenarioAnnotationEvent,
   attestScenarioLabelEvent,
+  attestScenarioTurnRevisionEvent,
   castScenarioVoteWithAttribution,
   commitScenarioAnnotationWithAttribution,
   commitScenarioLabelWithAttribution,
+  commitScenarioTurnWithAttribution,
   researchEventAttestationResolver,
   scenarioLabelAttestationEventId,
+  scenarioTurnAttestationEventId,
 } from './researchEventAttribution'
 import {
   createScenarioAnnotation,
@@ -41,7 +44,13 @@ import {
   policyVersionEventSha256,
   readPolicyVersion,
 } from './policyVersionModel'
-import { createScenario } from './scenarioModel'
+import {
+  addScenarioTurn,
+  createScenario,
+  readScenarioTurnRevision,
+  scenarioTurnRevisionSha256,
+  updateScenarioTurn,
+} from './scenarioModel'
 import {
   createScenarioLabel,
   readScenarioLabel,
@@ -660,6 +669,114 @@ describe('project research event attestations', () => {
     await expect(inspectProjectResearchEventAttestations(
       settings, projectId, directory([signer, otherSigner]),
       researchEventAttestationResolver(discussions, settings, versions),
+    )).resolves.toEqual(expect.objectContaining({ healthy: false, invalidRecords: 1 }))
+  })
+
+  it('signs exact scenario-turn revisions and rejects cross-author or changed retained bodies', async () => {
+    const signer = await identity(participantA)
+    const otherSigner = await identity(participantB)
+    const document = createProjectDocument(manifest)
+    const { discussions, scenarios, settings, versions } = getProjectSharedTypes(document)
+    createScenario(scenarios, {
+      id: 'scenario-turn-attribution', title: 'Turn attribution', background: '',
+      authorId: participantA, timestamp: 1, editId: 'scenario-root-edit',
+    })
+    const created = await commitScenarioTurnWithAttribution(
+      document, projectId, 'scenario-turn-attribution', 'turn-attributed', 'turn-create-edit',
+      () => addScenarioTurn(scenarios, {
+        scenarioId: 'scenario-turn-attribution', turnId: 'turn-attributed', role: 'user',
+        content: 'Turn body canary', authorId: participantA, timestamp: 2,
+        editId: 'turn-create-edit',
+      }),
+      {
+        inspectDirectory: async () => directory([signer, otherSigner]),
+        create: (id, participantId, kind, eventId, hash) => createProjectResearchEventAttestation(
+          id, participantId, kind, eventId, hash, dependencies(signer, nonceA),
+        ),
+      },
+    )
+    expect(created.attribution).toEqual(expect.objectContaining({
+      status: 'signed-device', eventKind: 'scenario-turn', attestationCount: 1,
+    }))
+    const revision = readScenarioTurnRevision(
+      scenarios, 'scenario-turn-attribution', 'turn-attributed', 'turn-create-edit',
+    )!
+    expect(created.revision).toEqual(revision)
+    expect(created.attribution).toEqual(expect.objectContaining({
+      eventId: scenarioTurnAttestationEventId(
+        'scenario-turn-attribution', 'turn-attributed', revision,
+      ),
+      eventSha256: await scenarioTurnRevisionSha256(revision),
+    }))
+
+    const editedScenario = updateScenarioTurn(scenarios, {
+      scenarioId: 'scenario-turn-attribution', turnId: 'turn-attributed', role: 'assistant',
+      content: 'Edited turn canary', authorId: participantA, timestamp: 3,
+      editId: 'turn-edit-event', expectedCurrentEditId: 'turn-create-edit',
+    })
+    const edited = editedScenario.turns[0].revisions.find(({ editId }) => editId === 'turn-edit-event')!
+    const editedAttribution = await attestScenarioTurnRevisionEvent(
+      document, projectId, 'scenario-turn-attribution', 'turn-attributed', edited,
+      {
+        inspectDirectory: async () => directory([signer, otherSigner]),
+        create: (id, participantId, kind, eventId, hash) => createProjectResearchEventAttestation(
+          id, participantId, kind, eventId, hash, dependencies(signer, nonceB),
+        ),
+      },
+    )
+    expect(editedAttribution).toEqual(expect.objectContaining({ status: 'signed-device', attestationCount: 2 }))
+    const unsigned = await commitScenarioTurnWithAttribution(
+      document, projectId, 'scenario-turn-attribution', 'turn-unsigned', 'turn-unsigned-edit',
+      () => addScenarioTurn(scenarios, {
+        scenarioId: 'scenario-turn-attribution', turnId: 'turn-unsigned', role: 'system',
+        content: 'Unsigned turn remains', authorId: participantA, timestamp: 4,
+        editId: 'turn-unsigned-edit',
+      }),
+      {
+        inspectDirectory: async () => { throw new Error('directory unavailable') },
+        create: async () => { throw new Error('must not sign') },
+      },
+    )
+    expect(unsigned.attribution).toEqual({
+      status: 'unsigned', reason: 'device-directory-unhealthy',
+      authority: 'installation-device-not-human-identity',
+    })
+    expect(readScenarioTurnRevision(
+      scenarios, 'scenario-turn-attribution', 'turn-unsigned', 'turn-unsigned-edit',
+    )).not.toBeNull()
+    const inspection = await inspectProjectResearchEventAttestations(
+      settings, projectId, directory([signer, otherSigner]),
+      researchEventAttestationResolver(discussions, settings, versions, scenarios),
+    )
+    expect(inspection).toEqual(expect.objectContaining({ healthy: true, attestationCount: 2 }))
+    expect(JSON.stringify(inspection)).not.toContain('Turn body canary')
+    expect(JSON.stringify(inspection)).not.toContain('Edited turn canary')
+
+    const crossAuthor = await createProjectResearchEventAttestation(
+      projectId, participantB, 'scenario-turn',
+      scenarioTurnAttestationEventId('scenario-turn-attribution', 'turn-attributed', edited),
+      await scenarioTurnRevisionSha256(edited), dependencies(otherSigner, nonceC),
+    )
+    await expect(publishProjectResearchEventAttestation(
+      settings, projectId, directory([signer, otherSigner]),
+      researchEventAttestationResolver(discussions, settings, versions, scenarios), crossAuthor,
+    )).rejects.toThrow('proof is invalid')
+
+    const scenarioRecord = Array.from(scenarios.values()).find(
+      (value) => value instanceof Y.Map && value.get('id') === 'scenario-turn-attribution',
+    ) as Y.Map<unknown>
+    const turns = scenarioRecord.get('turns') as Y.Map<unknown>
+    const turn = Array.from(turns.values()).find(
+      (value) => value instanceof Y.Map && value.get('id') === 'turn-attributed',
+    ) as Y.Map<unknown>
+    const revisions = turn.get('revisions') as Y.Map<unknown>
+    const [storageKey, stored] = Array.from(revisions.entries()).find(
+      ([, value]) => !!value && typeof value === 'object' && (value as { editId?: string }).editId === 'turn-edit-event',
+    )!
+    revisions.set(storageKey, { ...(stored as object), content: 'Changed retained turn body' })
+    await expect(inspectProjectResearchEventAttestations(
+      settings, projectId, directory([signer, otherSigner]),
+      researchEventAttestationResolver(discussions, settings, versions, scenarios),
     )).resolves.toEqual(expect.objectContaining({ healthy: false, invalidRecords: 1 }))
   })
 })

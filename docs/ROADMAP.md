@@ -654,11 +654,12 @@ collaborators are not required to download large project folders.
    offline and exposes participant-claim conflicts, but local decisions are neither shared nor
    authoritative, awareness-proof replay and participant-ID impersonation remain possible. A
    separate bounded exact-hash attestation ledger now signs MCP-created and product-created scenario
-   vote, annotation lifecycle, label lifecycle/assignment, and immutable policy save/restore events
+   turn create/edit/reconciliation, vote, annotation lifecycle, label lifecycle/assignment, and
+   immutable policy save/restore events
    when the installation is an unconflicted registered device for the participant claim; inspection
    re-resolves the live event hash and retained author, rejecting cross-author claims, and omits proof
    and research bodies or label names. Signing failure is explicitly unsigned and never rolls back
-   the mutation or checkpoint. Six other named research-event domains still lack production
+   the mutation or checkpoint. Five other named research-event domains still lack production
    resolvers/adoption. Device-bound admin credentials now expose a strict reserved
    control channel: the relay consumes the ordinary fresh proof, verifies a second action/revision
    signature, durably mutates/reloads membership, and evicts room peers. The product exposes those

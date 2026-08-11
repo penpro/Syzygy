@@ -428,9 +428,14 @@ round-trip, attributed immutable turn revisions, exact-current conflict refusal,
 idempotence, branch lineage, independent concurrent field and turn additions, delete-versus-nested-
 edit, peer-colliding public scenario/turn IDs, exact record shapes, malformed order, and missing-
 parent inspection. It also requires a durable selected head, the complete derived sibling-tip set,
-zero-write rejection of stale or incomplete reconciliation, an all-parent merge revision, and
-conflict reopening when a late sibling arrives. Eighty seeded duplicate/reordered delivery checks
-must converge.
+zero-write rejection of stale or incomplete reconciliation, an all-parent merge revision, conflict
+reopening when a late sibling arrives, and exact canonical turn-revision hashes. Eighty seeded
+duplicate/reordered delivery checks must converge. `projectResearchEventAttestation.test.ts`
+additionally signs retained create/edit revisions, rejects cross-author claims and changed retained bodies, omits turn
+bodies from inspection, and proves directory/signing failure leaves the committed turn present.
+Product create/edit/reconcile and all three MCP routes report signed-device or explicit unsigned
+state; MCP recomputes the post-attribution research revision. Scenario turns are the fifth adopted
+event domain, leaving five of the closed ten-kind vocabulary without production resolvers.
 `ScenarioWorkspace.ui.test.ts` covers the engine-free gallery shell. The product-level
 `ScenarioTurnWorkspace.ui.test.tsx` gate proves manual no-AI add/edit, immutable attribution, stale
 zero-write recovery with the draft retained, hostile-state write refusal, deterministic disconnected

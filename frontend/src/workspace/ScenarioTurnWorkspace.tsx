@@ -1,8 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type * as Y from 'yjs'
 import { useStore } from '../store'
 import { now, uid } from '../util'
 import { getProjectSharedTypes } from './projectModel'
+import {
+  attestScenarioTurnRevisionEvent,
+  type ResearchEventAttributionResult,
+} from './researchEventAttribution'
 import {
   addScenarioTurn,
   inspectScenarioGraph,
@@ -75,6 +79,8 @@ export interface ScenarioTurnWorkspaceContentProps {
   writesDisabled: boolean
   integrityIssues: string[]
   error: string
+  turnAttribution: ResearchEventAttributionResult | null
+  turnAttributionPending: boolean
   onOpenCreate: () => void
   onOpenEdit: (turn: ScenarioTurn) => void
   onReconcile: (turn: ScenarioTurn, revision: ScenarioTurn['revisions'][number]) => void
@@ -118,6 +124,29 @@ export function ScenarioTurnWorkspaceContent(props: ScenarioTurnWorkspaceContent
         </div>
       )}
       {props.error && <div className="scenario-state error" role="alert">{props.error}</div>}
+      {props.turnAttributionPending && (
+        <div className="scenario-state" role="status">
+          Turn change saved. Checking registered-device attribution…
+        </div>
+      )}
+      {!props.turnAttributionPending && props.turnAttribution?.status === 'signed-device' && (
+        <div className="scenario-state success" role="status">
+          Turn revision signed by registered device{' '}
+          <span className="mono">
+            {props.turnAttribution.keyId.replace('ed25519-sha256:', '').slice(0, 12)}…
+          </span>. This proves installation-key possession, not a person or organization.
+        </div>
+      )}
+      {!props.turnAttributionPending && props.turnAttribution?.status === 'unsigned' && (
+        <div className="scenario-state error" role="status">
+          Turn change saved without a device signature: {
+            props.turnAttribution.reason === 'device-directory-unhealthy'
+              ? 'the project device directory needs attention.'
+              : props.turnAttribution.reason === 'attestation-history-unhealthy'
+                ? 'signed attribution history needs attention.'
+                : 'this installation is not registered here or signing is unavailable.'}
+        </div>
+      )}
 
       {!props.editSession && (
         <div className="scenario-actions">
@@ -243,10 +272,12 @@ export function ScenarioTurnWorkspaceContent(props: ScenarioTurnWorkspaceContent
 
 export function ScenarioTurnWorkspace({
   doc,
+  projectId,
   scenario,
   parentWritesDisabled,
 }: {
   doc: Y.Doc
+  projectId: string
   scenario: ResearchScenario
   parentWritesDisabled: boolean
 }) {
@@ -258,6 +289,9 @@ export function ScenarioTurnWorkspace({
   const [content, setContent] = useState('')
   const [page, setPage] = useState(0)
   const [error, setError] = useState('')
+  const [turnAttribution, setTurnAttribution] = useState<ResearchEventAttributionResult | null>(null)
+  const [turnAttributionPending, setTurnAttributionPending] = useState(false)
+  const turnOperation = useRef(0)
 
   useEffect(() => {
     const onUpdate = () => setRevision((value) => value + 1)
@@ -266,12 +300,16 @@ export function ScenarioTurnWorkspace({
   }, [doc])
 
   useEffect(() => {
+    turnOperation.current += 1
     setEditSession(null)
     setRole('user')
     setContent('')
     setPage(0)
     setError('')
-  }, [scenario.id])
+    setTurnAttribution(null)
+    setTurnAttributionPending(false)
+    return () => { turnOperation.current += 1 }
+  }, [projectId, scenario.id])
 
   const integrity = inspectScenarioTurnWorkspace(doc)
   const currentScenario = readScenario(getProjectSharedTypes(doc).scenarios, scenario.id)
@@ -290,6 +328,9 @@ export function ScenarioTurnWorkspace({
   const writesDisabled = parentWritesDisabled || integrityIssues.length > 0
 
   const identity = () => {
+    if (getProjectSharedTypes(doc).metadata.get('projectId') !== projectId) {
+      throw new Error('Live collaboration document project identity does not match')
+    }
     if (!researcherId || !researcherName.trim()) {
       throw new Error('Set a researcher name in Settings before editing shared turns')
     }
@@ -320,27 +361,51 @@ export function ScenarioTurnWorkspace({
     beginEdit(editingTurn)
   }
 
-  const reconcile = (turn: ScenarioTurn, revision: ScenarioTurn['revisions'][number]) => {
+  const publishAttribution = async (
+    turnId: string,
+    revision: ScenarioTurn['revisions'][number],
+  ) => {
+    const operation = turnOperation.current + 1
+    turnOperation.current = operation
+    setTurnAttribution(null)
+    setTurnAttributionPending(true)
+    try {
+      const attribution = await attestScenarioTurnRevisionEvent(
+        doc, projectId, scenario.id, turnId, revision,
+      )
+      if (turnOperation.current === operation) setTurnAttribution(attribution)
+    } finally {
+      if (turnOperation.current === operation) setTurnAttributionPending(false)
+    }
+  }
+
+  const reconcile = async (turn: ScenarioTurn, revision: ScenarioTurn['revisions'][number]) => {
     setError('')
     try {
-      reconcileHumanScenarioTurn(doc, {
+      const editId = `scenario-turn-reconciliation-${uid()}`
+      const changed = reconcileHumanScenarioTurn(doc, {
         scenarioId: scenario.id,
         turnId: turn.id,
         role: revision.role,
         content: revision.content,
         authorId: identity(),
         timestamp: now(),
-        editId: `scenario-turn-reconciliation-${uid()}`,
+        editId,
         expectedCurrentEditId: turn.headEditId,
         expectedTipEditIds: [...turn.tipEditIds],
       })
       if (editSession?.mode === 'edit' && editSession.turnId === turn.id) setEditSession(null)
+      const committed = changed.turns.find(({ id }) => id === turn.id)?.revisions.find(
+        (candidate) => candidate.editId === editId,
+      )
+      if (!committed) throw new Error('Scenario turn revision was not retained')
+      await publishAttribution(turn.id, committed)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Scenario turn reconciliation failed')
     }
   }
 
-  const save = (event: FormEvent<HTMLFormElement>) => {
+  const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError('')
     try {
@@ -348,31 +413,43 @@ export function ScenarioTurnWorkspace({
       if (!content.trim()) throw new Error('Turn content is required')
       if (content.length > 200_000) throw new Error('Turn content is too large')
       const authorId = identity()
+      let turnId: string
+      let editId: string
+      let changed: ResearchScenario
       if (editSession.mode === 'create') {
-        createHumanScenarioTurn(doc, {
+        turnId = `scenario-turn-${uid()}`
+        editId = `scenario-turn-revision-${uid()}`
+        changed = createHumanScenarioTurn(doc, {
           scenarioId: scenario.id,
-          turnId: `scenario-turn-${uid()}`,
+          turnId,
           role,
           content,
           authorId,
           timestamp: now(),
-          editId: `scenario-turn-revision-${uid()}`,
+          editId,
         })
       } else {
-        editHumanScenarioTurn(doc, {
+        turnId = editSession.turnId
+        editId = `scenario-turn-revision-${uid()}`
+        changed = editHumanScenarioTurn(doc, {
           scenarioId: scenario.id,
           turnId: editSession.turnId,
           role,
           content,
           authorId,
           timestamp: now(),
-          editId: `scenario-turn-revision-${uid()}`,
+          editId,
           expectedCurrentEditId: editSession.expectedCurrentEditId,
         })
       }
       setEditSession(null)
       setRole('user')
       setContent('')
+      const committed = changed.turns.find(({ id }) => id === turnId)?.revisions.find(
+        (candidate) => candidate.editId === editId,
+      )
+      if (!committed) throw new Error('Scenario turn revision was not retained')
+      await publishAttribution(turnId, committed)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Scenario turn update failed')
     }
@@ -390,6 +467,8 @@ export function ScenarioTurnWorkspace({
     writesDisabled={writesDisabled}
     integrityIssues={integrityIssues}
     error={error}
+    turnAttribution={turnAttribution}
+    turnAttributionPending={turnAttributionPending}
     onOpenCreate={() => { setEditSession({ mode: 'create' }); setRole('user'); setContent(''); setError('') }}
     onOpenEdit={beginEdit}
     onReconcile={reconcile}

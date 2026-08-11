@@ -307,6 +307,11 @@ Choosing a sibling does not erase the others: the confirmation copy states that 
 recorded as a parent, and the resulting attributed merge revision becomes the new shared head.
 Stale or incomplete sibling choices fail visibly without changing history; a later sibling makes
 the conflict visible again. This flow performs no model call and never labels a selection correct.
+After a turn create, edit, or sibling reconciliation commits, the conversation panel reports
+registered-device attribution as pending, signed with a short key fingerprint, or explicitly
+unsigned. Signing failure never changes a saved turn into a failed edit, and the copy states that an
+installation signature is not a person or organization. A scenario/project switch suppresses any
+late attribution result.
 The panel also exposes support, oppose, abstain, and withdraw controls with aggregate counts, shared
 scenario/turn notes and flags with edit, resolve, and reopen history, plus project context-label
 creation, assignment, removal, and rename. A stale detail, turn, annotation, label, or assignment

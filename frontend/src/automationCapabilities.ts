@@ -13,6 +13,7 @@ export const AUTOMATION_CAPABILITIES = {
     'product and MCP scenario voting with best-effort registered-device exact-event attribution',
     'product and MCP scenario annotation lifecycle with best-effort registered-device exact-event attribution',
     'product and MCP scenario label lifecycle and assignment changes with best-effort registered-device exact-event attribution',
+    'product and MCP scenario turn create/edit/reconcile changes with best-effort registered-device exact-revision attribution',
     'product and MCP immutable policy save/restore checkpoints with best-effort registered-device exact-envelope attribution',
     'product scenario gallery, editing, voting, and stable-ID scenario links',
     'resumable MCP adversarial review jobs with exact document-source selection, native batch disclosure, cancellation, and no automatic shared mutation',
@@ -20,7 +21,7 @@ export const AUTOMATION_CAPABILITIES = {
     'content-minimized authoritative inspection and exact-revision configuration of this installation’s hosted relay approval policy',
   ],
   unavailable: [
-    'durable device attribution for research event domains other than scenario votes, annotations, labels, and policy versions',
+    'durable device attribution for research event domains other than scenario turns, votes, annotations, labels, and policy versions',
     'scenario generation, response evaluation, and spotlight/embed workflows',
     'real-time collaborator presence',
   ],

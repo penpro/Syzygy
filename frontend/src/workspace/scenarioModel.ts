@@ -134,6 +134,32 @@ function validTurnRevision(value: unknown): value is ScenarioTurnRevision {
     typeof revision.source === 'string' && revisionSources.has(revision.source as ScenarioTurnRevisionSource)
 }
 
+function encodeBase64Url(value: Uint8Array): string {
+  let binary = ''
+  for (const byte of value) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+export function canonicalScenarioTurnRevision(revision: ScenarioTurnRevision): string {
+  if (!validTurnRevision(revision)) throw new Error('Scenario turn revision event is invalid')
+  return JSON.stringify({
+    editId: revision.editId,
+    role: revision.role,
+    content: revision.content,
+    authorId: revision.authorId,
+    timestamp: revision.timestamp,
+    parentEditIds: [...revision.parentEditIds],
+    source: revision.source,
+  })
+}
+
+export async function scenarioTurnRevisionSha256(revision: ScenarioTurnRevision): Promise<string> {
+  const digest = await globalThis.crypto.subtle.digest(
+    'SHA-256', new TextEncoder().encode(canonicalScenarioTurnRevision(revision)),
+  )
+  return encodeBase64Url(new Uint8Array(digest))
+}
+
 const compareRevisions = (left: ScenarioTurnRevision, right: ScenarioTurnRevision) =>
   left.timestamp - right.timestamp || left.editId.localeCompare(right.editId) || left.authorId.localeCompare(right.authorId)
 
@@ -381,6 +407,19 @@ export function reconcileScenarioTurn(collection: Y.Map<unknown>, input: Reconci
     matches[0].set('headEditId', input.editId)
   })
   return readScenario(collection, input.scenarioId)!
+}
+
+export function readScenarioTurnRevision(
+  collection: Y.Map<unknown>,
+  scenarioId: string,
+  turnId: string,
+  editId: string,
+): ScenarioTurnRevision | null {
+  if (!stableId(scenarioId) || !stableId(turnId) || !stableId(editId)) return null
+  const scenario = readScenario(collection, scenarioId)
+  const turn = scenario?.turns.find((candidate) => candidate.id === turnId)
+  const revision = turn?.revisions.find((candidate) => candidate.editId === editId)
+  return revision ? { ...revision, parentEditIds: [...revision.parentEditIds] } : null
 }
 export function deleteScenarioTurn(collection: Y.Map<unknown>, scenarioId: string, turnId: string): ResearchScenario {
   const record = scenarioRecord(collection, scenarioId)

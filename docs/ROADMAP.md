@@ -87,7 +87,10 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   persisted legacy or role-specific bearer-invite product binding, and an app-managed private-LAN
   relay with bounded native lifecycle, recovery storage, digest-only member capabilities, enforced
   viewer/editor/admin writes, device-bound role enrollment, and signed remote room administration.
-  A five-client partition/reconnect soak now passes. Authenticated human identity, shared-directory
+  Successful remote mutations can now add a bounded, convergent, capability-free installation-signed
+  decision to shared project history; contradictory revision claims are retained and block extension.
+  This is explicitly not a relay receipt or directory-granted role. A five-client partition/reconnect
+  soak now passes. Authenticated human identity, shared-directory
   approval, administrator recovery, and packaged multi-install proof remain open.
 - The first original product node is now implemented but not yet interaction-verified: a Lexical
   `PolicyBlockNode` with stable

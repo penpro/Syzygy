@@ -333,6 +333,17 @@ only bounded public device metadata and omits hostile record bodies. This does n
 registration is append-only against a bearer peer, trusted enrollment, identity, role, shared
 approval/revocation, relay authorization, or a signed durable research event.
 
+`projectRelayAdminDecision.test.ts` is the shared remote-administration decision gate. It creates
+real WebCrypto Ed25519 keys and requires an exact native-compatible decision domain, canonical
+base64url, project/room/admin/action/expected-resulting-revision/affected-member/time/nonce binding,
+capability-free storage, idempotence, disconnected convergence, offline reopen, retained concurrent
+revision conflict, unregistered-key and cross-project denial, signer/result mismatch rejection, and
+500-decision/1,500-setting/eight-verification bounds. `npm run test:collaboration:identity` also
+verifies the Rust-produced decision signature in Node WebCrypto and rejects four signed-claim
+mutations. This proves a registered installation can publish its own post-mutation statement; it is
+not a relay-signed receipt, human identity, shared role grant, general research-event signature, or
+protection against deletion by a Yjs writer.
+
 The same suite includes `heuristicsModel.test.ts`. Forty seeded delivery orders prove concurrent
 field edits retain both values and attribution events, and another forty prove concurrent additions
 plus delete-versus-edit converge without resurrection. Invalid identity and conflicting edit-ID
@@ -1004,10 +1015,12 @@ connected and offline partition edits, verifies awareness removal/recovery, and 
 reconnect without allowing a document write. It then uses the reserved relay control path to prove a
 separately domain-signed status/issue/rotate/revoke sequence, exact-revision conflict, one-use admin
 replay denial, all-room peer eviction and fresh reauthentication, old/rotated/revoked credential
-denial, and digest-only storage. Every harness wait is internally bounded and the outer watchdog owns
+denial, project-ID binding, and digest-only storage. The separate decision-ledger test builds a
+strict capability-free post-mutation record from the exact returned project/room/revision/member
+shape and proves convergent conflict retention. Every harness wait is internally bounded and the outer watchdog owns
 the 120-second process-tree deadline. Repeat runs must pass; a close-before-message check drains the
 final Node WebSocket event for 25 ms rather than racing `readyState`.
 
 Together these do not prove authenticated humans or organizations, project-shared device approval,
 administrator-key recovery, trusted time, replacement-invitation delivery, public TLS/WSS, backup
-restoration, hostile-frame fuzzing, or physical packaged clients.
+restoration, relay-signed decision receipts, hostile-frame fuzzing, or physical packaged clients.

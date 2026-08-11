@@ -152,6 +152,10 @@ const collaborationRelayRotationEvidence = text('docs/audits/runs/MANAGED-RELAY-
 const relayRemoteAdminSource = text('frontend/src/workspace/relayRemoteAdmin.ts')
 const relayRemoteAdminTest = text('frontend/src/workspace/relayRemoteAdmin.test.ts')
 const relayRemoteAdminSoak = text('scripts/relay-remote-admin-soak.mjs')
+const projectRelayAdminDecisionSource = text('frontend/src/workspace/projectRelayAdminDecision.ts')
+const projectRelayAdminDecisionTest = text('frontend/src/workspace/projectRelayAdminDecision.test.ts')
+const projectRelayAdminDecisionUiTest = text('frontend/src/workspace/SelfHostedProjectControls.ui.test.tsx')
+const projectRelayAdminDecisionEvidence = text('docs/audits/runs/SIGNED-PROJECT-RELAY-ADMIN-DECISIONS-2026-08-11.json')
 const relayRemoteAdminEvidence = text('docs/audits/runs/MANAGED-RELAY-REMOTE-ADMIN-SOAK-2026-08-11.json')
 record(
   'app-managed collaboration relay remains private, bounded, durable, reaped, and identity-honest',
@@ -240,6 +244,7 @@ record(
 )
 
 const collaborationIdentitySource = text('frontend/src-tauri/src/collaboration_identity.rs')
+const collaborationIdentityInterop = text('scripts/collaboration-identity-interop.mjs')
 record(
   'device-bound relay administration and five-client recovery remain exact, bounded, and identity-honest',
   collaborationIdentitySource.includes('syzygy-relay-admin-action-v1') &&
@@ -264,11 +269,32 @@ record(
     relayRemoteAdminEvidence.includes('"status": "verified"'),
   'separate action-domain signature, exact revision, strict one-message control path, forced reauthentication, viewer transport filtering, awareness recovery, repeatable five-client binary soak, and human-identity nonclaims are present',
 )
+record(
+  'shared relay administration decisions remain signed, capability-free, convergent, and authority-honest',
+  collaborationIdentitySource.includes('syzygy-project-relay-admin-decision-v1') &&
+    collaborationIdentitySource.includes('collaboration_identity_sign_relay_admin_decision') &&
+    collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_relay_admin_decision') &&
+    projectRelayAdminDecisionSource.includes('MAX_PROJECT_RELAY_ADMIN_DECISIONS = 500') &&
+    projectRelayAdminDecisionSource.includes('MAX_RELAY_ADMIN_SETTINGS_SCAN = 1_500') &&
+    projectRelayAdminDecisionSource.includes('MAX_RELAY_ADMIN_DECISION_VERIFICATION_CONCURRENCY = 8') &&
+    projectRelayAdminDecisionSource.includes('Relay result does not prove the expected project revision transition') &&
+    projectRelayAdminDecisionSource.includes('Project relay administrator decision history is not safe to update') &&
+    projectRelayAdminDecisionTest.includes('without persisting the relay capability') &&
+    projectRelayAdminDecisionTest.includes('retains concurrent contradictory revision claims') &&
+    projectRelayAdminDecisionTest.includes('rejects cross-project replay') &&
+    projectRelayAdminDecisionUiTest.includes('distinguishes installation statements from relay or human authority') &&
+    projectRelayAdminDecisionUiTest.includes('accessible read-only warning') &&
+    websocketControlsSource.includes('The relay remains the membership authority') &&
+    websocketControlsSource.includes('shared signed history was not updated') &&
+    collaborationIdentityInterop.includes('relayAdminDecisionVerified: true') &&
+    collaborationIdentityInterop.includes('rejectedRelayAdminDecisionMutations: relayAdminDecisionMutations.length') &&
+    projectRelayAdminDecisionEvidence.includes('"status": "implemented_unverified"'),
+  'exact result/action signature, verified-directory signer, bounded Yjs inspection, conflict retention, capability exclusion, and relay/human-authority nonclaims are present',
+)
 
 const collaborationIdentityFrontend = text('frontend/src/workspace/deviceIdentity.ts')
 const collaborationIdentityPresence = text('frontend/src/workspace/ResearchPresence.tsx')
 const collaborationIdentitySettings = text('frontend/src/components/CollaborationIdentitySettings.tsx')
-const collaborationIdentityInterop = text('scripts/collaboration-identity-interop.mjs')
 const collaborationIdentityEvidence = text('docs/audits/runs/SIGNED-DEVICE-PRESENCE-2026-08-11.json')
 const relayDeviceEnrollmentSource = text('frontend/src/workspace/relayDeviceEnrollment.ts')
 const relayDeviceProviderTest = text('frontend/src/workspace/websocketProjectProvider.signed.test.ts')
@@ -308,12 +334,13 @@ record(
     collaborationIdentitySource.includes('IDENTITY_LOCK') &&
     collaborationIdentitySource.includes('collaboration_identity_sign_presence') &&
     collaborationIdentitySource.includes('collaboration_identity_sign_registration') &&
-    (collaborationIdentitySource.match(/#\[tauri::command\]/g)?.length ?? 0) === 5 &&
+    (collaborationIdentitySource.match(/#\[tauri::command\]/g)?.length ?? 0) === 6 &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_status') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_presence') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_registration') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_relay_access') &&
     collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_relay_admin') &&
+    collaborationRelayLib.includes('collaboration_identity::collaboration_identity_sign_relay_admin_decision') &&
     collaborationIdentityFrontend.includes("Object.keys(value).sort().join(',')") &&
     collaborationIdentityFrontend.includes("return 'unavailable'") &&
     collaborationIdentityFrontend.includes("? 'verified-device'") &&

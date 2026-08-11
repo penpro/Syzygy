@@ -141,9 +141,10 @@ function parseRelayAdminProof(value) {
     throw new Error('Rust relay administrator proof header was not exact')
   }
   if (!exactKeys(value.claim, [
-    'schemaVersion', 'roomId', 'administratorMemberId', 'expectedRevision', 'issuedAtMs', 'nonce',
-    'actionSha256',
+    'schemaVersion', 'projectId', 'roomId', 'administratorMemberId', 'expectedRevision',
+    'issuedAtMs', 'nonce', 'actionSha256',
   ]) || value.claim.schemaVersion !== 1 ||
+    !/^[A-Za-z0-9][A-Za-z0-9._:@-]{0,199}$/.test(value.claim.projectId) ||
     !/^[A-Za-z0-9_-]{32,128}$/.test(value.claim.roomId) ||
     !/^[A-Za-z0-9_-]{16,128}$/.test(value.claim.administratorMemberId) ||
     !Number.isSafeInteger(value.claim.expectedRevision) || value.claim.expectedRevision < 0 ||
@@ -155,6 +156,34 @@ function parseRelayAdminProof(value) {
   decodeBase64Url(value.signature, 64)
   if (!/^ed25519-sha256:[A-Za-z0-9_-]{43}$/.test(value.keyId)) {
     throw new Error('Rust relay administrator proof key ID was malformed')
+  }
+  return value
+}
+
+function parseRelayAdminDecisionProof(value) {
+  if (!exactKeys(value, ['schemaVersion', 'algorithm', 'keyId', 'publicKey', 'claim', 'signature']) ||
+    value.schemaVersion !== 1 || value.algorithm !== 'Ed25519') {
+    throw new Error('Rust project relay administrator decision proof header was not exact')
+  }
+  if (!exactKeys(value.claim, [
+    'schemaVersion', 'projectId', 'roomId', 'administratorMemberId', 'expectedRevision',
+    'resultingRevision', 'affectedMemberId', 'actionSha256', 'recordedAtMs', 'decisionNonce',
+  ]) || value.claim.schemaVersion !== 1 ||
+    !/^[A-Za-z0-9][A-Za-z0-9._:@-]{0,199}$/.test(value.claim.projectId) ||
+    !/^[A-Za-z0-9_-]{32,128}$/.test(value.claim.roomId) ||
+    !/^[A-Za-z0-9_-]{16,128}$/.test(value.claim.administratorMemberId) ||
+    !/^[A-Za-z0-9_-]{16,128}$/.test(value.claim.affectedMemberId) ||
+    !Number.isSafeInteger(value.claim.expectedRevision) || value.claim.expectedRevision < 1 ||
+    value.claim.resultingRevision !== value.claim.expectedRevision + 1 ||
+    !Number.isSafeInteger(value.claim.recordedAtMs) || value.claim.recordedAtMs < 1) {
+    throw new Error('Rust project relay administrator decision claim was not exact')
+  }
+  decodeBase64Url(value.claim.actionSha256, 32)
+  decodeBase64Url(value.claim.decisionNonce, 32)
+  decodeBase64Url(value.publicKey, 32)
+  decodeBase64Url(value.signature, 64)
+  if (!/^ed25519-sha256:[A-Za-z0-9_-]{43}$/.test(value.keyId)) {
+    throw new Error('Rust project relay administrator decision key ID was malformed')
   }
   return value
 }
@@ -193,12 +222,28 @@ function canonicalRelayAccessClaim(claim) {
 function canonicalRelayAdminClaim(claim) {
   return Buffer.from([
     'syzygy-relay-admin-action-v1',
+    claim.projectId,
     claim.roomId,
     claim.administratorMemberId,
     String(claim.expectedRevision),
     String(claim.issuedAtMs),
     claim.nonce,
     claim.actionSha256,
+  ].join('\n'), 'utf8')
+}
+
+function canonicalRelayAdminDecisionClaim(claim) {
+  return Buffer.from([
+    'syzygy-project-relay-admin-decision-v1',
+    claim.projectId,
+    claim.roomId,
+    claim.administratorMemberId,
+    String(claim.expectedRevision),
+    String(claim.resultingRevision),
+    claim.affectedMemberId,
+    claim.actionSha256,
+    String(claim.recordedAtMs),
+    claim.decisionNonce,
   ].join('\n'), 'utf8')
 }
 
@@ -235,16 +280,17 @@ const run = await runBounded(executable, [], {
 const lines = run.stdout.trim().split(/\r?\n/)
 if (lines.length !== 1) throw new Error('Rust identity harness did not emit exactly one JSON record')
 const output = JSON.parse(lines[0])
-if (!exactKeys(output, ['presence', 'registration', 'relayAccess', 'relayAdmin'])) {
+if (!exactKeys(output, ['presence', 'registration', 'relayAccess', 'relayAdmin', 'relayAdminDecision'])) {
   throw new Error('Rust identity harness output was not exact')
 }
 const proof = parsePresenceProof(output.presence)
 const registration = parseRegistrationProof(output.registration)
 const relayAccess = parseRelayAccessProof(output.relayAccess)
 const relayAdmin = parseRelayAdminProof(output.relayAdmin)
+const relayAdminDecision = parseRelayAdminDecisionProof(output.relayAdminDecision)
 if (proof.keyId !== registration.keyId || proof.keyId !== relayAccess.keyId ||
-  proof.keyId !== relayAdmin.keyId ||
-  proof.publicKey !== registration.publicKey) {
+  proof.keyId !== relayAdmin.keyId || proof.keyId !== relayAdminDecision.keyId ||
+  proof.publicKey !== registration.publicKey || proof.publicKey !== relayAdminDecision.publicKey) {
   throw new Error('Rust identity harness did not reuse one installation key')
 }
 if (!await verifies(proof, canonicalPresenceClaim)) {
@@ -258,6 +304,9 @@ if (!await verifiesWithPublicKey(relayAccess, canonicalRelayAccessClaim, proof.p
 }
 if (!await verifiesWithPublicKey(relayAdmin, canonicalRelayAdminClaim, proof.publicKey)) {
   throw new Error('WebCrypto rejected the canonical Rust relay administrator signature')
+}
+if (!await verifies(relayAdminDecision, canonicalRelayAdminDecisionClaim)) {
+  throw new Error('WebCrypto rejected the canonical Rust project relay administrator decision signature')
 }
 
 const mutations = [
@@ -292,6 +341,7 @@ for (const mutation of relayAccessMutations) {
   }
 }
 const relayAdminMutations = [
+  { ...relayAdmin, claim: { ...relayAdmin.claim, projectId: 'project-mutated' } },
   { ...relayAdmin, claim: { ...relayAdmin.claim, roomId: `room_${'z'.repeat(40)}` } },
   { ...relayAdmin, claim: { ...relayAdmin.claim, administratorMemberId: `member_${'z'.repeat(24)}` } },
   { ...relayAdmin, claim: { ...relayAdmin.claim, expectedRevision: 12 } },
@@ -302,6 +352,17 @@ const relayAdminMutations = [
 for (const mutation of relayAdminMutations) {
   if (await verifiesWithPublicKey(mutation, canonicalRelayAdminClaim, proof.publicKey)) {
     throw new Error('WebCrypto accepted a mutated Rust relay administrator claim')
+  }
+}
+const relayAdminDecisionMutations = [
+  { ...relayAdminDecision, claim: { ...relayAdminDecision.claim, projectId: 'project-mutated' } },
+  { ...relayAdminDecision, claim: { ...relayAdminDecision.claim, resultingRevision: 13 } },
+  { ...relayAdminDecision, claim: { ...relayAdminDecision.claim, affectedMemberId: `member_${'z'.repeat(24)}` } },
+  { ...relayAdminDecision, claim: { ...relayAdminDecision.claim, actionSha256: 'z'.repeat(43) } },
+]
+for (const mutation of relayAdminDecisionMutations) {
+  if (await verifies(mutation, canonicalRelayAdminDecisionClaim)) {
+    throw new Error('WebCrypto accepted a mutated Rust project relay administrator decision')
   }
 }
 const serialized = JSON.stringify(output).toLowerCase()
@@ -320,6 +381,8 @@ console.log(JSON.stringify({
   rejectedRelayAccessMutations: relayAccessMutations.length,
   relayAdminVerified: true,
   rejectedRelayAdminMutations: relayAdminMutations.length,
+  relayAdminDecisionVerified: true,
+  rejectedRelayAdminDecisionMutations: relayAdminDecisionMutations.length,
   privateMaterialExposed: false,
   exactSameSessionReplayRejected: false,
   replayBoundary: 'presence proof binds project, document, participant, awareness client, and random session nonce but remains replayable in that exact awareness context; relay access uses a separate fresh-proof boundary',

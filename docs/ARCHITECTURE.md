@@ -302,7 +302,17 @@ SHA-256 digest, room, admin member, exact revision, issue time, and nonce are si
 `syzygy-relay-admin-action-v1` domain. Status uses revision zero; mutations hold the relay state lock,
 durably replace and reload the registry, and evict every room peer so product providers obtain a fresh
 signature before reconnecting. Issue requires the recipient's public device enrollment; responses
-return a new capability only once. Rooms absent from the registry retain explicit legacy room-bearer compatibility. A member may additionally store one
+return a new capability only once. The action claim also binds the immutable project ID. After a
+successful remote mutation, the administering installation may sign a second
+`syzygy-project-relay-admin-decision-v1` claim over the project, room, administrator member,
+expected/resulting revisions, affected member, semantic action hash, record time, and random nonce.
+The product stores the strict proof plus the capability-free action in shared Yjs project settings
+only when that key is an unconflicted entry in the independently verified project-device directory.
+Reads cap the ledger at 500 decisions, the settings scan at 1,500 entries, and cryptographic batches
+at eight. Concurrent contradictory claims for one resulting revision are retained and make the
+ledger read-only. This is a post-mutation statement by an installation key, not a relay-signed
+receipt, human identity, shared role grant, or proof that the relay result was truthful; host-local
+mutations are not recorded by this path. Rooms absent from the registry retain explicit legacy room-bearer compatibility. A member may additionally store one
 validated Ed25519 public enrollment. Bound connections sign the exact room/member/capability/
 generation plus a 32-byte nonce and issue time; the relay accepts at most a one-minute-old proof,
 allows 15 seconds of forward clock skew, and atomically consumes it in a bounded 4,096-entry replay

@@ -208,6 +208,16 @@ confidential from the relay host. The active remote administrator cannot revoke 
 from these controls; the relay-host installation or a different administrator must perform that
 irreversible handoff so the current installation is not silently stranded.
 
+After a successful remote issue, rotate, or revoke, the controls attempt to add an
+installation-signed statement to **Shared signed decisions** in the collaborative project. Show the
+action, resulting relay revision, short installation fingerprint, and record time, never a member
+capability. Copy must say the relay remains the membership authority and that this project record is
+not a relay receipt, person, or organization. A missing project mount, unregistered/conflicted key,
+invalid history, or signature failure must not hide or roll back the already successful relay
+mutation; instead, state that the relay changed but shared history did not. Conflicting claims for
+one resulting revision remain visible and make the history read-only. Do not record host-local
+commands through this remote-device path or imply that the directory itself granted admin access.
+
 Settings includes **App-managed research relay**, visibly separate from the developer MCP network.
 The control owns enablement, one explicit private/loopback IP, port, real process status, storage
 path, bounded-persistence label, and a copyable endpoint. It says the relay is bundled and requires
@@ -253,7 +263,7 @@ shared directory action.
 Self-hosted WS/WSS synchronization, an app-managed private-LAN relay, relay-enforced
 viewer/editor/admin roles, optional signed installation-key-to-role binding, and device-bound remote
 room administration are implemented. Human/organizational identity, project-shared approval,
-administrator recovery, durable-event signatures, public
+administrator recovery, general research-event signatures, relay-signed administration receipts, public
 WSS hosting, and backup administration remain open. The portable archive is still a separate
 handoff that creates independent local state after import and contains no relay invitation.
 The scenario panel is an engine-free shared workspace, not an AI demo. It shows honest loading,

@@ -26,6 +26,8 @@ const RELAY_ACCESS_SCHEMA_VERSION: u8 = 1;
 const RELAY_ACCESS_DOMAIN: &str = "syzygy-relay-member-access-v1";
 const RELAY_ADMIN_SCHEMA_VERSION: u8 = 1;
 const RELAY_ADMIN_DOMAIN: &str = "syzygy-relay-admin-action-v1";
+const RELAY_ADMIN_DECISION_SCHEMA_VERSION: u8 = 1;
+const RELAY_ADMIN_DECISION_DOMAIN: &str = "syzygy-project-relay-admin-decision-v1";
 const MAX_STORED_IDENTITY_BYTES: usize = 1_024;
 static IDENTITY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -78,12 +80,28 @@ pub struct RelayAccessIdentityClaim {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RelayAdminIdentityClaim {
     pub schema_version: u8,
+    pub project_id: String,
     pub room_id: String,
     pub administrator_member_id: String,
     pub expected_revision: u64,
     pub issued_at_ms: u64,
     pub nonce: String,
     pub action_sha256: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectRelayAdminDecisionClaim {
+    pub schema_version: u8,
+    pub project_id: String,
+    pub room_id: String,
+    pub administrator_member_id: String,
+    pub expected_revision: u64,
+    pub resulting_revision: u64,
+    pub affected_member_id: String,
+    pub action_sha256: String,
+    pub recorded_at_ms: u64,
+    pub decision_nonce: String,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -142,11 +160,23 @@ pub struct RelayAdminIdentityProof {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+pub struct ProjectRelayAdminDecisionProof {
+    pub schema_version: u8,
+    pub algorithm: String,
+    pub key_id: String,
+    pub public_key: String,
+    pub claim: ProjectRelayAdminDecisionClaim,
+    pub signature: String,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct CollaborationIdentityInteropProofs {
     pub presence: DevicePresenceProof,
     pub registration: ProjectDeviceRegistrationProof,
     pub relay_access: RelayAccessIdentityProof,
     pub relay_admin: RelayAdminIdentityProof,
+    pub relay_admin_decision: ProjectRelayAdminDecisionProof,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -351,6 +381,7 @@ fn validate_relay_access_claim(claim: &RelayAccessIdentityClaim) -> Result<(), I
 
 fn validate_relay_admin_claim(claim: &RelayAdminIdentityClaim) -> Result<(), IdentityError> {
     if claim.schema_version != RELAY_ADMIN_SCHEMA_VERSION
+        || !stable_id(&claim.project_id)
         || !stable_id(&claim.room_id)
         || !(32..=128).contains(&claim.room_id.len())
         || !stable_id(&claim.administrator_member_id)
@@ -371,6 +402,34 @@ fn validate_relay_admin_claim(claim: &RelayAdminIdentityClaim) -> Result<(), Ide
         || URL_SAFE_NO_PAD.encode(&action_sha256) != claim.action_sha256
     {
         return Err(IdentityError::InvalidClaim);
+    }
+    Ok(())
+}
+
+fn validate_relay_admin_decision_claim(
+    claim: &ProjectRelayAdminDecisionClaim,
+) -> Result<(), IdentityError> {
+    if claim.schema_version != RELAY_ADMIN_DECISION_SCHEMA_VERSION
+        || !stable_id(&claim.project_id)
+        || !stable_id(&claim.room_id)
+        || !(32..=128).contains(&claim.room_id.len())
+        || !stable_id(&claim.administrator_member_id)
+        || !(16..=128).contains(&claim.administrator_member_id.len())
+        || !stable_id(&claim.affected_member_id)
+        || !(16..=128).contains(&claim.affected_member_id.len())
+        || claim.expected_revision == 0
+        || claim.recorded_at_ms == 0
+        || claim.expected_revision.checked_add(1) != Some(claim.resulting_revision)
+    {
+        return Err(IdentityError::InvalidClaim);
+    }
+    for value in [&claim.action_sha256, &claim.decision_nonce] {
+        let decoded = URL_SAFE_NO_PAD
+            .decode(value)
+            .map_err(|_| IdentityError::InvalidClaim)?;
+        if decoded.len() != 32 || URL_SAFE_NO_PAD.encode(&decoded) != *value {
+            return Err(IdentityError::InvalidClaim);
+        }
     }
     Ok(())
 }
@@ -416,13 +475,33 @@ pub fn canonical_relay_access_claim(claim: &RelayAccessIdentityClaim) -> Result<
 pub fn canonical_relay_admin_claim(claim: &RelayAdminIdentityClaim) -> Result<Vec<u8>, String> {
     validate_relay_admin_claim(claim).map_err(|error| error.to_string())?;
     Ok(format!(
-        "{RELAY_ADMIN_DOMAIN}\n{}\n{}\n{}\n{}\n{}\n{}",
+        "{RELAY_ADMIN_DOMAIN}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+        claim.project_id,
         claim.room_id,
         claim.administrator_member_id,
         claim.expected_revision,
         claim.issued_at_ms,
         claim.nonce,
         claim.action_sha256,
+    )
+    .into_bytes())
+}
+
+pub fn canonical_relay_admin_decision_claim(
+    claim: &ProjectRelayAdminDecisionClaim,
+) -> Result<Vec<u8>, String> {
+    validate_relay_admin_decision_claim(claim).map_err(|error| error.to_string())?;
+    Ok(format!(
+        "{RELAY_ADMIN_DECISION_DOMAIN}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+        claim.project_id,
+        claim.room_id,
+        claim.administrator_member_id,
+        claim.expected_revision,
+        claim.resulting_revision,
+        claim.affected_member_id,
+        claim.action_sha256,
+        claim.recorded_at_ms,
+        claim.decision_nonce,
     )
     .into_bytes())
 }
@@ -499,6 +578,25 @@ fn sign_relay_admin(
     })
 }
 
+fn sign_relay_admin_decision(
+    identity: &StoredIdentity,
+    claim: ProjectRelayAdminDecisionClaim,
+) -> Result<ProjectRelayAdminDecisionProof, IdentityError> {
+    let message =
+        canonical_relay_admin_decision_claim(&claim).map_err(|_| IdentityError::InvalidClaim)?;
+    let key_pair = key_pair(identity)?;
+    let public_key = key_pair.public_key().as_ref();
+    let fingerprint = fingerprint(public_key);
+    Ok(ProjectRelayAdminDecisionProof {
+        schema_version: RELAY_ADMIN_DECISION_SCHEMA_VERSION,
+        algorithm: "Ed25519".into(),
+        key_id: format!("ed25519-sha256:{fingerprint}"),
+        public_key: URL_SAFE_NO_PAD.encode(public_key),
+        claim,
+        signature: URL_SAFE_NO_PAD.encode(key_pair.sign(&message).as_ref()),
+    })
+}
+
 pub fn validate_relay_device_identity(key_id: &str, public_key: &str) -> Result<Vec<u8>, String> {
     let decoded = URL_SAFE_NO_PAD
         .decode(public_key)
@@ -548,6 +646,25 @@ pub fn verify_relay_admin_signature(
     UnparsedPublicKey::new(&ED25519, public_key)
         .verify(&message, &decoded_signature)
         .map_err(|_| "Relay administrator device signature did not verify".to_string())
+}
+
+pub fn verify_project_relay_admin_decision_proof(
+    proof: &ProjectRelayAdminDecisionProof,
+) -> Result<(), String> {
+    if proof.schema_version != RELAY_ADMIN_DECISION_SCHEMA_VERSION || proof.algorithm != "Ed25519" {
+        return Err("Project relay administrator decision proof header is invalid".into());
+    }
+    let public_key = validate_relay_device_identity(&proof.key_id, &proof.public_key)?;
+    let signature = URL_SAFE_NO_PAD
+        .decode(&proof.signature)
+        .map_err(|_| "Project relay administrator decision signature is invalid".to_string())?;
+    if signature.len() != 64 || URL_SAFE_NO_PAD.encode(&signature) != proof.signature {
+        return Err("Project relay administrator decision signature is invalid".into());
+    }
+    let message = canonical_relay_admin_decision_claim(&proof.claim)?;
+    UnparsedPublicKey::new(&ED25519, public_key)
+        .verify(&message, &signature)
+        .map_err(|_| "Project relay administrator decision signature did not verify".to_string())
 }
 
 pub fn verify_presence_proof(proof: &DevicePresenceProof) -> Result<(), String> {
@@ -613,6 +730,7 @@ pub fn ephemeral_identity_interop_proofs(
     registration_claim: ProjectDeviceRegistrationClaim,
     relay_access_claim: RelayAccessIdentityClaim,
     relay_admin_claim: RelayAdminIdentityClaim,
+    relay_admin_decision_claim: ProjectRelayAdminDecisionClaim,
 ) -> Result<CollaborationIdentityInteropProofs, String> {
     let identity = generate_identity().map_err(|error| error.to_string())?;
     Ok(CollaborationIdentityInteropProofs {
@@ -622,6 +740,8 @@ pub fn ephemeral_identity_interop_proofs(
         relay_access: sign_relay_access(&identity, relay_access_claim)
             .map_err(|error| error.to_string())?,
         relay_admin: sign_relay_admin(&identity, relay_admin_claim)
+            .map_err(|error| error.to_string())?,
+        relay_admin_decision: sign_relay_admin_decision(&identity, relay_admin_decision_claim)
             .map_err(|error| error.to_string())?,
     })
 }
@@ -677,6 +797,17 @@ pub fn collaboration_identity_sign_relay_admin(
         .map_err(|_| "OS collaboration identity storage is unavailable".to_string())?;
     let identity = load_or_create(&OsIdentityStore).map_err(|error| error.to_string())?;
     sign_relay_admin(&identity, claim).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn collaboration_identity_sign_relay_admin_decision(
+    claim: ProjectRelayAdminDecisionClaim,
+) -> Result<ProjectRelayAdminDecisionProof, String> {
+    let _guard = IDENTITY_LOCK
+        .lock()
+        .map_err(|_| "OS collaboration identity storage is unavailable".to_string())?;
+    let identity = load_or_create(&OsIdentityStore).map_err(|error| error.to_string())?;
+    sign_relay_admin_decision(&identity, claim).map_err(|error| error.to_string())
 }
 
 #[cfg(test)]
@@ -737,12 +868,28 @@ mod tests {
     fn relay_admin_claim() -> RelayAdminIdentityClaim {
         RelayAdminIdentityClaim {
             schema_version: 1,
+            project_id: "project-relay-admin".into(),
             room_id: "room_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
             administrator_member_id: "member_bbbbbbbbbbbbbbbbbbbbbbbb".into(),
             expected_revision: 7,
             issued_at_ms: 1_700_000_000_000,
             nonce: "n4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
             action_sha256: "h4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
+        }
+    }
+
+    fn relay_admin_decision_claim() -> ProjectRelayAdminDecisionClaim {
+        ProjectRelayAdminDecisionClaim {
+            schema_version: 1,
+            project_id: "project-relay-admin".into(),
+            room_id: "room_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+            administrator_member_id: "member_bbbbbbbbbbbbbbbbbbbbbbbb".into(),
+            expected_revision: 7,
+            resulting_revision: 8,
+            affected_member_id: "member_cccccccccccccccccccccccc".into(),
+            action_sha256: "h4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
+            recorded_at_ms: 1_700_000_000_100,
+            decision_nonce: "d4FQe-J9xYRu0cXm1pWd7gHo2Lk8BvSz5TaUcEiOjM0".into(),
         }
     }
 
@@ -862,6 +1009,7 @@ mod tests {
         .unwrap();
 
         for mutate in [
+            |claim: &mut RelayAdminIdentityClaim| claim.project_id.push('x'),
             |claim: &mut RelayAdminIdentityClaim| claim.expected_revision += 1,
             |claim: &mut RelayAdminIdentityClaim| claim.issued_at_ms += 1,
             |claim: &mut RelayAdminIdentityClaim| claim.action_sha256.replace_range(..1, "i"),
@@ -875,6 +1023,25 @@ mod tests {
                 &proof.signature,
             )
             .is_err());
+        }
+    }
+
+    #[test]
+    fn durable_relay_admin_decision_binds_project_action_result_and_affected_member() {
+        let identity = generate_identity().unwrap();
+        let proof = sign_relay_admin_decision(&identity, relay_admin_decision_claim()).unwrap();
+        verify_project_relay_admin_decision_proof(&proof).unwrap();
+
+        for mutate in [
+            |claim: &mut ProjectRelayAdminDecisionClaim| claim.resulting_revision += 1,
+            |claim: &mut ProjectRelayAdminDecisionClaim| claim.affected_member_id.push('x'),
+            |claim: &mut ProjectRelayAdminDecisionClaim| {
+                claim.action_sha256.replace_range(..1, "i")
+            },
+        ] {
+            let mut changed = proof.clone();
+            mutate(&mut changed.claim);
+            assert!(verify_project_relay_admin_decision_proof(&changed).is_err());
         }
     }
 }

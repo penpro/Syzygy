@@ -15,6 +15,7 @@ import {
   type RelayRoomMembershipReport,
 } from '../tauri'
 import type { ResearchProjectManifest } from './schema'
+import { getProjectSharedTypes } from './projectModel'
 import {
   createWebsocketRoomId,
   normalizeWebsocketProjectBinding,
@@ -31,7 +32,20 @@ import {
   type WebsocketProjectStatus,
 } from './websocketProjectStatus'
 import { parseRelayDeviceEnrollment } from './relayDeviceEnrollment'
-import { runRelayRemoteAdminAction } from './relayRemoteAdmin'
+import {
+  runRelayRemoteAdminAction,
+  type RelayRemoteAdminAction,
+  type RelayRemoteAdminResult,
+} from './relayRemoteAdmin'
+import { getProjectPresence, subscribeProjectPresence } from './presenceRegistry'
+import { inspectProjectDeviceDirectory } from './projectDeviceDirectory'
+import {
+  createProjectRelayAdminDecisionRecord,
+  describeRelayAdminDecisionAction,
+  inspectProjectRelayAdminDecisions,
+  publishProjectRelayAdminDecision,
+  type ProjectRelayAdminDecisionInspection,
+} from './projectRelayAdminDecision'
 
 function errorText(value: unknown): string {
   return value instanceof Error ? value.message : String(value)
@@ -88,6 +102,36 @@ function expirationCopy(expiresAtMs: number | null): string {
   return expiresAtMs <= Date.now() ? `expired ${timestamp}` : `expires ${timestamp}`
 }
 
+export function SharedRelayAdminDecisionHistory({
+  inspection,
+}: {
+  inspection: ProjectRelayAdminDecisionInspection
+}) {
+  return <div aria-label="Shared relay administration history">
+    <div className="workspace-panel-label mono">
+      Shared signed decisions · {inspection.decisionCount}
+    </div>
+    <p>
+      These project records are signed statements from registered installation keys after
+      successful remote changes. The relay remains the membership authority; these records
+      are not relay receipts and do not establish a person or organization.
+    </p>
+    {!inspection.healthy ? <p className="drive-project-message error" role="alert">
+      Signed decision history is read-only because it contains {inspection.invalidRecords}{' '}
+      invalid, {inspection.unavailableRecords} unavailable, and{' '}
+      {inspection.conflictingRevisions} conflicting revision records.
+    </p> : null}
+    {inspection.decisions.length ? <ul>
+      {inspection.decisions.slice(-5).reverse().map((decision) => <li key={decision.storageKey}>
+        Revision {decision.proof.claim.resultingRevision} ·{' '}
+        {describeRelayAdminDecisionAction(decision.action)} · installation{' '}
+        {decision.proof.keyId.slice(-8)} ·{' '}
+        {new Date(decision.proof.claim.recordedAtMs).toISOString()}
+      </li>)}
+    </ul> : <p>No registered installation has added a remote administration decision yet.</p>}
+  </div>
+}
+
 function useWebsocketProjectStatus(projectId: string | null): WebsocketProjectStatus | null {
   const [status, setStatus] = useState<WebsocketProjectStatus | null>(
     () => projectId ? getWebsocketProjectStatus(projectId) : null,
@@ -131,6 +175,8 @@ export function SelfHostedProjectControls({
   const [deviceEnrollmentInput, setDeviceEnrollmentInput] = useState('')
   const [membership, setMembership] = useState<RelayRoomMembershipReport | null>(initialMembership)
   const [managedRelayEndpoint, setManagedRelayEndpoint] = useState(suppliedManagedRelayEndpoint ?? '')
+  const [presenceRevision, setPresenceRevision] = useState(0)
+  const [decisionInspection, setDecisionInspection] = useState<ProjectRelayAdminDecisionInspection | null>(null)
   const websocketProject = project?.transport.kind === 'websocket' ? project : null
   const websocketBinding = project?.transport.kind === 'websocket' ? project.transport : null
   const status = useWebsocketProjectStatus(websocketProject?.id ?? null)
@@ -152,6 +198,75 @@ export function SelfHostedProjectControls({
   const selectedLifetimeSeconds = inviteLifetime === 'never' ? null : Number(inviteLifetime)
 
   useEffect(() => {
+    if (!websocketProject) return
+    return subscribeProjectPresence(websocketProject.id, () => setPresenceRevision((value) => value + 1))
+  }, [websocketProject?.id])
+
+  useEffect(() => {
+    let disposed = false
+    let refreshId = 0
+    setDecisionInspection(null)
+    if (!websocketProject) return () => { disposed = true }
+    const presence = getProjectPresence(websocketProject.id)
+    if (!presence) return () => { disposed = true }
+    const settings = getProjectSharedTypes(presence.awareness.doc).settings
+    const refresh = () => {
+      const currentRefresh = ++refreshId
+      void inspectProjectDeviceDirectory(settings, websocketProject.id)
+        .then((directory) => inspectProjectRelayAdminDecisions(settings, websocketProject.id, directory))
+        .then((inspection) => {
+          if (!disposed && currentRefresh === refreshId) setDecisionInspection(inspection)
+        })
+        .catch(() => {
+          if (!disposed && currentRefresh === refreshId) setDecisionInspection(null)
+        })
+    }
+    settings.observe(refresh)
+    refresh()
+    return () => {
+      disposed = true
+      settings.unobserve(refresh)
+    }
+  }, [presenceRevision, websocketProject?.id])
+
+  const recordRemoteDecision = async (
+    action: RelayRemoteAdminAction,
+    expectedRevision: number,
+    result: RelayRemoteAdminResult,
+  ): Promise<string> => {
+    const access = websocketBinding?.access
+    if (!websocketProject || !websocketBinding || access?.schemaVersion !== 3 || access.role !== 'admin') {
+      return ' The relay applied the action, but this installation could not construct its shared signed decision.'
+    }
+    const presence = getProjectPresence(websocketProject.id)
+    if (!presence) {
+      return ' The relay applied the action; its installation-signed decision will not appear in shared history because project collaboration is not mounted.'
+    }
+    try {
+      const settings = getProjectSharedTypes(presence.awareness.doc).settings
+      const directory = await inspectProjectDeviceDirectory(settings, websocketProject.id)
+      const record = await createProjectRelayAdminDecisionRecord(
+        websocketProject.id,
+        websocketBinding.roomId,
+        access.memberId,
+        expectedRevision,
+        action,
+        result,
+      )
+      const inspection = await publishProjectRelayAdminDecision(
+        settings,
+        websocketProject.id,
+        directory,
+        record,
+      )
+      setDecisionInspection(inspection)
+      return ' Its installation-signed decision was added to shared project history.'
+    } catch (value) {
+      return ` The relay applied the action, but shared signed history was not updated: ${errorText(value)}`
+    }
+  }
+
+  useEffect(() => {
     if (suppliedManagedRelayEndpoint !== undefined || !desktopRuntimeAvailable()) return
     let disposed = false
     void collaborationRelaySettings()
@@ -169,7 +284,8 @@ export function SelfHostedProjectControls({
     let disposed = false
     const request = hostLocalBinding
       ? collaborationRelayRoomStatus(websocketBinding.roomId)
-      : runRelayRemoteAdminAction(websocketBinding, { kind: 'status' }, 0).then((result) => result.room)
+      : runRelayRemoteAdminAction(websocketProject.id, websocketBinding, { kind: 'status' }, 0)
+        .then((result) => result.room)
     void request
       .then((report) => { if (!disposed && report.projectId === websocketProject.id) setMembership(report) })
       .catch((value) => { if (!disposed) setError(errorText(value)) })
@@ -256,21 +372,25 @@ export function SelfHostedProjectControls({
     setIssuedInviteExpiresAtMs(null)
     try {
       const device = await parseRelayDeviceEnrollment(deviceEnrollmentInput)
+      const expectedRevision = membership.registryRevision
+      const action: RelayRemoteAdminAction = {
+        kind: 'issue',
+        role: inviteRole,
+        expiresInSeconds: selectedLifetimeSeconds,
+        device,
+      }
+      let historyMessage = ''
       const issued = hostLocalBinding
         ? await collaborationRelayMemberIssue(
           websocketBinding.roomId,
-          membership.registryRevision,
+          expectedRevision,
           inviteRole,
           selectedLifetimeSeconds,
           device,
         )
-        : await runRelayRemoteAdminAction(websocketBinding, {
-          kind: 'issue',
-          role: inviteRole,
-          expiresInSeconds: selectedLifetimeSeconds,
-          device,
-        }, membership.registryRevision).then((result) => {
+        : await runRelayRemoteAdminAction(websocketProject.id, websocketBinding, action, expectedRevision).then(async (result) => {
           if (!result.credential) throw new Error('Relay did not return the newly issued credential')
+          historyMessage = await recordRemoteDecision(action, expectedRevision, result)
           return { credential: result.credential, room: result.room }
         })
       const invite = createManagedWebsocketProjectInvite(websocketProject, {
@@ -281,7 +401,7 @@ export function SelfHostedProjectControls({
       setIssuedInvite(invite)
       setIssuedInviteRole(issued.credential.role)
       setIssuedInviteExpiresAtMs(issued.credential.expiresAtMs)
-      setMessage(`${inviteRole} invitation issued with ${expirationCopy(issued.credential.expiresAtMs)}. This is the only copy of its member capability.`)
+      setMessage(`${inviteRole} invitation issued with ${expirationCopy(issued.credential.expiresAtMs)}. This is the only copy of its member capability.${historyMessage}`)
     } catch (value) {
       setError(errorText(value))
     } finally {
@@ -300,21 +420,25 @@ export function SelfHostedProjectControls({
       const device = deviceEnrollmentInput.trim()
         ? await parseRelayDeviceEnrollment(deviceEnrollmentInput)
         : null
+      const expectedRevision = membership.registryRevision
+      const action: RelayRemoteAdminAction = {
+        kind: 'rotate',
+        memberId,
+        expiresInSeconds: selectedLifetimeSeconds,
+        device,
+      }
+      let historyMessage = ''
       const rotated = hostLocalBinding
         ? await collaborationRelayMemberRotate(
           websocketBinding.roomId,
           memberId,
-          membership.registryRevision,
+          expectedRevision,
           selectedLifetimeSeconds,
           device,
         )
-        : await runRelayRemoteAdminAction(websocketBinding, {
-          kind: 'rotate',
-          memberId,
-          expiresInSeconds: selectedLifetimeSeconds,
-          device,
-        }, membership.registryRevision).then((result) => {
+        : await runRelayRemoteAdminAction(websocketProject.id, websocketBinding, action, expectedRevision).then(async (result) => {
           if (!result.credential) throw new Error('Relay did not return the rotated credential')
+          historyMessage = await recordRemoteDecision(action, expectedRevision, result)
           return { credential: result.credential, room: result.room }
         })
       const access = memberAccess(rotated.credential)
@@ -329,7 +453,7 @@ export function SelfHostedProjectControls({
       setIssuedInvite(invite)
       setIssuedInviteRole(rotated.credential.role)
       setIssuedInviteExpiresAtMs(rotated.credential.expiresAtMs)
-      setMessage(`Member capability rotated to generation ${rotated.credential.capabilityGeneration} with ${expirationCopy(rotated.credential.expiresAtMs)}. The previous invitation can no longer connect.`)
+      setMessage(`Member capability rotated to generation ${rotated.credential.capabilityGeneration} with ${expirationCopy(rotated.credential.expiresAtMs)}. The previous invitation can no longer connect.${historyMessage}`)
     } catch (value) {
       setError(errorText(value))
     } finally {
@@ -338,7 +462,7 @@ export function SelfHostedProjectControls({
   }
 
   const revoke = async (memberId: string) => {
-    if (!websocketBinding || !membership || busy) return
+    if (!websocketProject || !websocketBinding || !membership || busy) return
     if (!hostLocalBinding && websocketBinding.access?.memberId === memberId) {
       setError('The active remote administrator cannot revoke itself. Use the relay-host installation or another administrator.')
       return
@@ -346,17 +470,22 @@ export function SelfHostedProjectControls({
     setBusy(true)
     setError('')
     try {
+      const expectedRevision = membership.registryRevision
+      const action: RelayRemoteAdminAction = { kind: 'revoke', memberId }
+      let historyMessage = ''
       const next = hostLocalBinding
         ? await collaborationRelayMemberRevoke(
           websocketBinding.roomId,
           memberId,
-          membership.registryRevision,
+          expectedRevision,
         )
-        : await runRelayRemoteAdminAction(websocketBinding, {
-          kind: 'revoke', memberId,
-        }, membership.registryRevision).then((result) => result.room)
+        : await runRelayRemoteAdminAction(websocketProject.id, websocketBinding, action, expectedRevision)
+          .then(async (result) => {
+            historyMessage = await recordRemoteDecision(action, expectedRevision, result)
+            return result.room
+          })
       setMembership(next)
-      setMessage('Member revoked. The relay disconnected room clients so every connection must authenticate again.')
+      setMessage(`Member revoked. The relay disconnected room clients so every connection must authenticate again.${historyMessage}`)
     } catch (value) {
       setError(errorText(value))
     } finally {
@@ -506,6 +635,7 @@ export function SelfHostedProjectControls({
             leave the field empty to retain the current device binding, or paste a new request to
             move access to a replacement installation.
           </p>
+          {decisionInspection ? <SharedRelayAdminDecisionHistory inspection={decisionInspection} /> : null}
           {issuedInvite ? <>
             <label className="self-hosted-invite-field">
               <span>New {issuedInviteRole} invitation · {expirationCopy(issuedInviteExpiresAtMs)} · shown for this issuance</span>

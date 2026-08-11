@@ -101,7 +101,7 @@ function dependencies(response: unknown) {
 describe('remote relay administration', () => {
   it('binds status to the same fresh device proof and accepts a strict room response', async () => {
     const harness = dependencies({ schemaVersion: 1, ok: true, error: null, room, credential: null })
-    const result = await runRelayRemoteAdminAction(binding, { kind: 'status' }, 0, harness.deps)
+    const result = await runRelayRemoteAdminAction('project-remote-admin', binding, { kind: 'status' }, 0, harness.deps)
 
     expect(result).toEqual({ room, credential: null })
     expect(harness.url()).toContain(`/__syzygy_relay_admin_v1/${roomId}?`)
@@ -109,6 +109,7 @@ describe('remote relay administration', () => {
     const accessClaim = harness.signAccess.mock.calls[0][0]
     const adminClaim = harness.signAdmin.mock.calls[0][0]
     expect(adminClaim).toMatchObject({
+      projectId: 'project-remote-admin',
       roomId,
       administratorMemberId: memberId,
       expectedRevision: 0,
@@ -151,6 +152,7 @@ describe('remote relay administration', () => {
       credential: null,
     })
     await expect(runRelayRemoteAdminAction(
+      'project-remote-admin',
       binding,
       { kind: 'revoke', memberId: 'x'.repeat(22) },
       6,
@@ -158,6 +160,7 @@ describe('remote relay administration', () => {
     )).rejects.toThrow('refresh and try again')
 
     await expect(runRelayRemoteAdminAction(
+      'project-remote-admin',
       { ...binding, access: { ...binding.access!, role: 'editor' } },
       { kind: 'status' },
       0,
@@ -165,6 +168,7 @@ describe('remote relay administration', () => {
     )).rejects.toThrow('administrator access')
 
     await expect(runRelayRemoteAdminAction(
+      'project-remote-admin',
       binding,
       { kind: 'status' },
       0,
@@ -173,6 +177,12 @@ describe('remote relay administration', () => {
   })
 
   it('accepts only an exact credential schema at the same registry revision', async () => {
+    const action = {
+      kind: 'issue' as const,
+      role: 'viewer' as const,
+      expiresInSeconds: null,
+      device: { schemaVersion: 1 as const, algorithm: 'Ed25519' as const, keyId, publicKey: 'p'.repeat(43) },
+    }
     const credential = {
       schemaVersion: 3,
       roomId,
@@ -187,7 +197,7 @@ describe('remote relay administration', () => {
     const accepted = dependencies({
       schemaVersion: 1, ok: true, error: null, room, credential,
     })
-    await expect(runRelayRemoteAdminAction(binding, { kind: 'status' }, 0, accepted.deps))
+    await expect(runRelayRemoteAdminAction('project-remote-admin', binding, action, 6, accepted.deps))
       .resolves.toEqual({ room, credential })
 
     const stringSchema = dependencies({
@@ -197,7 +207,7 @@ describe('remote relay administration', () => {
       room,
       credential: { ...credential, schemaVersion: '3' },
     })
-    await expect(runRelayRemoteAdminAction(binding, { kind: 'status' }, 0, stringSchema.deps))
+    await expect(runRelayRemoteAdminAction('project-remote-admin', binding, action, 6, stringSchema.deps))
       .rejects.toThrow('malformed credential')
 
     const mismatchedRevision = dependencies({
@@ -207,7 +217,39 @@ describe('remote relay administration', () => {
       room,
       credential: { ...credential, registryRevision: 6 },
     })
-    await expect(runRelayRemoteAdminAction(binding, { kind: 'status' }, 0, mismatchedRevision.deps))
+    await expect(runRelayRemoteAdminAction('project-remote-admin', binding, action, 6, mismatchedRevision.deps))
       .rejects.toThrow('does not match its room report')
+  })
+
+  it('rejects a successful response for another project, revision transition, or action', async () => {
+    const action = { kind: 'revoke' as const, memberId: 'x'.repeat(22) }
+    await expect(runRelayRemoteAdminAction(
+      'project-remote-admin', binding, action, 6,
+      dependencies({ schemaVersion: 1, ok: true, error: null, room: { ...room, projectId: 'other-project' }, credential: null }).deps,
+    )).rejects.toThrow('different project')
+    await expect(runRelayRemoteAdminAction(
+      'project-remote-admin', binding, action, 5,
+      dependencies({ schemaVersion: 1, ok: true, error: null, room, credential: null }).deps,
+    )).rejects.toThrow('expected revision transition')
+    await expect(runRelayRemoteAdminAction(
+      'project-remote-admin', binding, { kind: 'status' }, 0,
+      dependencies({
+        schemaVersion: 1,
+        ok: true,
+        error: null,
+        room,
+        credential: {
+          schemaVersion: 3,
+          roomId,
+          memberId: 'v'.repeat(22),
+          role: 'viewer',
+          capability: 'z'.repeat(43),
+          capabilityGeneration: 1,
+          expiresAtMs: null,
+          registryRevision: 7,
+          deviceKeyId: keyId,
+        },
+      }).deps,
+    )).rejects.toThrow('status unexpectedly returned a credential')
   })
 })

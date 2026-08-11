@@ -643,6 +643,7 @@ fn execute_remote_admin_action(
 fn handle_remote_admin_connection(
     mut socket: tungstenite::WebSocket<TcpStream>,
     shared: Arc<Mutex<RelayState>>,
+    project_id: &str,
     room_id: &str,
     authorization: RelayAuthorization,
 ) -> Result<(), String> {
@@ -692,6 +693,7 @@ fn handle_remote_admin_connection(
         .map_err(|_| "Relay administrator request is invalid".to_string())?;
     let action = parse_remote_admin_action(request.action)?;
     if request.schema_version != 1
+        || request.claim.project_id != project_id
         || request.claim.room_id != room_id
         || request.claim.administrator_member_id != administrator_member_id
         || request.claim.issued_at_ms != device.issued_at_ms
@@ -793,11 +795,16 @@ fn handle_connection(
         .clone()
         .or_else(|| path.as_deref().and_then(room_from_path))
         .ok_or_else(|| "WebSocket relay room path is invalid".to_string())?;
-    let authorization = {
+    let (authorization, room_project_id) = {
         let mut state = shared
             .lock()
             .map_err(|_| "Relay state lock was poisoned".to_string())?;
         let authorization = authorize(&state.membership, &room_id, query.as_deref())?;
+        let room_project_id = if remote_admin_room.is_some() {
+            Some(report_room(&registry_path(&state.data_dir), &room_id)?.project_id)
+        } else {
+            None
+        };
         if let RelayAuthorization::Member {
             replay: Some(replay),
             ..
@@ -817,10 +824,18 @@ fn handle_connection(
                 .auth_replays
                 .insert(replay.key.clone(), replay.expires_at_ms);
         }
-        authorization
+        (authorization, room_project_id)
     };
     if remote_admin_room.is_some() {
-        return handle_remote_admin_connection(socket, shared, &room_id, authorization);
+        return handle_remote_admin_connection(
+            socket,
+            shared,
+            room_project_id
+                .as_deref()
+                .ok_or_else(|| "Relay administrator room is not managed".to_string())?,
+            &room_id,
+            authorization,
+        );
     }
     let can_write = match authorization {
         RelayAuthorization::LegacyBearer => true,

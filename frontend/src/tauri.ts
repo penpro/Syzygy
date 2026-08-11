@@ -218,6 +218,7 @@ export interface RelayAccessIdentityProof {
 
 export interface RelayAdminIdentityClaim {
   schemaVersion: 1
+  projectId: string
   roomId: string
   administratorMemberId: string
   expectedRevision: number
@@ -231,6 +232,28 @@ export interface RelayAdminIdentityProof {
   algorithm: 'Ed25519'
   keyId: string
   claim: RelayAdminIdentityClaim
+  signature: string
+}
+
+export interface ProjectRelayAdminDecisionClaim {
+  schemaVersion: 1
+  projectId: string
+  roomId: string
+  administratorMemberId: string
+  expectedRevision: number
+  resultingRevision: number
+  affectedMemberId: string
+  actionSha256: string
+  recordedAtMs: number
+  decisionNonce: string
+}
+
+export interface ProjectRelayAdminDecisionProof {
+  schemaVersion: 1
+  algorithm: 'Ed25519'
+  keyId: string
+  publicKey: string
+  claim: ProjectRelayAdminDecisionClaim
   signature: string
 }
 
@@ -935,6 +958,12 @@ export const collaborationIdentitySignRelayAccess = (
 export const collaborationIdentitySignRelayAdmin = (
   claim: RelayAdminIdentityClaim,
 ): Promise<RelayAdminIdentityProof> => invoke('collaboration_identity_sign_relay_admin', { claim })
+
+/** Sign one durable project receipt after a relay administration mutation succeeds. */
+export const collaborationIdentitySignRelayAdminDecision = (
+  claim: ProjectRelayAdminDecisionClaim,
+): Promise<ProjectRelayAdminDecisionProof> =>
+  invoke('collaboration_identity_sign_relay_admin_decision', { claim })
 
 /** Local project-scoped device-key decisions. This does not return or grant relay authorization. */
 export const collaborationDeviceTrustStatus = (projectId: string): Promise<DeviceTrustReport> =>

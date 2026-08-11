@@ -118,7 +118,45 @@ export function canonicalRelayRemoteAdminAction(action: RelayRemoteAdminAction):
   }
 }
 
-async function actionSha256(action: RelayRemoteAdminAction): Promise<string> {
+export function parseRelayRemoteAdminAction(value: unknown): RelayRemoteAdminAction | null {
+  if (!isRecord(value) || typeof value.kind !== 'string') return null
+  let action: RelayRemoteAdminAction
+  if (value.kind === 'status' && exactKeys(value, ['kind'])) {
+    action = { kind: 'status' }
+  } else if (value.kind === 'issue' && exactKeys(value, ['kind', 'role', 'expiresInSeconds', 'device']) &&
+    validRole(value.role) && (value.expiresInSeconds === null || Number.isSafeInteger(value.expiresInSeconds)) &&
+    isRecord(value.device)) {
+    action = {
+      kind: 'issue',
+      role: value.role,
+      expiresInSeconds: value.expiresInSeconds as number | null,
+      device: value.device as unknown as RelayDeviceBinding,
+    }
+  } else if (value.kind === 'rotate' && exactKeys(value, ['kind', 'memberId', 'expiresInSeconds', 'device']) &&
+    typeof value.memberId === 'string' &&
+    (value.expiresInSeconds === null || Number.isSafeInteger(value.expiresInSeconds)) &&
+    (value.device === null || isRecord(value.device))) {
+    action = {
+      kind: 'rotate',
+      memberId: value.memberId,
+      expiresInSeconds: value.expiresInSeconds as number | null,
+      device: value.device as RelayDeviceBinding | null,
+    }
+  } else if (value.kind === 'revoke' && exactKeys(value, ['kind', 'memberId']) &&
+    typeof value.memberId === 'string') {
+    action = { kind: 'revoke', memberId: value.memberId }
+  } else {
+    return null
+  }
+  try {
+    canonicalRelayRemoteAdminAction(action)
+    return action
+  } catch {
+    return null
+  }
+}
+
+export async function relayRemoteAdminActionSha256(action: RelayRemoteAdminAction): Promise<string> {
   return base64Url(new Uint8Array(await crypto.subtle.digest(
     'SHA-256',
     new TextEncoder().encode(canonicalRelayRemoteAdminAction(action)),
@@ -226,6 +264,41 @@ function normalizeResponse(value: unknown, roomId: string): RelayRemoteAdminResp
   }
 }
 
+function validateResponseForAction(
+  response: RelayRemoteAdminResponse,
+  projectId: string,
+  action: RelayRemoteAdminAction,
+  expectedRevision: number,
+): void {
+  if (!response.ok) return
+  const room = response.room!
+  if (room.projectId !== projectId) {
+    throw new Error('Relay administrator response belongs to a different project')
+  }
+  if (action.kind === 'status') {
+    if (response.credential !== null) {
+      throw new Error('Relay administrator status unexpectedly returned a credential')
+    }
+    return
+  }
+  if (room.registryRevision !== expectedRevision + 1) {
+    throw new Error('Relay administrator response did not apply the expected revision transition')
+  }
+  if (action.kind === 'revoke') {
+    if (response.credential !== null) {
+      throw new Error('Relay administrator revocation unexpectedly returned a credential')
+    }
+    return
+  }
+  const credential = response.credential
+  if (!credential || credential.schemaVersion !== 3 ||
+    (action.kind === 'rotate' && credential.memberId !== action.memberId) ||
+    (action.kind === 'issue' && (credential.role !== action.role ||
+      credential.deviceKeyId !== action.device.keyId))) {
+    throw new Error('Relay administrator response credential does not match its action')
+  }
+}
+
 const DEFAULT_DEPENDENCIES: RelayRemoteAdminDependencies = {
   signAccess: collaborationIdentitySignRelayAccess,
   signAdmin: collaborationIdentitySignRelayAdmin,
@@ -235,12 +308,16 @@ const DEFAULT_DEPENDENCIES: RelayRemoteAdminDependencies = {
 }
 
 export async function runRelayRemoteAdminAction(
+  projectId: string,
   bindingValue: WebsocketProjectBinding,
   action: RelayRemoteAdminAction,
   expectedRevision: number,
   dependencies: RelayRemoteAdminDependencies = DEFAULT_DEPENDENCIES,
 ): Promise<RelayRemoteAdminResult> {
   const binding = normalizeWebsocketProjectBinding(bindingValue)
+  if (!validStableId(projectId, 1, 200)) {
+    throw new Error('Relay administrator project ID is invalid')
+  }
   const access = binding.access
   if (access?.schemaVersion !== 3 || access.role !== 'admin') {
     throw new Error('This project does not contain device-bound relay administrator access')
@@ -267,12 +344,13 @@ export async function runRelayRemoteAdminAction(
   validateAccessProof(accessProof, accessClaim, access)
   const adminClaim: RelayAdminIdentityClaim = {
     schemaVersion: 1,
+    projectId,
     roomId: binding.roomId,
     administratorMemberId: access.memberId,
     expectedRevision,
     issuedAtMs,
     nonce,
-    actionSha256: await actionSha256(action),
+    actionSha256: await relayRemoteAdminActionSha256(action),
   }
   const adminProof = await dependencies.signAdmin(adminClaim)
   validateAdminProof(adminProof, adminClaim, access)
@@ -320,7 +398,9 @@ export async function runRelayRemoteAdminAction(
         return
       }
       try {
-        finish(undefined, normalizeResponse(JSON.parse(event.data), binding.roomId))
+        const response = normalizeResponse(JSON.parse(event.data), binding.roomId)
+        validateResponseForAction(response, projectId, action, expectedRevision)
+        finish(undefined, response)
       } catch (error) {
         finish(error instanceof Error ? error : new Error(String(error)))
       }

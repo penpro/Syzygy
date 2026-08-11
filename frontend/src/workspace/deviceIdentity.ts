@@ -52,6 +52,32 @@ function asArrayBuffer(value: Uint8Array): ArrayBuffer {
   return copy
 }
 
+export async function verifyEd25519DeviceMessage(
+  keyId: string,
+  publicKeyValue: string,
+  signatureValue: string,
+  message: Uint8Array,
+): Promise<ProjectDeviceRegistrationStatus> {
+  const subtle = globalThis.crypto?.subtle
+  if (!subtle) return 'unavailable'
+  const publicKey = decodeBase64Url(publicKeyValue, 32)
+  const signature = decodeBase64Url(signatureValue, 64)
+  if (!publicKey || !signature) return 'invalid'
+  try {
+    const digest = new Uint8Array(await subtle.digest('SHA-256', asArrayBuffer(publicKey)))
+    if (keyId !== `ed25519-sha256:${encodeBase64Url(digest)}`) return 'invalid'
+    const key = await subtle.importKey('raw', asArrayBuffer(publicKey), { name: 'Ed25519' }, false, ['verify'])
+    return await subtle.verify(
+      { name: 'Ed25519' },
+      key,
+      asArrayBuffer(signature),
+      asArrayBuffer(message),
+    ) ? 'verified-device' : 'invalid'
+  } catch (error) {
+    return error instanceof Error && error.name === 'NotSupportedError' ? 'unavailable' : 'invalid'
+  }
+}
+
 function readClaim(value: unknown): PresenceIdentityClaim | null {
   if (!record(value) || !exactKeys(value, [
     'schemaVersion', 'projectId', 'documentId', 'participantId', 'awarenessClientId', 'sessionNonce',
@@ -181,26 +207,9 @@ export async function verifyDevicePresenceProof(
   if (!proof || proof.claim.projectId !== expected.projectId ||
     proof.claim.documentId !== expected.documentId || proof.claim.participantId !== expected.participantId ||
     proof.claim.awarenessClientId !== expected.awarenessClientId) return 'invalid'
-  const subtle = globalThis.crypto?.subtle
-  if (!subtle) return 'unavailable'
-  const publicKey = decodeBase64Url(proof.publicKey, 32)
-  const signature = decodeBase64Url(proof.signature, 64)
-  if (!publicKey || !signature) return 'invalid'
-  try {
-    const digest = new Uint8Array(await subtle.digest('SHA-256', asArrayBuffer(publicKey)))
-    if (proof.keyId !== `ed25519-sha256:${encodeBase64Url(digest)}`) return 'invalid'
-    const key = await subtle.importKey('raw', asArrayBuffer(publicKey), { name: 'Ed25519' }, false, ['verify'])
-    return await subtle.verify(
-      { name: 'Ed25519' },
-      key,
-      asArrayBuffer(signature),
-      asArrayBuffer(canonicalPresenceClaim(proof.claim)),
-    )
-      ? 'verified-device'
-      : 'invalid'
-  } catch (error) {
-    return error instanceof Error && error.name === 'NotSupportedError' ? 'unavailable' : 'invalid'
-  }
+  return verifyEd25519DeviceMessage(
+    proof.keyId, proof.publicKey, proof.signature, canonicalPresenceClaim(proof.claim),
+  )
 }
 
 export async function verifyProjectDeviceRegistrationProof(
@@ -209,24 +218,7 @@ export async function verifyProjectDeviceRegistrationProof(
 ): Promise<ProjectDeviceRegistrationStatus> {
   const proof = parseProjectDeviceRegistrationProof(value)
   if (!proof || !ID_PATTERN.test(expectedProjectId) || proof.claim.projectId !== expectedProjectId) return 'invalid'
-  const subtle = globalThis.crypto?.subtle
-  if (!subtle) return 'unavailable'
-  const publicKey = decodeBase64Url(proof.publicKey, 32)
-  const signature = decodeBase64Url(proof.signature, 64)
-  if (!publicKey || !signature) return 'invalid'
-  try {
-    const digest = new Uint8Array(await subtle.digest('SHA-256', asArrayBuffer(publicKey)))
-    if (proof.keyId !== `ed25519-sha256:${encodeBase64Url(digest)}`) return 'invalid'
-    const key = await subtle.importKey('raw', asArrayBuffer(publicKey), { name: 'Ed25519' }, false, ['verify'])
-    return await subtle.verify(
-      { name: 'Ed25519' },
-      key,
-      asArrayBuffer(signature),
-      asArrayBuffer(canonicalProjectDeviceRegistrationClaim(proof.claim)),
-    )
-      ? 'verified-device'
-      : 'invalid'
-  } catch (error) {
-    return error instanceof Error && error.name === 'NotSupportedError' ? 'unavailable' : 'invalid'
-  }
+  return verifyEd25519DeviceMessage(
+    proof.keyId, proof.publicKey, proof.signature, canonicalProjectDeviceRegistrationClaim(proof.claim),
+  )
 }

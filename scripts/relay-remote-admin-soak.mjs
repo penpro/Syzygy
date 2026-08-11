@@ -133,6 +133,7 @@ function prepareAdminRequest(endpoint, roomId, access, device, action, expectedR
   const params = signedAccessParams(roomId, access, device, issuedAtMs, nonce)
   const claim = {
     schemaVersion: 1,
+    projectId,
     roomId,
     administratorMemberId: access.memberId,
     expectedRevision,
@@ -141,7 +142,7 @@ function prepareAdminRequest(endpoint, roomId, access, device, action, expectedR
     actionSha256: sha256Base64Url(canonicalAdminAction(action)),
   }
   const canonicalClaim = [
-    'syzygy-relay-admin-action-v1', roomId, access.memberId, expectedRevision,
+    'syzygy-relay-admin-action-v1', projectId, roomId, access.memberId, expectedRevision,
     issuedAtMs, nonce, claim.actionSha256,
   ].join('\n')
   return {

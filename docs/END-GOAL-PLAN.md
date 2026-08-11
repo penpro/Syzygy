@@ -434,8 +434,12 @@ signed durable self-registration directory now makes fingerprints inspectable of
 authority and is replayable/deletable by bearer peers. The bundled relay separately enforces
 digest-backed viewer/editor/admin roles; a role may now be bound to an explicitly enrolled self-issued
 installation key without treating the signed device directory as authority. A bound admin can execute
-one fresh action-signed status/issue/rotate/revoke request against the exact room revision. The next
-identity increment must define key recovery and shared-directory administration policy, durable research-event
+one fresh action-signed status/issue/rotate/revoke request against the exact project, room, and
+registry revision. A successful remote mutation can append a separately domain-signed,
+capability-free installation statement to bounded shared project history; independent verification,
+offline reopen, disconnected convergence, and contradictory-revision retention pass. The relay does
+not sign that statement and the directory does not grant its role. The next identity increment must
+define key recovery and actual shared-directory administration policy, general durable research-event
 signatures, device-key rotation/recovery, and a replay policy before the product may say authenticated.
 
 Gate: five-client rapid-edit soak converges; stale presence disappears; restart/partition loses

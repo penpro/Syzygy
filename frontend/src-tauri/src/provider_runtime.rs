@@ -2,17 +2,18 @@
 //!
 //! This is intentionally narrower than the transport module: built-in endpoints only, one default
 //! OS-vault credential per provider, explicit disclosure approval, one-shot execution plus scoped
-//! OpenAI and Anthropic event channels, caller cancellation, sanitized output, and a content-free
+//! OpenAI, Anthropic, and Gemini event channels, caller cancellation, sanitized output, and a content-free
 //! provenance record authored in Rust.
 
 use crate::credential_vault::{CredentialId, CredentialVault, OsCredentialVault};
 use crate::model_provider::{
     execute_anthropic_response_controlled, execute_anthropic_stream_controlled,
-    execute_gemini_response_controlled, execute_openai_response_controlled,
-    execute_openai_stream_controlled, execute_xai_response_controlled, provider_execution,
-    GenerationRequest, InputRole, NormalizedResponse, NormalizedUsage, ProviderCancellation,
-    ProviderError, ProviderInput, RemoteProviderId, TransmissionApproval, ANTHROPIC_ADAPTER_STATUS,
-    GEMINI_ADAPTER_STATUS, OPENAI_ADAPTER_STATUS, XAI_ADAPTER_STATUS,
+    execute_gemini_response_controlled, execute_gemini_stream_controlled,
+    execute_openai_response_controlled, execute_openai_stream_controlled,
+    execute_xai_response_controlled, provider_execution, GenerationRequest, InputRole,
+    NormalizedResponse, NormalizedUsage, ProviderCancellation, ProviderError, ProviderInput,
+    RemoteProviderId, TransmissionApproval, ANTHROPIC_ADAPTER_STATUS, GEMINI_ADAPTER_STATUS,
+    OPENAI_ADAPTER_STATUS, XAI_ADAPTER_STATUS,
 };
 use crate::provider_stream::NormalizedStreamEvent;
 use chrono::{SecondsFormat, Utc};
@@ -1444,10 +1445,11 @@ where
     validate_task(&request)?;
     if !matches!(
         request.provider,
-        RemoteProviderId::OpenAi | RemoteProviderId::Anthropic
+        RemoteProviderId::OpenAi | RemoteProviderId::Anthropic | RemoteProviderId::Gemini
     ) {
         return Err(
-            "Native streaming is currently available only for OpenAI and Anthropic".to_owned(),
+            "Native streaming is currently available only for OpenAI, Anthropic, and Gemini"
+                .to_owned(),
         );
     }
     let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
@@ -1523,7 +1525,22 @@ where
             )
             .await
         }
-        RemoteProviderId::Gemini | RemoteProviderId::Xai => Err(ProviderError::InvalidRequest),
+        RemoteProviderId::Gemini => {
+            execute_gemini_stream_controlled(
+                client,
+                &endpoint,
+                &secret,
+                &request.generation,
+                &approval,
+                execution,
+                |event| {
+                    accumulator.apply(&event)?;
+                    on_event(event)
+                },
+            )
+            .await
+        }
+        RemoteProviderId::Xai => Err(ProviderError::InvalidRequest),
     }
     .and_then(|()| accumulator.into_response(&request));
     if let Ok(mut calls) = state.calls.lock() {
@@ -1736,10 +1753,11 @@ pub async fn provider_generate_stream(
 ) -> Result<ProviderTaskOutcome, String> {
     if !matches!(
         request.provider,
-        RemoteProviderId::OpenAi | RemoteProviderId::Anthropic
+        RemoteProviderId::OpenAi | RemoteProviderId::Anthropic | RemoteProviderId::Gemini
     ) {
         return Err(
-            "Native streaming is currently available only for OpenAI and Anthropic".to_owned(),
+            "Native streaming is currently available only for OpenAI, Anthropic, and Gemini"
+                .to_owned(),
         );
     }
     let endpoint = Url::parse(profile(request.provider).endpoint)
@@ -2426,6 +2444,100 @@ mod tests {
         let serialized = serde_json::to_string(&outcome).unwrap();
         assert!(!serialized.contains("runtime-anthropic-stream-secret-canary"));
         assert!(!serialized.contains("runtime-private-thinking-canary"));
+        assert!(!serialized.contains("fixture question"));
+        assert!(!serialized.contains("selected research excerpts"));
+        assert!(state.calls.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn runtime_streams_gemini_and_keeps_thoughts_secrets_and_research_out_of_records() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener");
+        let endpoint = Url::parse(&format!(
+            "http://{}/v1/interactions",
+            listener.local_addr().unwrap()
+        ))
+        .unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = vec![0_u8; 16 * 1024];
+            let read = stream.read(&mut request).unwrap();
+            let request = String::from_utf8_lossy(&request[..read]);
+            let lower = request.to_ascii_lowercase();
+            assert!(lower.contains("x-goog-api-key: runtime-gemini-stream-secret-canary"));
+            assert!(lower.contains("accept: text/event-stream"));
+            assert!(!lower.contains("authorization:"));
+            assert!(request.contains("\"stream\":true"));
+            assert!(request.contains("\"store\":false"));
+            assert!(request.contains("\"background\":false"));
+            assert!(request.contains("\"thinking_summaries\":\"none\""));
+            let body = concat!(
+                "event: interaction.created\n",
+                "data: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"runtime-gemini-interaction\",\"object\":\"interaction\",\"model\":\"gemini-fixture\",\"status\":\"in_progress\"}}\n\n",
+                "event: step.start\n",
+                "data: {\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"thought\",\"summary\":[{\"type\":\"text\",\"text\":\"runtime-private-gemini-thought-canary\"}]}}\n\n",
+                "event: step.stop\n",
+                "data: {\"event_type\":\"step.stop\",\"index\":0}\n\n",
+                "event: step.start\n",
+                "data: {\"event_type\":\"step.start\",\"index\":1,\"step\":{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"bounded \"}]}}\n\n",
+                "event: step.delta\n",
+                "data: {\"event_type\":\"step.delta\",\"index\":1,\"delta\":{\"type\":\"text\",\"text\":\"Gemini answer\"}}\n\n",
+                "event: step.stop\n",
+                "data: {\"event_type\":\"step.stop\",\"index\":1}\n\n",
+                "event: interaction.completed\n",
+                "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"runtime-gemini-interaction\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":7,\"total_output_tokens\":4,\"total_thought_tokens\":2,\"total_tokens\":13}}}\n\n",
+                "event: done\n",
+                "data: [DONE]\n\n"
+            );
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+            .unwrap();
+        });
+        let vault = MemoryVault::default();
+        let id = CredentialId::new(RemoteProviderId::Gemini, DEFAULT_PROFILE.to_owned()).unwrap();
+        vault
+            .set(
+                &id,
+                &ProviderSecret::new("runtime-gemini-stream-secret-canary".to_owned()).unwrap(),
+            )
+            .unwrap();
+        let mut request = task();
+        request.provider = RemoteProviderId::Gemini;
+        request.generation.model = "gemini-fixture".to_owned();
+        let mut events = Vec::new();
+        let state = ProviderRuntimeState::default();
+        let outcome = tauri::async_runtime::block_on(execute_stream_with(
+            &vault,
+            &state,
+            &Client::new(),
+            endpoint,
+            request,
+            true,
+            |event| {
+                events.push(event);
+                Ok(())
+            },
+        ))
+        .expect("Gemini stream runtime outcome");
+        server.join().unwrap();
+        let response = outcome.response.as_ref().expect("normalized response");
+        assert_eq!(response.provider, RemoteProviderId::Gemini);
+        assert_eq!(response.text, "bounded Gemini answer");
+        assert_eq!(response.status, "completed");
+        assert_eq!(response.usage.as_ref().unwrap().total_tokens, 13);
+        assert_eq!(
+            response.unknown_output_types,
+            ["gemini-step-thought".to_owned()]
+        );
+        assert_eq!(outcome.run_record["request"]["stream"], true);
+        assert_eq!(outcome.run_record["provider"]["id"], "gemini");
+        assert_eq!(events.len(), 7);
+        let serialized = serde_json::to_string(&outcome).unwrap();
+        assert!(!serialized.contains("runtime-gemini-stream-secret-canary"));
+        assert!(!serialized.contains("runtime-private-gemini-thought-canary"));
         assert!(!serialized.contains("fixture question"));
         assert!(!serialized.contains("selected research excerpts"));
         assert!(state.calls.lock().unwrap().is_empty());

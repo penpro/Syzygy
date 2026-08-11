@@ -29,7 +29,7 @@ export type RemoteResearchReviewResultProps = {
 }
 
 export function providerUsesNativeStreaming(provider: RemoteProviderId): boolean {
-  return provider === 'openai' || provider === 'anthropic'
+  return provider === 'openai' || provider === 'anthropic' || provider === 'gemini'
 }
 
 export function RemoteResearchReviewResult({ provider, model, outcome, streamState }: RemoteResearchReviewResultProps) {

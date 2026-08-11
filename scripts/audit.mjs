@@ -1572,6 +1572,7 @@ record(
     providerRuntimeSource.includes('2023-06-01') &&
     providerRuntimeSource.includes('"x-api-key"') &&
     providerRuntimeSource.includes('execute_gemini_response_controlled') &&
+    providerRuntimeSource.includes('execute_gemini_stream_controlled') &&
     providerRuntimeSource.includes('"x-goog-api-key"') &&
     providerRuntimeSource.includes('"thinking_summaries": "none"') &&
     providerRuntimeSource.includes('"background": false') &&
@@ -1586,6 +1587,7 @@ record(
     providerStreamSource.includes('ProviderWarning') &&
     providerStreamSource.includes('provider-error-body-canary') &&
     providerStreamSource.includes('anthropic_lifecycle_normalizes_usage_and_omits_private_thinking') &&
+    providerStreamSource.includes('gemini_step_lifecycle_normalizes_text_usage_and_omits_private_bodies') &&
     platformContractsSource.includes('request-and-stream-control-conformance') &&
     platformContractsSource.includes('ANTHROPIC_ADAPTER_STATUS') &&
     platformContractsSource.includes('GEMINI_ADAPTER_STATUS') &&
@@ -1605,6 +1607,7 @@ record(
     providerTaskRuntimeSource.includes('execute_openai_response_controlled') &&
     providerTaskRuntimeSource.includes('execute_openai_stream_controlled') &&
     providerTaskRuntimeSource.includes('execute_anthropic_stream_controlled') &&
+    providerTaskRuntimeSource.includes('execute_gemini_stream_controlled') &&
     providerTaskRuntimeSource.includes('tauri::ipc::Channel<NormalizedStreamEvent>') &&
     providerTaskRuntimeSource.includes('record["request"]["stream"] = Value::Bool(true)') &&
     providerTaskRuntimeSource.includes('MAX_ACCUMULATED_STREAM_BYTES') &&
@@ -1616,7 +1619,7 @@ record(
     providerTaskRuntimeSource.includes('.blocking_show()') &&
     providerTaskRuntimeSource.includes('spawn_blocking') &&
     !providerTaskRuntimeSource.includes('pub disclosure_accepted') &&
-    platformContractsSource.includes('"remoteProviderAdapters": "native-disclosure-openai-anthropic-stream-review-ui-no-live-proof"') &&
+    platformContractsSource.includes('"remoteProviderAdapters": "native-disclosure-openai-anthropic-gemini-stream-review-ui-no-live-proof"') &&
     platformContractsSource.includes('"providerTaskRuntime": "native-disclosure-research-envelope"') &&
     providerTaskRuntimeSource.includes('"executionMode": execution_mode') &&
     text('frontend/src/tauri.ts').includes("invoke('provider_generate'") &&
@@ -1626,6 +1629,7 @@ record(
     text('frontend/src/workspace/RemoteResearchReview.tsx').includes('providerGenerateStream(request') &&
     text('frontend/src/workspace/RemoteResearchReview.tsx').includes("provider === 'openai' || provider === 'anthropic'") &&
     text('frontend/src/workspace/RemoteResearchReview.ui.test.tsx').includes("providerUsesNativeStreaming('anthropic')") &&
+    text('frontend/src/workspace/RemoteResearchReview.ui.test.tsx').includes("providerUsesNativeStreaming('gemini')") &&
     text('frontend/src/workspace/RemoteResearchReview.tsx').includes('providerGenerate(request)') &&
     text('frontend/src/workspace/RemoteResearchReview.tsx').includes('never applied to the shared draft automatically') &&
     text('frontend/src/providerStream.ts').includes('MAX_PROVIDER_STREAM_TEXT_CHARS') &&
@@ -1641,7 +1645,7 @@ record(
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_authorization_status'") &&
     !text('frontend/src/tauri.ts').includes('disclosureAccepted') &&
     text('frontend/src-tauri/src/bin/provider-runtime-harness.rs').includes('interop-secret-canary'),
-  'OpenAI and Anthropic request/stream plus Gemini and xAI request wire contracts, scoped product event channel, content-free task runtime, native non-forgeable disclosure, cancellation, transient exact-draft UI, and truthful no-live-proof status present',
+  'OpenAI, Anthropic, and Gemini request/stream plus xAI request wire contracts, scoped product event channel, content-free task runtime, native non-forgeable disclosure, cancellation, transient exact-draft UI, and truthful no-live-proof status present',
 )
 record(
   'adversarial batch authorization is native, content-bound, exact, and expiring',

@@ -294,10 +294,11 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   cancellation, SSE lifecycle/terminal ordering, and product review routing. Streamed tool
   assembly/execution, packaged-dialog interaction, and live proof remain open; the shared
   adversarial product workflow continues to route bounded Anthropic calls.
-- Gemini Interactions now has a stable-v1 `request-control-conformance` slice. Its fake
-  server proves header auth, storage/background/stream off, thought-summary suppression, system and
-  user mapping, output bounds, text-only retention, consistent aggregate usage, sanitized failure,
-  timeout, and cancellation. Streaming, tools/thought signatures, UI, and live proof remain open.
+- Gemini Interactions now has stable-v1 `request-and-stream-control-conformance`. Fake servers
+  prove header auth, storage/background off, thought-summary suppression, system/user mapping,
+  output bounds, text-only retention, consistent aggregate usage, sanitized failure, timeout,
+  cancellation, indexed SSE step lifecycle, and product review routing. Tool assembly/execution,
+  thought-signature continuation, packaged-dialog interaction, and live proof remain open.
 - xAI Responses now has an unwired one-shot `request-control-conformance` slice. Its fake server
   proves storage-off/no-threading request shape, bearer auth, bounded normalization, controls, and
   mandatory boolean ZDR attestation without confusing standard retention with enterprise ZDR.
@@ -543,8 +544,9 @@ collaborators are not required to download large project folders.
      evaluation panel, mono metadata stamps).
 3. **Certify the open research platform boundary** — the first OpenAI fake-server/key-canary
    request/stream/control gates, Windows credential-vault canary, native disclosure, provider
-   settings/task workflow, and scoped OpenAI/Anthropic streaming event bridge have landed; next add
-   Gemini/xAI provider-native streams, provider tool normalization, and opt-in live/provider-policy evidence.
+   settings/task workflow, and scoped OpenAI/Anthropic/Gemini streaming event bridge have landed;
+   next add xAI provider-native streaming, provider tool normalization, and opt-in
+   live/provider-policy evidence.
    Build the adversarial benchmark before
    claiming panel quality; implement a no-authority WASI host before loading third-party code.
 4. **Harden collaboration beyond the first Drive transport** — append-only Yjs Drive sharing,

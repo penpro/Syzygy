@@ -1,14 +1,16 @@
 //! Incremental normalization for provider server-sent event streams.
 //!
-//! Input can be split at any byte boundary. Unknown future OpenAI or Anthropic event types are
+//! Input can be split at any byte boundary. Unknown future OpenAI, Anthropic, or Gemini event types are
 //! surfaced as warnings instead of crashing or disappearing; malformed JSON, mismatched SSE event
 //! labels, unbounded frames, and incomplete terminal sequences fail closed.
 
 use crate::model_provider::{normalized_usage, NormalizedUsage, ProviderError, RemoteProviderId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::{BTreeMap, BTreeSet};
 
 const MAX_PENDING_BYTES: usize = 1024 * 1024;
+const MAX_GEMINI_STEPS: usize = 1_024;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(
@@ -49,6 +51,14 @@ pub struct AnthropicSseDecoder {
     frames: SseFrameDecoder,
     input_tokens: Option<u64>,
     output_tokens: Option<u64>,
+}
+
+#[derive(Default)]
+pub struct GeminiSseDecoder {
+    frames: SseFrameDecoder,
+    response_id: Option<String>,
+    active_steps: BTreeMap<u64, String>,
+    seen_steps: BTreeSet<u64>,
 }
 
 #[derive(Default)]
@@ -93,6 +103,34 @@ impl AnthropicSseDecoder {
 
     pub fn finish(self) -> Result<(), ProviderError> {
         self.frames.finish()
+    }
+}
+
+impl GeminiSseDecoder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn push(&mut self, bytes: &[u8]) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
+        let mut events = Vec::new();
+        for event in self.frames.push(bytes)? {
+            events.extend(normalize_gemini_event(
+                &mut self.response_id,
+                &mut self.active_steps,
+                &mut self.seen_steps,
+                event,
+            )?);
+        }
+        Ok(events)
+    }
+
+    pub fn finish(self) -> Result<(), ProviderError> {
+        self.frames.finish()?;
+        if self.active_steps.is_empty() {
+            Ok(())
+        } else {
+            Err(ProviderError::MalformedResponse)
+        }
     }
 }
 
@@ -374,6 +412,230 @@ fn normalize_anthropic_event(
     }
 }
 
+fn normalize_gemini_usage(usage: &Value) -> Result<NormalizedUsage, ProviderError> {
+    let input_tokens = usage
+        .get("total_input_tokens")
+        .and_then(Value::as_u64)
+        .ok_or(ProviderError::MalformedResponse)?;
+    let output_tokens = usage
+        .get("total_output_tokens")
+        .and_then(Value::as_u64)
+        .ok_or(ProviderError::MalformedResponse)?;
+    let total_tokens = usage
+        .get("total_tokens")
+        .and_then(Value::as_u64)
+        .ok_or(ProviderError::MalformedResponse)?;
+    if total_tokens
+        < input_tokens
+            .checked_add(output_tokens)
+            .ok_or(ProviderError::MalformedResponse)?
+    {
+        return Err(ProviderError::MalformedResponse);
+    }
+    Ok(NormalizedUsage {
+        input_tokens,
+        output_tokens,
+        total_tokens,
+    })
+}
+
+fn gemini_model_output_start(step: &Value) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
+    let Some(content) = step.get("content") else {
+        return Ok(Vec::new());
+    };
+    let content = content.as_array().ok_or(ProviderError::MalformedResponse)?;
+    let mut events = Vec::new();
+    for block in content {
+        let block_type = block
+            .get("type")
+            .and_then(Value::as_str)
+            .filter(|kind| !kind.is_empty())
+            .ok_or(ProviderError::MalformedResponse)?;
+        if block_type == "text" {
+            let text = block
+                .get("text")
+                .and_then(Value::as_str)
+                .ok_or(ProviderError::MalformedResponse)?;
+            if !text.is_empty() {
+                events.push(NormalizedStreamEvent::TextDelta {
+                    text: text.to_owned(),
+                });
+            }
+        } else {
+            events.push(NormalizedStreamEvent::ProviderWarning {
+                event_type: format!("gemini-model_output-{block_type}"),
+            });
+        }
+    }
+    Ok(events)
+}
+
+fn normalize_gemini_event(
+    response_id: &mut Option<String>,
+    active_steps: &mut BTreeMap<u64, String>,
+    seen_steps: &mut BTreeSet<u64>,
+    event: SseEvent,
+) -> Result<Vec<NormalizedStreamEvent>, ProviderError> {
+    if event.data == "[DONE]" {
+        if event.label.as_deref().is_some_and(|label| label != "done") {
+            return Err(ProviderError::MalformedResponse);
+        }
+        return Ok(vec![NormalizedStreamEvent::StreamEnd]);
+    }
+    let value: Value =
+        serde_json::from_str(&event.data).map_err(|_| ProviderError::MalformedResponse)?;
+    let event_type = value
+        .get("event_type")
+        .and_then(Value::as_str)
+        .filter(|kind| !kind.is_empty())
+        .ok_or(ProviderError::MalformedResponse)?;
+    if event
+        .label
+        .as_deref()
+        .is_some_and(|label| label != event_type)
+    {
+        return Err(ProviderError::MalformedResponse);
+    }
+    match event_type {
+        "interaction.created" => {
+            if response_id.is_some() {
+                return Err(ProviderError::MalformedResponse);
+            }
+            let interaction = value
+                .get("interaction")
+                .ok_or(ProviderError::MalformedResponse)?;
+            let id = interaction
+                .get("id")
+                .and_then(Value::as_str)
+                .filter(|id| !id.is_empty())
+                .ok_or(ProviderError::MalformedResponse)?;
+            interaction
+                .get("status")
+                .and_then(Value::as_str)
+                .filter(|status| !status.is_empty())
+                .ok_or(ProviderError::MalformedResponse)?;
+            if interaction
+                .get("object")
+                .and_then(Value::as_str)
+                .is_some_and(|object| object != "interaction")
+            {
+                return Err(ProviderError::MalformedResponse);
+            }
+            *response_id = Some(id.to_owned());
+            Ok(vec![NormalizedStreamEvent::MessageStart {
+                provider: RemoteProviderId::Gemini,
+                response_id: id.to_owned(),
+            }])
+        }
+        "step.start" => {
+            if response_id.is_none() || seen_steps.len() >= MAX_GEMINI_STEPS {
+                return Err(ProviderError::MalformedResponse);
+            }
+            let index = value
+                .get("index")
+                .and_then(Value::as_u64)
+                .ok_or(ProviderError::MalformedResponse)?;
+            if !seen_steps.insert(index) {
+                return Err(ProviderError::MalformedResponse);
+            }
+            let step = value.get("step").ok_or(ProviderError::MalformedResponse)?;
+            let step_type = step
+                .get("type")
+                .and_then(Value::as_str)
+                .filter(|kind| !kind.is_empty())
+                .ok_or(ProviderError::MalformedResponse)?
+                .to_owned();
+            active_steps.insert(index, step_type.clone());
+            if step_type == "model_output" {
+                gemini_model_output_start(step)
+            } else {
+                Ok(vec![NormalizedStreamEvent::ProviderWarning {
+                    event_type: format!("gemini-step-{step_type}"),
+                }])
+            }
+        }
+        "step.delta" => {
+            let index = value
+                .get("index")
+                .and_then(Value::as_u64)
+                .ok_or(ProviderError::MalformedResponse)?;
+            let step_type = active_steps
+                .get(&index)
+                .ok_or(ProviderError::MalformedResponse)?;
+            let delta = value.get("delta").ok_or(ProviderError::MalformedResponse)?;
+            let delta_type = delta
+                .get("type")
+                .and_then(Value::as_str)
+                .filter(|kind| !kind.is_empty())
+                .ok_or(ProviderError::MalformedResponse)?;
+            if step_type == "model_output" && delta_type == "text" {
+                Ok(vec![NormalizedStreamEvent::TextDelta {
+                    text: delta
+                        .get("text")
+                        .and_then(Value::as_str)
+                        .ok_or(ProviderError::MalformedResponse)?
+                        .to_owned(),
+                }])
+            } else {
+                Ok(vec![NormalizedStreamEvent::ProviderWarning {
+                    event_type: format!("gemini-{step_type}-{delta_type}"),
+                }])
+            }
+        }
+        "step.stop" => {
+            let index = value
+                .get("index")
+                .and_then(Value::as_u64)
+                .ok_or(ProviderError::MalformedResponse)?;
+            if active_steps.remove(&index).is_none() {
+                return Err(ProviderError::MalformedResponse);
+            }
+            Ok(Vec::new())
+        }
+        "interaction.completed" => {
+            if !active_steps.is_empty() {
+                return Err(ProviderError::MalformedResponse);
+            }
+            let interaction = value
+                .get("interaction")
+                .ok_or(ProviderError::MalformedResponse)?;
+            let id = interaction
+                .get("id")
+                .and_then(Value::as_str)
+                .filter(|id| !id.is_empty())
+                .ok_or(ProviderError::MalformedResponse)?;
+            if response_id.as_deref() != Some(id) {
+                return Err(ProviderError::MalformedResponse);
+            }
+            let status = interaction
+                .get("status")
+                .and_then(Value::as_str)
+                .filter(|status| !status.is_empty())
+                .ok_or(ProviderError::MalformedResponse)?;
+            let mut events = Vec::new();
+            if let Some(usage) = interaction.get("usage").filter(|usage| !usage.is_null()) {
+                events.push(NormalizedStreamEvent::Usage {
+                    usage: normalize_gemini_usage(usage)?,
+                });
+            }
+            events.push(NormalizedStreamEvent::Finish {
+                status: status.to_owned(),
+            });
+            Ok(events)
+        }
+        "error" => Ok(vec![NormalizedStreamEvent::ProviderError {
+            code: value
+                .get("error")
+                .and_then(|error| error.get("code"))
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+        }]),
+        unknown => Ok(vec![NormalizedStreamEvent::ProviderWarning {
+            event_type: unknown.to_owned(),
+        }]),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -548,6 +810,136 @@ mod tests {
             decreasing.push(concat!(
                 "event: message_delta\n",
                 "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":2}}\n\n"
+            ).as_bytes()),
+            Err(ProviderError::MalformedResponse)
+        );
+    }
+
+    #[test]
+    fn gemini_step_lifecycle_normalizes_text_usage_and_omits_private_bodies() {
+        let fixture = concat!(
+            "event: interaction.created\n",
+            "data: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"interaction-stream\",\"object\":\"interaction\",\"model\":\"gemini-fixture\",\"status\":\"in_progress\"}}\n\n",
+            "event: step.start\n",
+            "data: {\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"thought\",\"summary\":[{\"type\":\"text\",\"text\":\"private-thought-summary-canary\"}]}}\n\n",
+            "event: step.delta\n",
+            "data: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"thought_signature\",\"signature\":\"private-signature-canary\"}}\n\n",
+            "event: step.stop\n",
+            "data: {\"event_type\":\"step.stop\",\"index\":0}\n\n",
+            "event: step.start\n",
+            "data: {\"event_type\":\"step.start\",\"index\":1,\"step\":{\"type\":\"function_call\",\"name\":\"private-tool-name-canary\"}}\n\n",
+            "event: step.delta\n",
+            "data: {\"event_type\":\"step.delta\",\"index\":1,\"delta\":{\"type\":\"arguments_delta\",\"arguments_delta\":\"private-tool-arguments-canary\"}}\n\n",
+            "event: step.stop\n",
+            "data: {\"event_type\":\"step.stop\",\"index\":1}\n\n",
+            "event: step.start\n",
+            "data: {\"event_type\":\"step.start\",\"index\":2,\"step\":{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"Bounded \"}]}}\n\n",
+            "event: step.delta\n",
+            "data: {\"event_type\":\"step.delta\",\"index\":2,\"delta\":{\"type\":\"text\",\"text\":\"finding.\"}}\n\n",
+            "event: step.stop\n",
+            "data: {\"event_type\":\"step.stop\",\"index\":2}\n\n",
+            "event: interaction.completed\n",
+            "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"interaction-stream\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":10,\"total_output_tokens\":3,\"total_thought_tokens\":4,\"total_tokens\":17}}}\n\n",
+            "event: done\n",
+            "data: [DONE]\n\n"
+        );
+        let mut decoder = GeminiSseDecoder::new();
+        let mut events = Vec::new();
+        for byte in fixture.as_bytes() {
+            events.extend(decoder.push(std::slice::from_ref(byte)).expect("fragment"));
+        }
+        decoder.finish().expect("complete stream");
+        assert_eq!(
+            events,
+            vec![
+                NormalizedStreamEvent::MessageStart {
+                    provider: RemoteProviderId::Gemini,
+                    response_id: "interaction-stream".to_owned(),
+                },
+                NormalizedStreamEvent::ProviderWarning {
+                    event_type: "gemini-step-thought".to_owned(),
+                },
+                NormalizedStreamEvent::ProviderWarning {
+                    event_type: "gemini-thought-thought_signature".to_owned(),
+                },
+                NormalizedStreamEvent::ProviderWarning {
+                    event_type: "gemini-step-function_call".to_owned(),
+                },
+                NormalizedStreamEvent::ProviderWarning {
+                    event_type: "gemini-function_call-arguments_delta".to_owned(),
+                },
+                NormalizedStreamEvent::TextDelta {
+                    text: "Bounded ".to_owned(),
+                },
+                NormalizedStreamEvent::TextDelta {
+                    text: "finding.".to_owned(),
+                },
+                NormalizedStreamEvent::Usage {
+                    usage: NormalizedUsage {
+                        input_tokens: 10,
+                        output_tokens: 3,
+                        total_tokens: 17,
+                    },
+                },
+                NormalizedStreamEvent::Finish {
+                    status: "completed".to_owned(),
+                },
+                NormalizedStreamEvent::StreamEnd,
+            ]
+        );
+        let serialized = format!("{events:?}");
+        assert!(!serialized.contains("private-thought-summary-canary"));
+        assert!(!serialized.contains("private-signature-canary"));
+        assert!(!serialized.contains("private-tool-name-canary"));
+        assert!(!serialized.contains("private-tool-arguments-canary"));
+    }
+
+    #[test]
+    fn gemini_stream_errors_and_step_identity_fail_closed_without_body_leakage() {
+        let canary = "gemini-error-body-canary";
+        let mut failed = GeminiSseDecoder::new();
+        let events = failed
+            .push(
+                format!(
+                    "event: error\ndata: {{\"event_type\":\"error\",\"error\":{{\"code\":\"resource_exhausted\",\"message\":\"{canary}\"}}}}\n\n"
+                )
+                .as_bytes(),
+            )
+            .expect("sanitized error");
+        assert_eq!(
+            events,
+            vec![NormalizedStreamEvent::ProviderError {
+                code: Some("resource_exhausted".to_owned()),
+            }]
+        );
+        assert!(!format!("{events:?}").contains(canary));
+
+        let mut orphan = GeminiSseDecoder::new();
+        orphan
+            .push(concat!(
+                "event: interaction.created\n",
+                "data: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"interaction-a\",\"status\":\"in_progress\"}}\n\n"
+            ).as_bytes())
+            .expect("created");
+        assert_eq!(
+            orphan.push(concat!(
+                "event: step.delta\n",
+                "data: {\"event_type\":\"step.delta\",\"index\":7,\"delta\":{\"type\":\"text\",\"text\":\"orphan\"}}\n\n"
+            ).as_bytes()),
+            Err(ProviderError::MalformedResponse)
+        );
+
+        let mut mismatched = GeminiSseDecoder::new();
+        mismatched
+            .push(concat!(
+                "event: interaction.created\n",
+                "data: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"interaction-a\",\"status\":\"in_progress\"}}\n\n"
+            ).as_bytes())
+            .expect("created");
+        assert_eq!(
+            mismatched.push(concat!(
+                "event: interaction.completed\n",
+                "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"interaction-b\",\"status\":\"completed\"}}\n\n"
             ).as_bytes()),
             Err(ProviderError::MalformedResponse)
         );

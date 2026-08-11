@@ -1,9 +1,9 @@
 # Model provider API
 
-**Contract version:** 1. **Runtime status:** local inference remains available; OpenAI Responses
-and Anthropic Messages request and stream controls are at
-`request-and-stream-control-conformance`; Gemini Interactions and xAI Responses one-shot requests
-are at `request-control-conformance`. Ordinary remote review and content-bound adversarial execution
+**Contract version:** 1. **Runtime status:** local inference remains available; OpenAI Responses,
+Anthropic Messages, and Gemini Interactions request and stream controls are at
+`request-and-stream-control-conformance`; xAI Responses one-shot requests are at
+`request-control-conformance`. Ordinary remote review and content-bound adversarial execution
 use registered Rust commands, OS-vault credentials, fixed built-in endpoints, native disclosure,
 bounded timeout/cancellation, normalized results, and content-free run records. Tests use
 loopback providers only; no live-provider compatibility or quality claim is made. Custom remote
@@ -118,11 +118,11 @@ enforces start/finish/end order and a 32 MiB aggregate ceiling, serially dispatc
 events, distinguishes sanitized provider failure, and cancels between events. The product
 runtime now routes that stream through one ordered per-call Tauri channel, accumulates the same
 bounded normalized response in Rust, removes the cancellation registration on every terminal path,
-and marks the authoritative content-free run record as streamed. The workspace renders OpenAI or
-Anthropic text, usage, and warnings incrementally as a transient review; it never applies the
-response to the shared draft automatically. Gemini and xAI still use the one-shot path. No live
-service has been contacted, and streamed tools are not handled. `syzygy_platform_contracts` reports
-aggregate status as `native-disclosure-openai-anthropic-stream-review-ui-no-live-proof`.
+and marks the authoritative content-free run record as streamed. The workspace renders OpenAI,
+Anthropic, or Gemini text, usage, and warnings incrementally as a transient review; it never applies
+the response to the shared draft automatically. xAI still uses the one-shot path. No live service
+has been contacted, and streamed tools are not handled. `syzygy_platform_contracts` reports
+aggregate status as `native-disclosure-openai-anthropic-gemini-stream-review-ui-no-live-proof`.
 
 The incremental OpenAI SSE decoder accepts arbitrary byte fragmentation, including split Unicode;
 joins multiline `data:` fields; ignores keepalives; validates optional SSE event labels against
@@ -160,14 +160,21 @@ Tool assembly/execution, beta headers, upstream request IDs beyond the message I
 validation, packaged native-dialog interaction, and opt-in live proof remain open.
 
 The Gemini slice targets the stable `/v1/interactions` API rather than silently following an SDK's
-preview default. Its Rust fake server proves `x-goog-api-key`, content type, model, joined local
-system/user text, `generation_config.max_output_tokens`, `thinking_summaries:none`, `stream:false`,
-`background:false`, and `store:false`. The normalizer requires an Interaction identity/status,
-retains only text in `model_output` steps, reports thought and non-text types without retaining
-their contents, and accepts usage only when total tokens cover input plus output. The endpoint,
-disclosure, byte bound, redaction, timeout, and cancellation gates match the other remote slices.
-Streaming lifecycle events, tools, thought-signature continuation, structured output, stored state,
-live terms validation, UI, and opt-in live proof remain open.
+preview default. One-shot fake-server evidence proves `x-goog-api-key`, content type, model, joined
+local system/user text, `generation_config.max_output_tokens`, `thinking_summaries:none`,
+`stream:false`, `background:false`, and `store:false`. The SSE path sends `stream:true` plus
+`Accept:text/event-stream` while retaining the same storage/background/thought-summary controls.
+It normalizes `interaction.created`, indexed `step.start/delta/stop` model-output text, final usage,
+terminal status, sanitized errors/warnings, and `[DONE]` through the ordered product channel.
+Initial text in `step.start` and later text deltas are both retained. Step indexes are unique and
+bounded to 1,024; orphan/duplicate steps, mismatched interaction identity, malformed totals,
+label/type mismatch, unfinished steps, missing terminal events, and oversized streams fail closed.
+Thought summaries/signatures and function/tool names or argument deltas become content-free warning
+types only. The one-shot normalizer likewise retains only text in `model_output` steps and accepts
+usage only when total tokens cover input plus output. The endpoint, disclosure, byte bound,
+redaction, timeout, and cancellation gates match the other remote slices. Tool assembly/execution,
+thought-signature continuation, structured output, stored state, live terms validation, packaged
+dialog interaction, and opt-in live proof remain open.
 
 The xAI slice deliberately reuses only the compatible Responses wire shape, not OpenAI privacy
 assumptions. It sends bearer auth to `/v1/responses`, forces `store:false`, and omits

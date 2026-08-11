@@ -1,19 +1,24 @@
 //! Rust-owned remote model transport and normalization boundary.
 //!
 //! The webview must never construct provider HTTP requests or receive provider credentials.
-//! Executable slices certify OpenAI Responses and Anthropic Messages request/stream contracts plus
-//! Gemini Interactions and xAI Responses one-shot contracts against fake loopback servers. The
+//! Executable slices certify OpenAI Responses, Anthropic Messages, and Gemini Interactions
+//! request/stream contracts plus xAI Responses one-shot contracts against fake loopback servers. The
 //! native task command owns credentials, disclosure, cancellation, and bounded event delivery;
 //! live-provider certification remains a separate gate.
 
 #![allow(dead_code)] // Conformance-only helpers remain alongside the product task boundary.
 
-use crate::provider_stream::{AnthropicSseDecoder, NormalizedStreamEvent, OpenAiSseDecoder};
+use crate::provider_stream::{
+    AnthropicSseDecoder, GeminiSseDecoder, NormalizedStreamEvent, OpenAiSseDecoder,
+};
 use futures_util::{
     future::{AbortHandle, AbortRegistration, Abortable},
     StreamExt,
 };
-use reqwest::{header::CONTENT_TYPE, Client, Url};
+use reqwest::{
+    header::{ACCEPT, CONTENT_TYPE},
+    Client, Url,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{fmt, time::Duration};
@@ -21,7 +26,7 @@ use zeroize::Zeroize;
 
 pub const OPENAI_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
 pub const ANTHROPIC_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
-pub const GEMINI_ADAPTER_STATUS: &str = "request-control-conformance";
+pub const GEMINI_ADAPTER_STATUS: &str = "request-and-stream-control-conformance";
 pub const XAI_ADAPTER_STATUS: &str = "request-control-conformance";
 pub const DEFAULT_PROVIDER_TIMEOUT: Duration = Duration::from_secs(60);
 const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
@@ -386,7 +391,7 @@ fn anthropic_body(request: &GenerationRequest, stream: bool) -> Result<Value, Pr
     Ok(body)
 }
 
-fn gemini_body(request: &GenerationRequest) -> Result<Value, ProviderError> {
+fn gemini_body(request: &GenerationRequest, stream: bool) -> Result<Value, ProviderError> {
     let input = request
         .input
         .iter()
@@ -411,7 +416,7 @@ fn gemini_body(request: &GenerationRequest) -> Result<Value, ProviderError> {
             "max_output_tokens": request.max_output_tokens,
             "thinking_summaries": "none",
         },
-        "stream": false,
+        "stream": stream,
         "store": false,
         "background": false,
     });
@@ -915,7 +920,7 @@ pub async fn execute_gemini_response_controlled(
     validate_endpoint(endpoint, "/v1/interactions")?;
     request.validate()?;
     approval.validate_for(RemoteProviderId::Gemini)?;
-    let body = gemini_body(request)?;
+    let body = gemini_body(request, false)?;
     let operation = async {
         let response = client
             .post(endpoint.clone())
@@ -932,6 +937,66 @@ pub async fn execute_gemini_response_controlled(
         let body = bounded_body(response).await?;
         let value = serde_json::from_slice(&body).map_err(|_| ProviderError::MalformedResponse)?;
         normalize_gemini(value)
+    };
+    Abortable::new(operation, execution.cancellation)
+        .await
+        .map_err(|_| ProviderError::Cancelled)?
+}
+
+pub async fn execute_gemini_stream_controlled<F>(
+    client: &Client,
+    endpoint: &Url,
+    secret: &ProviderSecret,
+    request: &GenerationRequest,
+    approval: &TransmissionApproval,
+    execution: ProviderExecution,
+    mut on_event: F,
+) -> Result<(), ProviderError>
+where
+    F: FnMut(NormalizedStreamEvent) -> Result<(), ProviderError>,
+{
+    validate_endpoint(endpoint, "/v1/interactions")?;
+    request.validate()?;
+    approval.validate_for(RemoteProviderId::Gemini)?;
+    let body = gemini_body(request, true)?;
+    let operation = async {
+        let response = client
+            .post(endpoint.clone())
+            .timeout(execution.timeout)
+            .header("x-goog-api-key", secret.expose())
+            .header("content-type", "application/json")
+            .header(ACCEPT, "text/event-stream")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|error| classify_transport_error(&error))?;
+        if !response.status().is_success() {
+            return Err(ProviderError::HttpStatus(response.status().as_u16()));
+        }
+        let is_event_stream = response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.split(';').next())
+            .is_some_and(|value| value.trim().eq_ignore_ascii_case("text/event-stream"));
+        if !is_event_stream {
+            return Err(ProviderError::MalformedResponse);
+        }
+
+        let mut decoder = GeminiSseDecoder::new();
+        let mut stream = response.bytes_stream();
+        let mut received_bytes = 0_usize;
+        let mut sequence = StreamSequence::default();
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|error| classify_transport_error(&error))?;
+            received_bytes = checked_stream_total(received_bytes, chunk.len())?;
+            for event in decoder.push(&chunk)? {
+                sequence.observe(&event)?;
+                on_event(event)?;
+            }
+        }
+        decoder.finish()?;
+        sequence.finish()
     };
     Abortable::new(operation, execution.cancellation)
         .await
@@ -2021,6 +2086,109 @@ mod tests {
         assert_eq!(body["stream"], false);
         assert_eq!(body["store"], false);
         assert_eq!(body["background"], false);
+    }
+
+    #[test]
+    fn gemini_fake_stream_proves_stable_wire_lifecycle_and_private_body_omission() {
+        let fixture = concat!(
+            "event: interaction.created\n",
+            "data: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"int_stream\",\"object\":\"interaction\",\"model\":\"gemini-test\",\"status\":\"in_progress\"}}\n\n",
+            "event: step.start\n",
+            "data: {\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"thought\",\"summary\":[{\"type\":\"text\",\"text\":\"private-network-thought-canary\"}]}}\n\n",
+            "event: step.delta\n",
+            "data: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"thought_signature\",\"signature\":\"private-network-signature-canary\"}}\n\n",
+            "event: step.stop\n",
+            "data: {\"event_type\":\"step.stop\",\"index\":0}\n\n",
+            "event: step.start\n",
+            "data: {\"event_type\":\"step.start\",\"index\":1,\"step\":{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"Supported \"}]}}\n\n",
+            "event: step.delta\n",
+            "data: {\"event_type\":\"step.delta\",\"index\":1,\"delta\":{\"type\":\"text\",\"text\":\"finding.\"}}\n\n",
+            "event: step.stop\n",
+            "data: {\"event_type\":\"step.stop\",\"index\":1}\n\n",
+            "event: interaction.completed\n",
+            "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"int_stream\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":9,\"total_output_tokens\":3,\"total_thought_tokens\":2,\"total_tokens\":14}}}\n\n",
+            "event: done\n",
+            "data: [DONE]\n\n"
+        )
+        .as_bytes()
+        .to_vec();
+        let split = fixture.len() / 2;
+        let chunks = vec![
+            (Duration::ZERO, fixture[..split].to_vec()),
+            (Duration::from_millis(5), fixture[split..].to_vec()),
+        ];
+        let (endpoint, captured) = fake_stream_server(
+            "/v1/interactions",
+            "text/event-stream; charset=utf-8",
+            chunks,
+        );
+        let (execution, _cancellation) =
+            provider_execution(Duration::from_secs(2)).expect("execution controls");
+        let secret_canary = "gemini-stream-secret-canary";
+        let mut events = Vec::new();
+        tauri::async_runtime::block_on(execute_gemini_stream_controlled(
+            &Client::new(),
+            &endpoint,
+            &ProviderSecret::new(secret_canary.to_owned()).expect("secret"),
+            &request(),
+            &gemini_approval(),
+            execution,
+            |event| {
+                events.push(event);
+                Ok(())
+            },
+        ))
+        .expect("normalized Gemini network stream");
+
+        assert_eq!(
+            events,
+            vec![
+                NormalizedStreamEvent::MessageStart {
+                    provider: RemoteProviderId::Gemini,
+                    response_id: "int_stream".to_owned(),
+                },
+                NormalizedStreamEvent::ProviderWarning {
+                    event_type: "gemini-step-thought".to_owned(),
+                },
+                NormalizedStreamEvent::ProviderWarning {
+                    event_type: "gemini-thought-thought_signature".to_owned(),
+                },
+                NormalizedStreamEvent::TextDelta {
+                    text: "Supported ".to_owned(),
+                },
+                NormalizedStreamEvent::TextDelta {
+                    text: "finding.".to_owned(),
+                },
+                NormalizedStreamEvent::Usage {
+                    usage: NormalizedUsage {
+                        input_tokens: 9,
+                        output_tokens: 3,
+                        total_tokens: 14,
+                    },
+                },
+                NormalizedStreamEvent::Finish {
+                    status: "completed".to_owned(),
+                },
+                NormalizedStreamEvent::StreamEnd,
+            ]
+        );
+        let serialized = serde_json::to_string(&events).expect("serialized normalized events");
+        assert!(!serialized.contains("private-network-thought-canary"));
+        assert!(!serialized.contains("private-network-signature-canary"));
+
+        let raw = captured.recv().expect("captured Gemini stream request");
+        let (headers, body) = raw.split_once("\r\n\r\n").expect("HTTP request");
+        let headers = headers.to_ascii_lowercase();
+        assert!(headers.starts_with("post /v1/interactions http/1.1"));
+        assert!(headers.contains(&format!("x-goog-api-key: {secret_canary}")));
+        assert!(headers.contains("accept: text/event-stream"));
+        assert!(!headers.contains("authorization:"));
+        let body: Value = serde_json::from_str(body).expect("Gemini stream request JSON");
+        assert_eq!(body["stream"], true);
+        assert_eq!(body["store"], false);
+        assert_eq!(body["background"], false);
+        assert_eq!(body["generation_config"]["thinking_summaries"], "none");
+        assert_eq!(body["model"], "research-model");
     }
 
     #[test]

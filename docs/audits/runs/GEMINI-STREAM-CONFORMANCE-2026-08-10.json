@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "runId": "GEMINI-STREAM-CONFORMANCE-2026-08-10",
+  "date": "2026-08-10",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "13c05da",
+  "capabilities": ["P-25"],
+  "status": "implemented_unverified",
+  "claim": "Gemini Interactions stable-v1 has a bounded native SSE request/decoder/runtime path and the exact-draft remote-review product selects it without retaining thought, signature, tool, secret, or research bodies in normalized events and run records.",
+  "primarySources": [
+    "https://ai.google.dev/api/interactions-api-v1",
+    "https://ai.google.dev/gemini-api/docs/streaming",
+    "https://ai.google.dev/gemini-api/docs/api-versions"
+  ],
+  "commands": [
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend/src-tauri/Cargo.toml model_provider::tests::",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend/src-tauri/Cargo.toml provider_stream::tests::",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend/src-tauri/Cargo.toml provider_runtime::tests::",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend test -- --run src/workspace/RemoteResearchReview.ui.test.tsx",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path frontend/src-tauri/Cargo.toml --locked",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/audit.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts/mcp-harness.mjs",
+    "node scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm --prefix frontend run check:supervised"
+  ],
+  "result": {
+    "focusedGeminiNetworkStreamTestPassed": true,
+    "focusedGeminiRuntimeStreamTestPassed": true,
+    "focusedRemoteReviewUiTestsPassed": 2,
+    "modelProviderTestsPassed": 30,
+    "providerStreamTestsPassed": 9,
+    "providerRuntimeTestsPassed": 17,
+    "fullRustTestsPassed": 115,
+    "fullFrontendTestFilesPassed": 109,
+    "fullFrontendTestFilesSkipped": 1,
+    "fullFrontendTestsPassed": 456,
+    "fullFrontendTestsSkipped": 1,
+    "frontendProductionBuildPassed": true,
+    "structuralAuditPassed": true,
+    "compiledMcpToolCount": 38,
+    "compiledMcpHarnessPassed": true,
+    "fullSupervisedValidationPassed": true,
+    "supervisedRunId": "20260811-070103-9ccac3",
+    "loopbackFakeNetworkUsed": true,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "paidProviderCalls": 0
+  },
+  "proved": [
+    "The Rust-owned request targets exactly stable /v1/interactions, uses x-goog-api-key without bearer authorization, sends stream:true plus Accept:text/event-stream, and retains store:false, background:false, and thinking_summaries:none.",
+    "The transport requires text/event-stream, enforces the shared 32 MiB aggregate ceiling, and remains inside the existing absolute request timeout and caller cancellation future.",
+    "The incremental decoder normalizes interaction.created, bounded unique indexed step start/delta/stop events, initial and delta model-output text, final usage/status, sanitized errors/warnings, and [DONE].",
+    "Thought summaries, thought signatures, function/tool names, and argument deltas are represented only by content-free warning types; their bodies never enter normalized events.",
+    "Orphan or duplicate steps, unfinished steps, mismatched interaction IDs, label/type mismatch, inconsistent usage, malformed frames, and incomplete terminal lifecycle fail closed.",
+    "The native task runtime accumulates a bounded Gemini response, removes the cancellation registration, marks the content-free run record as streamed, and excludes secret, prompt, category, and thought canaries.",
+    "The workspace remote-review routing selects native streaming for OpenAI, Anthropic, and Gemini while leaving xAI on bounded one-shot generation."
+  ],
+  "notProved": [
+    "A live Gemini credential, endpoint response, model ID, rate limit, billing behavior, or provider-policy behavior.",
+    "Function/tool argument assembly, schema validation, tool execution, or thought-signature continuation.",
+    "Retry, reconnect, event resumption, duplicate-event, slow-consumer, or backpressure behavior.",
+    "Packaged native Send once dialog interaction or a shipped updater artifact containing this checkpoint.",
+    "Any model-quality, truth, consensus, or superiority property."
+  ]
+}

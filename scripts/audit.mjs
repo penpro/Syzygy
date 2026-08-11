@@ -922,6 +922,7 @@ const advertisedMcpTools = [
   'rename_project',
   'read_active_project',
   'inspect_research_state',
+  'read_scenario',
   'read_scenario_turn_revision',
   'start_adversarial_review',
   'inspect_adversarial_review',
@@ -1024,19 +1025,27 @@ record(
 const scenarioRevisionReadSource = text('frontend/src/workspace/scenarioAutomation.ts')
 const scenarioRevisionReadTestSource = text('frontend/src/workspace/scenarioAutomation.test.ts')
 record(
-  'explicit MCP scenario revision readback remains bounded, content-disclosing, read-only, and LAN-verifiable',
-  scenarioRevisionReadSource.includes('readAutomationScenarioTurnRevision') &&
+  'explicit MCP scenario discovery and revision readback remain bounded, content-disclosing, read-only, and LAN-verifiable',
+  scenarioRevisionReadSource.includes('export function readAutomationScenario(') &&
+    scenarioRevisionReadSource.includes('turns: scenario.turns.map') &&
+    scenarioRevisionReadSource.includes('readAutomationScenarioTurnRevision') &&
+    scenarioRevisionReadTestSource.includes("expect(JSON.stringify(scenarioIndex)).not.toContain('First private body.')") &&
+    scenarioRevisionReadTestSource.includes("expect(JSON.stringify(historical)).not.toContain('Current private body.')") &&
     scenarioRevisionReadSource.includes("throw new Error('Scenario data failed integrity checks')") &&
     scenarioRevisionReadSource.includes("throw new Error('Scenario turn revision not found')") &&
     scenarioRevisionReadTestSource.includes('reads one explicit current or historical turn revision body without mutating research state') &&
+    text('frontend/src/automationBridge.ts').includes("case 'project.readScenario'") &&
     text('frontend/src/automationBridge.ts').includes("case 'project.readScenarioTurnRevision'") &&
+    mcpSource.includes('"read_scenario" => live("project.readScenario"') &&
     mcpSource.includes('"read_scenario_turn_revision" => live("project.readScenarioTurnRevision"') &&
+    text('scripts/mcp-live-harness.mjs').includes('scenarioIndexReadback: true') &&
     text('scripts/mcp-live-harness.mjs').includes('scenarioTurnRevisionReadback: true') &&
+    text('scripts/lan-drive-live-harness.mjs').includes('scenarioIndexReadback') &&
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioSiblingMerge') &&
     text('scripts/lan-drive-live-harness.mjs').includes('scenarioStaleRevisionRejected') &&
-    text('scripts/lan-drive-live-harness.mjs').includes('item.toolCount >= 35') &&
-    existsSync(join(root, 'docs/audits/runs/MCP-SCENARIO-TURN-READBACK-2026-08-02.json')),
-  'one exact current/historical body, graph and identity validation, zero-write domain proof, named live MCP routing, packaged readback assertion, and two-node sibling/stale gates are present',
+    text('scripts/lan-drive-live-harness.mjs').includes('item.toolCount >= 36') &&
+    existsSync(join(root, 'docs/audits/runs/MCP-SCENARIO-INDEX-2026-08-05.json')),
+  'one bounded scenario background/turn-head index, one exact current/named/indexed body, graph and identity validation, zero-write proof, named live routes, packaged traversal assertion, and two-node discovery/sibling/stale gates are present',
 )
 const versionAutomationSource = text('frontend/src/workspace/versionAutomation.ts')
 const versionAutomationTestSource = text('frontend/src/workspace/versionAutomation.test.ts')
@@ -1310,7 +1319,7 @@ record(
     researchStateInspectionSource.includes('adversarial-review question/source/result/decision-note bodies') &&
     mcpSource.includes('"save_adversarial_review"') &&
     mcpSource.includes('"decide_adversarial_review"') &&
-    mcpHarnessSource.includes('tools.length < 35') &&
+    mcpHarnessSource.includes('tools.length < 36') &&
     frontendPackage.scripts?.['test:adversarial']?.includes('adversarialHistory.test.ts'),
   'full archives persist only by explicit revision-guarded save; canonical hashes, provider provenance, peer convergence, exact-parent decision history, fail-closed conflicts, content-minimized inspection, and zero draft authority are enforced',
 )
@@ -1649,7 +1658,8 @@ record(
     lanDriveHarnessSource.includes("'--mutate'") &&
     lanDriveHarnessSource.includes('Math.min(timeoutMs, 60_000)') &&
     lanDriveHarnessSource.includes('staleRevisionRejected') &&
-    lanDriveHarnessSource.includes('item.toolCount >= 35') &&
+    lanDriveHarnessSource.includes('item.toolCount >= 36') &&
+    lanDriveHarnessSource.includes('scenarioIndexReadback') &&
     lanDriveHarnessSource.includes('scenarioSiblingMerge') &&
     lanDriveHarnessSource.includes('scenarioCurrentConverged') &&
     lanDriveHarnessSource.includes('scenarioStaleRevisionRejected') &&
@@ -1663,7 +1673,7 @@ record(
     existsSync(join(root, 'docs/audits/runs/LAN-COLLABORATION-SUPERVISION-2026-07-17.json')) &&
     existsSync(join(root, 'docs/audits/runs/LAN-DEV-MODE-LIFECYCLE-2026-07-18.json')) &&
     existsSync(join(root, 'docs/audits/runs/MCP-SCENARIO-TURN-READBACK-2026-08-02.json')),
-  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, 35-tool discovery, explicit sibling-body readback, deterministic current convergence, and stale-write gates are present',
+  'app-owned coordinator and outbound agents preserve loopback GUI ownership; authenticated attachments, bounded supervision, graceful reaping, exact Drive collaboration actions, 36-tool discovery, explicit scenario-index and sibling-body readback, deterministic current convergence, and stale-write gates are present',
 )
 const ledger = JSON.parse(text('docs/audits/CAPABILITIES.json'))
 const expectedIds = [

@@ -396,12 +396,14 @@ live harness checks it when explicitly run; CI does not claim a packaged GUI pro
 `scenarioAutomation.test.ts` is the MCP scenario read/mutation gate. Inspection returns a monotonic
 Yjs state-vector revision and rejects an internally inconsistent read if state changes during its
 asynchronous hash checks. Creation requires that exact revision, rechecks project identity, and
-mutates the registered live Y.Doc synchronously. `read_scenario_turn_revision` instead validates
-project/graph/scenario/turn/revision identity and returns one detached current or historical body
-without changing the Y.Doc. Add-turn and revise-turn require the revision from inspection or the
-immediately preceding mutation; revisions retain both authors and bodies. Stale tests prove zero
-scenario/turn writes. Rust routing and the packaged live harness cover each named scenario read/
-mutation tool; the live harness reads a historical and current body back explicitly. The voting
+mutates the registered live Y.Doc synchronously. `read_scenario` validates exact project/graph/
+scenario identity and returns one detached background plus at most 1,000 ordered turn identities,
+roles, revision counts, and current edit IDs without turn bodies. `read_scenario_turn_revision` then
+returns one detached current, named, or zero-based indexed body. Both reads leave the Y.Doc byte-
+identical. Add-turn and revise-turn require the revision from inspection or the immediately preceding
+mutation; revisions retain both authors and bodies. Stale tests prove zero scenario/turn writes. Rust
+routing and the packaged live harness cover each named scenario read/mutation tool; the live harness
+proves the scenario-index-to-indexed-revision traversal chain. The voting
 gate chains support, re-vote, and withdrawal events, then proves a stale call adds no vote event;
 MCP output exposes aggregate counts, not voter bodies. The annotation gate chains create, edit,
 resolve, and reopen under both project-research and exact-current-event guards, then proves both

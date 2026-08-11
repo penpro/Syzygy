@@ -22,7 +22,7 @@ import { inspectResearchState } from './workspace/researchStateInspection'
 import {
   addAutomationScenarioTurn, castAutomationScenarioVote, createAutomationScenario,
   createAutomationScenarioAnnotation, createAutomationScenarioLabel,
-  readAutomationScenarioTurnRevision, renameAutomationScenarioLabel, resolveAutomationScenarioAnnotation,
+  readAutomationScenario, readAutomationScenarioTurnRevision, renameAutomationScenarioLabel, resolveAutomationScenarioAnnotation,
   reviseAutomationScenarioTurn, setAutomationScenarioLabelAssignment,
   updateAutomationScenarioAnnotation,
 } from './workspace/scenarioAutomation'
@@ -172,6 +172,22 @@ export async function dispatchAutomationRequest(
         project.id,
       ) }
     }
+    case 'project.readScenario': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const read = readAutomationScenario(getAutomationProjectDocument(project.id), project.id, {
+        scenarioId: requiredString(params, 'scenarioId'),
+      })
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        scenario: read.scenario,
+        turns: read.turns,
+        researchRevision: read.researchRevision,
+      }
+    }
     case 'project.readScenarioTurnRevision': {
       const latest = useStore.getState()
       const project = latest.projects.find(
@@ -182,15 +198,14 @@ export async function dispatchAutomationRequest(
         scenarioId: requiredString(params, 'scenarioId'),
         turnId: requiredString(params, 'turnId'),
         revisionEditId: optionalString(params, 'revisionEditId') ?? undefined,
+        revisionIndex: optionalNonNegativeInteger(params, 'revisionIndex') ?? undefined,
       })
       return {
         project: summarizeProject(project, latest.activeProjectId),
-        scenario: summarizeScenario(read.scenario),
-        turn: {
-          id: read.turn.id, createdBy: read.turn.createdBy, createdAt: read.turn.createdAt,
-          revisionCount: read.turn.revisions.length, currentEditId: read.currentEditId,
-        },
+        scenario: read.scenario,
+        turn: read.turn,
         revision: read.revision,
+        revisionIndex: read.revisionIndex,
         revisionIsCurrent: read.revision.editId === read.currentEditId,
         researchRevision: read.researchRevision,
       }
@@ -763,6 +778,13 @@ function optionalString(params: Record<string, unknown>, name: string): string |
   if (value === undefined || value === null) return null
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${name} must be a non-empty string when provided`)
   return value
+}
+
+function optionalNonNegativeInteger(params: Record<string, unknown>, name: string): number | null {
+  const value = params[name]
+  if (value === undefined || value === null) return null
+  if (!Number.isInteger(value) || (value as number) < 0) throw new Error(`${name} must be a non-negative integer when provided`)
+  return value as number
 }
 
 function requiredScenarioTurnRole(params: Record<string, unknown>): ScenarioTurnRole {

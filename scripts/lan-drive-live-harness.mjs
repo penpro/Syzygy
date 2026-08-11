@@ -196,6 +196,7 @@ const evidence = {
   concurrentMerge: false,
   staleRevisionRejected: false,
   scenarioPrimaryToSecondary: false,
+  scenarioIndexReadback: false,
   scenarioSiblingMerge: false,
   scenarioCurrentConverged: false,
   scenarioStaleRevisionRejected: false,
@@ -225,7 +226,7 @@ try {
   const selectedProbes = probe.structuredContent.probes.filter((item) =>
     item.nodeId === primaryNode || item.nodeId === secondaryNode)
   assert.equal(selectedProbes.length, 2)
-  assert.equal(selectedProbes.every((item) => item.ok && item.toolCount >= 35), true)
+  assert.equal(selectedProbes.every((item) => item.ok && item.toolCount >= 36), true)
 
   if (!mutate) {
     const [primary, secondary] = await Promise.all([
@@ -324,6 +325,12 @@ try {
       'scenario turn from primary on the secondary installation',
     )
     evidence.scenarioPrimaryToSecondary = secondaryBase.revision.content === baseTurnBody
+    const scenarioIndexes = await Promise.all([
+      lanCall(session, primaryNode, 'read_scenario', { scenarioId }),
+      lanCall(session, secondaryNode, 'read_scenario', { scenarioId }),
+    ])
+    evidence.scenarioIndexReadback = scenarioIndexes.every((value) => value.scenario.background === 'Physical two-install scenario-turn convergence proof.'
+      && value.turns.length === 1 && value.turns[0].id === turnId && value.turns[0].revisionCount === 1)
 
     const primaryBase = await lanCall(session, primaryNode, 'read_scenario_turn_revision', { scenarioId, turnId })
     const primaryBranchBody = `Primary scenario branch ${runId}`
@@ -394,6 +401,7 @@ try {
       && evidence.concurrentMerge
       && evidence.staleRevisionRejected
       && evidence.scenarioPrimaryToSecondary
+      && evidence.scenarioIndexReadback
       && evidence.scenarioSiblingMerge
       && evidence.scenarioCurrentConverged
       && evidence.scenarioStaleRevisionRejected

@@ -4,7 +4,7 @@ import { readScenario } from './scenarioModel'
 import {
   addAutomationScenarioTurn, castAutomationScenarioVote, createAutomationScenario,
   createAutomationScenarioAnnotation, createAutomationScenarioLabel,
-  readAutomationScenarioTurnRevision, renameAutomationScenarioLabel, resolveAutomationScenarioAnnotation,
+  readAutomationScenario, readAutomationScenarioTurnRevision, renameAutomationScenarioLabel, resolveAutomationScenarioAnnotation,
   reviseAutomationScenarioTurn, setAutomationScenarioLabelAssignment, updateAutomationScenarioAnnotation,
 } from './scenarioAutomation'
 import { readScenarioAnnotations } from './scenarioAnnotationModel'
@@ -71,7 +71,7 @@ describe('automation scenario creation', () => {
   it('reads one explicit current or historical turn revision body without mutating research state', () => {
     const doc = createProjectDocument(manifest)
     const created = createAutomationScenario(doc, manifest.id, {
-      expectedResearchRevision: projectStateFingerprint(doc), scenarioId: 'read-turn-scenario', title: 'Read turns', background: '',
+      expectedResearchRevision: projectStateFingerprint(doc), scenarioId: 'read-turn-scenario', title: 'Read turns', background: 'Background-only disclosure.',
       participantId: 'author-a', createdAt: 10, editId: 'create-read-turn-scenario',
     })
     const added = addAutomationScenarioTurn(doc, manifest.id, {
@@ -83,6 +83,14 @@ describe('automation scenario creation', () => {
       role: 'assistant', content: 'Current private body.', participantId: 'author-b', timestamp: 12, editId: 'current-body',
     })
     const beforeRead = projectStateFingerprint(doc)
+    const scenarioIndex = readAutomationScenario(doc, manifest.id, { scenarioId: 'read-turn-scenario' })
+    expect(scenarioIndex).toMatchObject({
+      scenario: { id: 'read-turn-scenario', title: 'Read turns', background: 'Background-only disclosure.', turnCount: 1 },
+      turns: [{ id: 'answer-turn', revisionCount: 2, currentEditId: 'current-body' }],
+    })
+    expect(JSON.stringify(scenarioIndex)).not.toContain('First private body.')
+    expect(JSON.stringify(scenarioIndex)).not.toContain('Current private body.')
+    expect(scenarioIndex.researchRevision).toBe(beforeRead)
     const historical = readAutomationScenarioTurnRevision(doc, manifest.id, {
       scenarioId: 'read-turn-scenario', turnId: 'answer-turn', revisionEditId: 'first-body',
     })
@@ -91,10 +99,18 @@ describe('automation scenario creation', () => {
     })
     expect(historical.revision).toMatchObject({ editId: 'first-body', content: 'First private body.', authorId: 'author-a' })
     expect(current.revision).toMatchObject({ editId: 'current-body', content: 'Current private body.', authorId: 'author-b' })
+    expect(JSON.stringify(historical)).not.toContain('Current private body.')
+    expect(JSON.stringify(current)).not.toContain('First private body.')
+    const byIndex = readAutomationScenarioTurnRevision(doc, manifest.id, {
+      scenarioId: 'read-turn-scenario', turnId: 'answer-turn', revisionIndex: 0,
+    })
+    expect(byIndex).toMatchObject({ revisionIndex: 0, revision: { editId: 'first-body', content: 'First private body.' } })
     expect(current).toMatchObject({ currentEditId: 'current-body', researchRevision: revised.researchRevision })
     expect(projectStateFingerprint(doc)).toBe(beforeRead)
     expect(() => readAutomationScenarioTurnRevision(doc, manifest.id, { scenarioId: 'read-turn-scenario', turnId: 'answer-turn', revisionEditId: 'missing' })).toThrow('Scenario turn revision not found')
     expect(() => readAutomationScenarioTurnRevision(doc, 'wrong-project', { scenarioId: 'read-turn-scenario', turnId: 'answer-turn' })).toThrow('project identity does not match')
+    expect(() => readAutomationScenarioTurnRevision(doc, manifest.id, { scenarioId: 'read-turn-scenario', turnId: 'answer-turn', revisionIndex: -1 })).toThrow('revision index is invalid')
+    expect(() => readAutomationScenarioTurnRevision(doc, manifest.id, { scenarioId: 'read-turn-scenario', turnId: 'answer-turn', revisionEditId: 'first-body', revisionIndex: 0 })).toThrow('not both')
   })
   it('rejects stale turn add and revision without changing turn history', () => {
     const doc = createProjectDocument(manifest)

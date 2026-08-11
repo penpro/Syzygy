@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "runId": "MCP-SCENARIO-INDEX-2026-08-05",
+  "date": "2026-08-05",
+  "appVersionAtRun": "0.1.19",
+  "baseCheckpoint": "0a305f2",
+  "capabilities": ["P-12", "P-15", "S-07"],
+  "status": "implemented_unverified",
+  "claim": "An MCP host can discover one validated scenario background and bounded ordered turn identity/head index, then explicitly read one current, named, or indexed immutable turn revision body without mutating shared research state.",
+  "commands": [
+    "npm --prefix frontend test -- --run src/workspace/scenarioAutomation.test.ts src/automationCapabilities.test.ts",
+    "cargo test --locked mcp::tests",
+    "node --check scripts/mcp-live-harness.mjs",
+    "node --check scripts/lan-drive-live-harness.mjs",
+    "node --test scripts/lan-bridge.test.mjs scripts/lan-agent-supervisor.test.mjs scripts/lan-dev-mode.test.mjs",
+    "npm --prefix frontend run check:supervised"
+  ],
+  "result": {
+    "focusedFrontendTestFilesPassed": 2,
+    "focusedFrontendTestsPassed": 14,
+    "focusedRustTestsPassed": 17,
+    "lanFixtureTestsPassed": 8,
+    "fullFrontendTestFilesPassed": 107,
+    "fullFrontendTestFilesSkipped": 1,
+    "fullFrontendTestsPassed": 435,
+    "fullFrontendTestsSkipped": 1,
+    "structuralAuditPassed": true,
+    "rustCheckPassed": true,
+    "appAssetEmbedRecompiled": true,
+    "supervisedRunId": "20260806-032332-865f5a",
+    "supervisedElapsedSeconds": 22,
+    "compiledStdioDiscoveryPassed": true,
+    "compiledStdioToolCount": 36,
+    "pendingNativeValidation": false,
+    "packagedLiveTraversalPassed": false,
+    "physicalTwoInstallTraversalPassed": false,
+    "externalNetworkUsed": false,
+    "realCredentialUsed": false,
+    "realModelCalls": 0
+  },
+  "proved": [
+    "The domain validates exact project/scenario identity and graph integrity before returning one detached scenario background plus at most 1,000 ordered turn IDs, roles, revision counts, and deterministic current edit IDs.",
+    "Turn bodies remain absent from read_scenario and broad inspect_research_state; read_scenario_turn_revision returns at most one 200,000-character current, named, or zero-based indexed body.",
+    "Named and indexed selectors are mutually exclusive, missing and hostile identities fail closed, and the complete discovery/read sequence leaves the Y.Doc state fingerprint unchanged.",
+    "The embedded MCP advertises and routes both explicit reads as separate content-disclosing, zero-authority tools; focused Rust routing/discovery tests pass and the compiled debug executable reports exactly 36 protocol-clean tools.",
+    "The packaged live harness exercises background-to-turn-ID-to-indexed-body traversal, and the physical LAN/Drive harness requires both nodes to discover the same turn identity/head before sibling convergence checks."
+  ],
+  "notProved": [
+    "A release/installed 36-tool Syzygy executable completed the live background-to-turn-to-indexed-body traversal in this evidence run; only compiled stdio discovery was exercised.",
+    "Both office installations were updated to this checkpoint and completed the physical Drive traversal and sibling-convergence gate.",
+    "Authenticated participant identity, trusted timestamps, explicit sibling reconciliation, or non-Drive collaboration transports.",
+    "Near-limit scenario/turn histories meet a measured end-to-end MCP/LAN latency and memory budget.",
+    "A release/updater artifact contains this development checkpoint."
+  ]
+}

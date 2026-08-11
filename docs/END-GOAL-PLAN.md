@@ -401,9 +401,11 @@ state; reference graph survives delete/restore/export/import; jobs do not freeze
 Progress: the engine-free product covers scenario gallery CRUD/status, ordered turn creation and
 exact-current revision editing, votes, notes/flags, labels, branches, generated/manual response
 variants, examples, evaluation queues/comparison, stable links/spotlights, and open scenario packs.
-Broad MCP inspection remains body-free, while a separate explicit tool reads exactly one selected
-turn revision. The physical LAN/Drive harness now verifies both concurrent sibling bodies and the
-same deterministic current revision across two installations. Its component gates pass; installing
+Broad MCP inspection remains body-free, while explicit `read_scenario` and
+`read_scenario_turn_revision` tools provide a bounded background/turn-head index followed by exactly
+one selected current, named, or indexed revision body. The physical LAN/Drive harness now discovers
+the same turn identity on both installations before verifying both concurrent sibling bodies and the
+same deterministic current revision. Its component gates pass; installing
 this build on both office computers and recording the physical run, authenticated identity/time,
 explicit branch reconciliation, packaged accessibility, and near-limit performance remain open.
 

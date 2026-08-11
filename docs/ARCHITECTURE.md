@@ -334,8 +334,10 @@ with create/select/edit/status and attributed vote/withdraw controls against the
 `ScenarioTurnWorkspace.tsx` owns manual ordered turn creation and exact-parent revision editing,
 keeps stale drafts visible until the researcher reloads shared state, and bounds both conversation
 pages and visible lineage to 50 items without discarding retained history. The broad MCP research
-inspection remains body-free; `read_scenario_turn_revision` is a separate explicit read that validates
-the live graph and returns exactly one chosen current or historical revision body without mutation.
+inspection remains body-free; `read_scenario` is a separate explicit disclosure that validates one
+scenario and returns its background plus bounded ordered turn identity/head metadata without turn
+bodies. `read_scenario_turn_revision` then returns exactly one chosen current, named, or indexed
+revision body. Both reads are detached, graph-validated, and zero-write.
 `ScenarioCollaborationPanel.tsx` adds scenario/turn note and flag create/edit/resolve/reopen plus
 project-label create/rename/assignment controls. It pages both projections at 50 items, captures
 exact event parents when editing, and rechecks graph, annotation, and label integrity immediately

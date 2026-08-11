@@ -446,11 +446,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   or shutdown. The repository host also supervises its primary packaged agent with bounded backoff.
   Three MCP tools expose exact bounded Drive catalog/share/join actions; share requires the current
   document revision and join refetches exact workspace/project/document identity before registration.
-  A separate explicit MCP read returns one chosen scenario-turn revision body while broad inspection
-  stays body-free. The five-minute physical harness now requires both nodes and all 35 tools; it proves
-  document bidirectional/concurrent convergence, then reads both simultaneous scenario siblings from
-  both installations, requires the same deterministic current revision, and rejects stale document
-  and scenario writes with boolean-only output. Component, Rust, MCP, and synthetic host gates pass;
+  Two explicit MCP reads now provide a bounded scenario traversal chain while broad inspection stays
+  body-free: `read_scenario` returns one background plus ordered turn identity/head metadata, then
+  `read_scenario_turn_revision` returns one chosen current, named, or indexed body. The five-minute
+  physical harness now requires both nodes and all 36 tools; it discovers the turn on both installations,
+  reads both simultaneous scenario siblings, requires the same deterministic current revision, and
+  rejects stale document and scenario writes with boolean-only output. Component, Rust, MCP, and synthetic host gates pass;
   S-07 stays `implemented_unverified` until this build is installed on both profiles and the physical
   harness produces its evidence record. Presence, bounded compaction, shared rename, and non-Drive
   transports remain open.

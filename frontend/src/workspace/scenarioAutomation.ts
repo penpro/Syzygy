@@ -37,10 +37,14 @@ export interface MutateAutomationScenarioTurnInput {
   editId: string
 }
 
-export interface ReadAutomationScenarioTurnRevisionInput {
+export interface ReadAutomationScenarioInput {
   scenarioId: string
+}
+
+export interface ReadAutomationScenarioTurnRevisionInput extends ReadAutomationScenarioInput {
   turnId: string
   revisionEditId?: string
+  revisionIndex?: number
 }
 
 export interface CastAutomationScenarioVoteInput {
@@ -121,24 +125,63 @@ function guardedScenarios(doc: Y.Doc, expectedProjectId: string, expectedResearc
   return scenarios
 }
 
-export function readAutomationScenarioTurnRevision(
-  doc: Y.Doc, expectedProjectId: string, input: ReadAutomationScenarioTurnRevisionInput,
-) {
+function readableScenario(doc: Y.Doc, expectedProjectId: string, scenarioId: string) {
   const { metadata, scenarios } = getProjectSharedTypes(doc)
   if (metadata.get('projectId') !== expectedProjectId) throw new Error('Live collaboration document project identity does not match')
   const integrity = inspectScenarioGraph(scenarios)
   if (!integrity.healthy) throw new Error('Scenario data failed integrity checks')
-  const scenario = readScenario(scenarios, input.scenarioId)
+  const scenario = readScenario(scenarios, scenarioId)
   if (!scenario) throw new Error('Scenario not found or invalid')
+  return scenario
+}
+
+export function readAutomationScenario(doc: Y.Doc, expectedProjectId: string, input: ReadAutomationScenarioInput) {
+  const scenario = readableScenario(doc, expectedProjectId, input.scenarioId)
+  return {
+    scenario: {
+      id: scenario.id, title: scenario.title, background: scenario.background, status: scenario.status,
+      parentScenarioId: scenario.parentScenarioId, createdBy: scenario.createdBy, createdAt: scenario.createdAt,
+      editCount: scenario.edits.length, turnCount: scenario.turns.length,
+    },
+    turns: scenario.turns.map((turn) => ({
+      id: turn.id, role: turn.role, createdBy: turn.createdBy, createdAt: turn.createdAt,
+      revisionCount: turn.revisions.length, currentEditId: turn.revisions[turn.revisions.length - 1]!.editId,
+    })),
+    researchRevision: projectStateFingerprint(doc),
+  }
+}
+
+export function readAutomationScenarioTurnRevision(
+  doc: Y.Doc, expectedProjectId: string, input: ReadAutomationScenarioTurnRevisionInput,
+) {
+  const scenario = readableScenario(doc, expectedProjectId, input.scenarioId)
   const turn = scenario.turns.find((candidate) => candidate.id === input.turnId)
   if (!turn) throw new Error('Scenario turn not found or invalid')
-  const revision = input.revisionEditId
+  if (input.revisionEditId !== undefined && input.revisionIndex !== undefined) {
+    throw new Error('Choose revisionEditId or revisionIndex, not both')
+  }
+  if (input.revisionIndex !== undefined && (!Number.isInteger(input.revisionIndex) || input.revisionIndex < 0)) {
+    throw new Error('Scenario turn revision index is invalid')
+  }
+  const revision = input.revisionEditId !== undefined
     ? turn.revisions.find((candidate) => candidate.editId === input.revisionEditId)
-    : turn.revisions[turn.revisions.length - 1]
+    : input.revisionIndex !== undefined
+      ? turn.revisions[input.revisionIndex]
+      : turn.revisions[turn.revisions.length - 1]
   if (!revision) throw new Error('Scenario turn revision not found')
+  const current = turn.revisions[turn.revisions.length - 1]!
   return {
-    scenario, turn, revision: { ...revision },
-    currentEditId: turn.revisions[turn.revisions.length - 1]!.editId,
+    scenario: {
+      id: scenario.id, title: scenario.title, status: scenario.status,
+      parentScenarioId: scenario.parentScenarioId, createdBy: scenario.createdBy,
+      createdAt: scenario.createdAt, turnCount: scenario.turns.length,
+    },
+    turn: {
+      id: turn.id, createdBy: turn.createdBy, createdAt: turn.createdAt,
+      revisionCount: turn.revisions.length, currentEditId: current.editId,
+    },
+    revision: { ...revision }, revisionIndex: turn.revisions.indexOf(revision),
+    currentEditId: current.editId,
     researchRevision: projectStateFingerprint(doc),
   }
 }

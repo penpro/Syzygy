@@ -92,7 +92,7 @@ fn dispatch_message(message: &Value, live: &LiveCall<'_>) -> Option<Value> {
                     "title": "Syzygy Live Workspace",
                     "version": env!("CARGO_PKG_VERSION")
                 },
-                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, adversarial review archives/decisions, and immutable history. Use read_scenario_turn_revision only when the user wants one explicit current or named revision body; it is a content-disclosing read. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. On any conflict, read again and reconcile. Adversarial model review starts with start_adversarial_review followed by inspect_adversarial_review or cancel_adversarial_review; it requires configured built-in provider credentials and one native disclosure approval, and its result remains transient and pending human review. Call save_adversarial_review only with explicit authority to make the full question, selected source excerpts, and results shared project content that can synchronize through Drive. Call decide_adversarial_review separately to append an immutable accept/reject event; it never edits the draft. Never claim real-time collaborator presence is available."
+                "instructions": "Pilot the running Syzygy app semantically. Use syzygy_installation for exact local setup details. Start live work with syzygy_status, then workspace_walkthrough and list_projects. Use inspect_drive_project_discovery to compare the selected folder code and bounded remote project identities across installations; that explicit call performs a content-free Drive metadata read. Use list_shared_projects only when a user wants the visible Drive catalog. Share requires the exact revision from read_active_project; join requires an exact freshly cataloged project/document/workspace identity. Use inspect_research_state for bounded read-only integrity metadata about scenarios, aggregate voting, annotations, shared labels, heuristics, adversarial review archives/decisions, and immutable history. Use read_scenario for one explicit scenario background and its bounded turn identity/head index, then read_scenario_turn_revision for one current, named, or indexed revision body; both are content-disclosing reads. Read a project before editing, checkpointing, or restoring it. Document writes require the exact revision returned by read_active_project. Scenario, turn, vote, annotation, and label tools require the latest exact research revision from inspection or the prior mutation; annotation and label follow-up mutations additionally require their exact current event. save_active_policy_version requires the exact non-null head from inspection, or omission when no head exists. restore_active_policy_version requires the exact document revision, exact non-null head, and an inspected target version; it creates a new head instead of rewriting history. On any conflict, read again and reconcile. Adversarial model review starts with start_adversarial_review followed by inspect_adversarial_review or cancel_adversarial_review; it requires configured built-in provider credentials and one native disclosure approval, and its result remains transient and pending human review. Call save_adversarial_review only with explicit authority to make the full question, selected source excerpts, and results shared project content that can synchronize through Drive. Call decide_adversarial_review separately to append an immutable accept/reject event; it never edits the draft. Never claim real-time collaborator presence is available."
             })
         }
         "ping" => json!({}),
@@ -132,6 +132,7 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "rename_project" => live("project.rename", arguments),
         "read_active_project" => live("project.readActive", json!({})),
         "inspect_research_state" => live("project.readResearchState", json!({})),
+        "read_scenario" => live("project.readScenario", arguments),
         "read_scenario_turn_revision" => live("project.readScenarioTurnRevision", arguments),
         "start_adversarial_review" => live("research.startAdversarialReview", arguments),
         "inspect_adversarial_review" => live("research.inspectAdversarialReview", arguments),
@@ -320,13 +321,22 @@ fn tool_definitions() -> Vec<Value> {
             ),
         ),
         tool(
+            "read_scenario",
+            "Explicitly read one scenario background plus its bounded ordered turn identity/current-head index from the active live project. Turn bodies remain omitted; call read_scenario_turn_revision for one chosen body. This grants no mutation or model authority.",
+            object_schema(
+                &[("scenarioId", string_schema("Existing stable scenario ID."))],
+                &["scenarioId"],
+            ),
+        ),
+        tool(
             "read_scenario_turn_revision",
-            "Explicitly read one current or named immutable scenario-turn revision body from the active live project. This content-disclosing read returns one bounded body plus turn metadata and the current research revision; it grants no mutation or model authority.",
+            "Explicitly read one current, named, or zero-based indexed immutable scenario-turn revision body from the active live project. This content-disclosing read returns one bounded body plus turn metadata and the current research revision; it grants no mutation or model authority.",
             object_schema(
                 &[
                     ("scenarioId", string_schema("Existing stable scenario ID.")),
                     ("turnId", string_schema("Existing stable turn ID.")),
-                    ("revisionEditId", string_schema("Optional exact historical revision ID; omit to read the deterministic current revision.")),
+                    ("revisionEditId", string_schema("Optional exact historical revision ID; omit both selectors to read the deterministic current revision.")),
+                    ("revisionIndex", json!({ "type": "integer", "minimum": 0, "maximum": 9999, "description": "Optional zero-based revision index from oldest to newest; do not combine with revisionEditId." })),
                 ],
                 &["scenarioId", "turnId"],
             ),
@@ -741,6 +751,7 @@ mod tests {
         assert!(names.contains(&"syzygy_platform_contracts"));
         assert!(names.contains(&"read_active_project"));
         assert!(names.contains(&"inspect_research_state"));
+        assert!(names.contains(&"read_scenario"));
         assert!(names.contains(&"read_scenario_turn_revision"));
         assert!(names.contains(&"inspect_drive_project_discovery"));
         assert!(names.contains(&"list_shared_projects"));
@@ -763,7 +774,7 @@ mod tests {
         assert!(names.contains(&"cancel_adversarial_review"));
         assert!(names.contains(&"save_adversarial_review"));
         assert!(names.contains(&"decide_adversarial_review"));
-        assert_eq!(names.len(), 35);
+        assert_eq!(names.len(), 36);
         assert!(names.contains(&"replace_active_document"));
     }
 
@@ -982,6 +993,19 @@ mod tests {
     }
 
     #[test]
+    fn routes_explicit_scenario_index_read() {
+        let response = dispatch_message(
+            &json!({
+                "jsonrpc": "2.0", "id": "scenario-read-1", "method": "tools/call",
+                "params": { "name": "read_scenario", "arguments": { "scenarioId": "test-scenario" } }
+            }),
+            &fake_live,
+        ).unwrap();
+        assert_eq!(response["result"]["structuredContent"]["method"], "project.readScenario");
+        assert_eq!(response["result"]["structuredContent"]["params"]["scenarioId"], "test-scenario");
+    }
+
+    #[test]
     fn routes_explicit_scenario_turn_revision_read() {
         let response = dispatch_message(
             &json!({
@@ -993,7 +1017,7 @@ mod tests {
                     "arguments": {
                         "scenarioId": "test-scenario",
                         "turnId": "answer-turn",
-                        "revisionEditId": "revision-1"
+                        "revisionIndex": 0
                     }
                 }
             }),
@@ -1005,8 +1029,8 @@ mod tests {
             "project.readScenarioTurnRevision"
         );
         assert_eq!(
-            response["result"]["structuredContent"]["params"]["revisionEditId"],
-            "revision-1"
+            response["result"]["structuredContent"]["params"]["revisionIndex"],
+            0
         );
     }
     #[test]

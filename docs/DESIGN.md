@@ -527,9 +527,10 @@ change," "Fetch from doi.org," or "Use the configured local model." Native MCP p
 stronger trust warning than capability-sandboxed WASI plugins. Advanced controls may be tucked
 away, but requested authority and remote transmission are never hidden there.
 
-The first **Research plugins** product surface sits below adversarial review. Loading is an explicit
-two-file action for `syzygy-plugin.json` plus the exact component named by it; both remain in memory
-only for the current app session. Show the component SHA-256/size, every requested capability, the
+The first **Research plugins** product surface sits below adversarial review. Unsigned development
+loading remains an explicit two-file action for `syzygy-plugin.json` plus the exact component named
+by it; both remain in memory only for the current app session. Durable local installation additionally
+requires the strict publisher-signature JSON. Show the component SHA-256/size, every requested capability, the
 active baseline subset, and every inactive capability before **Run in no-authority sandbox**.
 Never imply that contract certification, a structural match, or successful execution establishes
 publisher trust, semantic safety, or useful research quality. Returned proposal bodies enter
@@ -538,8 +539,11 @@ may record accept/reject decisions; stale revisions and disconnected conflicting
 visible. After commit, the product reports whether each local proposal/decision received exact-body
 registered-device attribution or remains explicitly unsigned, and must state that a device key does
 not authenticate a person. Copy must say that a decision does not apply, append, or replace policy
-text. Persistent package install/update/publisher signing, capability-bearing worlds, and any Apply
-action remain unavailable.
+text. Signed installs show the self-described publisher name and stable key fingerprint, explicitly
+deny that the key authenticates a person or organization, retain older exact versions, and expose
+separate disable, upgrade, rollback, and disabled-version removal actions. Unsigned packages never
+silently become durable. Package discovery/reputation, signing-key rotation, capability-bearing
+worlds, and any Apply action remain unavailable.
 
 ## Network-boundary copy
 

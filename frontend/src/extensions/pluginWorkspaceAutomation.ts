@@ -11,6 +11,7 @@ import {
   type LoadedPluginPackageSummary,
   type PluginPackageRegistry,
 } from './pluginPackageRegistry'
+import { pluginInstallationCatalog } from './pluginInstallationStore'
 import {
   zeroAuthorityPluginExecutor,
   type PluginExecutionOutcome,
@@ -127,6 +128,7 @@ export function inspectPluginWorkspace(
   const inspection = inspectPluginReviews(shared.discussions)
   return {
     loadedPackages: packages.list(),
+    installedPackages: pluginInstallationCatalog.list(),
     reviews: listPluginReviews(shared.discussions).slice(-200).map((review) => ({
       reviewId: review.id,
       proposalEventId: review.proposal.eventId,

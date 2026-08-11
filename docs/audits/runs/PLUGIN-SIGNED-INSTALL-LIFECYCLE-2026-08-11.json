@@ -1,0 +1,85 @@
+{
+  "verificationDate": "2026-08-11",
+  "feature": "publisher-signed local plugin install, disable, upgrade, rollback, and removal",
+  "status": "implemented-headless-verified",
+  "implementation": {
+    "loaderStatus": "signed-local-indexeddb-install-disable-upgrade-rollback-reverified",
+    "signatureSchema": "syzygy-plugin-publisher-signature-v1",
+    "signatureAlgorithm": "Ed25519",
+    "signatureClaimDomain": "syzygy-plugin-publisher-signature-v1",
+    "authoringCommand": "npm run sign:plugin",
+    "persistence": "bounded-local-indexeddb",
+    "maximumStoredVersions": 32,
+    "maximumStoredComponentBytes": 134217728,
+    "maximumEnabledPackages": 8,
+    "maximumEnabledComponentBytes": 33554432,
+    "publisherKeyContinuityRequiredForUpgrade": true,
+    "sameVersionComponentSubstitutionDenied": true,
+    "unsignedPersistenceAllowed": false,
+    "automaticPluginExecution": false,
+    "automaticDraftMutation": false,
+    "mcpLifecycleMutation": false
+  },
+  "focusedValidation": {
+    "command": "npm run test:plugin-composition",
+    "testFilesPassed": 7,
+    "testsPassed": 47,
+    "installReopenAndExactReverificationPassed": true,
+    "publisherClaimMutationRejected": true,
+    "publisherKeyTakeoverRejected": true,
+    "disabledLineagePublisherKeyTakeoverRejected": true,
+    "sameVersionComponentSubstitutionRejected": true,
+    "persistentComponentTamperRejected": true,
+    "upgradeRetainsPriorVersion": true,
+    "explicitRollbackReverified": true,
+    "activeRemovalRejected": true,
+    "concurrentUpgradesSerialized": true,
+    "enabledSessionCapacityEnforced": true,
+    "mcpInspectionOmitsComponentAndSignatureBodies": true,
+    "applyAuthorityAbsent": true
+  },
+  "publisherToolValidation": {
+    "command": "npm run test:plugin-sdk",
+    "sdkTestsPassed": 7,
+    "signerTestsPassed": 3,
+    "explicitEd25519KeyGenerationPassed": true,
+    "privateKeyExcludedFromPackageAndReport": true,
+    "nonEd25519KeyRejected": true,
+    "packagePathEscapeRejected": true,
+    "silentSignatureOverwriteRejected": true,
+    "generatedSignatureSelfVerified": true
+  },
+  "mcpValidation": {
+    "command": "npm run test:mcp",
+    "toolCount": 48,
+    "mcpRustRoutesPassed": 22,
+    "platformContractTestsPassed": 2,
+    "publisherSignatureSchemaEmbedded": true,
+    "stderrProtocolClean": true
+  },
+  "fullValidation": {
+    "pending": false,
+    "supervisedRunId": "20260811-224356-b6fb91",
+    "frontendTestFilesPassed": 135,
+    "frontendTestsPassed": 603,
+    "frontendModulesTransformed": 1277,
+    "repositoryAuditPassed": true,
+    "rustCheckPassed": true
+  },
+  "proved": [
+    "A durable install cannot be created without a valid Ed25519 proof binding the canonical manifest, exact component identity and digest, plugin version, WIT world, publisher name, and publisher-key fingerprint.",
+    "Stored packages are bounded independently from the active in-memory registry, and the persistent enabled set cannot exceed the active registry's eight-package and 32-MiB limits.",
+    "Normal upgrades require increasing semantic versions and the same publisher key across every retained enabled or disabled version, retain the previous signed version, and serialize concurrent lifecycle mutations.",
+    "Startup activation, enable, stored upgrade, rollback, and run reconstruct and hash the exact component; altered publisher claims or persistent bytes fail closed.",
+    "MCP inspection exposes content-minimized installed and active metadata but no component, proposal, or signature body and has no install, enable, upgrade, rollback, remove, or Apply route.",
+    "Unsigned packages remain explicitly session-only, and no installed component executes automatically.",
+    "Independent authors can generate an external Ed25519 key and the exact app-compatible public signature file with a checked-in non-executing CLI; the private key is excluded from the package and report."
+  ],
+  "notProved": [
+    "A publisher key authenticates a legal person, organization, reputation, safety review, semantic correctness, or research quality.",
+    "Publisher signing-key rotation, revocation, transparency logs, dependency resolution, package discovery, or marketplace governance.",
+    "Recovery from browser quota exhaustion, abrupt process termination during IndexedDB commit, malicious same-user storage modification beyond fail-closed revalidation, or OS profile rollback.",
+    "Packaged-app restart and upgrade behavior on Windows, macOS, or Linux; the persistence proof uses fake IndexedDB plus production TypeScript paths.",
+    "A useful independently built third-party component, capability-bearing host world, native MCP plugin execution, or revision-guarded plugin Apply workflow."
+  ]
+}

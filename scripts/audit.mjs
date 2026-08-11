@@ -2129,6 +2129,7 @@ record(
 )
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))
+const pluginPublisherSignatureSchema = JSON.parse(text('docs/schemas/syzygy-plugin-publisher-signature-v1.schema.json'))
 const pluginCertificationSchema = JSON.parse(text('docs/schemas/syzygy-plugin-certification-v1.schema.json'))
 const adversarialRunSchema = JSON.parse(text('docs/schemas/syzygy-adversarial-run-v1.schema.json'))
 const providerRunSchema = JSON.parse(text('docs/schemas/syzygy-provider-run-v1.schema.json'))
@@ -2154,8 +2155,9 @@ record(
   pluginManifestSchema.$schema === 'https://json-schema.org/draft/2020-12/schema' &&
     pluginManifestSchema.additionalProperties === false &&
     pluginProposalSchema.additionalProperties === false &&
+    pluginPublisherSignatureSchema.additionalProperties === false &&
     pluginCertificationSchema.additionalProperties === false &&
-    platformContractsSource.includes('"pluginLoader": "user-selected-in-memory-session-no-install-upgrade"') &&
+    platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-reverified"') &&
     platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-no-apply"') &&
     platformContractsSource.includes('"pluginReviewAttribution": "exact-retained-event-registered-device-or-explicit-unsigned"') &&
     platformContractsSource.includes('"pluginCertifier": "contract-certified-runner"') &&
@@ -2163,6 +2165,8 @@ record(
   'strict v1 schemas, honest runtime status, and proposal-only shared mutation',
 )
 const pluginCertifierSource = text('scripts/plugin-certifier.mjs')
+const pluginSignerSource = text('scripts/plugin-signer.mjs')
+const pluginSignerTestSource = text('scripts/plugin-signer.test.mjs')
 const pluginAuthorityBrokerSource = text('frontend/src/extensions/pluginAuthorityBroker.ts')
 const pluginAuthorityBrokerTestSource = text('frontend/src/extensions/pluginAuthorityBroker.test.ts')
 const pluginWasiContractSource = text('frontend/src/extensions/pluginWasiContract.ts')
@@ -2196,7 +2200,7 @@ record(
     pluginAuthorityBrokerTestSource.includes('permission-denied') &&
     frontendPackage.scripts?.['test:plugin-host']?.includes('pluginAuthorityBroker.test.ts') &&
     platformContractsSource.includes('"pluginAuthorityBroker": "implemented-non-executing"') &&
-    platformContractsSource.includes('"pluginLoader": "user-selected-in-memory-session-no-install-upgrade"'),
+    platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-reverified"'),
   'short-lived explicit grants, detached snapshots, pending revision-guarded proposals, target-only decisions, sanitized denial, and no runtime/network/model execution',
 )
 record(
@@ -2266,6 +2270,8 @@ record(
 const pluginExecutionSource = text('frontend/src/extensions/pluginExecution.ts')
 const pluginExecutionTestSource = text('frontend/src/extensions/pluginExecution.test.ts')
 const pluginPackageRegistrySource = text('frontend/src/extensions/pluginPackageRegistry.ts')
+const pluginInstallationStoreSource = text('frontend/src/extensions/pluginInstallationStore.ts')
+const pluginInstallationStoreTestSource = text('frontend/src/extensions/pluginInstallationStore.test.ts')
 const pluginReviewSource = text('frontend/src/extensions/pluginReviewModel.ts')
 const pluginReviewTestSource = text('frontend/src/extensions/pluginReviewModel.test.ts')
 const pluginWorkspaceAutomationSource = text('frontend/src/extensions/pluginWorkspaceAutomation.ts')
@@ -2277,6 +2283,9 @@ const pluginCompositionEvidence = JSON.parse(
 )
 const pluginReviewAttributionEvidence = JSON.parse(
   text('docs/audits/runs/SIGNED-PLUGIN-REVIEW-EVENTS-2026-08-11.json'),
+)
+const pluginSignedInstallEvidence = JSON.parse(
+  text('docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json'),
 )
 record(
   'user-selected zero-authority plugins compose into shared human review without draft authority',
@@ -2307,7 +2316,7 @@ record(
     mcpSource.includes('"inspect_plugin_workspace" => live("plugin.inspectWorkspace"') &&
     mcpSource.includes('"run_loaded_plugin" => live("plugin.runLoaded"') &&
     frontendPackage.scripts?.['test:plugin-composition']?.includes('pluginWorkspaceAutomation.test.ts') &&
-    platformContractsSource.includes('"pluginLoader": "user-selected-in-memory-session-no-install-upgrade"') &&
+    platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-reverified"') &&
     platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-no-apply"') &&
     pluginExecutionTestSource.includes('recomputes component provenance') &&
     pluginReviewTestSource.includes('converges disconnected reviews') &&
@@ -2328,6 +2337,80 @@ record(
     pluginCompositionEvidence.fullValidation?.repositoryAuditPassed === true &&
     pluginCompositionEvidence.fullValidation?.rustCheckPassed === true,
   'exact user-selected manifest/component digest, 32-MiB/eight-package session cap, project-only grant subset, serialized bounded execution, atomic shared proposal batch, conflict-visible human decisions, exact MCP revisions, content-minimized inspection, and no apply route',
+)
+record(
+  'publisher-signed plugin lifecycle remains local, bounded, reverified, rollback-safe, and authority-honest',
+  pluginPublisherSignatureSchema.$schema === 'https://json-schema.org/draft/2020-12/schema' &&
+    pluginPublisherSignatureSchema.additionalProperties === false &&
+    pluginPublisherSignatureSchema.properties?.publisher?.additionalProperties === false &&
+    pluginPublisherSignatureSchema.properties?.package?.additionalProperties === false &&
+    pluginInstallationStoreSource.includes("'syzygy-plugin-publisher-signature-v1'") &&
+    pluginInstallationStoreSource.includes('canonicalPluginManifest') &&
+    pluginInstallationStoreSource.includes('canonicalPluginPublisherClaim') &&
+    pluginInstallationStoreSource.includes('verifyEd25519DeviceMessage') &&
+    pluginInstallationStoreSource.includes('MAX_INSTALLED_VERSIONS = 32') &&
+    pluginInstallationStoreSource.includes('MAX_INSTALLED_COMPONENT_BYTES = 128 * 1024 * 1024') &&
+    pluginInstallationStoreSource.includes('MAX_ENABLED_PACKAGES = 8') &&
+    pluginInstallationStoreSource.includes('MAX_ENABLED_COMPONENT_BYTES = 32 * 1024 * 1024') &&
+    pluginInstallationStoreSource.includes('.getAll(undefined, MAX_INSTALLED_VERSIONS + 1)') &&
+    pluginInstallationStoreSource.includes('const publisherKeys = new Map<string, string>()') &&
+    pluginInstallationStoreSource.includes('retainedLineage.some') &&
+    pluginInstallationStoreSource.includes("new PluginInstallationError('publisher-mismatch')") &&
+    pluginInstallationStoreSource.includes("new PluginInstallationError('version-collision')") &&
+    pluginInstallationStoreSource.includes("new PluginInstallationError('rollback-required')") &&
+    pluginInstallationStoreSource.includes('async restoreEnabled()') &&
+    pluginInstallationStoreSource.includes('async rollback(') &&
+    pluginInstallationStoreSource.includes('async remove(') &&
+    pluginInstallationStoreSource.includes('await verifyLoadedPackage(record.plugin)') &&
+    pluginInstallationStoreSource.includes('private serialized<T>') &&
+    pluginInstallationStoreTestSource.includes('installs, reopens, and re-verifies') &&
+    pluginInstallationStoreTestSource.includes('requires publisher-key continuity across an upgrade') &&
+    pluginInstallationStoreTestSource.includes('await store.disable(first.plugin.packageId)') &&
+    pluginInstallationStoreTestSource.includes('persistent component tampering') &&
+    pluginInstallationStoreTestSource.includes('serializes concurrent upgrades') &&
+    pluginInstallationStoreTestSource.includes('eight-package session boundary') &&
+    pluginSignerSource.includes('canonicalPublisherClaim') &&
+    pluginSignerSource.includes('createPublisherPrivateKey') &&
+    pluginSignerSource.includes("privateKey.asymmetricKeyType !== 'ed25519'") &&
+    pluginSignerSource.includes('Generated publisher signature failed self-verification') &&
+    pluginSignerSource.includes('Signature output already exists') &&
+    pluginSignerTestSource.includes('app-compatible domain-separated publisher proof') &&
+    pluginSignerTestSource.includes('publisher key generation is explicit') &&
+    pluginSignerTestSource.includes('doesNotMatch') &&
+    frontendPackage.scripts?.['sign:plugin'] === 'node ../scripts/plugin-signer.mjs' &&
+    frontendPackage.scripts?.['test:plugin-sdk']?.includes('plugin-signer.test.mjs') &&
+    pluginWorkspaceSource.includes('Verify signature and install locally') &&
+    pluginWorkspaceSource.includes('Roll back to this signed version') &&
+    pluginWorkspaceSource.includes("does not authenticate an organization or person") &&
+    pluginWorkspaceAutomationSource.includes('installedPackages: pluginInstallationCatalog.list()') &&
+    pluginWorkspaceAutomationTestSource.includes('without component or signature bodies') &&
+    frontendPackage.scripts?.['test:plugin-composition']?.includes('pluginInstallationStore.test.ts') &&
+    platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-reverified"') &&
+    platformContractsSource.includes('"pluginPublisherSignatureSchema": publisher_signature_schema') &&
+    mcpSource.includes('This cannot install, enable, upgrade, roll back, remove') &&
+    pluginSignedInstallEvidence.status === 'implemented-headless-verified' &&
+    pluginSignedInstallEvidence.implementation?.maximumStoredVersions === 32 &&
+    pluginSignedInstallEvidence.implementation?.maximumEnabledPackages === 8 &&
+    pluginSignedInstallEvidence.implementation?.publisherKeyContinuityRequiredForUpgrade === true &&
+    pluginSignedInstallEvidence.implementation?.unsignedPersistenceAllowed === false &&
+    pluginSignedInstallEvidence.focusedValidation?.testsPassed === 47 &&
+    pluginSignedInstallEvidence.focusedValidation?.disabledLineagePublisherKeyTakeoverRejected === true &&
+    pluginSignedInstallEvidence.focusedValidation?.persistentComponentTamperRejected === true &&
+    pluginSignedInstallEvidence.focusedValidation?.concurrentUpgradesSerialized === true &&
+    pluginSignedInstallEvidence.publisherToolValidation?.sdkTestsPassed === 7 &&
+    pluginSignedInstallEvidence.publisherToolValidation?.signerTestsPassed === 3 &&
+    pluginSignedInstallEvidence.publisherToolValidation?.privateKeyExcludedFromPackageAndReport === true &&
+    pluginSignedInstallEvidence.mcpValidation?.toolCount === 48 &&
+    pluginSignedInstallEvidence.fullValidation?.pending === false &&
+    pluginSignedInstallEvidence.fullValidation?.supervisedRunId === '20260811-224356-b6fb91' &&
+    pluginSignedInstallEvidence.fullValidation?.frontendTestFilesPassed === 135 &&
+    pluginSignedInstallEvidence.fullValidation?.frontendTestsPassed === 603 &&
+    pluginSignedInstallEvidence.fullValidation?.frontendModulesTransformed === 1277 &&
+    pluginSignedInstallEvidence.fullValidation?.repositoryAuditPassed === true &&
+    pluginSignedInstallEvidence.fullValidation?.rustCheckPassed === true &&
+    pluginSignedInstallEvidence.notProved?.some((claim) => claim.includes('authenticates a legal person')) &&
+    pluginSignedInstallEvidence.notProved?.some((claim) => claim.includes('independently built third-party')),
+  'strict publisher-byte claim, same-key upgrades, exact startup/rollback revalidation, bounded IndexedDB and active capacity, explicit local lifecycle, content-minimized read-only MCP, and publisher-identity nonclaims are present',
 )
 record(
   'plugin proposal and decision events have exact retained-device attribution with explicit unsigned fallback',

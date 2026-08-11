@@ -15,6 +15,12 @@ import {
   type LoadedPluginPackageSummary,
 } from '../extensions/pluginPackageRegistry'
 import {
+  pluginInstallationCatalog,
+  pluginInstallationStore,
+  PluginInstallationError,
+  type InstalledPluginSummary,
+} from '../extensions/pluginInstallationStore'
+import {
   decidePluginReviewForProject,
   runLoadedPluginForProject,
 } from '../extensions/pluginWorkspaceAutomation'
@@ -27,9 +33,11 @@ import {
 
 const MAX_MANIFEST_BYTES = 1024 * 1024
 const MAX_COMPONENT_BYTES = 8 * 1024 * 1024
+const MAX_SIGNATURE_BYTES = 64 * 1024
 
 export interface PluginWorkspaceContentProps {
   packages: LoadedPluginPackageSummary[]
+  installedPackages: InstalledPluginSummary[]
   reviews: CollaborativePluginReview[]
   healthy: boolean
   selectedPackageId: string
@@ -40,23 +48,31 @@ export interface PluginWorkspaceContentProps {
   error: string | null
   manifestName: string | null
   componentName: string | null
+  signatureName: string | null
   currentDocumentRevision: string | null
   onManifestFile: (file: File | null) => void
   onComponentFile: (file: File | null) => void
+  onSignatureFile: (file: File | null) => void
   onLoad: () => void
+  onInstall: () => void
   onSelectPackage: (packageId: string) => void
   onSelectContribution: (contributionId: string) => void
   onRemovePackage: (packageId: string) => void
+  onActivateInstalled: (packageId: string) => void
+  onDisableInstalled: (packageId: string) => void
+  onRollbackInstalled: (pluginId: string, packageId: string) => void
+  onRemoveInstalled: (packageId: string) => void
   onRun: () => void
   onSelectReview: (reviewId: string) => void
   onDecision: (decision: PluginReviewDecision) => void
 }
 
 export function PluginWorkspaceContent({
-  packages, reviews, healthy, selectedPackageId, selectedContributionId, selectedReviewId,
-  busy, status, error, manifestName, componentName, currentDocumentRevision,
-  onManifestFile, onComponentFile, onLoad, onSelectPackage, onSelectContribution,
-  onRemovePackage, onRun, onSelectReview, onDecision,
+  packages, installedPackages, reviews, healthy, selectedPackageId, selectedContributionId, selectedReviewId,
+  busy, status, error, manifestName, componentName, signatureName, currentDocumentRevision,
+  onManifestFile, onComponentFile, onSignatureFile, onLoad, onSelectPackage, onSelectContribution,
+  onInstall, onRemovePackage, onActivateInstalled, onDisableInstalled, onRollbackInstalled,
+  onRemoveInstalled, onRun, onSelectReview, onDecision,
 }: PluginWorkspaceContentProps) {
   const selectedPackage = packages.find((plugin) => plugin.packageId === selectedPackageId) ?? null
   const selectedReview = reviews.find((review) => review.id === selectedReviewId) ?? reviews[reviews.length - 1] ?? null
@@ -71,12 +87,13 @@ export function PluginWorkspaceContent({
       <div className="workspace-panel-label mono">Open research extensions</div>
       <h2 id="plugin-workspace-title">Research plugins</h2>
       <p>
-        Load one manifest and its exact component into memory. Runs use the zero-import sandbox;
-        returned changes enter shared review and never edit the draft automatically.
+        Load an unsigned development component for this session, or install a publisher-signed
+        package locally with retained rollback. Runs use the zero-import sandbox; returned changes
+        enter shared review and never edit the draft automatically.
       </p>
 
       <details className="plugin-load-panel">
-        <summary>Load a component for this app session</summary>
+        <summary>Load or install a zero-authority component</summary>
         <div className="plugin-file-grid">
           <label>
             Plugin manifest
@@ -96,15 +113,68 @@ export function PluginWorkspaceContent({
             />
             <span className="mono">{componentName ?? 'Choose the exact manifest component'}</span>
           </label>
+          <label>
+            Publisher signature for installation
+            <input
+              type="file"
+              accept="application/json,.json"
+              onChange={(event) => onSignatureFile(event.target.files?.[0] ?? null)}
+            />
+            <span className="mono">{signatureName ?? 'Optional for session load; required to install'}</span>
+          </label>
         </div>
-        <button type="button" disabled={busy || !manifestName || !componentName} onClick={onLoad}>
-          Verify and load in memory
-        </button>
+        <div className="plugin-actions">
+          <button type="button" disabled={busy || !manifestName || !componentName} onClick={onLoad}>
+            Load unsigned for this session
+          </button>
+          <button type="button" disabled={busy || !manifestName || !componentName || !signatureName} onClick={onInstall}>
+            Verify signature and install locally
+          </button>
+        </div>
         <p className="plugin-scope-note">
-          Nothing is installed or enabled on restart. Package signing, upgrades, and capability-bearing
-          network, Drive, model, or filesystem worlds are not available yet.
+          A publisher key proves continuity of the signed package bytes, not the publisher's legal or
+          human identity. Installed versions are rechecked before enable, upgrade, rollback, and run.
+          Capability-bearing network, Drive, model, or filesystem worlds remain unavailable.
         </p>
       </details>
+
+      <div className="plugin-review-heading">
+        <h3>Installed signed packages</h3>
+        <span className="mono">{installedPackages.length} local version{installedPackages.length === 1 ? '' : 's'}</span>
+      </div>
+      {installedPackages.length === 0 ? (
+        <div className="plugin-empty">No publisher-signed package is installed locally.</div>
+      ) : installedPackages.map((installed) => {
+        const loaded = packages.some((candidate) => candidate.packageId === installed.packageId)
+        return (
+          <article className="plugin-review-card" key={installed.packageId}>
+            <div className="plugin-review-meta mono">
+              <span>{installed.name} · {installed.version}</span>
+              <span>{installed.enabled ? loaded ? 'Enabled · verified this session' : 'Enabled · not active this session' : 'Disabled'}</span>
+            </div>
+            <p>{installed.description}</p>
+            <div className="plugin-package-meta mono">
+              <span>Publisher key {installed.publisherKeyId.replace('ed25519-sha256:', '').slice(0, 16)}…</span>
+              <span>{installed.componentSha256.slice(0, 16)}… · {installed.componentByteLength.toLocaleString()} bytes</span>
+            </div>
+            <p className="plugin-scope-note">Self-described publisher: {installed.publisherName}. This signature does not authenticate an organization or person.</p>
+            <div className="plugin-actions">
+              {installed.enabled ? (
+                <button type="button" className="btn ghost" disabled={busy} onClick={() => onDisableInstalled(installed.packageId)}>Disable</button>
+              ) : installed.activationAction === 'rollback' ? (
+                <button type="button" disabled={busy} onClick={() => onRollbackInstalled(installed.pluginId, installed.packageId)}>Roll back to this signed version</button>
+              ) : (
+                <button type="button" disabled={busy} onClick={() => onActivateInstalled(installed.packageId)}>
+                  {installed.activationAction === 'upgrade' ? 'Upgrade to this stored version' : 'Enable signed version'}
+                </button>
+              )}
+              {!installed.enabled ? (
+                <button type="button" className="btn ghost" disabled={busy} onClick={() => onRemoveInstalled(installed.packageId)}>Remove stored version</button>
+              ) : null}
+            </div>
+          </article>
+        )
+      })}
 
       {packages.length === 0 ? (
         <div className="plugin-empty" role="status">No plugin component is loaded in this app session.</div>
@@ -220,16 +290,43 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
   const [doc, setDoc] = useState<Y.Doc | null>(null)
   const [revision, setRevision] = useState(0)
   const [registryRevision, setRegistryRevision] = useState(0)
+  const [installationRevision, setInstallationRevision] = useState(0)
   const [manifestFile, setManifestFile] = useState<File | null>(null)
   const [componentFile, setComponentFile] = useState<File | null>(null)
+  const [signatureFile, setSignatureFile] = useState<File | null>(null)
   const [selectedPackageId, setSelectedPackageId] = useState('')
   const [selectedContributionId, setSelectedContributionId] = useState('')
   const [selectedReviewId, setSelectedReviewId] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState(true)
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => pluginPackageRegistry.subscribe(() => setRegistryRevision((value) => value + 1)), [])
+  useEffect(() => pluginInstallationCatalog.subscribe(() => setInstallationRevision((value) => value + 1)), [])
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        await pluginInstallationStore.refreshCatalog()
+        const restored = await pluginInstallationStore.restoreEnabled()
+        if (cancelled) return
+        for (const plugin of restored.packages) {
+          pluginPackageRegistry.list().filter((candidate) =>
+            candidate.pluginId === plugin.manifest.id && candidate.packageId !== plugin.packageId)
+            .forEach((candidate) => pluginPackageRegistry.remove(candidate.packageId))
+          pluginPackageRegistry.register(plugin)
+        }
+        if (restored.failures.length > 0) {
+          setStatus(`${restored.failures.length} enabled signed package${restored.failures.length === 1 ? '' : 's'} failed integrity or signature recheck and was not loaded.`)
+        }
+      } catch (value) {
+        if (!cancelled) setError(value instanceof Error ? value.message : String(value))
+      } finally {
+        if (!cancelled) setBusy(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
   useEffect(() => {
     let active: Y.Doc | null = null
     const update = () => setRevision((value) => value + 1)
@@ -244,6 +341,7 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
   }, [project.id])
 
   const packages = useMemo(() => pluginPackageRegistry.list(), [registryRevision])
+  const installedPackages = useMemo(() => pluginInstallationCatalog.list(), [installationRevision])
   const shared = useMemo(() => doc ? getProjectSharedTypes(doc) : null, [doc, revision])
   const reviews = useMemo(() => shared ? listPluginReviews(shared.discussions) : [], [shared])
   const healthy = useMemo(() => shared ? inspectPluginReviews(shared.discussions).healthy : true, [shared])
@@ -262,28 +360,97 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
     return { participantId: researcherId, displayName: researcherName.trim() }
   }
   const explain = (value: unknown) => {
-    if (value instanceof PluginExecutionError || value instanceof PluginPackageRegistryError) return `${value.message} (${value.code})`
+    if (value instanceof PluginExecutionError || value instanceof PluginPackageRegistryError ||
+      value instanceof PluginInstallationError) return `${value.message} (${value.code})`
     return value instanceof Error ? value.message : String(value)
   }
-  const load = async () => {
-    setError(null); setStatus(null)
+  const readSelectedPackage = async () => {
     if (!manifestFile || !componentFile) return
     if (manifestFile.name !== 'syzygy-plugin.json' || manifestFile.size < 1 || manifestFile.size > MAX_MANIFEST_BYTES ||
       componentFile.size < 1 || componentFile.size > MAX_COMPONENT_BYTES) {
-      setError('Choose syzygy-plugin.json (up to 1 MiB) and its exact component (up to 8 MiB).')
-      return
+      throw new Error('Choose syzygy-plugin.json (up to 1 MiB) and its exact component (up to 8 MiB).')
     }
+    const manifest = JSON.parse(await manifestFile.text()) as unknown
+    return loadZeroAuthorityPluginPackage(manifest, {
+      name: componentFile.name,
+      bytes: new Uint8Array(await componentFile.arrayBuffer()),
+    })
+  }
+  const load = async () => {
+    setError(null); setStatus(null)
     setBusy(true)
     try {
-      const manifest = JSON.parse(await manifestFile.text()) as unknown
-      const plugin = await loadZeroAuthorityPluginPackage(manifest, {
-        name: componentFile.name,
-        bytes: new Uint8Array(await componentFile.arrayBuffer()),
-      })
+      const plugin = await readSelectedPackage()
+      if (!plugin) return
       const summary = pluginPackageRegistry.register(plugin)
       setSelectedPackageId(summary.packageId)
       setSelectedContributionId(summary.contributions[0]?.id ?? '')
       setStatus(`${summary.name} ${summary.version} is loaded in memory for this app session.`)
+    } catch (value) { setError(explain(value)) } finally { setBusy(false) }
+  }
+  const install = async () => {
+    setError(null); setStatus(null)
+    if (!signatureFile || signatureFile.size < 1 || signatureFile.size > MAX_SIGNATURE_BYTES) {
+      setError('Choose the package publisher signature JSON (up to 64 KiB).')
+      return
+    }
+    setBusy(true)
+    try {
+      const plugin = await readSelectedPackage()
+      if (!plugin) return
+      const signature = JSON.parse(await signatureFile.text()) as unknown
+      const result = await pluginInstallationStore.installSigned(plugin, signature)
+      if (result.replacedPackageId) pluginPackageRegistry.remove(result.replacedPackageId)
+      pluginPackageRegistry.list().filter((candidate) =>
+        candidate.pluginId === plugin.manifest.id && candidate.packageId !== plugin.packageId)
+        .forEach((candidate) => pluginPackageRegistry.remove(candidate.packageId))
+      const summary = pluginPackageRegistry.register(plugin)
+      setSelectedPackageId(summary.packageId)
+      setSelectedContributionId(summary.contributions[0]?.id ?? '')
+      setStatus(`${summary.name} ${summary.version} was ${result.action === 'upgraded' ? 'installed as a signed upgrade' : result.action === 'already-installed' ? 'reverified and enabled' : 'installed and enabled'}. Publisher-key continuity was verified; publisher identity was not.`)
+    } catch (value) { setError(explain(value)) } finally { setBusy(false) }
+  }
+  const disableInstalled = async (packageId: string) => {
+    setError(null); setStatus(null); setBusy(true)
+    try {
+      const summary = await pluginInstallationStore.disable(packageId)
+      pluginPackageRegistry.remove(packageId)
+      setStatus(`${summary.name} ${summary.version} is disabled locally. Its signed version remains available for rollback or removal.`)
+    } catch (value) { setError(explain(value)) } finally { setBusy(false) }
+  }
+  const activateInstalled = async (packageId: string) => {
+    setError(null); setStatus(null); setBusy(true)
+    try {
+      const plugin = await pluginInstallationStore.getVerified(packageId)
+      const summary = await pluginInstallationStore.activate(packageId)
+      pluginPackageRegistry.list().filter((candidate) =>
+        candidate.pluginId === summary.pluginId && candidate.packageId !== packageId)
+        .forEach((candidate) => pluginPackageRegistry.remove(candidate.packageId))
+      pluginPackageRegistry.register(plugin)
+      setSelectedPackageId(packageId)
+      setSelectedContributionId(plugin.manifest.contributions[0]?.id ?? '')
+      setStatus(`${summary.name} ${summary.version} is enabled after component and publisher-signature recheck.`)
+    } catch (value) { setError(explain(value)) } finally { setBusy(false) }
+  }
+  const rollbackInstalled = async (pluginId: string, packageId: string) => {
+    setError(null); setStatus(null); setBusy(true)
+    try {
+      const plugin = await pluginInstallationStore.getVerified(packageId)
+      const summary = await pluginInstallationStore.rollback(pluginId, packageId)
+      pluginPackageRegistry.list().filter((candidate) => candidate.pluginId === pluginId)
+        .forEach((candidate) => pluginPackageRegistry.remove(candidate.packageId))
+      pluginPackageRegistry.register(plugin)
+      setSelectedPackageId(packageId)
+      setSelectedContributionId(plugin.manifest.contributions[0]?.id ?? '')
+      setStatus(`Rolled back to ${summary.name} ${summary.version} after exact component and publisher-signature recheck.`)
+    } catch (value) { setError(explain(value)) } finally { setBusy(false) }
+  }
+  const removeInstalled = async (packageId: string) => {
+    setError(null); setStatus(null); setBusy(true)
+    try {
+      await pluginInstallationStore.remove(packageId)
+      pluginPackageRegistry.remove(packageId)
+      setStatus('Disabled signed package version removed from local storage. Shared review history was not changed.')
     } catch (value) { setError(explain(value)) } finally { setBusy(false) }
   }
   const run = async () => {
@@ -328,6 +495,7 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
 
   return <PluginWorkspaceContent
     packages={packages}
+    installedPackages={installedPackages}
     reviews={reviews}
     healthy={healthy}
     selectedPackageId={effectivePackageId}
@@ -338,13 +506,20 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
     error={error}
     manifestName={manifestFile?.name ?? null}
     componentName={componentFile?.name ?? null}
+    signatureName={signatureFile?.name ?? null}
     currentDocumentRevision={currentDocumentRevision}
     onManifestFile={setManifestFile}
     onComponentFile={setComponentFile}
+    onSignatureFile={setSignatureFile}
     onLoad={() => { void load() }}
+    onInstall={() => { void install() }}
     onSelectPackage={(packageId) => { setSelectedPackageId(packageId); setSelectedContributionId('') }}
     onSelectContribution={setSelectedContributionId}
     onRemovePackage={(packageId) => { pluginPackageRegistry.remove(packageId); setSelectedPackageId(''); setStatus('Plugin unloaded from this app session.') }}
+    onActivateInstalled={(packageId) => { void activateInstalled(packageId) }}
+    onDisableInstalled={(packageId) => { void disableInstalled(packageId) }}
+    onRollbackInstalled={(pluginId, packageId) => { void rollbackInstalled(pluginId, packageId) }}
+    onRemoveInstalled={(packageId) => { void removeInstalled(packageId) }}
     onRun={() => { void run() }}
     onSelectReview={setSelectedReviewId}
     onDecision={(decision) => { void decide(decision) }}

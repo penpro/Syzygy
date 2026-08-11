@@ -3,9 +3,10 @@
 **Manifest version:** 1. **Runtime status:** strict schemas/validators, a non-executing package
 certifier, a non-executing host authority broker, and a versioned zero-import WIT world now have a
 bounded in-memory WebAssembly Component executor, explicit session loader/runner, shared review UI,
-and MCP inspect/run tools. Shared proposal/decision events now receive best-effort exact-body
-registered-device attribution. Discovery, persistent package installation/upgrade/publisher signing,
-capability-bearing host interfaces, native-MCP execution, and proposal Apply are not yet implemented.
+MCP inspect/run tools, and publisher-signed local install/disable/upgrade/rollback. Shared proposal/
+decision events receive best-effort exact-body registered-device attribution. Discovery, publisher
+identity/reputation and key rotation, capability-bearing host interfaces, native-MCP execution, and
+proposal Apply are not yet implemented.
 
 The API is deliberately contribution-open and authority-closed. Researchers can add tools,
 evaluators, importers, and exporters without receiving ambient project, Drive, network, model, or
@@ -15,6 +16,7 @@ filesystem access.
 
 - Manifest schema: `docs/schemas/syzygy-research-plugin-v1.schema.json`
 - Change proposal schema: `docs/schemas/syzygy-plugin-proposal-v1.schema.json`
+- Publisher signature schema: `docs/schemas/syzygy-plugin-publisher-signature-v1.schema.json`
 - Certification plan schema: `docs/schemas/syzygy-plugin-certification-v1.schema.json`
 - Provider-run record schema: `docs/schemas/syzygy-provider-run-v1.schema.json`
 - Compatible model-adapter schemas: `docs/schemas/syzygy-model-adapter-*.schema.json`
@@ -26,10 +28,12 @@ filesystem access.
 - Hostile-worker containment gate: `frontend/src-tauri/tests/plugin_runtime_worker.rs`
 - User-selected composition: `frontend/src/extensions/pluginExecution.ts`
 - Session package registry: `frontend/src/extensions/pluginPackageRegistry.ts`
+- Signed local lifecycle: `frontend/src/extensions/pluginInstallationStore.ts`
 - Collaborative review ledger: `frontend/src/extensions/pluginReviewModel.ts`
 - Product and MCP composition: `frontend/src/workspace/PluginWorkspace.tsx`,
   `frontend/src/extensions/pluginWorkspaceAutomation.ts`
 - Headless package certifier: `scripts/plugin-certifier.mjs`
+- Non-executing publisher signer: `scripts/plugin-signer.mjs`
 - Complete interface-only example: `examples/plugins/citation-auditor`
 - Machine-readable inspection: MCP tool `syzygy_platform_contracts`
 
@@ -163,17 +167,31 @@ Run `npm run test:plugin-composition` for the layer above the raw executor. In t
 the researcher explicitly selects `syzygy-plugin.json` and the exact component named by it. Syzygy
 validates the manifest/world/filename/size, computes SHA-256, keeps no more than eight packages and
 32 MiB of components in current-session memory, then recomputes the digest immediately before every
-run. Only requested `project.read` and `project.propose` capabilities can become active in this
-zero-import world; requested network, Drive, model, filesystem, and native-process capabilities are
-shown as inactive. One component runs at a time through the kill-and-reap child boundary.
+run. Unsigned packages can remain session-only. Durable installation additionally requires a strict
+Ed25519 signature file whose domain-separated claim binds the canonical manifest SHA-256, component
+name/SHA-256, plugin/version, exact WIT world, self-described publisher name, and public-key
+fingerprint. Only requested `project.read` and `project.propose` capabilities can become active in
+this zero-import world; requested network, Drive, model, filesystem, and native-process capabilities
+are shown as inactive. One component runs at a time through the kill-and-reap child boundary.
+
+The local IndexedDB store caps 32 signed versions and 128 MiB of component bytes. Lifecycle changes
+are serialized. One version per plugin ID may be enabled; a normal upgrade must increase semantic
+version and retain the same publisher key across the complete retained lineage—even when all prior
+versions are disabled—while a same-version component substitution fails closed.
+The prior signed version remains disabled for explicit rollback. Enable, stored upgrade, rollback,
+startup restore, and every later run reconstruct and rehash the exact component; signature metadata
+is also reverified before it is exposed. Disabled versions can be removed only explicitly, and an
+active version must first be disabled. A publisher fingerprint proves continuity of package signing,
+not a legal publisher, person, organization, safety review, semantic correctness, or research quality.
 
 Valid proposal output is preflighted as one 1–32-item batch and appended to the shared Yjs review
 ledger with plugin/version/component/contribution/runner provenance. Accept/reject decisions are
 immutable, converge across disconnected peers, and expose opposite decisions as a conflict. Neither
 execution nor decision changes the policy draft. MCP exposes `inspect_plugin_workspace` and
-`run_loaded_plugin`; inspection omits component/proposal bodies, and execution can address only a
-package already loaded by the person in that running GUI, with exact document and research
-revisions. MCP cannot load a component, decide a plugin review, or apply text.
+`run_loaded_plugin`; inspection omits component/proposal/signature bodies but includes bounded local
+installed-version and active-package metadata. Execution can address only a package already active
+in that running GUI, with exact document and research revisions. MCP cannot install, enable,
+upgrade, roll back, remove, load component bytes, decide a plugin review, or apply text.
 
 After each immutable proposal or decision commits, Syzygy hashes the exact versioned retained event
 and best-effort signs it with the participant's unconflicted registered installation key. The shared
@@ -182,10 +200,10 @@ claims and changed retained bodies fail. Product/MCP run results report signed-d
 unsigned attribution; failure to access a key, registration, or healthy attestation history never
 rolls back the review. These proofs identify an installation key, not a human or organization.
 
-This is truthful status `user-selected-in-memory-session-no-install-upgrade` plus
-`shared-proposal-ledger-human-decision-no-apply`. Discovery, persistent install/upgrade/rollback,
-signer/publisher trust, a useful executable third-party example, capability-bearing WIT worlds,
-and revision-guarded Apply remain open.
+This is truthful status `signed-local-indexeddb-install-disable-upgrade-rollback-reverified` plus
+`shared-proposal-ledger-human-decision-no-apply`. Discovery, publisher identity/reputation and
+signing-key rotation, a useful executable third-party example, capability-bearing WIT worlds, and
+revision-guarded Apply remain open.
 
 Design basis: the upstream Component Model describes WIT worlds as the strict import/export
 boundary and explicitly notes that a component without a relevant import cannot access that host
@@ -203,6 +221,7 @@ executor:
 - `docs/audits/runs/PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11.json`
 - `docs/audits/runs/PLUGIN-SHARED-REVIEW-2026-08-11.json`
 - `docs/audits/runs/SIGNED-PLUGIN-REVIEW-EVENTS-2026-08-11.json`
+- `docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json`
 
 ## Mutation protocol
 
@@ -223,6 +242,23 @@ Run the contract certifier from `frontend`:
 npm run certify:plugin -- ..\path\to\plugin-package
 npm run test:plugin-sdk
 ```
+
+After certification, an independent publisher can create the exact signature file accepted by the
+product without executing the component:
+
+```powershell
+npm run sign:plugin -- ..\path\to\plugin-package `
+  --create-private-key ..\publisher-private.pem `
+  --publisher-name "Independent publisher"
+```
+
+The signer writes `syzygy-plugin-signature.json` inside the package, refuses non-Ed25519 keys,
+private-key creation inside the package, package-path escape, or silent output overwrite, and
+self-verifies the public schema and signature. Later versions use `--private-key` with the same key.
+The private key is read locally, never written into the package or report, and must never be
+committed. The generator requests owner-only POSIX mode where supported; Windows ACL custody and
+backup remain the publisher's responsibility. Releasing a different version under a different key
+is intentionally rejected by the current product until an explicit signing-key rotation protocol exists.
 
 A package contains `syzygy-plugin.json`, `syzygy-certification.json`, package-contained
 documentation/license/runtime paths, proposal fixtures, and authority probes. The runner uses Ajv
@@ -247,7 +283,8 @@ plugin identity, plus allow/deny authority probes. Later execution certification
 - determinism declaration and fixture output where applicable;
 - no secrets in stdout/stderr/logs/artifacts;
 - every future granted capability world (the no-authority baseline now has separate runtime evidence); and
-- install, disable, upgrade, downgrade, and removal without project corruption.
+- lifecycle recovery under browser-quota failure, abrupt process loss, and packaged-app restart
+  beyond the deterministic IndexedDB/tamper/rollback fixtures.
 
 The in-process validator now also rejects unknown manifest/runtime/permission/contribution and
 proposal fields, duplicate authorities, invalid provider IDs, overlong public fields, malformed

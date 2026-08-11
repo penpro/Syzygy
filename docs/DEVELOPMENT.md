@@ -29,6 +29,12 @@ npm run test:model-adapter-sdk # non-executing custom adapter profile/endpoint c
 cargo fmt --all -- --check # Rust formatting
 ```
 
+`npm run test:plugin-sdk` also exercises the non-executing publisher signer. Plugin authors run
+`npm run sign:plugin -- <package> --create-private-key <new-ed25519-pem> --publisher-name <name>`
+after certification for the first version, then use `--private-key` with the same key for upgrades.
+The private key stays outside the package and repository; the generated package file
+contains only the public key, stable fingerprint, exact signed claim, and signature.
+
 ## Bounded command watchdog
 
 Long-running development and overnight commands run through the repository watchdog:
@@ -868,7 +874,9 @@ model, Drive, project mutation, or plugin execution.
 
 `npm run test:plugin-composition` covers the product layer above those separate gates. It proves an
 exact user-selected manifest/component filename and recomputed SHA-256, eight-package/32-MiB
-session caps, project-only grant filtering, one active run, stale identity/revision refusal,
+session caps, strict Ed25519 publisher-package claims, 32-version/128-MiB local persistence,
+publisher-key-continuous upgrades, reverified startup activation, explicit disable/rollback/removal,
+same-version substitution and tamper denial, project-only grant filtering, one active run, stale identity/revision refusal,
 preflighted 1–32 proposal publication, disconnected decision convergence/conflict visibility,
 exact retained proposal/decision hashes, registered-device signer resolution, cross-author and
 post-signature tamper rejection, explicit unsigned fallback, content-minimized MCP inspection, and

@@ -730,9 +730,11 @@ deliberately labels results `contract-certified`, not runtime-safe. The first no
 WebAssembly Component host has now landed for the zero-import WIT world. Explicit user-selected
 session loading, project-only grant composition, shared proposal review, and MCP inspect/run have
 also landed. Exact retained proposal and decision events now receive best-effort registered-device
-attribution with explicit unsigned fallback. Next add the implemented authority broker,
-declarative contribution rendering, local install/disable/upgrade,
-and the advanced native MCP trust tier. Marketplace control is optional;
+attribution with explicit unsigned fallback. Publisher-signed local install/disable/upgrade/rollback
+now retains exact versions in bounded IndexedDB, requires stable-key continuity, and rechecks the
+manifest, component, and signature before activation. Next add a useful independent executable
+artifact, declarative contribution rendering, publisher trust/key rotation, and the advanced native
+MCP trust tier. Marketplace control is optional;
 local packages and open documentation are required.
 
 The authority broker now opens 15-minute sessions only from a strict manifest plus explicit grant
@@ -749,9 +751,10 @@ a fresh hidden child under a five-second parent kill-and-reap deadline. The host
 fixture proves a worker abort does not terminate the host and that a subsequent clean worker runs.
 The current product accepts one explicit manifest/component pair into bounded session memory,
 recomputes SHA-256 before execution, runs a selected contribution with only project read/propose,
-and appends valid output to shared conflict-visible human review. It is not plugin discovery,
-persistent install/upgrade, publisher trust, capability-bearing WIT, signed review attribution, or
-direct mutation/apply.
+and appends valid output to shared conflict-visible human review. Signed packages can persist and
+retain rollback versions, but a publisher key establishes package continuity rather than publisher
+identity, safety, or quality. Plugin discovery, publisher reputation/key rotation, capability-bearing
+WIT, and direct mutation/apply remain unavailable.
 
 Gate: unknown/undeclared authority fails closed; WASI begins with no project, Drive, network,
 model, or filesystem access; native MCP is never described as sandboxed; all mutations are bounded
@@ -763,13 +766,15 @@ live-provider certification separate from local conformance and report:
 `native-content-bound-call-graph-authorizer` for batch authorization,
 `native-atomic-dependency-bound-executor` for native reservation/execution, and
 `contract-only` for custom-adapter execution,
-`user-selected-in-memory-session-no-install-upgrade` for plugin loading,
+`signed-local-indexeddb-install-disable-upgrade-rollback-reverified` for plugin loading,
 `shared-proposal-ledger-human-decision-no-apply` for plugin review, and
 `one-shot-child-process-fuel-epoch-store-and-parent-deadline` for plugin runtime isolation.
 The machine-readable synthetic and hostile-worker proof, including explicit non-claims, is
 `docs/audits/runs/PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11.json`.
 The composition/review proof is
 `docs/audits/runs/PLUGIN-SHARED-REVIEW-2026-08-11.json`.
+The signed local lifecycle proof is
+`docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json`.
 
 Progress: OpenAI Responses one-shot request construction, bounded whole-operation timeout,
 idempotent in-flight/inter-event cancellation, and fake-network incremental SSE dispatch now pass

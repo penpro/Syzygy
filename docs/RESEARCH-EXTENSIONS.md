@@ -89,24 +89,34 @@ that exact world with an empty Wasmtime linker, bounded binary/envelope/linear-m
 resources, exact output revalidation, and no WASI dependency. Each run lives in a fresh hidden
 child process under a five-second kill-and-reap parent deadline. The Windows hostile-fuel fixture
 terminates only that worker and a clean successor still succeeds. This establishes the portable
-no-authority execution baseline; package discovery/persistent install/upgrade, signed publisher
-trust, capability-bearing interfaces, proposal Apply, and useful third-party behavior remain open.
+no-authority execution baseline; package discovery, publisher identity/reputation and signing-key
+rotation, capability-bearing interfaces, proposal Apply, and useful third-party behavior remain open.
 
 Machine-readable runtime limits, commands, results, proved claims, and explicit non-claims are in
 `docs/audits/runs/PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11.json`.
 
 The product composition now requires a user-selected manifest and exact named component, computes
-and rechecks its SHA-256, and keeps it only in a bounded current-session registry. Only requested
-project read/propose authority reaches the zero-import run. Returned proposals are published as one
+and rechecks its SHA-256, and keeps active bytes in a bounded current-session registry. Unsigned
+packages remain session-only. Durable local installation additionally requires a strict Ed25519
+publisher-package signature. A serialized 32-version/128-MiB IndexedDB store retains prior versions,
+requires publisher-key continuity across enabled and disabled retained versions plus increasing
+versions for normal upgrades, and rechecks exact
+manifest/component/signature state before startup activation, enable, upgrade, or rollback. The
+checked-in non-executing signer can explicitly create an external Ed25519 key and the matching public
+proof without copying private material into the package. The fingerprint proves package continuity,
+not publisher identity or quality. Only requested project
+read/propose authority reaches the zero-import run. Returned proposals are published as one
 preflighted batch into a shared Yjs ledger with exact component provenance; disconnected decisions
 converge and opposite decisions become visible conflicts. Each retained proposal and decision is
 then exact-body hashed and best-effort signed by the participant's unconflicted registered
 installation; cross-author claims or later body changes fail verification, while unavailable
-signing remains explicit and never rolls back history. MCP can inspect content-minimized state and
-run only an already-loaded package against exact document/research revisions. It cannot load a
-component, decide a review, or apply draft text. Evidence and falsifiers are in
+signing remains explicit and never rolls back history. MCP can inspect content-minimized installed,
+active, and review state and run only an already-active package against exact document/research
+revisions. It cannot change package lifecycle, load component bytes, decide a review, or apply draft
+text. Evidence and falsifiers are in
 `docs/audits/runs/PLUGIN-SHARED-REVIEW-2026-08-11.json` and
-`docs/audits/runs/SIGNED-PLUGIN-REVIEW-EVENTS-2026-08-11.json`.
+`docs/audits/runs/SIGNED-PLUGIN-REVIEW-EVENTS-2026-08-11.json`, plus the lifecycle proof in
+`docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json`.
 
 ## Benchmark before product claims
 

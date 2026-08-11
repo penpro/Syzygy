@@ -652,8 +652,9 @@ limits concurrency, heartbeats every 30 seconds, aborts at 15 minutes, and retai
 for one hour. Plugin and adapter certifiers still inspect packages without executing them. The
 separate plugin composition layer verifies the selected manifest/component name, size, SHA-256, and
 exact public world; keeps at most eight packages/32 MiB in process memory; grants only requested
-`project.read`/`project.propose` baseline authority; and invokes the native child runtime. Package
-discovery/install/upgrade/signing, capability-bearing worlds, and custom-adapter execution remain
+`project.read`/`project.propose` baseline authority; and invokes the native child runtime. Signed
+local package installation now persists bounded exact versions in IndexedDB, but package discovery,
+publisher identity/reputation, capability-bearing worlds, and custom-adapter execution remain
 unavailable.
 
 The non-executing plugin authority broker turns a validated manifest plus explicit grant into a
@@ -661,7 +662,19 @@ short-lived in-memory session. It returns detached project snapshots, pending re
 proposals, and narrow Drive/network/model authorization decisions, but contains no loader, fetch,
 provider call, Drive call, or mutation implementation.
 
-`pluginPackageRegistry.ts` stores user-selected component bytes only for the running app session.
+`pluginPackageRegistry.ts` stores active component bytes only for the running app session.
+`pluginInstallationStore.ts` owns the separate durable local lifecycle. Persistent installation
+requires a strict Ed25519 publisher proof over the canonical manifest, component identity/hash,
+plugin/version, world, self-described publisher name, and public-key fingerprint. The store caps 32
+versions and 128 MiB of component bytes, preserves the prior version on upgrade, serializes lifecycle
+changes, permits only one enabled version per plugin ID, requires one publisher key across every
+retained version (including disabled rollback candidates),
+and revalidates stored metadata plus exact component bytes before enable, upgrade, rollback, or
+startup activation. Unsigned packages remain session-only. Publisher keys prove package continuity,
+not a person, organization, safety, or research quality.
+`scripts/plugin-signer.mjs` is the matching non-executing author tool: it validates the public
+manifest, resolves the exact package-contained component, reads an external Ed25519 private key,
+writes only the public proof, refuses overwrite/path escape, and self-verifies before returning.
 `pluginExecution.ts` recomputes the exact component digest at execution, serializes runs, activates
 only the baseline project grant subset, and converts native output into authority-broker receipts.
 `pluginReviewModel.ts` then appends one preflighted batch of immutable proposal events to the shared
@@ -671,9 +684,10 @@ it with the participant's unconflicted registered installation key. Signing fail
 explicit unsigned attribution and never rolls back the review event. Neither the model nor the
 current product/MCP surface has an apply route. `PluginWorkspace.tsx` is the explicit loader,
 runner, authority disclosure, and full-content review surface. MCP may inspect content-minimized
-package/review metadata and run one already-user-loaded contribution against exact document and
+installed-version, active-package, and review metadata and run one already-active contribution against exact document and
 research revisions; run results report signed-device or unsigned proposal attribution. MCP cannot
-load component bytes, decide a review, or mutate draft text. The general research-state inspector
+install, enable, upgrade, roll back, remove, load component bytes, decide a review, or mutate draft
+text. The general research-state inspector
 revalidates shared plugin-review proofs without returning proposal, decision, or signature bodies.
 
 The first plugin WIT world is a separate public contract with zero imports. It accepts only a
@@ -767,8 +781,9 @@ installation, permission-grant UI, capability-bearing WIT, or direct mutation au
   Plugins declare capabilities and submit revision-guarded proposals. A user may select one exact
   manifest/component pair into session memory and run a contribution in the zero-import child;
   no guest code executes in the webview. Valid output enters shared human review with component
-  provenance and no apply route. Persistent package install/upgrade/signing and capability-bearing
-  host interfaces may not report themselves as available. See
+  provenance and no apply route. Publisher-signed local install/disable/upgrade/rollback is
+  available, while package discovery, publisher identity/reputation, signing-key rotation,
+  capability-bearing host interfaces, and plugin Apply may not report themselves as available. See
   `PROVIDER-API.md`, `PLUGIN-API.md`, and ADR-0002/0003.
 
 ## Network-boundary evidence gate

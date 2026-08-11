@@ -3,6 +3,7 @@ import * as Y from 'yjs'
 import { registerAutomationEditorController } from '../workspace/editorAutomationRegistry'
 import { getProjectSharedTypes, projectStateFingerprint } from '../workspace/projectModel'
 import { PluginPackageRegistry } from './pluginPackageRegistry'
+import { pluginInstallationCatalog } from './pluginInstallationStore'
 import { loadZeroAuthorityPluginPackage, ZeroAuthorityPluginExecutor } from './pluginExecution'
 import { createPluginReview } from './pluginReviewModel'
 import {
@@ -19,6 +20,7 @@ const limits = {
 
 let unregister = () => {}
 beforeEach(() => {
+  pluginInstallationCatalog.replace([])
   unregister = registerAutomationEditorController({
     projectId: 'project-1',
     read: () => ({ projectId: 'project-1', revision: 'revision-1', text: 'Secret draft', blocks: [], scenarioIds: [] }),
@@ -27,7 +29,7 @@ beforeEach(() => {
     append: () => { throw new Error('must not append') },
   })
 })
-afterEach(() => unregister())
+afterEach(() => { unregister(); pluginInstallationCatalog.replace([]) })
 
 async function fixture(proposalCount = 1) {
   const packages = new PluginPackageRegistry()
@@ -92,6 +94,23 @@ describe('plugin workspace automation', () => {
       expectedResearchRevision: 'stale', participantId: 'runner-1', displayName: 'Runner',
     }, { packages, executor })).rejects.toThrow('Research revision conflict')
     expect(inspectPluginWorkspace(doc, packages).inspection.reviewCount).toBe(0)
+  })
+
+  it('exposes content-minimized installed-version metadata without component or signature bodies', async () => {
+    const doc = new Y.Doc({ guid: 'project-1' })
+    pluginInstallationCatalog.replace([{
+      packageId: 'org.example.fixture@1.0.0#aaaaaaaaaaaaaaaa', pluginId: 'org.example.fixture',
+      name: 'Fixture', version: '1.0.0', description: 'Fixture', componentName: 'fixture.component',
+      componentByteLength: 64, componentSha256: 'a'.repeat(64), publisherName: 'Publisher',
+      publisherKeyId: `ed25519-sha256:${'k'.repeat(43)}`, installedAt: 1, enabled: true,
+      activationAction: 'disable',
+    }])
+    const inspection = inspectPluginWorkspace(doc, new PluginPackageRegistry())
+    expect(inspection.installedPackages).toEqual([
+      expect.objectContaining({ pluginId: 'org.example.fixture', enabled: true }),
+    ])
+    expect(JSON.stringify(inspection.installedPackages)).not.toContain('componentBase64')
+    expect(JSON.stringify(inspection.installedPackages)).not.toContain('signature')
   })
 
   it('serializes proposal attribution so concurrent publication cannot bypass history bounds', async () => {

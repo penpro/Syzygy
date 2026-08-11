@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syzygy.local/schemas/syzygy-plugin-publisher-signature-v1.schema.json",
+  "title": "Syzygy research plugin publisher signature v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "algorithm", "publisher", "package", "signature"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "algorithm": { "const": "Ed25519" },
+    "publisher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "keyId", "publicKey"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "keyId": {
+          "type": "string",
+          "pattern": "^ed25519-sha256:[A-Za-z0-9_-]{43}$"
+        },
+        "publicKey": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" }
+      }
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pluginId",
+        "version",
+        "manifestSha256",
+        "componentName",
+        "componentSha256",
+        "world"
+      ],
+      "properties": {
+        "pluginId": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)+$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+        },
+        "manifestSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "componentName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240,
+          "pattern": "^[^/\\\\\\u0000-\\u001f\\u007f]+$"
+        },
+        "componentSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "world": { "const": "syzygy:research/plugin@1.0.0" }
+      }
+    },
+    "signature": { "type": "string", "pattern": "^[A-Za-z0-9_-]{86}$" }
+  }
+}

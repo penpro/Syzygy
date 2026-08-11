@@ -10,6 +10,8 @@ const PLUGIN_MANIFEST_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-research-plugin-v1.schema.json");
 const PLUGIN_PROPOSAL_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-plugin-proposal-v1.schema.json");
+const PLUGIN_PUBLISHER_SIGNATURE_SCHEMA: &str =
+    include_str!("../../../docs/schemas/syzygy-plugin-publisher-signature-v1.schema.json");
 const ADVERSARIAL_RUN_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-adversarial-run-v1.schema.json");
 const PROVIDER_RUN_SCHEMA: &str =
@@ -29,6 +31,10 @@ pub fn current() -> Result<Value, String> {
         .map_err(|error| format!("Embedded research plugin schema is invalid: {error}"))?;
     let proposal_schema: Value = serde_json::from_str(PLUGIN_PROPOSAL_SCHEMA)
         .map_err(|error| format!("Embedded plugin proposal schema is invalid: {error}"))?;
+    let publisher_signature_schema: Value = serde_json::from_str(PLUGIN_PUBLISHER_SIGNATURE_SCHEMA)
+        .map_err(|error| {
+            format!("Embedded plugin publisher signature schema is invalid: {error}")
+        })?;
     let adversarial_run_schema: Value = serde_json::from_str(ADVERSARIAL_RUN_SCHEMA)
         .map_err(|error| format!("Embedded adversarial run schema is invalid: {error}"))?;
     let provider_run_schema: Value = serde_json::from_str(PROVIDER_RUN_SCHEMA)
@@ -60,7 +66,7 @@ pub fn current() -> Result<Value, String> {
             "pluginAuthorityBroker": "implemented-non-executing",
             "pluginWitContract": "zero-import-subprocess-runtime-bounded",
             "pluginRuntimeIsolation": "one-shot-child-process-fuel-epoch-store-and-parent-deadline",
-            "pluginLoader": "user-selected-in-memory-session-no-install-upgrade",
+            "pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-reverified",
             "pluginReview": "shared-proposal-ledger-human-decision-no-apply",
             "pluginReviewAttribution": "exact-retained-event-registered-device-or-explicit-unsigned",
             "scenarioPackCodec": "product-import-export-checksummed-atomic",
@@ -108,6 +114,7 @@ pub fn current() -> Result<Value, String> {
         ],
         "pluginManifestSchema": manifest_schema,
         "pluginProposalSchema": proposal_schema,
+        "pluginPublisherSignatureSchema": publisher_signature_schema,
         "pluginWitWorld": "syzygy:research/plugin@1.0.0",
         "pluginWitContract": PLUGIN_WIT_CONTRACT,
         "adversarialRunRecordSchema": adversarial_run_schema,
@@ -201,7 +208,7 @@ mod tests {
         );
         assert_eq!(
             contracts["implementationStatus"]["pluginLoader"],
-            "user-selected-in-memory-session-no-install-upgrade"
+            "signed-local-indexeddb-install-disable-upgrade-rollback-reverified"
         );
         assert_eq!(
             contracts["implementationStatus"]["pluginReview"],
@@ -236,6 +243,10 @@ mod tests {
         );
         assert_eq!(
             contracts["pluginManifestSchema"]["additionalProperties"],
+            false
+        );
+        assert_eq!(
+            contracts["pluginPublisherSignatureSchema"]["additionalProperties"],
             false
         );
         assert_eq!(

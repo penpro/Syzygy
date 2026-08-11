@@ -198,7 +198,7 @@ async function proveStdioContract() {
   const contracts = byId.get(6)?.result?.structuredContent
   if (byId.get(6)?.result?.isError !== false) throw new Error('platform contracts tool failed without a live GUI')
   if (contracts?.contractVersion !== 1) throw new Error('platform contract version is missing')
-  if (contracts?.implementationStatus?.pluginLoader !== 'user-selected-in-memory-session-no-install-upgrade') throw new Error('plugin loader status is inaccurate')
+  if (contracts?.implementationStatus?.pluginLoader !== 'signed-local-indexeddb-install-disable-upgrade-rollback-reverified') throw new Error('plugin loader status is inaccurate')
   if (contracts?.implementationStatus?.pluginReview !== 'shared-proposal-ledger-human-decision-no-apply') throw new Error('plugin review status is inaccurate')
   if (contracts?.implementationStatus?.pluginReviewAttribution !== 'exact-retained-event-registered-device-or-explicit-unsigned') throw new Error('plugin review attribution status is inaccurate')
   if (contracts?.implementationStatus?.pluginAuthorityBroker !== 'implemented-non-executing') throw new Error('plugin authority broker status is inaccurate')
@@ -207,6 +207,7 @@ async function proveStdioContract() {
   if (contracts?.pluginWitWorld !== 'syzygy:research/plugin@1.0.0') throw new Error('plugin WIT world is missing or unversioned')
   if (!contracts?.pluginWitContract?.includes('world plugin') || /^\s*import\s/m.test(contracts.pluginWitContract)) throw new Error('plugin WIT contract is not a zero-import world')
   if (contracts?.pluginManifestSchema?.additionalProperties !== false) throw new Error('plugin manifest schema is not strict')
+  if (contracts?.pluginPublisherSignatureSchema?.additionalProperties !== false) throw new Error('plugin publisher signature schema is not strict')
   if (contracts?.providerRunRecordSchema?.additionalProperties !== false) throw new Error('provider run schema is not strict')
   if (contracts?.implementationStatus?.providerRunRecordValidator !== 'implemented') throw new Error('provider run validator status is missing')
   if (contracts?.modelAdapterProfileSchema?.additionalProperties !== false) throw new Error('model adapter schema is not strict')

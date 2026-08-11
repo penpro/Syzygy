@@ -37,7 +37,27 @@ export interface PluginReviewDecisionEvent {
   timestamp: number
 }
 
-export type PluginReviewEvent = PluginReviewProposalEvent | PluginReviewDecisionEvent
+export interface PluginReviewApplicationEvent {
+  schemaVersion: typeof PLUGIN_REVIEW_SCHEMA_VERSION
+  kind: 'application'
+  eventId: string
+  reviewId: string
+  proposalEventId: string
+  decisionEventId: string
+  projectId: string
+  operation: 'append' | 'replace'
+  sourceDocumentRevision: string
+  resultDocumentRevision: string
+  linkedPolicyId: string
+  applierId: string
+  applierDisplayName: string
+  timestamp: number
+}
+
+export type PluginReviewEvent =
+  | PluginReviewProposalEvent
+  | PluginReviewDecisionEvent
+  | PluginReviewApplicationEvent
 
 const bytesToBase64Url = (bytes: Uint8Array) => {
   let binary = ''
@@ -68,15 +88,33 @@ export function canonicalPluginReviewEvent(event: PluginReviewEvent): string {
       timestamp: event.timestamp,
     })
   }
+  if (event.kind === 'decision') {
+    return JSON.stringify({
+      schemaVersion: event.schemaVersion,
+      kind: event.kind,
+      eventId: event.eventId,
+      reviewId: event.reviewId,
+      proposalEventId: event.proposalEventId,
+      decision: event.decision,
+      reviewerId: event.reviewerId,
+      reviewerDisplayName: event.reviewerDisplayName,
+      timestamp: event.timestamp,
+    })
+  }
   return JSON.stringify({
     schemaVersion: event.schemaVersion,
     kind: event.kind,
     eventId: event.eventId,
     reviewId: event.reviewId,
     proposalEventId: event.proposalEventId,
-    decision: event.decision,
-    reviewerId: event.reviewerId,
-    reviewerDisplayName: event.reviewerDisplayName,
+    decisionEventId: event.decisionEventId,
+    projectId: event.projectId,
+    operation: event.operation,
+    sourceDocumentRevision: event.sourceDocumentRevision,
+    resultDocumentRevision: event.resultDocumentRevision,
+    linkedPolicyId: event.linkedPolicyId,
+    applierId: event.applierId,
+    applierDisplayName: event.applierDisplayName,
     timestamp: event.timestamp,
   })
 }
@@ -90,6 +128,7 @@ export interface CollaborativePluginReview {
   id: string
   proposal: PluginReviewProposalEvent
   decisions: PluginReviewDecisionEvent[]
+  applications: PluginReviewApplicationEvent[]
   status: PluginReviewStatus
 }
 
@@ -112,6 +151,21 @@ export interface DecidePluginReviewInput {
   decision: PluginReviewDecision
   reviewerId: string
   reviewerDisplayName: string
+  timestamp: number
+}
+
+export interface RecordPluginReviewApplicationInput {
+  reviewId: string
+  eventId: string
+  expectedProposalEventId: string
+  expectedDecisionEventId: string
+  projectId: string
+  operation: 'append' | 'replace'
+  sourceDocumentRevision: string
+  resultDocumentRevision: string
+  linkedPolicyId: string
+  applierId: string
+  applierDisplayName: string
   timestamp: number
 }
 
@@ -160,7 +214,25 @@ function validDecision(value: unknown): value is PluginReviewDecisionEvent {
     stableId(event.reviewerId) && text(event.reviewerDisplayName, 200) && timestamp(event.timestamp)
 }
 
-const validEvent = (value: unknown): value is PluginReviewEvent => validProposal(value) || validDecision(value)
+function validApplication(value: unknown): value is PluginReviewApplicationEvent {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || !exactKeys(value, [
+    'schemaVersion', 'kind', 'eventId', 'reviewId', 'proposalEventId', 'decisionEventId',
+    'projectId', 'operation', 'sourceDocumentRevision', 'resultDocumentRevision', 'linkedPolicyId',
+    'applierId', 'applierDisplayName', 'timestamp',
+  ])) return false
+  const event = value as Partial<PluginReviewApplicationEvent>
+  return event.schemaVersion === PLUGIN_REVIEW_SCHEMA_VERSION && event.kind === 'application' &&
+    stableId(event.eventId) && stableId(event.reviewId) && stableId(event.proposalEventId) &&
+    stableId(event.decisionEventId) && stableId(event.projectId) &&
+    (event.operation === 'append' || event.operation === 'replace') &&
+    text(event.sourceDocumentRevision, 500) && text(event.resultDocumentRevision, 500) &&
+    event.sourceDocumentRevision !== event.resultDocumentRevision &&
+    stableId(event.linkedPolicyId) && stableId(event.applierId) &&
+    text(event.applierDisplayName, 200) && timestamp(event.timestamp)
+}
+
+const validEvent = (value: unknown): value is PluginReviewEvent =>
+  validProposal(value) || validDecision(value) || validApplication(value)
 const buckets = (collection: Y.Map<unknown>) =>
   Array.from(collection.entries()).filter(([key]) => key.startsWith(BUCKET_PREFIX))
 
@@ -201,13 +273,25 @@ function project(events: PluginReviewEvent[]): CollaborativePluginReview | null 
   if (proposals.length !== 1) return null
   const proposal = proposals[0]
   const decisions = events.filter((event): event is PluginReviewDecisionEvent => event.kind === 'decision')
+  const applications = events.filter((event): event is PluginReviewApplicationEvent => event.kind === 'application')
   if (events.some((event) => event.reviewId !== proposal.reviewId) ||
-    decisions.some((event) => event.proposalEventId !== proposal.eventId)) return null
+    decisions.some((event) => event.proposalEventId !== proposal.eventId) || applications.length > 1 ||
+    applications.some((event) => event.proposalEventId !== proposal.eventId ||
+      event.projectId !== proposal.projectId || event.operation !== proposal.operation ||
+      event.sourceDocumentRevision !== proposal.expectedRevision ||
+      event.linkedPolicyId !== proposal.reviewId || !decisions.some((decision) =>
+        decision.eventId === event.decisionEventId && decision.decision === 'accepted'))) return null
   const choices = new Set(decisions.map((event) => event.decision))
   const status: PluginReviewStatus = choices.size === 0
     ? 'pending'
     : choices.size > 1 ? 'conflicted' : decisions[0].decision
-  return { id: proposal.reviewId, proposal: { ...proposal }, decisions: decisions.map((event) => ({ ...event })), status }
+  return {
+    id: proposal.reviewId,
+    proposal: { ...proposal },
+    decisions: decisions.map((event) => ({ ...event })),
+    applications: applications.map((event) => ({ ...event })),
+    status,
+  }
 }
 
 function append(collection: Y.Map<unknown>, event: PluginReviewEvent) {
@@ -365,6 +449,47 @@ export function decidePluginReview(
   return review
 }
 
+export function recordPluginReviewApplication(
+  collection: Y.Map<unknown>,
+  input: RecordPluginReviewApplicationInput,
+): CollaborativePluginReview {
+  const current = readPluginReview(collection, input.reviewId)
+  if (!current) throw new Error('Plugin review not found or invalid')
+  if (current.proposal.eventId !== input.expectedProposalEventId ||
+    current.proposal.projectId !== input.projectId || current.proposal.operation !== input.operation ||
+    current.id !== input.linkedPolicyId) {
+    throw new Error('Plugin application does not match the retained proposal')
+  }
+  if (current.status !== 'accepted' || !current.decisions.some((decision) =>
+    decision.eventId === input.expectedDecisionEventId && decision.decision === 'accepted')) {
+    throw new Error('Plugin application does not match an accepted decision')
+  }
+  if (current.applications.length > 0) throw new Error('Plugin proposal was already applied')
+  const event: PluginReviewApplicationEvent = {
+    schemaVersion: PLUGIN_REVIEW_SCHEMA_VERSION,
+    kind: 'application',
+    eventId: input.eventId,
+    reviewId: input.reviewId,
+    proposalEventId: input.expectedProposalEventId,
+    decisionEventId: input.expectedDecisionEventId,
+    projectId: input.projectId,
+    operation: input.operation,
+    sourceDocumentRevision: input.sourceDocumentRevision,
+    resultDocumentRevision: input.resultDocumentRevision,
+    linkedPolicyId: input.linkedPolicyId,
+    applierId: input.applierId,
+    applierDisplayName: input.applierDisplayName,
+    timestamp: input.timestamp,
+  }
+  if (!validApplication(event)) throw new Error('Invalid plugin application event')
+  append(collection, event)
+  const review = readPluginReview(collection, input.reviewId)
+  if (!review || review.applications[0]?.eventId !== input.eventId) {
+    throw new Error('Plugin application event failed validation')
+  }
+  return review
+}
+
 export function inspectPluginReviews(collection: Y.Map<unknown>) {
   const entries = buckets(collection)
   const invalidBuckets = entries.filter(([, value]) =>
@@ -380,6 +505,7 @@ export function inspectPluginReviews(collection: Y.Map<unknown>) {
     reviewCount: reviews.length,
     pendingCount: reviews.filter((review) => review.status === 'pending').length,
     conflictedCount: reviews.filter((review) => review.status === 'conflicted').length,
+    appliedCount: reviews.filter((review) => review.applications.length === 1).length,
     invalidRecords: invalidBuckets + invalidGroups + (entries.length > MAX_BUCKETS ? 1 : 0),
   }
 }

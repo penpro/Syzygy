@@ -547,13 +547,14 @@ draft block will be removed and replaced by one linked review-policy block. Both
 exact proposal event, accepted decision event, research revision, and live document revision; the
 shared automation boundary also requires an operation-matched full-replacement confirmation boolean,
 so MCP cannot omit or ambiguously reuse replacement intent. The plugin never receives mutation
-authority. The linked policy ID preserves a path back to review
-history, but until a separate application event exists the UI must not claim to authenticate or sign
-the person who clicked Apply. Signed installs show the self-described publisher name and stable key fingerprint, explicitly
+authority. After the exact editor result is confirmed, retain an application event that binds the
+proposal, accepted decision, source/result revisions, operation, linked policy, configured researcher,
+and timestamp. Report whether that event received registered-device attribution or explicit unsigned
+fallback, while stating that a device key does not authenticate the person who clicked Apply. Signed installs show the self-described publisher name and stable key fingerprint, explicitly
 deny that the key authenticates a person or organization, retain older exact versions, and expose
 separate disable, upgrade, rollback, and disabled-version removal actions. Unsigned packages never
 silently become durable. Package discovery/reputation, signing-key rotation, capability-bearing
-worlds, application-event attribution, and edited-before-apply proposal variants remain unavailable.
+worlds, cross-store atomic apply/event commit, and edited-before-apply proposal variants remain unavailable.
 
 ## Network-boundary copy
 

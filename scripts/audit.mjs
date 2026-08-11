@@ -2158,11 +2158,11 @@ record(
     pluginPublisherSignatureSchema.additionalProperties === false &&
     pluginCertificationSchema.additionalProperties === false &&
     platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-reverified"') &&
-    platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-explicit-revision-guarded-apply"') &&
-    platformContractsSource.includes('"pluginReviewAttribution": "exact-retained-event-registered-device-or-explicit-unsigned"') &&
+    platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-revision-guarded-attributed-application"') &&
+    platformContractsSource.includes('"pluginReviewAttribution": "exact-retained-proposal-decision-application-registered-device-or-explicit-unsigned"') &&
     platformContractsSource.includes('"pluginCertifier": "contract-certified-runner"') &&
     platformContractsSource.includes('"automaticSharedMutation": false'),
-  'strict v1 schemas, honest runtime status, and proposal-only shared mutation',
+  'strict v1 schemas, honest runtime status, proposal-only plugin authority, and separate attributed application',
 )
 const pluginCertifierSource = text('scripts/plugin-certifier.mjs')
 const pluginSignerSource = text('scripts/plugin-signer.mjs')
@@ -2293,6 +2293,9 @@ const pluginSignedInstallEvidence = JSON.parse(
 const pluginAcceptedApplyEvidence = JSON.parse(
   text('docs/audits/runs/PLUGIN-ACCEPTED-APPLY-2026-08-11.json'),
 )
+const pluginApplicationAttributionEvidence = JSON.parse(
+  text('docs/audits/runs/SIGNED-PLUGIN-APPLICATION-EVENTS-2026-08-11.json'),
+)
 record(
   'user-selected zero-authority plugins compose into shared human review without draft authority',
   pluginExecutionSource.includes('verifyLoadedPlugin(plugin)') &&
@@ -2323,7 +2326,7 @@ record(
     mcpSource.includes('"run_loaded_plugin" => live("plugin.runLoaded"') &&
     frontendPackage.scripts?.['test:plugin-composition']?.includes('pluginWorkspaceAutomation.test.ts') &&
     platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-reverified"') &&
-    platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-explicit-revision-guarded-apply"') &&
+    platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-revision-guarded-attributed-application"') &&
     pluginExecutionTestSource.includes('recomputes component provenance') &&
     pluginReviewTestSource.includes('converges disconnected reviews') &&
     pluginReviewTestSource.includes('preflights a proposal batch') &&
@@ -2370,7 +2373,7 @@ record(
     mcpSource.includes('"apply_accepted_plugin_review" => live("plugin.applyAccepted"') &&
     mcpSource.includes('assert_eq!(names.len(), 49)') &&
     text('scripts/mcp-harness.mjs').includes("tool.name === 'apply_accepted_plugin_review'") &&
-    platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-explicit-revision-guarded-apply"') &&
+    platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-revision-guarded-attributed-application"') &&
     frontendPackage.scripts?.['test:plugin-composition']?.includes('pluginReviewApplication.test.ts') &&
     frontendPackage.scripts?.['test:plugin-composition']?.includes('pluginReviewApplicationIntegration.test.ts') &&
     pluginAcceptedApplyEvidence.status === 'implemented-headless-verified' &&
@@ -2392,6 +2395,49 @@ record(
     pluginAcceptedApplyEvidence.fullValidation?.rustCheckPassed === true &&
     pluginAcceptedApplyEvidence.notProved?.some((claim) => claim.includes('distinct immutable or signed application event')),
   'accepted-only exact proposal/decision/research/document guards, linked review-policy output, real Lexical append/full replacement, stale/race/replay denial, two-step destructive UI, MCP route 49, explicit application-attribution nonclaim, and full supervised evidence are present',
+)
+record(
+  'plugin application events remain exact, retained, device-attributed, replay-safe, and authority-honest',
+  pluginReviewSource.includes('interface PluginReviewApplicationEvent') &&
+    pluginReviewSource.includes("kind: 'application'") &&
+    pluginReviewSource.includes('sourceDocumentRevision: event.sourceDocumentRevision') &&
+    pluginReviewSource.includes('resultDocumentRevision: event.resultDocumentRevision') &&
+    pluginReviewSource.includes('event.sourceDocumentRevision !== event.resultDocumentRevision') &&
+    pluginReviewSource.includes('event.sourceDocumentRevision !== proposal.expectedRevision') &&
+    pluginReviewSource.includes('applications.length > 1') &&
+    pluginReviewSource.includes('recordPluginReviewApplication') &&
+    pluginReviewSource.includes('current.applications.length > 0') &&
+    pluginWorkspaceAutomationSource.indexOf('const document = applyAcceptedPluginReview') <
+      pluginWorkspaceAutomationSource.indexOf('const retained = recordPluginReviewApplication') &&
+    pluginWorkspaceAutomationSource.indexOf('const retained = recordPluginReviewApplication') <
+      pluginWorkspaceAutomationSource.lastIndexOf('const attribution = await') &&
+    pluginWorkspaceAutomationSource.includes('applicationEventId: application.eventId') &&
+    pluginWorkspaceAutomationSource.includes('attribution,') &&
+    pluginWorkspaceAutomationTestSource.includes("applicationEventId: 'application-1'") &&
+    pluginReviewTestSource.includes('retains one exact application linked to the accepted decision and document revisions') &&
+    researchEventAttestationTest.includes('signs exact plugin proposal, decision, and application events') &&
+    pluginWorkspaceTestSource.includes('shows retained application attribution after reload and removes the replay action') &&
+    pluginWorkspaceSource.includes('event retained from revision') &&
+    pluginWorkspaceSource.includes('installation key, not a verified person') &&
+    mcpSource.includes('A successful write retains an exact application event') &&
+    platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-revision-guarded-attributed-application"') &&
+    platformContractsSource.includes('"pluginReviewAttribution": "exact-retained-proposal-decision-application-registered-device-or-explicit-unsigned"') &&
+    pluginApplicationAttributionEvidence.status === 'implemented-headless-verified' &&
+    pluginApplicationAttributionEvidence.implementation?.commitOrder === 'editor-confirmation-then-retained-event-then-best-effort-attribution' &&
+    pluginApplicationAttributionEvidence.implementation?.crossStoreAtomicCommit === false &&
+    pluginApplicationAttributionEvidence.focusedValidation?.testFilesPassed === 9 &&
+    pluginApplicationAttributionEvidence.focusedValidation?.testsPassed === 58 &&
+    pluginApplicationAttributionEvidence.mcpValidation?.toolCount === 49 &&
+    pluginApplicationAttributionEvidence.mcpValidation?.stderrProtocolClean === true &&
+    pluginApplicationAttributionEvidence.fullValidation?.supervisedRunId === '20260811-233005-5d3d7c' &&
+    pluginApplicationAttributionEvidence.fullValidation?.frontendTestFilesPassed === 137 &&
+    pluginApplicationAttributionEvidence.fullValidation?.frontendTestsPassed === 614 &&
+    pluginApplicationAttributionEvidence.fullValidation?.frontendModulesTransformed === 1278 &&
+    pluginApplicationAttributionEvidence.fullValidation?.repositoryAuditPassed === true &&
+    pluginApplicationAttributionEvidence.fullValidation?.rustCheckPassed === true &&
+    pluginApplicationAttributionEvidence.notProved?.some((claim) => claim.includes('Atomic commit')) &&
+    pluginApplicationAttributionEvidence.notProved?.some((claim) => claim.includes('human identity')),
+  'exact proposal/decision/revision/application envelopes, post-editor retention, registered-device or explicit unsigned attribution, reload visibility, replay denial, plugin-authority exclusion, atomicity and human-identity nonclaims, MCP proof, and full supervised evidence are present',
 )
 record(
   'publisher-signed plugin lifecycle remains local, bounded, reverified, rollback-safe, and authority-honest',
@@ -2484,7 +2530,7 @@ record(
       pluginWorkspaceAutomationSource.indexOf('const attribution = await') &&
     pluginWorkspaceAutomationTestSource.includes("eventKind: 'plugin-review'") &&
     pluginWorkspaceAutomationTestSource.includes("attribution: { status: 'unsigned' }") &&
-    researchEventAttestationTest.includes('signs exact plugin proposal and decision events') &&
+    researchEventAttestationTest.includes('signs exact plugin proposal, decision, and application events') &&
     researchEventAttestationTest.includes("reviewer, 'plugin-review'") &&
     researchEventAttestationTest.includes('Changed retained plugin proposal body') &&
     pluginWorkspaceSource.includes('registered-device attribution') &&

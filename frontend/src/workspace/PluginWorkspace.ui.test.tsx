@@ -20,7 +20,7 @@ const props: PluginWorkspaceContentProps = {
     activationAction: 'disable',
   }],
   reviews: [{
-    id: 'review-1', status: 'pending', decisions: [],
+    id: 'review-1', status: 'pending', decisions: [], applications: [],
     proposal: {
       schemaVersion: 1, kind: 'proposal', eventId: 'event-1', reviewId: 'review-1',
       pluginProposalId: 'proposal-1', pluginId: 'org.example.fixture', pluginVersion: '1.0.0',
@@ -108,5 +108,26 @@ describe('plugin workspace product contract', () => {
     }))
     expect(armed).toContain('replace every current draft block')
     expect(armed).toContain('Confirm replace entire draft')
+  })
+
+  it('shows retained application attribution after reload and removes the replay action', () => {
+    const html = renderToStaticMarkup(createElement(PluginWorkspaceContent, {
+      ...props,
+      currentDocumentRevision: 'revision-2',
+      reviews: [{ ...props.reviews[0], status: 'accepted', decisions: [{
+        schemaVersion: 1, kind: 'decision', eventId: 'decision-1', reviewId: 'review-1',
+        proposalEventId: 'event-1', decision: 'accepted', reviewerId: 'reviewer-1',
+        reviewerDisplayName: 'Reviewer', timestamp: 2,
+      }], applications: [{
+        schemaVersion: 1, kind: 'application', eventId: 'application-1', reviewId: 'review-1',
+        proposalEventId: 'event-1', decisionEventId: 'decision-1', projectId: 'project-1',
+        operation: 'append', sourceDocumentRevision: 'revision-1', resultDocumentRevision: 'revision-2',
+        linkedPolicyId: 'review-1', applierId: 'applier-1', applierDisplayName: 'Applier', timestamp: 3,
+      }] }],
+    }))
+    expect(html).toContain('Applied by Applier')
+    expect(html).toContain('Exact application event retained')
+    expect(html).toContain('installation key, not a verified person')
+    expect(html).not.toContain('Apply accepted proposal to draft')
   })
 })

@@ -77,7 +77,8 @@ export function applyAcceptedPluginReview(
     ? result.blocks.length === current.blocks.length + 1 &&
       current.blocks.every((block, index) => exactBlock(block, result.blocks[index]))
     : result.blocks.length === 1
-  if (result.projectId !== projectId || !shapeMatches || linked.length !== 1 ||
+  if (result.projectId !== projectId || result.revision === input.expectedDocumentRevision ||
+    !shapeMatches || linked.length !== 1 ||
     linked[0].text !== review.proposal.content || linked[0].status !== 'review') {
     throw new Error('The editor did not confirm exact plugin proposal application')
   }

@@ -3,8 +3,8 @@
 **Status:** native content-bound adversarial execution, resumable MCP orchestration, explicit
 collaborative archival, and immutable human decision history are implemented with loopback/Yjs
 conformance evidence; bounded zero-import component execution plus explicit session loading and
-shared proposal review are implemented, while persistent package lifecycle, Apply, and
-capability-bearing hosts remain unimplemented.
+shared proposal review, persistent signed-package lifecycle, and explicit attributed Apply are
+implemented, while capability-bearing hosts remain unimplemented.
 **Research date:** 2026-07-14; implementation evidence updated 2026-08-11. This document records
 the evidence and falsifiers so another person or model can challenge both the design and claims.
 
@@ -117,14 +117,17 @@ replacement confirmation. Append retains the current
 blocks and adds one linked review-policy block; replace uses the same final editor guard to create
 exactly one linked block. The product requires a second confirmation for full-draft replacement,
 and MCP exposes the same content-minimized guarded mutation. The plugin itself never receives Apply
-authority. MCP can inspect content-minimized installed, active, and review state and run only an
+authority. A successful editor write is followed by one exact application event binding its proposal,
+accepted decision, document revisions, operation, linked policy, and configured researcher; the event
+receives registered-device attribution or explicit unsigned fallback. MCP can inspect content-minimized installed, active, and review state and run only an
 already-active package against exact document/research revisions. It cannot change package lifecycle,
-load component bytes, or decide a review. Application-specific event attribution and proposal editing
+load component bytes, or decide a review. Cross-store atomic apply/event commit and proposal editing
 remain open. Evidence and falsifiers are in
 `docs/audits/runs/PLUGIN-SHARED-REVIEW-2026-08-11.json` and
 `docs/audits/runs/SIGNED-PLUGIN-REVIEW-EVENTS-2026-08-11.json`, plus the lifecycle proof in
 `docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json` and
-`docs/audits/runs/PLUGIN-ACCEPTED-APPLY-2026-08-11.json`.
+`docs/audits/runs/PLUGIN-ACCEPTED-APPLY-2026-08-11.json`, and the application-attribution increment in
+`docs/audits/runs/SIGNED-PLUGIN-APPLICATION-EVENTS-2026-08-11.json`.
 
 ## Benchmark before product claims
 

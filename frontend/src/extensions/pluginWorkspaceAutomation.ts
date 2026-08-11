@@ -26,6 +26,7 @@ import {
   decidePluginReview,
   inspectPluginReviews,
   listPluginReviews,
+  recordPluginReviewApplication,
   readPluginReview,
   type CollaborativePluginReview,
   type PluginReviewDecision,
@@ -50,7 +51,7 @@ export interface DecidePluginReviewAutomationInput extends PluginRunnerIdentity 
   decision: PluginReviewDecision
 }
 
-export interface ApplyPluginReviewAutomationInput {
+export interface ApplyPluginReviewAutomationInput extends PluginRunnerIdentity {
   reviewId: string
   expectedProposalEventId: string
   expectedDecisionEventId: string
@@ -69,7 +70,7 @@ export interface PluginRunPublication {
 const identity = (value: PluginRunnerIdentity) => {
   if (!/^[A-Za-z0-9][A-Za-z0-9._:@-]{0,199}$/.test(value.participantId) ||
     !value.displayName.trim() || value.displayName.length > 200 || value.displayName.includes('\u0000')) {
-    throw new Error('Set a valid researcher identity before running or reviewing a plugin')
+    throw new Error('Set a valid researcher identity before running, reviewing, or applying a plugin proposal')
   }
   return { participantId: value.participantId, displayName: value.displayName.trim() }
 }
@@ -159,9 +160,12 @@ export function inspectPluginWorkspace(
       timestamp: review.proposal.timestamp,
       status: review.status,
       decisionCount: review.decisions.length,
+      applicationCount: review.applications.length,
       acceptedDecisionEventId: review.status === 'accepted'
         ? review.decisions.find((decision) => decision.decision === 'accepted')?.eventId ?? null
         : null,
+      applicationEventId: review.applications[0]?.eventId ?? null,
+      applicationResultDocumentRevision: review.applications[0]?.resultDocumentRevision ?? null,
     })),
     inspection,
     researchRevision: projectStateFingerprint(doc),
@@ -211,12 +215,18 @@ export async function decidePluginReviewForProject(
   }
 }
 
-export function applyPluginReviewForProject(
+export async function applyPluginReviewForProject(
   doc: Y.Doc,
   projectId: string,
   input: ApplyPluginReviewAutomationInput,
-  dependencies: { controller?: AutomationEditorController } = {},
+  dependencies: {
+    controller?: AutomationEditorController
+    clock?: () => number
+    id?: () => string
+    attest?: typeof attestPluginReviewEvent
+  } = {},
 ) {
+  const applier = identity(input)
   if (projectStateFingerprint(doc) !== input.expectedResearchRevision) {
     throw new Error('Research revision conflict; inspect plugin reviews again before applying')
   }
@@ -228,6 +238,23 @@ export function applyPluginReviewForProject(
     throw new Error('Full-draft replacement confirmation does not match the retained proposal operation')
   }
   const document = applyAcceptedPluginReview(shared.discussions, controller, projectId, input)
+  const retained = recordPluginReviewApplication(shared.discussions, {
+    reviewId: review.id,
+    eventId: (dependencies.id ?? uid)(),
+    expectedProposalEventId: review.proposal.eventId,
+    expectedDecisionEventId: input.expectedDecisionEventId,
+    projectId,
+    operation: review.proposal.operation,
+    sourceDocumentRevision: input.expectedDocumentRevision,
+    resultDocumentRevision: document.revision,
+    linkedPolicyId: review.id,
+    applierId: applier.participantId,
+    applierDisplayName: applier.displayName,
+    timestamp: (dependencies.clock ?? now)(),
+  })
+  const application = retained.applications[0]
+  if (!application) throw new Error('Plugin application event was not retained')
+  const attribution = await (dependencies.attest ?? attestPluginReviewEvent)(doc, projectId, application)
   return {
     reviewId: review.id,
     proposalEventId: review.proposal.eventId,
@@ -237,6 +264,8 @@ export function applyPluginReviewForProject(
     pluginVersion: review.proposal.pluginVersion,
     componentSha256: review.proposal.componentSha256,
     linkedPolicyId: review.id,
+    applicationEventId: application.eventId,
+    attribution,
     documentRevision: document.revision,
     documentBlockCount: document.blocks.length,
     researchRevision: projectStateFingerprint(doc),

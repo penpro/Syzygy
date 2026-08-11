@@ -223,38 +223,54 @@ describe('plugin workspace automation', () => {
       },
     }
     const expectedResearchRevision = projectStateFingerprint(doc)
-    expect(() => applyPluginReviewForProject(doc, 'project-1', {
+    await expect(applyPluginReviewForProject(doc, 'project-1', {
       reviewId: proposal.id,
       expectedProposalEventId: proposal.proposal.eventId,
       expectedDecisionEventId: accepted.review.decisions[0].eventId,
       expectedDocumentRevision: 'revision-1',
       expectedResearchRevision,
       confirmFullReplacement: true,
-    }, { controller })).toThrow('confirmation does not match')
+      participantId: 'applier-1', displayName: 'Applier',
+    }, { controller })).rejects.toThrow('confirmation does not match')
     expect(writes).toBe(0)
-    const applied = applyPluginReviewForProject(doc, 'project-1', {
+    const applied = await applyPluginReviewForProject(doc, 'project-1', {
       reviewId: proposal.id,
       expectedProposalEventId: proposal.proposal.eventId,
       expectedDecisionEventId: accepted.review.decisions[0].eventId,
       expectedDocumentRevision: 'revision-1',
       expectedResearchRevision,
       confirmFullReplacement: false,
-    }, { controller })
+      participantId: 'applier-1', displayName: 'Applier',
+    }, {
+      controller, id: () => 'application-1', clock: () => 30,
+      attest: async () => ({
+        status: 'signed-device', keyId: `ed25519-sha256:${'a'.repeat(43)}`,
+        eventKind: 'plugin-review', eventId: 'application-event', eventSha256: 'hash',
+        attestationCount: 3, authority: 'installation-device-not-human-identity',
+      }),
+    })
     expect(applied).toMatchObject({
       reviewId: proposal.id, decisionEventId: 'apply-decision', operation: 'append',
       linkedPolicyId: proposal.id, documentRevision: 'revision-2', documentBlockCount: 2,
+      applicationEventId: 'application-1', attribution: { status: 'signed-device' },
       contentOmitted: true, explicitDraftMutation: true, automaticDraftMutation: false,
+    })
+    expect(inspectPluginWorkspace(doc).reviews[0]).toMatchObject({
+      applicationCount: 1,
+      applicationEventId: 'application-1',
+      applicationResultDocumentRevision: 'revision-2',
     })
     expect(JSON.stringify(applied)).not.toContain('Linked plugin policy')
     expect(writes).toBe(1)
-    expect(() => applyPluginReviewForProject(doc, 'project-1', {
+    await expect(applyPluginReviewForProject(doc, 'project-1', {
       reviewId: proposal.id,
       expectedProposalEventId: proposal.proposal.eventId,
       expectedDecisionEventId: 'apply-decision',
       expectedDocumentRevision: 'revision-1',
       expectedResearchRevision: 'stale-research-revision',
       confirmFullReplacement: false,
-    }, { controller })).toThrow('Research revision conflict')
+      participantId: 'applier-1', displayName: 'Applier',
+    }, { controller })).rejects.toThrow('Research revision conflict')
     expect(writes).toBe(1)
   })
 

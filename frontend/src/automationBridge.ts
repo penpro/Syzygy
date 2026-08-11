@@ -389,7 +389,7 @@ export async function dispatchAutomationRequest(
         (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
       )
       if (!project) throw new Error('No research project is active; list or create a project first')
-      const application = applyPluginReviewForProject(
+      const application = await applyPluginReviewForProject(
         getAutomationProjectDocument(project.id),
         project.id,
         {
@@ -399,6 +399,8 @@ export async function dispatchAutomationRequest(
           expectedDocumentRevision: requiredString(params, 'expectedDocumentRevision'),
           expectedResearchRevision: requiredString(params, 'expectedResearchRevision'),
           confirmFullReplacement: requiredBoolean(params, 'confirmFullReplacement'),
+          participantId: latest.settings.researcherId,
+          displayName: latest.settings.researcherName.trim(),
         },
       )
       return {

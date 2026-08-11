@@ -344,16 +344,21 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   service now re-resolves the exact accepted proposal/decision plus research/document revisions.
   Append retains all blocks and adds one linked review-policy block; replace requires a second UI
   confirmation and replaces the full draft with one linked block. Real Lexical fixtures prove both,
-  while stale, conflicted, cross-project, replay/collision, and final editor races write nothing. MCP
+  while stale, conflicted, cross-project, replay/collision, and final editor races write nothing. After
+  exact editor confirmation, one immutable application event binds proposal, accepted decision,
+  source/result revisions, operation, linked policy, configured researcher, and timestamp, then
+  receives registered-device attribution or explicit unsigned fallback. MCP
   exposes the same content-minimized mutation as tool 49 and requires a boolean matching append versus
   explicit full replacement. MCP can inspect metadata and run only an
   already-active package with exact document/research revisions and content-minimized installed
   metadata. Publisher identity/reputation and signing-key rotation, package discovery, a useful
-  executable example, capability-bearing worlds, application-event attribution, and editable apply
+  executable example, capability-bearing worlds, cross-store atomic apply/event commit, and editable apply
   variants remain open. Evidence:
   `docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json`.
   Accepted-review Apply evidence:
-  `docs/audits/runs/PLUGIN-ACCEPTED-APPLY-2026-08-11.json`.
+  `docs/audits/runs/PLUGIN-ACCEPTED-APPLY-2026-08-11.json`. Exact retained application-event and
+  device-attribution evidence:
+  `docs/audits/runs/SIGNED-PLUGIN-APPLICATION-EVENTS-2026-08-11.json`.
 - The adversarial protocol now has an executable run-record validator and synthetic benchmark
   fixture. Eight tests enforce blinded artifacts, complete candidates/critiques, claim-level source
   audits, planned reversed judge order, equal actual call budgets, supported-minority retention,
@@ -658,8 +663,8 @@ collaborators are not required to download large project folders.
    review. Exact retained proposal and decision events now receive best-effort registered-device
    attribution with explicit unsigned fallback and cross-author/tamper rejection. Publisher-signed
    local install/disable/upgrade/rollback with exact startup re-verification has now landed. Next add
-   a useful independently built third-party artifact and a separate revision-guarded Apply workflow,
-   then design publisher trust/key rotation before introducing any capability-bearing world.
+   a useful independently built third-party artifact and publisher trust/key rotation before
+   introducing any capability-bearing world.
 4. **Harden collaboration beyond the first Drive transport** — append-only Yjs Drive sharing,
    share/join UI, deterministic partition convergence, a real Drive canary, persistent outbound LAN
    agents, guarded MCP catalog/share/join tooling, and exact scenario sibling reconciliation have

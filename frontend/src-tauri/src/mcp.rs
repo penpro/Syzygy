@@ -351,7 +351,7 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "apply_accepted_plugin_review",
-            "Explicitly apply one accepted, non-conflicted plugin proposal to the active draft. This is separate from plugin execution and review: the plugin receives no mutation authority. Requires the exact review, proposal event, accepted decision event, document revision, and research revision from inspect_plugin_workspace/read_active_project. confirmFullReplacement must be true only for a retained replace proposal and false for append. Append retains every current block and adds one linked review-policy block; replace removes every current block and creates one linked review-policy block. Any stale, conflicting, replayed, colliding, or confirmation-mismatched state fails before the write.",
+            "Explicitly apply one accepted, non-conflicted plugin proposal to the active draft. This is separate from plugin execution and review: the plugin receives no mutation authority. Requires the exact review, proposal event, accepted decision event, document revision, and research revision from inspect_plugin_workspace/read_active_project. confirmFullReplacement must be true only for a retained replace proposal and false for append. Append retains every current block and adds one linked review-policy block; replace removes every current block and creates one linked review-policy block. A successful write retains an exact application event under the configured researcher identity and reports registered-device or explicit unsigned attribution; a device key is not a verified person. Any stale, conflicting, replayed, colliding, or confirmation-mismatched state fails before the write.",
             object_schema(
                 &[
                     ("reviewId", string_schema("Exact accepted review ID from inspect_plugin_workspace.")),
@@ -1736,7 +1736,7 @@ mod tests {
         );
         assert_eq!(
             response["result"]["structuredContent"]["implementationStatus"]["pluginReview"],
-            "shared-proposal-ledger-human-decision-explicit-revision-guarded-apply"
+            "shared-proposal-ledger-human-decision-revision-guarded-attributed-application"
         );
         assert_eq!(
             response["result"]["structuredContent"]["implementationStatus"]

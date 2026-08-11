@@ -9,6 +9,7 @@ import {
   createPluginReview,
   decidePluginReview,
   pluginReviewEventSha256,
+  recordPluginReviewApplication,
 } from '../extensions/pluginReviewModel'
 import type { ProjectDeviceDirectoryInspection } from './projectDeviceDirectory'
 import { createProjectDocument, getProjectSharedTypes, projectStateFingerprint } from './projectModel'
@@ -111,6 +112,7 @@ const hashVersion = encodeBase64Url(new Uint8Array(32).fill(12))
 const nonceA = encodeBase64Url(new Uint8Array(32).fill(21))
 const nonceB = encodeBase64Url(new Uint8Array(32).fill(22))
 const nonceC = encodeBase64Url(new Uint8Array(32).fill(23))
+const nonceD = encodeBase64Url(new Uint8Array(32).fill(24))
 const manifest: ResearchProjectManifest = {
   schemaVersion: 1,
   id: projectId,
@@ -1178,7 +1180,7 @@ describe('project research event attestations', () => {
     )).resolves.toEqual(expect.objectContaining({ healthy: false, invalidRecords: 1 }))
   })
 
-  it('signs exact plugin proposal and decision events and detects cross-author or changed bodies', async () => {
+  it('signs exact plugin proposal, decision, and application events and detects cross-author or changed bodies', async () => {
     const runner = await identity(participantA)
     const reviewer = await identity(participantB)
     const document = createProjectDocument(manifest)
@@ -1220,9 +1222,24 @@ describe('project research event attestations', () => {
     )).resolves.toEqual(expect.objectContaining({
       status: 'signed-device', eventKind: 'plugin-review', attestationCount: 2,
     }))
+    const application = recordPluginReviewApplication(discussions, {
+      reviewId: review.id, eventId: 'plugin-application-signed',
+      expectedProposalEventId: review.proposal.eventId,
+      expectedDecisionEventId: decision.eventId,
+      projectId, operation: 'append', sourceDocumentRevision: 'document-revision-1',
+      resultDocumentRevision: 'document-revision-2', linkedPolicyId: review.id,
+      applierId: participantA, applierDisplayName: 'Alice', timestamp: 3,
+    }).applications[0]
+    await expect(attestPluginReviewEvent(
+      document, projectId, application, dependenciesFor(runner, nonceC),
+    )).resolves.toEqual(expect.objectContaining({
+      status: 'signed-device', eventKind: 'plugin-review', attestationCount: 3,
+      eventId: pluginReviewAttestationEventId(application),
+      eventSha256: await pluginReviewEventSha256(application),
+    }))
     const eventId = pluginReviewAttestationEventId(review.proposal)
     const forged = await make(
-      reviewer, 'plugin-review', eventId, await pluginReviewEventSha256(review.proposal), nonceC,
+      reviewer, 'plugin-review', eventId, await pluginReviewEventSha256(review.proposal), nonceD,
     )
     await expect(publishProjectResearchEventAttestation(
       settings, projectId, directory([runner, reviewer]),

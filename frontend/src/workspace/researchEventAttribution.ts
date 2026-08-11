@@ -205,6 +205,11 @@ export function pluginReviewAttestationEventId(event: PluginReviewEvent): string
   return `${event.reviewId.length}:${event.reviewId}${event.eventId}`
 }
 
+function pluginReviewParticipantId(event: PluginReviewEvent): string {
+  return event.kind === 'proposal' ? event.runnerId
+    : event.kind === 'decision' ? event.reviewerId : event.applierId
+}
+
 export function heuristicEditAttestationEventId(heuristicId: string, edit: HeuristicEdit): string {
   return `h:${heuristicId.length}:${heuristicId}${edit.editId}`
 }
@@ -487,7 +492,7 @@ export function researchEventAttestationResolver(
         const event = readPluginReviewEvent(discussions, identity.scenarioId, identity.eventId)
         return event ? {
           eventSha256: await pluginReviewEventSha256(event),
-          participantId: event.kind === 'proposal' ? event.runnerId : event.reviewerId,
+          participantId: pluginReviewParticipantId(event),
         } : null
       }
       if (eventKind === 'adversarial-review') {
@@ -715,7 +720,7 @@ export async function attestSuggestionEvent(
   )
 }
 
-/** Best-effort device attribution after an immutable plugin proposal or decision commits. */
+/** Best-effort device attribution after an immutable plugin proposal, decision, or application commits. */
 export async function attestPluginReviewEvent(
   document: Y.Doc,
   projectId: string,
@@ -727,7 +732,7 @@ export async function attestPluginReviewEvent(
     projectId,
     'plugin-review',
     pluginReviewAttestationEventId(event),
-    event.kind === 'proposal' ? event.runnerId : event.reviewerId,
+    pluginReviewParticipantId(event),
     () => pluginReviewEventSha256(event),
     dependencies,
   )

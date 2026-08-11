@@ -254,7 +254,7 @@ export function PluginWorkspaceContent({
             onChange={(event) => onSelectReview(event.target.value)}
           >
             {reviews.slice(-200).map((review) => (
-              <option key={review.id} value={review.id}>{review.status} · {review.proposal.summary}</option>
+              <option key={review.id} value={review.id}>{review.applications.length ? 'applied' : review.status} · {review.proposal.summary}</option>
             ))}
           </select>
           {selectedReview ? (
@@ -274,13 +274,21 @@ export function PluginWorkspaceContent({
                   The live draft changed after this component ran. This proposal remains reviewable but is stale.
                 </div>
               ) : null}
+              {selectedReview.applications[0] ? (
+                <p className="plugin-scope-note" role="status">
+                  Applied by {selectedReview.applications[0].applierDisplayName}. Exact application
+                  event retained from revision <span className="mono">{selectedReview.applications[0].sourceDocumentRevision}</span>{' '}
+                  to <span className="mono">{selectedReview.applications[0].resultDocumentRevision}</span>.
+                  Device attribution identifies an installation key, not a verified person.
+                </p>
+              ) : null}
               {selectedReview.status === 'pending' ? (
                 <div className="plugin-actions">
                   <button type="button" disabled={busy || !healthy} onClick={() => onDecision('accepted')}>Record accepted</button>
                   <button type="button" className="btn ghost" disabled={busy || !healthy} onClick={() => onDecision('rejected')}>Record rejected</button>
                 </div>
               ) : null}
-              {selectedReview.status === 'accepted' && acceptedDecision ? (
+              {selectedReview.status === 'accepted' && acceptedDecision && selectedReview.applications.length === 0 ? (
                 selectedReview.proposal.operation === 'replace' && armedReplaceReviewId !== selectedReview.id ? (
                   <div className="plugin-actions">
                     <button
@@ -404,7 +412,7 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
   try { currentDocumentRevision = getAutomationEditorController(project.id).read().revision } catch { /* loading */ }
 
   const identity = () => {
-    if (!researcherId || !researcherName.trim()) throw new Error('Set a researcher name in Settings before running or reviewing a plugin')
+    if (!researcherId || !researcherName.trim()) throw new Error('Set a researcher name in Settings before running, reviewing, or applying a plugin proposal')
     return { participantId: researcherId, displayName: researcherName.trim() }
   }
   const explain = (value: unknown) => {
@@ -540,7 +548,7 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
       setStatus(`Review decision recorded as ${decision} with ${result.attribution.status === 'signed-device' ? 'registered-device attribution' : 'explicit unsigned attribution'}. Device attribution does not verify a human identity. The draft was not changed.`)
     } catch (value) { setError(explain(value)) } finally { setBusy(false) }
   }
-  const applyReview = (reviewId: string) => {
+  const applyReview = async (reviewId: string) => {
     setError(null); setStatus(null)
     if (!doc || !currentDocumentRevision) return
     const review = reviews.find((candidate) => candidate.id === reviewId)
@@ -554,18 +562,22 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
     }
     setBusy(true)
     try {
-      const result = applyPluginReviewForProject(doc, project.id, {
+      const result = await applyPluginReviewForProject(doc, project.id, {
         reviewId: review.id,
         expectedProposalEventId: review.proposal.eventId,
         expectedDecisionEventId: acceptedDecision.eventId,
         expectedDocumentRevision: currentDocumentRevision,
         expectedResearchRevision: projectStateFingerprint(doc),
         confirmFullReplacement: review.proposal.operation === 'replace',
+        ...identity(),
       })
       setArmedReplaceReviewId('')
+      const attribution = result.attribution.status === 'signed-device'
+        ? 'registered-device attribution'
+        : 'explicit unsigned attribution'
       setStatus(result.operation === 'append'
-        ? 'Applied the exact accepted proposal as one linked review-policy block. The plugin received no mutation authority.'
-        : 'Replaced the draft with the exact accepted proposal as one linked review-policy block. Shared review history was retained.')
+        ? `Applied the exact accepted proposal as one linked review-policy block with ${attribution}. The plugin received no mutation authority.`
+        : `Replaced the draft with the exact accepted proposal as one linked review-policy block with ${attribution}. Shared review history was retained.`)
     } catch (value) { setError(explain(value)) } finally { setBusy(false) }
   }
 

@@ -204,9 +204,9 @@ unsigned attribution; failure to access a key, registration, or healthy attestat
 rolls back the review. These proofs identify an installation key, not a human or organization.
 
 This is truthful status `signed-local-indexeddb-install-disable-upgrade-rollback-reverified` plus
-`shared-proposal-ledger-human-decision-explicit-revision-guarded-apply`. Discovery, publisher identity/reputation and
+`shared-proposal-ledger-human-decision-revision-guarded-attributed-application`. Discovery, publisher identity/reputation and
 signing-key rotation, a useful executable third-party example, capability-bearing WIT worlds, and
-application-specific signed attribution and editable apply variants remain open.
+cross-store atomic application commit and editable apply variants remain open.
 
 Design basis: the upstream Component Model describes WIT worlds as the strict import/export
 boundary and explicitly notes that a component without a relevant import cannot access that host
@@ -225,6 +225,7 @@ executor:
 - `docs/audits/runs/PLUGIN-SHARED-REVIEW-2026-08-11.json`
 - `docs/audits/runs/SIGNED-PLUGIN-REVIEW-EVENTS-2026-08-11.json`
 - `docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json`
+- `docs/audits/runs/SIGNED-PLUGIN-APPLICATION-EVENTS-2026-08-11.json`
 
 ## Mutation protocol
 
@@ -237,9 +238,12 @@ document revisions, checks that the current document is still the proposal sourc
 operation-matched full-replacement confirmation (`false` for append, `true` for replace). Append adds
 one linked policy block in review status while retaining all existing blocks. Replace requires a
 second visible confirmation, removes the full current draft, and creates one linked review-policy
-block. The plugin receives no writable project handle in either path. The linked policy ID points
-back to retained plugin/version/component review history; a distinct signed application event and
-edited-before-apply proposal variants remain future work.
+block. The plugin receives no writable project handle in either path. After exact editor confirmation,
+Syzygy retains one immutable application event binding the proposal, accepted decision, source/result
+document revisions, operation, linked policy, configured researcher identity, and timestamp. The
+event receives best-effort registered-installation-key attribution or explicit unsigned fallback.
+This does not authenticate a person, and the editor write plus event retention are sequential rather
+than one cross-store atomic commit. Edited-before-apply proposal variants remain future work.
 
 Drive mutations use separate domain-specific proposal schemas; generic replace/append does not
 grant Drive writes.

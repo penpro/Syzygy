@@ -693,12 +693,15 @@ installed-version, active-package, and review metadata and run one already-activ
 research revisions; run results report signed-device or unsigned proposal attribution. The separate
 `apply_accepted_plugin_review` route requires the exact review/proposal/decision plus fresh research
 and document revisions, plus a boolean that must match append versus explicit full replacement, and
-returns content-free mutation metadata. MCP cannot install, enable,
-upgrade, roll back, remove, load component bytes, or decide a review. The application itself does not
-yet append or sign a distinct application event; the linked policy ID resolves to the retained signed
-or explicitly unsigned proposal/decision history but does not identify the person who clicked Apply.
-The general research-state inspector
-revalidates shared plugin-review proofs without returning proposal, decision, or signature bodies.
+returns content-free mutation metadata. After the editor confirms the exact result, the automation
+boundary appends one immutable application event binding the proposal, accepted decision, source and
+result document revisions, operation, linked policy, configured researcher identity, and timestamp.
+That exact retained body then receives the same registered-installation-key attribution as proposal
+and decision events, with explicit unsigned fallback. The editor write and retained application event
+are sequential rather than one cross-store atomic transaction, and an installation key still does not
+authenticate a person. MCP cannot install, enable, upgrade, roll back, remove, load component bytes,
+or decide a review. The general research-state inspector revalidates shared plugin-review proofs
+without returning proposal, decision, application, or signature bodies.
 
 The first plugin WIT world is a separate public contract with zero imports. It accepts only a
 bounded typed invocation and exports only no-change or proposal output; TypeScript validates the
@@ -791,9 +794,10 @@ installation, permission-grant UI, capability-bearing WIT, or direct mutation au
   Plugins declare capabilities and submit revision-guarded proposals. A user may select one exact
   manifest/component pair into session memory and run a contribution in the zero-import child;
   no guest code executes in the webview. Valid output enters shared human review with component
-  provenance and no apply route. Publisher-signed local install/disable/upgrade/rollback is
-  available, while package discovery, publisher identity/reputation, signing-key rotation,
-  capability-bearing host interfaces, and plugin Apply may not report themselves as available. See
+  provenance; only a separate exact-revision accepted-review action can apply it and retain an
+  attributed application event. Publisher-signed local install/disable/upgrade/rollback is
+  available, while package discovery, publisher identity/reputation, signing-key rotation, and
+  capability-bearing host interfaces may not report themselves as available. See
   `PROVIDER-API.md`, `PLUGIN-API.md`, and ADR-0002/0003.
 
 ## Network-boundary evidence gate

@@ -1,0 +1,81 @@
+{
+  "verificationDate": "2026-08-11",
+  "feature": "exact retained plugin-application events with registered-device attribution",
+  "status": "implemented-headless-verified",
+  "implementation": {
+    "eventKind": "plugin-review",
+    "eventRecordKind": "application",
+    "commitOrder": "editor-confirmation-then-retained-event-then-best-effort-attribution",
+    "applicationBinds": [
+      "reviewId",
+      "proposalEventId",
+      "acceptedDecisionEventId",
+      "projectId",
+      "operation",
+      "sourceDocumentRevision",
+      "resultDocumentRevision",
+      "linkedPolicyId",
+      "applierId",
+      "applierDisplayName",
+      "timestamp"
+    ],
+    "sourceRevisionMustEqualProposalRevision": true,
+    "resultRevisionMustDifferFromSource": true,
+    "maximumApplicationsPerReview": 1,
+    "registeredDeviceOrExplicitUnsigned": true,
+    "pluginReceivesMutationAuthority": false,
+    "humanIdentityAuthenticated": false,
+    "crossStoreAtomicCommit": false
+  },
+  "focusedValidation": {
+    "command": "npm run test:plugin-composition",
+    "testFilesPassed": 9,
+    "testsPassed": 58,
+    "applicationEnvelopeHashPassed": true,
+    "proposalDecisionApplicationResolverPassed": true,
+    "applicationAuthorBoundToConfiguredResearcher": true,
+    "signedDeviceAttributionPassed": true,
+    "explicitUnsignedFallbackPassed": true,
+    "secondApplicationRejected": true,
+    "sourceAndResultRevisionBindingPassed": true,
+    "reloadUiShowsRetainedApplication": true,
+    "reloadUiSuppressesReplayAction": true,
+    "realLexicalAppendAndFullReplacePassed": true
+  },
+  "mcpValidation": {
+    "command": "npm run test:mcp",
+    "pending": false,
+    "toolCount": 49,
+    "route": "plugin.applyAccepted",
+    "mcpRustRoutesPassed": 22,
+    "platformContractTestsPassed": 2,
+    "frontendEditorContractTestsPassed": 10,
+    "platformReviewStatus": "shared-proposal-ledger-human-decision-revision-guarded-attributed-application",
+    "platformAttributionStatus": "exact-retained-proposal-decision-application-registered-device-or-explicit-unsigned",
+    "stderrProtocolClean": true
+  },
+  "fullValidation": {
+    "pending": false,
+    "supervisedRunId": "20260811-233005-5d3d7c",
+    "frontendTestFilesPassed": 137,
+    "frontendTestsPassed": 614,
+    "frontendModulesTransformed": 1278,
+    "repositoryAuditPassed": true,
+    "rustCheckPassed": true
+  },
+  "proved": [
+    "A successful explicit Apply retains one immutable application event after the live editor confirms the exact semantic result.",
+    "The application event binds the exact proposal, accepted decision, project, append/replace operation, source and result document revisions, linked review-policy identity, configured researcher identity, and timestamp.",
+    "The existing plugin-review attestation resolver hashes the exact retained application envelope and accepts only the event's applier participant under a healthy registered installation key.",
+    "Signing or registration failure remains an explicit unsigned attribution result and does not roll back or disguise the already-applied draft mutation.",
+    "Product reload displays retained application metadata and removes the Apply action; automation and MCP return content-minimized application identity plus attribution without proposal content.",
+    "The zero-import plugin world still receives no draft mutation or application-event authority."
+  ],
+  "notProved": [
+    "Atomic commit across the live Lexical editor mutation and the subsequent shared application-event append; they are intentionally sequential.",
+    "The legal or human identity of the configured researcher or installation-key holder, organizational authorization, trusted time, or non-repudiation.",
+    "Recovery UI for the narrow failure window after a confirmed editor write but before application-event retention or attribution completes.",
+    "Packaged pointer/keyboard interaction, physical two-install application races, Drive/WebSocket interruption injection, or application reconciliation after later draft rollback.",
+    "Plugin semantic correctness, research quality, publisher reputation, or safety."
+  ]
+}

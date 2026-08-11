@@ -24,7 +24,7 @@ npm run test:provider-streams # fragmented/multiline/unknown/malformed SSE confo
 npm run test:credentials   # memory-backed credential-vault contract; no OS store mutation
 npm run test:plugin-sdk    # non-executing package/schema/path/authority certification
 npm run test:plugin-runtime # zero-import component execution + hostile worker containment
-npm run test:plugin-composition # selected package → bounded runtime → shared review; no draft apply
+npm run test:plugin-composition # selected package → shared review → explicit attributed Apply
 npm run test:model-adapter-sdk # non-executing custom adapter profile/endpoint certification
 cargo fmt --all -- --check # Rust formatting
 ```
@@ -879,12 +879,14 @@ publisher-key-continuous upgrades, reverified startup activation, explicit disab
 same-version substitution and tamper denial, project-only grant filtering, one active run, stale identity/revision refusal,
 preflighted 1–32 proposal publication, disconnected decision convergence/conflict visibility,
 exact accepted-review append/full-replace with a real Lexical editor, stale/race/collision zero-write denial,
-exact retained proposal/decision hashes, registered-device signer resolution, cross-author and
+exact retained proposal/decision/application hashes, application revision/identity binding, registered-device signer resolution, cross-author and
 post-signature tamper rejection, explicit unsigned fallback, content-minimized MCP inspection, and
 copy that decisions never apply the draft. The production UI
 loads `syzygy-plugin.json` and its exact component through browser file inputs; bytes remain only in
 the current app process. This command uses a fake executor for composition. Actual component
 execution and hostile worker containment remain the separate `test:plugin-runtime` gate.
+Exact application-event envelope, attribution, reload, and replay-denial evidence is retained in
+`docs/audits/runs/SIGNED-PLUGIN-APPLICATION-EVENTS-2026-08-11.json`.
 
 ## Headless custom model-adapter contract proof
 

@@ -653,9 +653,9 @@ for one hour. Plugin and adapter certifiers still inspect packages without execu
 separate plugin composition layer verifies the selected manifest/component name, size, SHA-256, and
 exact public world; keeps at most eight packages/32 MiB in process memory; grants only requested
 `project.read`/`project.propose` baseline authority; and invokes the native child runtime. Signed
-local package installation now persists bounded exact versions in IndexedDB, but package discovery,
-publisher identity/reputation, capability-bearing worlds, and custom-adapter execution remain
-unavailable.
+local package installation now persists bounded exact versions and dual-signed publisher
+key-rotation certificates in IndexedDB, but package discovery, publisher identity/reputation,
+capability-bearing worlds, and custom-adapter execution remain unavailable.
 
 The non-executing plugin authority broker turns a validated manifest plus explicit grant into a
 short-lived in-memory session. It returns detached project snapshots, pending revision-guarded
@@ -665,13 +665,25 @@ provider call, Drive call, or mutation implementation.
 `pluginPackageRegistry.ts` stores active component bytes only for the running app session.
 `pluginInstallationStore.ts` owns the separate durable local lifecycle. Persistent installation
 requires a strict Ed25519 publisher proof over the canonical manifest, component identity/hash,
-plugin/version, world, self-described publisher name, and public-key fingerprint. The store caps 32
-versions and 128 MiB of component bytes, preserves the prior version on upgrade, serializes lifecycle
-changes, permits only one enabled version per plugin ID, requires one publisher key across every
-retained version (including disabled rollback candidates),
-and revalidates stored metadata plus exact component bytes before enable, upgrade, rollback, or
-startup activation. Unsigned packages remain session-only. Publisher keys prove package continuity,
-not a person, organization, safety, or research quality.
+plugin/version, world, self-described publisher name, and public-key fingerprint. IndexedDB version
+2 keeps packages and accepted rotations in separate stores and upgrades the legacy package-only
+database in place. The package store caps 32 versions and 128 MiB of component bytes; the rotation
+store caps 32 certificates globally. Lifecycle changes are serialized and permit only one enabled
+version per plugin ID.
+
+The first installed key is the local trust-on-first-install root. An ordinary upgrade must use the
+current key. A key change requires the next monotonically numbered, plugin-scoped certificate whose
+effective semantic version exactly equals the new package version. The old key authorizes the new
+identity and the new key countersigns the same domain-separated claim to prove possession. Every
+package version is mapped to its key epoch, so an old key cannot sign versions at or after a
+rotation's effective version; explicit rollback to an exact pre-rotation version remains possible.
+The complete retained certificate chain is reverified on read, and every retained signed package
+in that plugin lineage is rehashed and signature-verified before a new rotation is accepted.
+Package and certificate writes share one IndexedDB transaction. Exact component bytes and metadata
+are revalidated before enable, upgrade, rollback, or startup activation. Unsigned packages remain
+session-only. Publisher keys prove locally observed package continuity, not a person, organization,
+reputation, safety, or research quality. There is no organizational enrollment, revocation service,
+lost-old-key recovery, trusted time, or protection after the current private key is compromised.
 `scripts/plugin-signer.mjs` is the matching non-executing author tool: it validates the public
 manifest, resolves the exact package-contained component, reads an external Ed25519 private key,
 writes only the public proof, refuses overwrite/path escape, and self-verifies before returning.
@@ -795,9 +807,10 @@ installation, permission-grant UI, capability-bearing WIT, or direct mutation au
   manifest/component pair into session memory and run a contribution in the zero-import child;
   no guest code executes in the webview. Valid output enters shared human review with component
   provenance; only a separate exact-revision accepted-review action can apply it and retain an
-  attributed application event. Publisher-signed local install/disable/upgrade/rollback is
-  available, while package discovery, publisher identity/reputation, signing-key rotation, and
-  capability-bearing host interfaces may not report themselves as available. See
+  attributed application event. Publisher-signed local install/disable/upgrade/rollback and
+  dual-signed sequential publisher-key rotation are available, while package discovery, publisher
+  identity/reputation/revocation/recovery, and capability-bearing host interfaces may not report
+  themselves as available. See
   `PROVIDER-API.md`, `PLUGIN-API.md`, and ADR-0002/0003.
 
 ## Network-boundary evidence gate

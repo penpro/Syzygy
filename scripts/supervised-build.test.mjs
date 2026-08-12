@@ -19,8 +19,10 @@ function environment(runRoot) {
   }
 }
 
-function start(runRoot, profile) {
-  const result = spawnSync(process.execPath, [cli, 'start', '--profile', profile], {
+function start(runRoot, profile, runId) {
+  const args = [cli, 'start', '--profile', profile]
+  if (runId) args.push('--run-id', runId)
+  const result = spawnSync(process.execPath, args, {
     cwd: dirname(scripts),
     env: environment(runRoot),
     encoding: 'utf8',
@@ -59,8 +61,10 @@ test('production profiles keep every operation bounded and package the re-embedd
 test('a detached run survives its launcher and records atomic step completion', () => {
   const runRoot = mkdtempSync(join(tmpdir(), 'syzygy-supervised-success-'))
   try {
-    const started = start(runRoot, 'fixture-success')
+    const requestedRunId = '20260811-120000-a1b2c3'
+    const started = start(runRoot, 'fixture-success', requestedRunId)
     assert.equal(started.detached, true)
+    assert.equal(started.runId, requestedRunId)
     const state = waitForState(runRoot, started.runId, ['succeeded', 'failed', 'timed_out'])
     assert.equal(state.status, 'succeeded')
     assert.deepEqual(state.steps.map((step) => step.status), ['succeeded', 'succeeded'])
@@ -111,7 +115,7 @@ test('a child-output stall clamp terminates a heartbeat-only operation and does 
   const runRoot = mkdtempSync(join(tmpdir(), 'syzygy-supervised-stall-'))
   try {
     const started = start(runRoot, 'fixture-stall')
-    const state = waitForState(runRoot, started.runId, ['failed', 'timed_out'], 8_000)
+    const state = waitForState(runRoot, started.runId, ['failed', 'timed_out'], 12_000)
     assert.equal(state.status, 'failed')
     assert.equal(state.steps[0].exitCode, 125)
     assert.equal(state.steps[1].status, 'queued')

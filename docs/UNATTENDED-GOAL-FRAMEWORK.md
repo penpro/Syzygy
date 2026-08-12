@@ -80,6 +80,12 @@ is forbidden by the runner. A timeout terminates the child process tree and retu
 it does not authorize an infinite retry. After two materially identical failures, change the
 method, reduce the slice, or record a blocker.
 
+Detached supervised runs may reserve their validated non-reused run ID before startup so evidence
+can bind to the exact checkpoint without racing the launcher. Stall, total-deadline, and explicit
+cancel requests use a run-scoped file observed by the already-owned watchdog. On restricted Windows
+sandboxes, full-tree `taskkill` is attempted first; denial falls back to terminating the directly
+owned command and a bounded watchdog exit rather than leaving the supervisor indefinitely running.
+
 Suggested starting ceilings—not promises—are:
 
 | Operation | Initial deadline |

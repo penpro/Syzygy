@@ -51,10 +51,12 @@ export interface PluginWorkspaceContentProps {
   manifestName: string | null
   componentName: string | null
   signatureName: string | null
+  rotationName: string | null
   currentDocumentRevision: string | null
   onManifestFile: (file: File | null) => void
   onComponentFile: (file: File | null) => void
   onSignatureFile: (file: File | null) => void
+  onRotationFile: (file: File | null) => void
   onLoad: () => void
   onInstall: () => void
   onSelectPackage: (packageId: string) => void
@@ -74,8 +76,8 @@ export interface PluginWorkspaceContentProps {
 export function PluginWorkspaceContent({
   packages, installedPackages, reviews, healthy, selectedPackageId, selectedContributionId, selectedReviewId,
   armedReplaceReviewId,
-  busy, status, error, manifestName, componentName, signatureName, currentDocumentRevision,
-  onManifestFile, onComponentFile, onSignatureFile, onLoad, onSelectPackage, onSelectContribution,
+  busy, status, error, manifestName, componentName, signatureName, rotationName, currentDocumentRevision,
+  onManifestFile, onComponentFile, onSignatureFile, onRotationFile, onLoad, onSelectPackage, onSelectContribution,
   onInstall, onRemovePackage, onActivateInstalled, onDisableInstalled, onRollbackInstalled,
   onRemoveInstalled, onRun, onSelectReview, onDecision, onApplyReview, onCancelReplace,
 }: PluginWorkspaceContentProps) {
@@ -129,6 +131,15 @@ export function PluginWorkspaceContent({
             />
             <span className="mono">{signatureName ?? 'Optional for session load; required to install'}</span>
           </label>
+          <label>
+            Publisher key-rotation certificate
+            <input
+              type="file"
+              accept="application/json,.json"
+              onChange={(event) => onRotationFile(event.target.files?.[0] ?? null)}
+            />
+            <span className="mono">{rotationName ?? 'Required only when an established plugin changes signing keys'}</span>
+          </label>
         </div>
         <div className="plugin-actions">
           <button type="button" disabled={busy || !manifestName || !componentName} onClick={onLoad}>
@@ -141,6 +152,8 @@ export function PluginWorkspaceContent({
         <p className="plugin-scope-note">
           A publisher key proves continuity of the signed package bytes, not the publisher's legal or
           human identity. Installed versions are rechecked before enable, upgrade, rollback, and run.
+          A key change requires one plugin/version/sequence-bound certificate signed by both the old
+          and new keys; it does not create external publisher identity or reputation.
           Capability-bearing network, Drive, model, or filesystem worlds remain unavailable.
         </p>
       </details>
@@ -349,6 +362,7 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
   const [manifestFile, setManifestFile] = useState<File | null>(null)
   const [componentFile, setComponentFile] = useState<File | null>(null)
   const [signatureFile, setSignatureFile] = useState<File | null>(null)
+  const [rotationFile, setRotationFile] = useState<File | null>(null)
   const [selectedPackageId, setSelectedPackageId] = useState('')
   const [selectedContributionId, setSelectedContributionId] = useState('')
   const [selectedReviewId, setSelectedReviewId] = useState('')
@@ -450,12 +464,17 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
       setError('Choose the package publisher signature JSON (up to 64 KiB).')
       return
     }
+    if (rotationFile && (rotationFile.size < 1 || rotationFile.size > MAX_SIGNATURE_BYTES)) {
+      setError('Choose a publisher key-rotation certificate JSON up to 64 KiB, or clear it.')
+      return
+    }
     setBusy(true)
     try {
       const plugin = await readSelectedPackage()
       if (!plugin) return
       const signature = JSON.parse(await signatureFile.text()) as unknown
-      const result = await pluginInstallationStore.installSigned(plugin, signature)
+      const rotation = rotationFile ? JSON.parse(await rotationFile.text()) as unknown : undefined
+      const result = await pluginInstallationStore.installSigned(plugin, signature, rotation)
       if (result.replacedPackageId) pluginPackageRegistry.remove(result.replacedPackageId)
       pluginPackageRegistry.list().filter((candidate) =>
         candidate.pluginId === plugin.manifest.id && candidate.packageId !== plugin.packageId)
@@ -463,7 +482,7 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
       const summary = pluginPackageRegistry.register(plugin)
       setSelectedPackageId(summary.packageId)
       setSelectedContributionId(summary.contributions[0]?.id ?? '')
-      setStatus(`${summary.name} ${summary.version} was ${result.action === 'upgraded' ? 'installed as a signed upgrade' : result.action === 'already-installed' ? 'reverified and enabled' : 'installed and enabled'}. Publisher-key continuity was verified; publisher identity was not.`)
+      setStatus(`${summary.name} ${summary.version} was ${result.action === 'upgraded' ? 'installed as a signed upgrade' : result.action === 'already-installed' ? 'reverified and enabled' : 'installed and enabled'}. ${result.publisherKeyRotated ? `Dual-signed publisher-key rotation sequence ${result.publisherRotationSequence} was retained. ` : ''}Publisher-key continuity was verified; publisher identity was not.`)
     } catch (value) { setError(explain(value)) } finally { setBusy(false) }
   }
   const disableInstalled = async (packageId: string) => {
@@ -596,10 +615,12 @@ export function PluginWorkspace({ project }: { project: ResearchProjectManifest 
     manifestName={manifestFile?.name ?? null}
     componentName={componentFile?.name ?? null}
     signatureName={signatureFile?.name ?? null}
+    rotationName={rotationFile?.name ?? null}
     currentDocumentRevision={currentDocumentRevision}
     onManifestFile={setManifestFile}
     onComponentFile={setComponentFile}
     onSignatureFile={setSignatureFile}
+    onRotationFile={setRotationFile}
     onLoad={() => { void load() }}
     onInstall={() => { void install() }}
     onSelectPackage={(packageId) => { setSelectedPackageId(packageId); setSelectedContributionId('') }}

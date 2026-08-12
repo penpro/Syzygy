@@ -35,6 +35,30 @@ after certification for the first version, then use `--private-key` with the sam
 The private key stays outside the package and repository; the generated package file
 contains only the public key, stable fingerprint, exact signed claim, and signature.
 
+To change a plugin publisher key, create one dual-signed certificate before signing the first
+new-key package. Keep both private keys outside the package and repository:
+
+```powershell
+npm run rotate:plugin-key -- `
+  --plugin-id org.example.plugin `
+  --sequence 1 `
+  --effective-version 2.0.0 `
+  --from-private-key ..\publisher-private.pem `
+  --create-to-private-key ..\publisher-private-v2.pem `
+  --from-publisher-name "Independent publisher" `
+  --to-publisher-name "Independent publisher" `
+  --output ..\publisher-rotation-v1.json
+
+npm run sign:plugin -- ..\path\to\plugin-package `
+  --private-key ..\publisher-private-v2.pem `
+  --publisher-name "Independent publisher"
+```
+
+Select the new package, its new-key signature, and the rotation certificate together in the app.
+Later versions use the new key without that certificate until the next sequential rotation. The
+certificate establishes local key continuity only; it does not provide organizational identity,
+reputation, revocation, compromised-key recovery, or trusted time.
+
 ## Bounded command watchdog
 
 Long-running development and overnight commands run through the repository watchdog:
@@ -50,8 +74,9 @@ npm run test:goal-framework
 interval above 60 seconds, so a silent operation is inspected at least once per minute. It forwards
 ordinary output without creating a second log containing possible research content. At the deadline
 it terminates the child process tree and returns exit code 124; Ctrl+C returns 130. On Windows,
-process-tree cleanup uses `taskkill /t /f`, while Unix uses TERM followed by a one-second KILL
-fallback. The executable fixtures prove successful and failing exit propagation, a silent-command
+process-tree cleanup first uses `taskkill /t /f`; when a restricted sandbox denies that helper, the
+watchdog kills its directly owned command and exits within a five-second fallback instead of waiting
+forever. Unix uses TERM followed by a one-second KILL fallback. The executable fixtures prove successful and failing exit propagation, a silent-command
 heartbeat, rejection above the maximum interval, and forced timeout cleanup.
 
 The watchdog does not make a hung operation successful and does not justify retrying indefinitely.
@@ -72,6 +97,14 @@ npm run build:follow -- <run-id>   # reconnect to live output
 npm run build:cancel -- <run-id>   # explicitly stop the worker and its active process tree
 ```
 
+Evidence-producing runs may reserve the exact validated ID before the worker starts, eliminating a
+race between detached startup and writing the evidence record. The ID must match
+`YYYYMMDD-HHMMSS-xxxxxx`, must not already exist, and remains the lookup key for status/follow:
+
+```powershell
+npm run check:supervised -- --run-id 20260811-170500-a1b2c3
+```
+
 The launcher returns immediately with a run ID. The detached worker owns the entire plan, so losing
 a PTY, tool yield, or Codex sampling turn does not abandon the build. Atomic `state.json`
 checkpoints and `output.log` live in the ignored `.syzygy-dev-runs/<run-id>/` folder. Only one
@@ -80,7 +113,10 @@ profile has a 30-minute total deadline. The package profile has a 40-minute tota
 child step also uses `run-with-heartbeat.mjs` with a mandatory operation-specific deadline and a
 30-second heartbeat. Production steps also stop after at most 120 seconds without real child output,
 with the longest silence allowance reserved for Rust linking and installer generation. Child stdin
-is closed, so an unattended prompt fails instead of waiting.
+is closed, so an unattended prompt fails instead of waiting. Stall, total-deadline, and explicit
+cancel paths write a run-scoped cancellation request that the owned watchdog polls four times per
+second. This avoids relying on a separately launched `taskkill` process that a Windows sandbox may
+deny; the watchdog still attempts full-tree cleanup and has a direct-child bounded fallback.
 
 Before native packaging, the supervisor snapshots process ownership, requests a normal Syzygy
 window close, and waits for both the app and its captured `llama-server` child to exit. If normal
@@ -875,7 +911,8 @@ model, Drive, project mutation, or plugin execution.
 `npm run test:plugin-composition` covers the product layer above those separate gates. It proves an
 exact user-selected manifest/component filename and recomputed SHA-256, eight-package/32-MiB
 session caps, strict Ed25519 publisher-package claims, 32-version/128-MiB local persistence,
-publisher-key-continuous upgrades, reverified startup activation, explicit disable/rollback/removal,
+legacy database upgrade, same-key upgrades plus dual-signed sequential key rotation, key-epoch
+enforcement, reverified startup activation, explicit disable/rollback/removal,
 same-version substitution and tamper denial, project-only grant filtering, one active run, stale identity/revision refusal,
 preflighted 1–32 proposal publication, disconnected decision convergence/conflict visibility,
 exact accepted-review append/full-replace with a real Lexical editor, stale/race/collision zero-write denial,

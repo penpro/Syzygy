@@ -5,14 +5,16 @@ import {
 } from './pluginExecution'
 import { validateResearchPluginManifest } from './pluginManifest'
 
-const DATABASE_VERSION = 1
+const DATABASE_VERSION = 2
 const STORE_NAME = 'packages'
+const ROTATION_STORE_NAME = 'publisherRotations'
 const DEFAULT_DATABASE_NAME = 'syzygy-plugin-installations-v1'
 const MAX_INSTALLED_VERSIONS = 32
 const MAX_INSTALLED_COMPONENT_BYTES = 128 * 1024 * 1024
 const MAX_COMPONENT_BYTES = 8 * 1024 * 1024
 const MAX_ENABLED_PACKAGES = 8
 const MAX_ENABLED_COMPONENT_BYTES = 32 * 1024 * 1024
+const MAX_PUBLISHER_ROTATIONS = 32
 const KEY_ID_PATTERN = /^ed25519-sha256:[A-Za-z0-9_-]{43}$/
 const BASE64URL_32_PATTERN = /^[A-Za-z0-9_-]{43}$/
 const BASE64URL_64_PATTERN = /^[A-Za-z0-9_-]{86}$/
@@ -37,6 +39,17 @@ export interface PluginPublisherSignature {
   signature: string
 }
 
+export interface PluginPublisherKeyRotation {
+  schemaVersion: 1
+  algorithm: 'Ed25519'
+  pluginId: string
+  sequence: number
+  effectiveVersion: string
+  fromPublisher: { name: string; keyId: string; publicKey: string }
+  toPublisher: { name: string; keyId: string; publicKey: string }
+  signatures: { from: string; to: string }
+}
+
 interface StoredPluginInstallation {
   recordVersion: 1
   packageId: string
@@ -46,6 +59,15 @@ interface StoredPluginInstallation {
   enabled: boolean
   plugin: LoadedZeroAuthorityPluginPackage
   publisherSignature: PluginPublisherSignature
+}
+
+interface StoredPluginPublisherRotation {
+  recordVersion: 1
+  rotationId: string
+  pluginId: string
+  sequence: number
+  acceptedAt: number
+  rotation: PluginPublisherKeyRotation
 }
 
 export interface InstalledPluginSummary {
@@ -68,6 +90,8 @@ export interface PluginInstallResult {
   action: 'installed' | 'upgraded' | 'already-installed'
   installed: InstalledPluginSummary
   replacedPackageId: string | null
+  publisherRotationSequence: number
+  publisherKeyRotated: boolean
 }
 
 export interface PluginRestoreResult {
@@ -86,6 +110,7 @@ export class PluginInstallationError extends Error {
     | 'signature-invalid'
     | 'signature-unavailable'
     | 'publisher-mismatch'
+    | 'publisher-rotation-invalid'
     | 'version-collision'
     | 'rollback-required'
     | 'rollback-denied'
@@ -152,6 +177,45 @@ export function canonicalPluginPublisherClaim(proof: PluginPublisherSignature): 
   ].join('\n'))
 }
 
+export function canonicalPluginPublisherRotationClaim(rotation: PluginPublisherKeyRotation): Uint8Array {
+  return new TextEncoder().encode([
+    'syzygy-plugin-publisher-key-rotation-v1',
+    rotation.pluginId,
+    String(rotation.sequence),
+    rotation.effectiveVersion,
+    rotation.fromPublisher.name,
+    rotation.fromPublisher.keyId,
+    rotation.fromPublisher.publicKey,
+    rotation.toPublisher.name,
+    rotation.toPublisher.keyId,
+    rotation.toPublisher.publicKey,
+  ].join('\n'))
+}
+
+const validPublisherIdentity = (value: unknown): value is PluginPublisherKeyRotation['fromPublisher'] =>
+  isRecord(value) && exactKeys(value, ['name', 'keyId', 'publicKey']) &&
+  typeof value.name === 'string' && Boolean(value.name.trim()) && value.name.length <= 200 &&
+  typeof value.keyId === 'string' && KEY_ID_PATTERN.test(value.keyId) &&
+  typeof value.publicKey === 'string' && BASE64URL_32_PATTERN.test(value.publicKey)
+
+export function parsePluginPublisherKeyRotation(value: unknown): PluginPublisherKeyRotation | null {
+  if (!isRecord(value) || !exactKeys(value, [
+    'schemaVersion', 'algorithm', 'pluginId', 'sequence', 'effectiveVersion',
+    'fromPublisher', 'toPublisher', 'signatures',
+  ]) || value.schemaVersion !== 1 || value.algorithm !== 'Ed25519' ||
+    typeof value.pluginId !== 'string' || !/^[a-z0-9]+(?:[.-][a-z0-9]+)+$/.test(value.pluginId) ||
+    !Number.isSafeInteger(value.sequence) || Number(value.sequence) < 1 ||
+    Number(value.sequence) > MAX_PUBLISHER_ROTATIONS ||
+    typeof value.effectiveVersion !== 'string' ||
+    !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(value.effectiveVersion) ||
+    !validPublisherIdentity(value.fromPublisher) || !validPublisherIdentity(value.toPublisher) ||
+    value.fromPublisher.keyId === value.toPublisher.keyId ||
+    !isRecord(value.signatures) || !exactKeys(value.signatures, ['from', 'to']) ||
+    typeof value.signatures.from !== 'string' || !BASE64URL_64_PATTERN.test(value.signatures.from) ||
+    typeof value.signatures.to !== 'string' || !BASE64URL_64_PATTERN.test(value.signatures.to)) return null
+  return structuredClone(value) as unknown as PluginPublisherKeyRotation
+}
+
 export function parsePluginPublisherSignature(value: unknown): PluginPublisherSignature | null {
   if (!isRecord(value) || !exactKeys(value, [
     'schemaVersion', 'algorithm', 'publisher', 'package', 'signature',
@@ -196,6 +260,33 @@ async function verifyPublisherSignature(
   if (status === 'unavailable') throw new PluginInstallationError('signature-unavailable')
   if (status !== 'verified-device') throw new PluginInstallationError('signature-invalid')
   return proof
+}
+
+async function verifyPublisherKeyRotation(value: unknown): Promise<PluginPublisherKeyRotation> {
+  const rotation = parsePluginPublisherKeyRotation(value)
+  if (!rotation) throw new PluginInstallationError('publisher-rotation-invalid')
+  const claim = canonicalPluginPublisherRotationClaim(rotation)
+  const [fromStatus, toStatus] = await Promise.all([
+    verifyEd25519DeviceMessage(
+      rotation.fromPublisher.keyId,
+      rotation.fromPublisher.publicKey,
+      rotation.signatures.from,
+      claim,
+    ),
+    verifyEd25519DeviceMessage(
+      rotation.toPublisher.keyId,
+      rotation.toPublisher.publicKey,
+      rotation.signatures.to,
+      claim,
+    ),
+  ])
+  if (fromStatus === 'unavailable' || toStatus === 'unavailable') {
+    throw new PluginInstallationError('signature-unavailable')
+  }
+  if (fromStatus !== 'verified-device' || toStatus !== 'verified-device') {
+    throw new PluginInstallationError('publisher-rotation-invalid')
+  }
+  return rotation
 }
 
 async function verifyLoadedPackage(
@@ -270,6 +361,22 @@ const parseStoredRecord = (value: unknown): StoredPluginInstallation => {
   return structuredClone(value) as unknown as StoredPluginInstallation
 }
 
+const parseStoredRotation = (value: unknown): StoredPluginPublisherRotation => {
+  if (!isRecord(value) || !exactKeys(value, [
+    'recordVersion', 'rotationId', 'pluginId', 'sequence', 'acceptedAt', 'rotation',
+  ]) || value.recordVersion !== 1 || typeof value.rotationId !== 'string' ||
+    typeof value.pluginId !== 'string' || !Number.isSafeInteger(value.sequence) ||
+    !Number.isSafeInteger(value.acceptedAt) || Number(value.acceptedAt) < 1) {
+    throw new PluginInstallationError('store-corrupt')
+  }
+  const rotation = parsePluginPublisherKeyRotation(value.rotation)
+  if (!rotation || value.rotationId !== `${rotation.pluginId}#${rotation.sequence}` ||
+    value.pluginId !== rotation.pluginId || value.sequence !== rotation.sequence) {
+    throw new PluginInstallationError('store-corrupt')
+  }
+  return structuredClone(value) as unknown as StoredPluginPublisherRotation
+}
+
 const requestResult = <T>(request: IDBRequest<T>): Promise<T> => new Promise((resolve, reject) => {
   request.onsuccess = () => resolve(request.result)
   request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed'))
@@ -310,6 +417,76 @@ const compareSemver = (leftValue: string, rightValue: string): number => {
   return 0
 }
 
+type PublisherIdentity = PluginPublisherKeyRotation['fromPublisher']
+
+const publisherFromProof = (proof: PluginPublisherSignature): PublisherIdentity => ({
+  name: proof.publisher.name,
+  keyId: proof.publisher.keyId,
+  publicKey: proof.publisher.publicKey,
+})
+
+const samePublisher = (left: PublisherIdentity, right: PublisherIdentity) =>
+  left.name === right.name && left.keyId === right.keyId && left.publicKey === right.publicKey
+
+const rotationsFor = (rotations: StoredPluginPublisherRotation[], pluginId: string) =>
+  rotations.filter((record) => record.pluginId === pluginId)
+    .sort((left, right) => left.sequence - right.sequence)
+
+function publisherLineageTip(
+  records: StoredPluginInstallation[],
+  rotations: StoredPluginPublisherRotation[],
+  pluginId: string,
+): { publisher: PublisherIdentity; sequence: number; effectiveVersion: string | null } | null {
+  const lineage = rotationsFor(rotations, pluginId)
+  const latest = lineage[lineage.length - 1]
+  if (latest) return {
+    publisher: latest.rotation.toPublisher,
+    sequence: latest.sequence,
+    effectiveVersion: latest.rotation.effectiveVersion,
+  }
+  const first = records.filter((record) => record.pluginId === pluginId)
+    .sort((left, right) => compareSemver(left.version, right.version))[0]
+  return first ? { publisher: publisherFromProof(first.publisherSignature), sequence: 0, effectiveVersion: null } : null
+}
+
+function validatePublisherLineages(
+  records: StoredPluginInstallation[],
+  rotations: StoredPluginPublisherRotation[],
+) {
+  const pluginIds = new Set([
+    ...records.map((record) => record.pluginId),
+    ...rotations.map((record) => record.pluginId),
+  ])
+  for (const pluginId of pluginIds) {
+    const packages = records.filter((record) => record.pluginId === pluginId)
+    if (packages.length === 0) throw new PluginInstallationError('store-corrupt')
+    const lineage = rotationsFor(rotations, pluginId)
+    const rootPublisher = lineage[0]?.rotation.fromPublisher ?? publisherFromProof(
+      packages.sort((left, right) => compareSemver(left.version, right.version))[0].publisherSignature,
+    )
+    let publisher = rootPublisher
+    let effectiveVersion: string | null = null
+    lineage.forEach((record, index) => {
+      if (record.sequence !== index + 1 || !samePublisher(record.rotation.fromPublisher, publisher) ||
+        (effectiveVersion !== null && compareSemver(record.rotation.effectiveVersion, effectiveVersion) <= 0)) {
+        throw new PluginInstallationError('store-corrupt')
+      }
+      publisher = record.rotation.toPublisher
+      effectiveVersion = record.rotation.effectiveVersion
+    })
+    for (const plugin of packages) {
+      let expected = rootPublisher
+      for (const record of lineage) {
+        if (compareSemver(plugin.version, record.rotation.effectiveVersion) < 0) break
+        expected = record.rotation.toPublisher
+      }
+      if (!samePublisher(publisherFromProof(plugin.publisherSignature), expected)) {
+        throw new PluginInstallationError('store-corrupt')
+      }
+    }
+  }
+}
+
 export class PluginInstallationCatalog {
   private summaries: InstalledPluginSummary[] = []
   private readonly listeners = new Set<() => void>()
@@ -347,6 +524,9 @@ export class PluginInstallationStore {
         if (!request.result.objectStoreNames.contains(STORE_NAME)) {
           request.result.createObjectStore(STORE_NAME, { keyPath: 'packageId' })
         }
+        if (!request.result.objectStoreNames.contains(ROTATION_STORE_NAME)) {
+          request.result.createObjectStore(ROTATION_STORE_NAME, { keyPath: 'rotationId' })
+        }
       }
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(new PluginInstallationError('database-unavailable'))
@@ -361,52 +541,70 @@ export class PluginInstallationStore {
     return next
   }
 
-  private async readRecords(): Promise<StoredPluginInstallation[]> {
+  private async readState(): Promise<{
+    records: StoredPluginInstallation[]
+    rotations: StoredPluginPublisherRotation[]
+  }> {
     try {
       const database = await this.open()
-      const transaction = database.transaction(STORE_NAME, 'readonly')
+      const transaction = database.transaction([STORE_NAME, ROTATION_STORE_NAME], 'readonly')
       const done = transactionDone(transaction)
       const values = await requestResult(transaction.objectStore(STORE_NAME)
         .getAll(undefined, MAX_INSTALLED_VERSIONS + 1))
+      const rotationValues = await requestResult(transaction.objectStore(ROTATION_STORE_NAME)
+        .getAll(undefined, MAX_PUBLISHER_ROTATIONS + 1))
       await done
       const records = values.map(parseStoredRecord)
+      const rotations = rotationValues.map(parseStoredRotation)
       if (records.length > MAX_INSTALLED_VERSIONS ||
         records.reduce((total, record) => total + record.plugin.componentByteLength, 0) >
-          MAX_INSTALLED_COMPONENT_BYTES) throw new PluginInstallationError('store-corrupt')
+          MAX_INSTALLED_COMPONENT_BYTES || rotations.length > MAX_PUBLISHER_ROTATIONS) {
+        throw new PluginInstallationError('store-corrupt')
+      }
       const enabledIds = new Set<string>()
-      const publisherKeys = new Map<string, string>()
       const versionPackages = new Map<string, string>()
       const enabledRecords = records.filter((candidate) => candidate.enabled)
       if (enabledRecords.length > MAX_ENABLED_PACKAGES ||
         enabledRecords.reduce((total, record) => total + record.plugin.componentByteLength, 0) >
           MAX_ENABLED_COMPONENT_BYTES) throw new PluginInstallationError('store-corrupt')
       for (const record of records) {
-        const publisherKey = publisherKeys.get(record.pluginId)
         const versionKey = `${record.pluginId}\n${record.version}`
         const versionPackage = versionPackages.get(versionKey)
-        if ((publisherKey && publisherKey !== record.publisherSignature.publisher.keyId) ||
-          (versionPackage && versionPackage !== record.packageId) ||
+        if ((versionPackage && versionPackage !== record.packageId) ||
           (record.enabled && enabledIds.has(record.pluginId))) {
           throw new PluginInstallationError('store-corrupt')
         }
-        publisherKeys.set(record.pluginId, record.publisherSignature.publisher.keyId)
         versionPackages.set(versionKey, record.packageId)
         if (record.enabled) enabledIds.add(record.pluginId)
       }
-      return records
+      for (const rotation of rotations) await verifyPublisherKeyRotation(rotation.rotation)
+      validatePublisherLineages(records, rotations)
+      return { records, rotations }
     } catch (error) {
       if (error instanceof PluginInstallationError) throw error
       throw new PluginInstallationError('database-unavailable')
     }
   }
 
-  private async putRecords(records: StoredPluginInstallation[]): Promise<void> {
+  private async readRecords(): Promise<StoredPluginInstallation[]> {
+    return (await this.readState()).records
+  }
+
+  private async putRecords(
+    records: StoredPluginInstallation[],
+    rotations: StoredPluginPublisherRotation[] = [],
+  ): Promise<void> {
     try {
       const database = await this.open()
-      const transaction = database.transaction(STORE_NAME, 'readwrite')
+      const stores = rotations.length > 0 ? [STORE_NAME, ROTATION_STORE_NAME] : [STORE_NAME]
+      const transaction = database.transaction(stores, 'readwrite')
       const done = transactionDone(transaction)
       const store = transaction.objectStore(STORE_NAME)
       records.forEach((record) => store.put(structuredClone(record)))
+      if (rotations.length > 0) {
+        const rotationStore = transaction.objectStore(ROTATION_STORE_NAME)
+        rotations.forEach((record) => rotationStore.put(structuredClone(record)))
+      }
       await done
     } catch (error) {
       if (error instanceof PluginInstallationError) throw error
@@ -443,24 +641,63 @@ export class PluginInstallationStore {
   async installSigned(
     plugin: LoadedZeroAuthorityPluginPackage,
     signatureValue: unknown,
+    rotationValue?: unknown,
   ): Promise<PluginInstallResult> {
-    const verifiedPlugin = await verifyLoadedPackage(plugin)
-    const proof = await verifyPublisherSignature(verifiedPlugin, signatureValue)
     return this.serialized(async () => {
-      const records = await this.readRecords()
+      const verifiedPlugin = await verifyLoadedPackage(plugin)
+      const proof = await verifyPublisherSignature(verifiedPlugin, signatureValue)
+      const requestedRotation = rotationValue === undefined
+        ? null : await verifyPublisherKeyRotation(rotationValue)
+      const { records, rotations } = await this.readState()
       const existingExact = records.find((record) => record.packageId === verifiedPlugin.packageId)
       const sameVersion = records.find((record) =>
         record.pluginId === verifiedPlugin.manifest.id && record.version === verifiedPlugin.manifest.version)
       const retainedLineage = records.filter((record) =>
         record.pluginId === verifiedPlugin.manifest.id)
+      for (const record of retainedLineage) {
+        const retainedPlugin = await verifyLoadedPackage(record.plugin)
+        await verifyPublisherSignature(retainedPlugin, record.publisherSignature)
+      }
       if (sameVersion && sameVersion.packageId !== verifiedPlugin.packageId) {
         throw new PluginInstallationError('version-collision')
       }
       const enabled = records.find((record) => record.pluginId === verifiedPlugin.manifest.id && record.enabled)
-      if ((existingExact && canonicalJson(existingExact.publisherSignature) !== canonicalJson(proof)) ||
-        retainedLineage.some((record) =>
-          record.publisherSignature.publisher.keyId !== proof.publisher.keyId)) {
+      if (existingExact && canonicalJson(existingExact.publisherSignature) !== canonicalJson(proof)) {
         throw new PluginInstallationError('publisher-mismatch')
+      }
+      const lineageTip = publisherLineageTip(records, rotations, verifiedPlugin.manifest.id)
+      const proofPublisher = publisherFromProof(proof)
+      let acceptedRotation: StoredPluginPublisherRotation | null = null
+      if (!lineageTip) {
+        if (requestedRotation) throw new PluginInstallationError('publisher-rotation-invalid')
+      } else if (samePublisher(lineageTip.publisher, proofPublisher)) {
+        if (requestedRotation) throw new PluginInstallationError('publisher-rotation-invalid')
+      } else {
+        const highestVersion = retainedLineage.reduce((highest, record) =>
+          compareSemver(record.version, highest) > 0 ? record.version : highest,
+        retainedLineage[0].version)
+        if (!requestedRotation || requestedRotation.pluginId !== verifiedPlugin.manifest.id ||
+          requestedRotation.sequence !== lineageTip.sequence + 1 ||
+          requestedRotation.effectiveVersion !== verifiedPlugin.manifest.version ||
+          compareSemver(requestedRotation.effectiveVersion, highestVersion) <= 0 ||
+          !samePublisher(requestedRotation.fromPublisher, lineageTip.publisher) ||
+          !samePublisher(requestedRotation.toPublisher, proofPublisher) ||
+          rotations.length >= MAX_PUBLISHER_ROTATIONS) {
+          throw new PluginInstallationError(requestedRotation
+            ? 'publisher-rotation-invalid' : 'publisher-mismatch')
+        }
+        const acceptedAt = this.clock()
+        if (!Number.isSafeInteger(acceptedAt) || acceptedAt < 1) {
+          throw new PluginInstallationError('publisher-rotation-invalid')
+        }
+        acceptedRotation = {
+          recordVersion: 1,
+          rotationId: `${requestedRotation.pluginId}#${requestedRotation.sequence}`,
+          pluginId: requestedRotation.pluginId,
+          sequence: requestedRotation.sequence,
+          acceptedAt,
+          rotation: requestedRotation,
+        }
       }
       if (enabled && enabled.packageId !== verifiedPlugin.packageId &&
         compareSemver(verifiedPlugin.manifest.version, enabled.version) <= 0) {
@@ -494,12 +731,14 @@ export class PluginInstallationStore {
         record.pluginId === verifiedPlugin.manifest.id && record.enabled &&
         record.packageId !== verifiedPlugin.packageId)
         .map((record) => ({ ...record, enabled: false }))
-      await this.putRecords([...changed, next])
+      await this.putRecords([...changed, next], acceptedRotation ? [acceptedRotation] : [])
       await this.refreshCatalog()
       return {
         action: existingExact ? 'already-installed' : enabled ? 'upgraded' : 'installed',
         installed: summarize(next),
         replacedPackageId: enabled?.packageId ?? null,
+        publisherRotationSequence: acceptedRotation?.sequence ?? lineageTip?.sequence ?? 0,
+        publisherKeyRotated: acceptedRotation !== null,
       }
     })
   }
@@ -611,15 +850,25 @@ export class PluginInstallationStore {
 
   async remove(packageId: string): Promise<void> {
     return this.serialized(async () => {
-      const records = await this.readRecords()
+      const { records, rotations } = await this.readState()
       const record = records.find((candidate) => candidate.packageId === packageId)
       if (!record) throw new PluginInstallationError('package-missing')
       if (record.enabled) throw new PluginInstallationError('active-removal-denied')
+      const removeLineage = records.filter((candidate) =>
+        candidate.pluginId === record.pluginId && candidate.packageId !== packageId).length === 0
       try {
         const database = await this.open()
-        const transaction = database.transaction(STORE_NAME, 'readwrite')
+        const transaction = database.transaction(
+          removeLineage ? [STORE_NAME, ROTATION_STORE_NAME] : [STORE_NAME],
+          'readwrite',
+        )
         const done = transactionDone(transaction)
         transaction.objectStore(STORE_NAME).delete(packageId)
+        if (removeLineage) {
+          const rotationStore = transaction.objectStore(ROTATION_STORE_NAME)
+          rotationsFor(rotations, record.pluginId).forEach((rotation) =>
+            rotationStore.delete(rotation.rotationId))
+        }
         await done
       } catch (error) {
         if (error instanceof PluginInstallationError) throw error

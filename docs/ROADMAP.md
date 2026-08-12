@@ -198,7 +198,7 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   adversarial archives and decisions, suggestion proposals/decisions, and heuristic definition,
   example, and check-result events plus scenario-rerun definitions, controls, item transitions, and
   completed results. Human identity, shared-directory approval, propagated identity revocation,
-  key rotation/recovery, and physical two-install product proof remain
+  device-identity key rotation/recovery and physical two-install product proof remain
   open, so P-11 remains
   `implemented_unverified`. Evidence:
   `docs/audits/runs/PRESENCE-LIFECYCLE-2026-07-18.json` and
@@ -333,10 +333,13 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   `docs/audits/runs/PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11.json`.
 - Researchers can now explicitly select one exact manifest/component pair into a bounded in-memory
   session registry or install it locally with a strict Ed25519 publisher-package proof. The durable
-  store retains 32 versions/128 MiB, enforces one active version and publisher-key continuity,
-  preserves rollback versions, and rechecks exact bytes before startup activation, upgrade, or
-  rollback. A non-executing CLI creates an external Ed25519 key and the exact public signature file
-  without putting private material in the package. The product exposes disable, upgrade, rollback,
+  store retains 32 versions/128 MiB, enforces one active version and current publisher-key
+  continuity, preserves rollback versions, and rechecks exact bytes before startup activation,
+  upgrade, or rollback. A different publisher key requires the next plugin/version-bound transition
+  signed by both old and new keys; key epochs prevent an old key from signing later versions. The
+  legacy database upgrades in place and stores bounded certificates separately. Non-executing CLIs
+  create external Ed25519 keys, exact public signature files, and dual-signed transitions without
+  putting private material in the package. The product exposes disable, upgrade, rollback,
   and removal. SHA-256 is also recomputed
   before execution; only project read/propose can activate.
   Valid output becomes one preflighted shared Yjs proposal batch. Human accept/reject decisions
@@ -351,10 +354,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   exposes the same content-minimized mutation as tool 49 and requires a boolean matching append versus
   explicit full replacement. MCP can inspect metadata and run only an
   already-active package with exact document/research revisions and content-minimized installed
-  metadata. Publisher identity/reputation and signing-key rotation, package discovery, a useful
+  metadata. Publisher identity/reputation/revocation/recovery, package discovery, a useful
   executable example, capability-bearing worlds, cross-store atomic apply/event commit, and editable apply
   variants remain open. Evidence:
   `docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json`.
+  Publisher-key rotation evidence:
+  `docs/audits/runs/PLUGIN-PUBLISHER-KEY-ROTATION-2026-08-11.json`.
   Accepted-review Apply evidence:
   `docs/audits/runs/PLUGIN-ACCEPTED-APPLY-2026-08-11.json`. Exact retained application-event and
   device-attribution evidence:
@@ -662,8 +667,9 @@ collaborators are not required to download large project folders.
    now composes user-selected session packages with project-only grants and shared human proposal
    review. Exact retained proposal and decision events now receive best-effort registered-device
    attribution with explicit unsigned fallback and cross-author/tamper rejection. Publisher-signed
-   local install/disable/upgrade/rollback with exact startup re-verification has now landed. Next add
-   a useful independently built third-party artifact and publisher trust/key rotation before
+   local install/disable/upgrade/rollback with exact startup re-verification and dual-signed
+   sequential publisher-key rotation has now landed. Next add a useful independently built
+   third-party artifact and publisher identity/reputation/revocation/recovery before
    introducing any capability-bearing world.
 4. **Harden collaboration beyond the first Drive transport** — append-only Yjs Drive sharing,
    share/join UI, deterministic partition convergence, a real Drive canary, persistent outbound LAN

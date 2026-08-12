@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syzygy.local/schemas/syzygy-plugin-publisher-key-rotation-v1.schema.json",
+  "title": "Syzygy plugin publisher key rotation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "algorithm",
+    "pluginId",
+    "sequence",
+    "effectiveVersion",
+    "fromPublisher",
+    "toPublisher",
+    "signatures"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "algorithm": { "const": "Ed25519" },
+    "pluginId": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)+$"
+    },
+    "sequence": { "type": "integer", "minimum": 1, "maximum": 32 },
+    "effectiveVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "fromPublisher": { "$ref": "#/$defs/publisher" },
+    "toPublisher": { "$ref": "#/$defs/publisher" },
+    "signatures": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": { "type": "string", "pattern": "^[A-Za-z0-9_-]{86}$" },
+        "to": { "type": "string", "pattern": "^[A-Za-z0-9_-]{86}$" }
+      }
+    }
+  },
+  "$defs": {
+    "publisher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "keyId", "publicKey"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "keyId": {
+          "type": "string",
+          "pattern": "^ed25519-sha256:[A-Za-z0-9_-]{43}$"
+        },
+        "publicKey": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" }
+      }
+    }
+  }
+}

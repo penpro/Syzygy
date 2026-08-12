@@ -4,7 +4,9 @@ import { loadZeroAuthorityPluginPackage } from './pluginExecution'
 import {
   canonicalPluginManifest,
   canonicalPluginPublisherClaim,
+  canonicalPluginPublisherRotationClaim,
   PluginInstallationStore,
+  type PluginPublisherKeyRotation,
   type PluginPublisherSignature,
 } from './pluginInstallationStore'
 
@@ -109,6 +111,33 @@ const signedPackage = async (
   return { plugin, proof, signer: activeSigner }
 }
 
+const keyRotation = async (
+  pluginId: string,
+  sequence: number,
+  effectiveVersion: string,
+  from: Awaited<ReturnType<typeof createSigner>>,
+  to: Awaited<ReturnType<typeof createSigner>>,
+): Promise<PluginPublisherKeyRotation> => {
+  const rotation: PluginPublisherKeyRotation = {
+    schemaVersion: 1,
+    algorithm: 'Ed25519',
+    pluginId,
+    sequence,
+    effectiveVersion,
+    fromPublisher: { name: 'Fixture publisher', keyId: from.keyId, publicKey: from.publicKey },
+    toPublisher: { name: 'Fixture publisher', keyId: to.keyId, publicKey: to.publicKey },
+    signatures: { from: 'A'.repeat(86), to: 'A'.repeat(86) },
+  }
+  const claim = asArrayBuffer(canonicalPluginPublisherRotationClaim(rotation))
+  rotation.signatures.from = base64Url(await crypto.subtle.sign(
+    { name: 'Ed25519' }, from.keys.privateKey, claim,
+  ))
+  rotation.signatures.to = base64Url(await crypto.subtle.sign(
+    { name: 'Ed25519' }, to.keys.privateKey, claim,
+  ))
+  return rotation
+}
+
 describe('persistent signed plugin installation store', () => {
   it('installs, reopens, and re-verifies an enabled signed package without executing it', async () => {
     const { name, store } = database()
@@ -132,6 +161,38 @@ describe('persistent signed plugin installation store', () => {
     databases.push({ name, store: reopened })
     expect((await reopened.getVerified(fixture.plugin.packageId)).componentSha256)
       .toBe(fixture.plugin.componentSha256)
+  })
+
+  it('upgrades the legacy package-only database in place without losing the signed installation', async () => {
+    const name = `syzygy-plugin-install-v1-${Date.now()}-${Math.random()}`
+    const fixture = await signedPackage('1.0.0', 1)
+    const open = indexedDB.open(name, 1)
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      open.onupgradeneeded = () => open.result.createObjectStore('packages', { keyPath: 'packageId' })
+      open.onsuccess = () => resolve(open.result)
+      open.onerror = () => reject(open.error)
+    })
+    const transaction = db.transaction('packages', 'readwrite')
+    transaction.objectStore('packages').put({
+      recordVersion: 1,
+      packageId: fixture.plugin.packageId,
+      pluginId: fixture.plugin.manifest.id,
+      version: fixture.plugin.manifest.version,
+      installedAt: 1_725_000_000_000,
+      enabled: true,
+      plugin: fixture.plugin,
+      publisherSignature: fixture.proof,
+    })
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = transaction.onabort = () => reject(transaction.error)
+    })
+    db.close()
+    const store = new PluginInstallationStore(name)
+    databases.push({ name, store })
+    expect(await store.list()).toEqual([
+      expect.objectContaining({ packageId: fixture.plugin.packageId, enabled: true }),
+    ])
   })
 
   it('retains the prior signed version and performs an explicit verified rollback', async () => {
@@ -185,6 +246,133 @@ describe('persistent signed plugin installation store', () => {
     ])
   })
 
+  it('accepts a dual-signed sequential publisher-key rotation and preserves rollback lineage', async () => {
+    const { name, store } = database()
+    const oldSigner = await createSigner()
+    const newSigner = await createSigner()
+    const first = await signedPackage('1.0.0', 1, oldSigner)
+    const second = await signedPackage('2.0.0', 2, newSigner)
+    const rotation = await keyRotation(first.plugin.manifest.id, 1, '2.0.0', oldSigner, newSigner)
+    await store.installSigned(first.plugin, first.proof)
+    await expect(store.installSigned(second.plugin, second.proof, rotation)).resolves.toMatchObject({
+      action: 'upgraded', publisherRotationSequence: 1,
+      replacedPackageId: first.plugin.packageId,
+    })
+    expect((await store.restoreEnabled()).packages[0].packageId).toBe(second.plugin.packageId)
+    expect(await store.rollback(first.plugin.manifest.id, first.plugin.packageId)).toMatchObject({
+      packageId: first.plugin.packageId, enabled: true,
+    })
+    store.close()
+    const reopened = new PluginInstallationStore(name)
+    databases.push({ name, store: reopened })
+    expect(await reopened.list()).toHaveLength(2)
+  })
+
+  it('rejects unilateral, mismatched, skipped, or retroactive key rotation', async () => {
+    const { store } = database()
+    const oldSigner = await createSigner()
+    const newSigner = await createSigner()
+    const first = await signedPackage('1.0.0', 1, oldSigner)
+    const second = await signedPackage('2.0.0', 2, newSigner)
+    const valid = await keyRotation(first.plugin.manifest.id, 1, '2.0.0', oldSigner, newSigner)
+    await store.installSigned(first.plugin, first.proof)
+    await expect(store.installSigned(second.plugin, second.proof))
+      .rejects.toMatchObject({ code: 'publisher-mismatch' })
+    await expect(store.installSigned(second.plugin, second.proof, {
+      ...valid, signatures: { ...valid.signatures, from: valid.signatures.to },
+    })).rejects.toMatchObject({ code: 'publisher-rotation-invalid' })
+    await expect(store.installSigned(second.plugin, second.proof, {
+      ...valid, sequence: 2,
+    })).rejects.toMatchObject({ code: 'publisher-rotation-invalid' })
+    await expect(store.installSigned(second.plugin, second.proof, {
+      ...valid, effectiveVersion: '1.0.0',
+    })).rejects.toMatchObject({ code: 'publisher-rotation-invalid' })
+  })
+
+  it('requires the current key after rotation and a fresh dual-signed certificate for the next key', async () => {
+    const { store } = database()
+    const firstSigner = await createSigner()
+    const secondSigner = await createSigner()
+    const thirdSigner = await createSigner()
+    const first = await signedPackage('1.0.0', 1, firstSigner)
+    const second = await signedPackage('2.0.0', 2, secondSigner)
+    const staleOldKey = await signedPackage('3.0.0', 3, firstSigner)
+    const third = await signedPackage('3.0.0', 3, thirdSigner)
+    await store.installSigned(first.plugin, first.proof)
+    await store.installSigned(second.plugin, second.proof,
+      await keyRotation(first.plugin.manifest.id, 1, '2.0.0', firstSigner, secondSigner))
+    await expect(store.installSigned(staleOldKey.plugin, staleOldKey.proof))
+      .rejects.toMatchObject({ code: 'publisher-mismatch' })
+    await expect(store.installSigned(third.plugin, third.proof,
+      await keyRotation(first.plugin.manifest.id, 2, '3.0.0', secondSigner, thirdSigner)))
+      .resolves.toMatchObject({ action: 'upgraded', publisherRotationSequence: 2 })
+  })
+
+  it('fails closed when a retained publisher-rotation certificate is altered', async () => {
+    const { name, store } = database()
+    const oldSigner = await createSigner()
+    const newSigner = await createSigner()
+    const first = await signedPackage('1.0.0', 1, oldSigner)
+    const second = await signedPackage('2.0.0', 2, newSigner)
+    await store.installSigned(first.plugin, first.proof)
+    await store.installSigned(second.plugin, second.proof,
+      await keyRotation(first.plugin.manifest.id, 1, '2.0.0', oldSigner, newSigner))
+
+    const open = indexedDB.open(name, 2)
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      open.onsuccess = () => resolve(open.result)
+      open.onerror = () => reject(open.error)
+    })
+    const transaction = db.transaction('publisherRotations', 'readwrite')
+    const rotationStore = transaction.objectStore('publisherRotations')
+    const request = rotationStore.get(`${first.plugin.manifest.id}#1`)
+    const record = await new Promise<Record<string, unknown>>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result as Record<string, unknown>)
+      request.onerror = () => reject(request.error)
+    })
+    const rotation = record.rotation as Record<string, unknown>
+    rotationStore.put({ ...record, rotation: { ...rotation, effectiveVersion: '9.0.0' } })
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = transaction.onabort = () => reject(transaction.error)
+    })
+    db.close()
+    await expect(store.list()).rejects.toMatchObject({ code: 'publisher-rotation-invalid' })
+  })
+
+  it('re-verifies the retained signed lineage before accepting a new publisher key', async () => {
+    const { name, store } = database()
+    const oldSigner = await createSigner()
+    const newSigner = await createSigner()
+    const first = await signedPackage('1.0.0', 1, oldSigner)
+    const second = await signedPackage('2.0.0', 2, newSigner)
+    await store.installSigned(first.plugin, first.proof)
+
+    const open = indexedDB.open(name, 2)
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      open.onsuccess = () => resolve(open.result)
+      open.onerror = () => reject(open.error)
+    })
+    const transaction = db.transaction('packages', 'readwrite')
+    const packageStore = transaction.objectStore('packages')
+    const request = packageStore.get(first.plugin.packageId)
+    const record = await new Promise<Record<string, unknown>>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result as Record<string, unknown>)
+      request.onerror = () => reject(request.error)
+    })
+    const plugin = record.plugin as Record<string, unknown>
+    packageStore.put({ ...record, plugin: { ...plugin, componentBase64: 'AAAAAAI=' } })
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = transaction.onabort = () => reject(transaction.error)
+    })
+    db.close()
+
+    await expect(store.installSigned(second.plugin, second.proof,
+      await keyRotation(first.plugin.manifest.id, 1, '2.0.0', oldSigner, newSigner)))
+      .rejects.toMatchObject({ code: 'package-invalid' })
+  })
+
   it('rejects altered publisher claims and persistent component tampering', async () => {
     const { name, store } = database()
     const fixture = await signedPackage('1.0.0', 1)
@@ -194,7 +382,7 @@ describe('persistent signed plugin installation store', () => {
     })).rejects.toMatchObject({ code: 'signature-invalid' })
     await store.installSigned(fixture.plugin, fixture.proof)
 
-    const open = indexedDB.open(name, 1)
+    const open = indexedDB.open(name, 2)
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       open.onsuccess = () => resolve(open.result)
       open.onerror = () => reject(open.error)

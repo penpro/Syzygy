@@ -4,9 +4,10 @@
 certifier, a non-executing host authority broker, and a versioned zero-import WIT world now have a
 bounded in-memory WebAssembly Component executor, explicit session loader/runner, shared review UI,
 MCP inspect/run tools, and publisher-signed local install/disable/upgrade/rollback. Shared proposal/
-decision events receive best-effort exact-body registered-device attribution. Discovery, publisher
-identity/reputation and key rotation, capability-bearing host interfaces, native-MCP execution, and
-proposal Apply are not yet implemented.
+decision/application events receive best-effort exact-body registered-device attribution. Sequential
+dual-signed publisher-key rotation is implemented. Discovery, publisher identity/reputation/
+revocation/recovery, capability-bearing host interfaces, and native-MCP execution are not yet
+implemented.
 
 The API is deliberately contribution-open and authority-closed. Researchers can add tools,
 evaluators, importers, and exporters without receiving ambient project, Drive, network, model, or
@@ -17,6 +18,7 @@ filesystem access.
 - Manifest schema: `docs/schemas/syzygy-research-plugin-v1.schema.json`
 - Change proposal schema: `docs/schemas/syzygy-plugin-proposal-v1.schema.json`
 - Publisher signature schema: `docs/schemas/syzygy-plugin-publisher-signature-v1.schema.json`
+- Publisher key-rotation schema: `docs/schemas/syzygy-plugin-publisher-key-rotation-v1.schema.json`
 - Certification plan schema: `docs/schemas/syzygy-plugin-certification-v1.schema.json`
 - Provider-run record schema: `docs/schemas/syzygy-provider-run-v1.schema.json`
 - Compatible model-adapter schemas: `docs/schemas/syzygy-model-adapter-*.schema.json`
@@ -35,6 +37,7 @@ filesystem access.
   `frontend/src/extensions/pluginWorkspaceAutomation.ts`
 - Headless package certifier: `scripts/plugin-certifier.mjs`
 - Non-executing publisher signer: `scripts/plugin-signer.mjs`
+- Non-executing publisher key-rotation generator: `scripts/plugin-key-rotation.mjs`
 - Complete interface-only example: `examples/plugins/citation-auditor`
 - Machine-readable inspection: MCP tool `syzygy_platform_contracts`
 
@@ -177,8 +180,13 @@ are shown as inactive. One component runs at a time through the kill-and-reap ch
 
 The local IndexedDB store caps 32 signed versions and 128 MiB of component bytes. Lifecycle changes
 are serialized. One version per plugin ID may be enabled; a normal upgrade must increase semantic
-version and retain the same publisher key across the complete retained lineage—even when all prior
-versions are disabled—while a same-version component substitution fails closed.
+version and use the current publisher key—across enabled and disabled retained versions—while a
+same-version component substitution fails closed. A different key is accepted only with the next
+plugin-scoped rotation sequence whose effective semantic version exactly matches the new package.
+The old key authorizes the new identity and the new key countersigns the same canonical claim. The
+store maps every retained version to its key epoch, so the old key cannot sign packages at or after
+that effective version. The package record and newly accepted certificate commit in one IndexedDB
+transaction. Legacy package-only databases upgrade in place to the separate bounded rotation store.
 The prior signed version remains disabled for explicit rollback. Enable, stored upgrade, rollback,
 startup restore, and every later run reconstruct and rehash the exact component; signature metadata
 is also reverified before it is exposed. Disabled versions can be removed only explicitly, and an
@@ -203,9 +211,10 @@ claims and changed retained bodies fail. Product/MCP run results report signed-d
 unsigned attribution; failure to access a key, registration, or healthy attestation history never
 rolls back the review. These proofs identify an installation key, not a human or organization.
 
-This is truthful status `signed-local-indexeddb-install-disable-upgrade-rollback-reverified` plus
+This is truthful status
+`signed-local-indexeddb-install-disable-upgrade-rollback-dual-signed-key-rotation-reverified` plus
 `shared-proposal-ledger-human-decision-revision-guarded-attributed-application`. Discovery, publisher identity/reputation and
-signing-key rotation, a useful executable third-party example, capability-bearing WIT worlds, and
+key revocation/recovery, a useful executable third-party example, capability-bearing WIT worlds, and
 cross-store atomic application commit and editable apply variants remain open.
 
 Design basis: the upstream Component Model describes WIT worlds as the strict import/export
@@ -225,6 +234,7 @@ executor:
 - `docs/audits/runs/PLUGIN-SHARED-REVIEW-2026-08-11.json`
 - `docs/audits/runs/SIGNED-PLUGIN-REVIEW-EVENTS-2026-08-11.json`
 - `docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json`
+- `docs/audits/runs/PLUGIN-PUBLISHER-KEY-ROTATION-2026-08-11.json`
 - `docs/audits/runs/SIGNED-PLUGIN-APPLICATION-EVENTS-2026-08-11.json`
 
 ## Mutation protocol
@@ -271,8 +281,32 @@ private-key creation inside the package, package-path escape, or silent output o
 self-verifies the public schema and signature. Later versions use `--private-key` with the same key.
 The private key is read locally, never written into the package or report, and must never be
 committed. The generator requests owner-only POSIX mode where supported; Windows ACL custody and
-backup remain the publisher's responsibility. Releasing a different version under a different key
-is intentionally rejected by the current product until an explicit signing-key rotation protocol exists.
+backup remain the publisher's responsibility.
+
+To use a different key, generate a plugin/version/sequence-bound certificate signed by both the
+current key and the new key, then sign the first effective package with the new key:
+
+```powershell
+npm run rotate:plugin-key -- `
+  --plugin-id org.example.plugin `
+  --sequence 1 `
+  --effective-version 2.0.0 `
+  --from-private-key ..\publisher-private.pem `
+  --create-to-private-key ..\publisher-private-v2.pem `
+  --from-publisher-name "Independent publisher" `
+  --to-publisher-name "Independent publisher" `
+  --output ..\publisher-rotation-v1.json
+
+npm run sign:plugin -- ..\path\to\plugin-package `
+  --private-key ..\publisher-private-v2.pem `
+  --publisher-name "Independent publisher"
+```
+
+Select the package, `syzygy-plugin-signature.json`, and the rotation JSON together. Subsequent
+versions use the new key without a certificate until another sequential rotation. The first locally
+installed key remains the trust root: dual signatures prove continuity and new-key possession, not
+legal identity, reputation, independent review, revocation, safe recovery after loss, or protection
+when the established private key itself is compromised.
 
 A package contains `syzygy-plugin.json`, `syzygy-certification.json`, package-contained
 documentation/license/runtime paths, proposal fixtures, and authority probes. The runner uses Ajv

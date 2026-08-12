@@ -731,9 +731,10 @@ WebAssembly Component host has now landed for the zero-import WIT world. Explici
 session loading, project-only grant composition, shared proposal review, and MCP inspect/run have
 also landed. Exact retained proposal and decision events now receive best-effort registered-device
 attribution with explicit unsigned fallback. Publisher-signed local install/disable/upgrade/rollback
-now retains exact versions in bounded IndexedDB, requires stable-key continuity, and rechecks the
-manifest, component, and signature before activation. Next add a useful independent executable
-artifact, declarative contribution rendering, publisher trust/key rotation, and the advanced native
+now retains exact versions in bounded IndexedDB, requires current-key continuity, supports
+dual-signed sequential publisher-key rotation, and rechecks the manifest, component, signature, and
+rotation chain before activation. Next add a useful independent executable artifact, declarative
+contribution rendering, publisher identity/reputation/revocation/recovery, and the advanced native
 MCP trust tier. Marketplace control is optional;
 local packages and open documentation are required.
 
@@ -752,9 +753,11 @@ fixture proves a worker abort does not terminate the host and that a subsequent 
 The current product accepts one explicit manifest/component pair into bounded session memory,
 recomputes SHA-256 before execution, runs a selected contribution with only project read/propose,
 and appends valid output to shared conflict-visible human review. Signed packages can persist and
-retain rollback versions, but a publisher key establishes package continuity rather than publisher
-identity, safety, or quality. Plugin discovery, publisher reputation/key rotation, capability-bearing
-WIT, and plugin-held direct mutation remain unavailable. A separate exact accepted-review Apply path
+retain rollback versions. A dual-signed version/sequence-bound certificate can rotate the
+established key while preserving version-to-key epochs, but this establishes local package
+continuity rather than publisher identity, reputation, revocation, recovery, safety, or quality.
+Plugin discovery, capability-bearing WIT, and plugin-held direct mutation remain unavailable. A
+separate exact accepted-review Apply path
 exists for append/full replacement and retains a proposal/decision/revision-bound application event
 with best-effort registered-device attribution or explicit unsigned fallback. Cross-store atomic
 apply/event commit and editable proposal variants do not exist.
@@ -769,7 +772,7 @@ live-provider certification separate from local conformance and report:
 `native-content-bound-call-graph-authorizer` for batch authorization,
 `native-atomic-dependency-bound-executor` for native reservation/execution, and
 `contract-only` for custom-adapter execution,
-`signed-local-indexeddb-install-disable-upgrade-rollback-reverified` for plugin loading,
+`signed-local-indexeddb-install-disable-upgrade-rollback-dual-signed-key-rotation-reverified` for plugin loading,
 `shared-proposal-ledger-human-decision-revision-guarded-attributed-application` for plugin review, and
 `one-shot-child-process-fuel-epoch-store-and-parent-deadline` for plugin runtime isolation.
 The machine-readable synthetic and hostile-worker proof, including explicit non-claims, is
@@ -778,6 +781,8 @@ The composition/review proof is
 `docs/audits/runs/PLUGIN-SHARED-REVIEW-2026-08-11.json`.
 The signed local lifecycle proof is
 `docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json`.
+The publisher key-rotation proof is
+`docs/audits/runs/PLUGIN-PUBLISHER-KEY-ROTATION-2026-08-11.json`.
 
 Progress: OpenAI Responses one-shot request construction, bounded whole-operation timeout,
 idempotent in-flight/inter-event cancellation, and fake-network incremental SSE dispatch now pass

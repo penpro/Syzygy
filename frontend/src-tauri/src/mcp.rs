@@ -1732,7 +1732,7 @@ mod tests {
         );
         assert_eq!(
             response["result"]["structuredContent"]["implementationStatus"]["pluginLoader"],
-            "signed-local-indexeddb-install-disable-upgrade-rollback-reverified"
+            "signed-local-indexeddb-install-disable-upgrade-rollback-dual-signed-key-rotation-reverified"
         );
         assert_eq!(
             response["result"]["structuredContent"]["implementationStatus"]["pluginReview"],

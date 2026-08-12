@@ -1,0 +1,83 @@
+{
+  "verificationDate": "2026-08-11",
+  "feature": "dual-signed sequential plugin publisher key rotation",
+  "status": "implemented-headless-verified",
+  "implementation": {
+    "loaderStatus": "signed-local-indexeddb-install-disable-upgrade-rollback-dual-signed-key-rotation-reverified",
+    "rotationSchema": "syzygy-plugin-publisher-key-rotation-v1",
+    "signatureAlgorithm": "Ed25519",
+    "claimDomain": "syzygy-plugin-publisher-key-rotation-v1",
+    "authoringCommand": "npm run rotate:plugin-key",
+    "databaseVersion": 2,
+    "legacyDatabaseUpgradeInPlace": true,
+    "separateRotationStore": true,
+    "maximumAcceptedRotations": 32,
+    "oldAndNewKeySignaturesRequired": true,
+    "nextSequenceRequired": true,
+    "effectiveVersionMustEqualNewPackageVersion": true,
+    "versionKeyEpochsEnforced": true,
+    "retainedCertificateChainReverified": true,
+    "retainedSignedPackagesReverifiedBeforeRotation": true,
+    "packageAndRotationCommitAtomic": true,
+    "firstInstalledKeyIsLocalTrustRoot": true,
+    "humanOrOrganizationAuthenticated": false
+  },
+  "focusedValidation": {
+    "command": "npm run test:plugin-composition",
+    "testFilesPassed": 9,
+    "testsPassed": 64,
+    "installationStoreTestsPassed": 13,
+    "legacyDatabaseUpgradePassed": true,
+    "dualSignedRotationAndRollbackPassed": true,
+    "unilateralSignatureRejected": true,
+    "mismatchedSkippedAndRetroactiveRotationsRejected": true,
+    "oldKeyAfterRotationRejected": true,
+    "sequentialSecondRotationPassed": true,
+    "retainedCertificateTamperRejected": true,
+    "retainedPackageTamperRejectedBeforeRotation": true,
+    "productRotationInputAndNonclaimPassed": true
+  },
+  "publisherToolValidation": {
+    "command": "npm run test:plugin-sdk",
+    "sdkTestsPassed": 9,
+    "rotationGeneratorTestsPassed": 2,
+    "oldAndNewSignaturesSelfVerified": true,
+    "sameKeyRotationRejected": true,
+    "invalidSequenceRejected": true,
+    "silentOutputOverwriteRejected": true,
+    "privateKeysExcludedFromCertificate": true
+  },
+  "mcpValidation": {
+    "command": "npm run test:mcp",
+    "toolCount": 49,
+    "mcpRustRoutesPassed": 22,
+    "platformContractTestsPassed": 2,
+    "publisherRotationSchemaEmbedded": true,
+    "loaderStatusUpdated": true,
+    "stderrProtocolClean": true
+  },
+  "fullValidation": {
+    "pending": false,
+    "supervisedRunId": "20260811-171000-c0ffee",
+    "frontendTestFilesPassed": 137,
+    "frontendTestsPassed": 620,
+    "frontendModulesTransformed": 1278,
+    "repositoryAuditPassed": true,
+    "rustCheckPassed": true
+  },
+  "proved": [
+    "A publisher key change requires one strict certificate bound to the exact plugin ID, next sequence, and first effective semantic version.",
+    "Both the previously established Ed25519 key and the new Ed25519 key sign the same domain-separated claim, proving old-key authorization and new-key possession.",
+    "Every retained package version is checked against its key epoch, so an old key cannot sign a package at or after the rotation's effective version while explicit rollback to an exact old signed version remains available.",
+    "The complete bounded certificate chain is reverified on read, and every retained signed package in the affected plugin lineage is rehashed and signature-verified before accepting another key.",
+    "A legacy package-only IndexedDB database upgrades in place; the new package record and accepted certificate are written in one transaction to separate bounded stores.",
+    "The checked-in non-executing CLI can create a new external key and exact dual-signed certificate without placing private key material in the package or certificate.",
+    "The product accepts the certificate as an explicit optional fourth file and reports the retained rotation sequence without claiming authenticated publisher identity."
+  ],
+  "notProved": [
+    "The first installed key or self-described publisher name authenticates a legal person, organization, reputation, independent review, semantic quality, or safety.",
+    "Revocation, transparency logs, trusted time, organizational enrollment, lost-old-key recovery, or protection when the compromised current private key authorizes a malicious successor.",
+    "Recovery from browser quota exhaustion, abrupt process loss during IndexedDB commit, OS-profile rollback, or malicious same-user storage modification beyond fail-closed verification.",
+    "Packaged-app restart/upgrade behavior or a physical two-install independently built third-party package rotation; current proof is headless against production TypeScript, Rust, schema, and CLI paths."
+  ]
+}

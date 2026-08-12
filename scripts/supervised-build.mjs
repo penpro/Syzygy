@@ -1,4 +1,4 @@
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { spawn, spawnSync } from 'node:child_process'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -118,6 +118,14 @@ function outputPath(runId) {
   return join(runDirectory(runId), 'output.log')
 }
 
+function cancelRequestPath(runId) {
+  return join(runDirectory(runId), 'cancel.request')
+}
+
+function stepCancelPath(runId, stepId) {
+  return join(runDirectory(runId), `cancel-${stepId}.request`)
+}
+
 export function validateRunId(runId) {
   if (!RUN_ID_PATTERN.test(runId ?? '')) throw new Error('Invalid supervised-build run ID')
   return runId
@@ -176,10 +184,14 @@ function isProcessAlive(pid) {
 }
 
 function terminateProcessTree(pid) {
-  if (!Number.isSafeInteger(pid) || pid <= 0) return
+  if (!Number.isSafeInteger(pid) || pid <= 0) return false
   if (process.platform === 'win32') {
-    spawnSync('taskkill', ['/pid', String(pid), '/t', '/f'], { stdio: 'ignore', windowsHide: true })
-    return
+    const result = spawnSync('taskkill', ['/pid', String(pid), '/t', '/f'], {
+      stdio: 'ignore', windowsHide: true,
+    })
+    if (result.status === 0) return true
+    try { process.kill(pid, 'SIGKILL') } catch {}
+    return false
   }
   try { process.kill(-pid, 'SIGTERM') } catch {}
   try { process.kill(pid, 'SIGTERM') } catch {}
@@ -187,6 +199,19 @@ function terminateProcessTree(pid) {
     try { process.kill(-pid, 'SIGKILL') } catch {}
     try { process.kill(pid, 'SIGKILL') } catch {}
   }, 1_000).unref()
+  return true
+}
+
+function requestActiveStop(active) {
+  if (active.cancelFile) {
+    try {
+      writeFileSync(active.cancelFile, `${nowIso()}\n`, { encoding: 'utf8', flag: 'wx', mode: 0o600 })
+      return
+    } catch (error) {
+      if (error?.code === 'EEXIST') return
+    }
+  }
+  if (active.child?.pid) terminateProcessTree(active.child.pid)
 }
 
 function argumentValue(args, flag, fallback = null) {
@@ -250,13 +275,16 @@ function markStaleLatestRun() {
 }
 
 async function startCommand(args) {
-  assertKnownOptions(args, ['--profile'], ['--foreground'])
+  assertKnownOptions(args, ['--profile', '--run-id'], ['--foreground'])
   const profileName = argumentValue(args, '--profile', 'package')
   const profile = profiles()[profileName]
   if (!profile) throw new Error(`Unknown profile: ${profileName}`)
   markStaleLatestRun()
 
-  const runId = createRunId()
+  const requestedRunId = argumentValue(args, '--run-id')
+  const runId = requestedRunId ?? createRunId()
+  validateRunId(runId)
+  if (existsSync(runDirectory(runId))) throw new Error(`Supervised-build run already exists: ${runId}`)
   mkdirSync(runDirectory(runId), { recursive: true })
   writeJsonAtomic(statePath(runId), initialState(runId, profileName, profile))
   writeJsonAtomic(join(runsRoot(), 'latest.json'), { runId })
@@ -407,10 +435,13 @@ function markStep(runId, stepId, values) {
 }
 
 async function runCommandStep(runId, step, active) {
+  const cancelFile = stepCancelPath(runId, step.id)
+  rmSync(cancelFile, { force: true })
   const args = [
     WATCHDOG,
     '--timeout-seconds', String(step.timeoutSeconds),
     '--heartbeat-seconds', String(step.heartbeatSeconds ?? HEARTBEAT_SECONDS),
+    '--cancel-file', cancelFile,
     '--', step.command, ...step.args,
   ]
   const child = spawn(process.execPath, args, {
@@ -421,6 +452,7 @@ async function runCommandStep(runId, step, active) {
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   active.child = child
+  active.cancelFile = cancelFile
   let requiredOutputSeen = !step.requiredOutput
   let monitorBuffer = ''
   let stallFailure = null
@@ -433,7 +465,7 @@ async function runCommandStep(runId, step, active) {
     if (!stallFailure && step.stallSeconds && silentSeconds >= step.stallSeconds) {
       stallFailure = `Step ${step.id} produced no child output for ${silentSeconds}s (stall clamp ${step.stallSeconds}s)`
       log(stallFailure)
-      if (child.pid) terminateProcessTree(child.pid)
+      requestActiveStop(active)
     }
     target.write(chunk)
   })
@@ -444,6 +476,8 @@ async function runCommandStep(runId, step, active) {
     child.once('close', (code, signal) => resolveChild({ code, signal }))
   })
   active.child = null
+  active.cancelFile = null
+  rmSync(cancelFile, { force: true })
   if (stallFailure) {
     const error = new Error(stallFailure)
     error.exitCode = STALL_EXIT_CODE
@@ -461,7 +495,7 @@ async function runWorker(runId, profileName) {
   validateRunId(runId)
   const profile = profiles()[profileName]
   if (!profile) throw new Error(`Unknown profile: ${profileName}`)
-  const active = { child: null }
+  const active = { child: null, cancelFile: null }
   let totalTimedOut = false
   let cancelled = false
   const startedAt = Date.now()
@@ -481,16 +515,24 @@ async function runWorker(runId, profileName) {
   const totalDeadline = setTimeout(() => {
     totalTimedOut = true
     log(`total deadline reached after ${profile.totalDeadlineSeconds}s; terminating active step`)
-    if (active.child?.pid) terminateProcessTree(active.child.pid)
+    requestActiveStop(active)
   }, profile.totalDeadlineSeconds * 1_000)
 
   const interrupt = () => {
     cancelled = true
     log('worker interrupted; terminating active step')
-    if (active.child?.pid) terminateProcessTree(active.child.pid)
+    requestActiveStop(active)
   }
   process.once('SIGINT', interrupt)
   process.once('SIGTERM', interrupt)
+
+  const cancelMonitor = setInterval(() => {
+    if (!cancelled && existsSync(cancelRequestPath(runId))) {
+      cancelled = true
+      log('explicit cancellation requested; terminating active step')
+      requestActiveStop(active)
+    }
+  }, 250)
 
   try {
     for (const step of profile.steps) {
@@ -522,16 +564,18 @@ async function runWorker(runId, profileName) {
     log(`run complete status=succeeded elapsed=${Math.ceil((Date.now() - startedAt) / 1_000)}s`)
   } catch (error) {
     const status = totalTimedOut || error.exitCode === 124 ? 'timed_out' : cancelled ? 'cancelled' : 'failed'
+    const failure = cancelled ? 'Cancelled by explicit build:cancel command.' : error.message
     updateState(runId, (state) => {
       state.status = status
       state.finishedAt = nowIso()
       state.activeStep = null
-      state.failure = error.message
+      state.failure = failure
     })
-    log(`run complete status=${status} failure=${error.message}`)
+    log(`run complete status=${status} failure=${failure}`)
     process.exitCode = totalTimedOut ? 124 : cancelled ? 130 : 1
   } finally {
     clearInterval(heartbeat)
+    clearInterval(cancelMonitor)
     clearTimeout(totalDeadline)
     process.removeListener('SIGINT', interrupt)
     process.removeListener('SIGTERM', interrupt)
@@ -587,15 +631,28 @@ async function cancelCommand(args) {
     process.stdout.write(`Run ${runId} is already ${state.status}.\n`)
     return
   }
+  try {
+    writeFileSync(cancelRequestPath(runId), `${nowIso()}\n`, { encoding: 'utf8', flag: 'wx', mode: 0o600 })
+  } catch (error) {
+    if (error?.code !== 'EEXIST') throw error
+  }
+  const deadline = Date.now() + 10_000
+  while (Date.now() < deadline) {
+    const current = readState(runId)
+    if (TERMINAL_STATES.has(current.status)) {
+      process.stdout.write(`Cancelled supervised build ${runId}; status=${current.status}.\n`)
+      return
+    }
+    await delay(100)
+  }
   if (isProcessAlive(state.pid)) terminateProcessTree(state.pid)
-  await delay(500)
   updateState(runId, (current) => {
     current.status = 'cancelled'
     current.finishedAt = nowIso()
     current.activeStep = null
-    current.failure = 'Cancelled by explicit build:cancel command.'
+    current.failure = 'Cancellation was requested, but the worker did not acknowledge within 10 seconds.'
   })
-  process.stdout.write(`Cancelled supervised build ${runId}.\n`)
+  process.stdout.write(`Cancelled supervised build ${runId}; worker acknowledgement timed out.\n`)
 }
 
 async function main() {

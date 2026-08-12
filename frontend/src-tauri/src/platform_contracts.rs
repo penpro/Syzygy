@@ -12,6 +12,8 @@ const PLUGIN_PROPOSAL_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-plugin-proposal-v1.schema.json");
 const PLUGIN_PUBLISHER_SIGNATURE_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-plugin-publisher-signature-v1.schema.json");
+const PLUGIN_PUBLISHER_KEY_ROTATION_SCHEMA: &str =
+    include_str!("../../../docs/schemas/syzygy-plugin-publisher-key-rotation-v1.schema.json");
 const ADVERSARIAL_RUN_SCHEMA: &str =
     include_str!("../../../docs/schemas/syzygy-adversarial-run-v1.schema.json");
 const PROVIDER_RUN_SCHEMA: &str =
@@ -34,6 +36,10 @@ pub fn current() -> Result<Value, String> {
     let publisher_signature_schema: Value = serde_json::from_str(PLUGIN_PUBLISHER_SIGNATURE_SCHEMA)
         .map_err(|error| {
             format!("Embedded plugin publisher signature schema is invalid: {error}")
+        })?;
+    let publisher_key_rotation_schema: Value =
+        serde_json::from_str(PLUGIN_PUBLISHER_KEY_ROTATION_SCHEMA).map_err(|error| {
+            format!("Embedded plugin publisher key-rotation schema is invalid: {error}")
         })?;
     let adversarial_run_schema: Value = serde_json::from_str(ADVERSARIAL_RUN_SCHEMA)
         .map_err(|error| format!("Embedded adversarial run schema is invalid: {error}"))?;
@@ -66,8 +72,8 @@ pub fn current() -> Result<Value, String> {
             "pluginAuthorityBroker": "implemented-non-executing",
             "pluginWitContract": "zero-import-subprocess-runtime-bounded",
             "pluginRuntimeIsolation": "one-shot-child-process-fuel-epoch-store-and-parent-deadline",
-            "pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-reverified",
-        "pluginReview": "shared-proposal-ledger-human-decision-revision-guarded-attributed-application",
+            "pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-dual-signed-key-rotation-reverified",
+            "pluginReview": "shared-proposal-ledger-human-decision-revision-guarded-attributed-application",
             "pluginReviewAttribution": "exact-retained-proposal-decision-application-registered-device-or-explicit-unsigned",
             "scenarioPackCodec": "product-import-export-checksummed-atomic",
             "networkBoundaryTrace": "source-copy-origin-harness-no-os-packet-capture"
@@ -115,6 +121,7 @@ pub fn current() -> Result<Value, String> {
         "pluginManifestSchema": manifest_schema,
         "pluginProposalSchema": proposal_schema,
         "pluginPublisherSignatureSchema": publisher_signature_schema,
+        "pluginPublisherKeyRotationSchema": publisher_key_rotation_schema,
         "pluginWitWorld": "syzygy:research/plugin@1.0.0",
         "pluginWitContract": PLUGIN_WIT_CONTRACT,
         "adversarialRunRecordSchema": adversarial_run_schema,
@@ -208,7 +215,7 @@ mod tests {
         );
         assert_eq!(
             contracts["implementationStatus"]["pluginLoader"],
-            "signed-local-indexeddb-install-disable-upgrade-rollback-reverified"
+            "signed-local-indexeddb-install-disable-upgrade-rollback-dual-signed-key-rotation-reverified"
         );
         assert_eq!(
             contracts["implementationStatus"]["pluginReview"],
@@ -248,6 +255,14 @@ mod tests {
         assert_eq!(
             contracts["pluginPublisherSignatureSchema"]["additionalProperties"],
             false
+        );
+        assert_eq!(
+            contracts["pluginPublisherKeyRotationSchema"]["additionalProperties"],
+            false
+        );
+        assert_eq!(
+            contracts["pluginPublisherKeyRotationSchema"]["properties"]["sequence"]["maximum"],
+            32
         );
         assert_eq!(
             contracts["adversarialProtocol"]["automaticSharedMutation"],

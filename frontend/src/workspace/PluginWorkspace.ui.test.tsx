@@ -34,8 +34,10 @@ const props: PluginWorkspaceContentProps = {
   selectedContributionId: 'review', selectedReviewId: 'review-1', busy: false,
   armedReplaceReviewId: '',
   status: null, error: null, manifestName: null, componentName: null, signatureName: null,
+  rotationName: null,
   currentDocumentRevision: 'revision-2',
   onManifestFile: callback, onComponentFile: callback, onSignatureFile: callback,
+  onRotationFile: callback,
   onLoad: callback, onInstall: callback,
   onSelectPackage: callback, onSelectContribution: callback, onRemovePackage: callback,
   onActivateInstalled: callback, onDisableInstalled: callback, onRollbackInstalled: callback,
@@ -50,6 +52,8 @@ describe('plugin workspace product contract', () => {
     expect(html).toContain('Run in no-authority sandbox')
     expect(html).toContain('Verify signature and install locally')
     expect(html).toContain('publisher&#x27;s legal or human identity')
+    expect(html).toContain('Publisher key-rotation certificate')
+    expect(html).toContain('signed by both the old')
     expect(html).toContain('Enabled · verified this session')
     expect(html).toContain('Active baseline: project.read, project.propose')
     expect(html).toContain('Inactive in this world: network.fetch')

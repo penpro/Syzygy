@@ -791,6 +791,9 @@ record(
     watchdogSource.includes('MAX_HEARTBEAT_SECONDS = 60') &&
     watchdogSource.includes('TIMEOUT_EXIT_CODE = 124') &&
     watchdogSource.includes("spawnSync('taskkill'") &&
+    watchdogSource.includes("child.kill('SIGKILL')") &&
+    watchdogSource.includes("flag === '--cancel-file'") &&
+    watchdogSource.includes('taskkill unavailable; terminated the directly owned command') &&
     watchdogSource.includes("throw new Error('--timeout-seconds is required')") &&
     watchdogTestSource.includes('rejects heartbeat intervals over one minute') &&
     watchdogTestSource.includes('terminates a hung process tree at the deadline') &&
@@ -804,16 +807,22 @@ record(
     !buildSupervisorSource.includes('stallSeconds: 300') &&
     buildSupervisorSource.includes('detached: true') &&
     buildSupervisorSource.includes('writeJsonAtomic') &&
+    buildSupervisorSource.includes("argumentValue(args, '--run-id')") &&
+    buildSupervisorSource.includes('Supervised-build run already exists') &&
+    buildSupervisorSource.includes("'--cancel-file', cancelFile") &&
+    buildSupervisorSource.includes('explicit cancellation requested; terminating active step') &&
+    buildSupervisorSource.includes('Cancellation was requested, but the worker did not acknowledge within 10 seconds.') &&
     buildSupervisorSource.includes('CloseMainWindow()') &&
     buildSupervisorSource.includes('Unowned llama-server process detected') &&
     buildSupervisorSource.includes("requiredOutput: 'Compiling app v'") &&
     buildSupervisorSource.includes("id: 'packaged-mcp-smoke'") &&
     buildSupervisorTestSource.includes('a detached run survives its launcher') &&
+    buildSupervisorTestSource.includes('assert.equal(started.runId, requestedRunId)') &&
     buildSupervisorTestSource.includes('explicit cancellation terminates the detached worker tree') &&
     buildSupervisorTestSource.includes('a child-output stall clamp terminates a heartbeat-only operation') &&
     buildSupervisorTestSource.includes('a step deadline terminates the hung tree') &&
     text('.gitignore').includes('.syzygy-dev-runs/'),
-  'mandatory deadlines, at-most-30-second heartbeats, at-most-120-second child-output stall clamps, detached atomic checkpoints, scoped app/model shutdown, asset re-embed proof, packaged MCP smoke, and executable timeout fixtures are present',
+  'mandatory deadlines, at-most-30-second heartbeats, at-most-120-second child-output stall clamps, pre-bound non-reused evidence IDs, sandbox-safe owned-watchdog cancellation with bounded direct-child fallback, detached atomic checkpoints, scoped app/model shutdown, asset re-embed proof, packaged MCP smoke, and executable timeout fixtures are present',
 )
 
 const provenance = text('docs/audits/EDITOR-PROVENANCE.md')
@@ -2130,6 +2139,7 @@ record(
 const pluginManifestSchema = JSON.parse(text('docs/schemas/syzygy-research-plugin-v1.schema.json'))
 const pluginProposalSchema = JSON.parse(text('docs/schemas/syzygy-plugin-proposal-v1.schema.json'))
 const pluginPublisherSignatureSchema = JSON.parse(text('docs/schemas/syzygy-plugin-publisher-signature-v1.schema.json'))
+const pluginPublisherKeyRotationSchema = JSON.parse(text('docs/schemas/syzygy-plugin-publisher-key-rotation-v1.schema.json'))
 const pluginCertificationSchema = JSON.parse(text('docs/schemas/syzygy-plugin-certification-v1.schema.json'))
 const adversarialRunSchema = JSON.parse(text('docs/schemas/syzygy-adversarial-run-v1.schema.json'))
 const providerRunSchema = JSON.parse(text('docs/schemas/syzygy-provider-run-v1.schema.json'))
@@ -2156,8 +2166,9 @@ record(
     pluginManifestSchema.additionalProperties === false &&
     pluginProposalSchema.additionalProperties === false &&
     pluginPublisherSignatureSchema.additionalProperties === false &&
+    pluginPublisherKeyRotationSchema.additionalProperties === false &&
     pluginCertificationSchema.additionalProperties === false &&
-    platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-reverified"') &&
+    platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-dual-signed-key-rotation-reverified"') &&
     platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-revision-guarded-attributed-application"') &&
     platformContractsSource.includes('"pluginReviewAttribution": "exact-retained-proposal-decision-application-registered-device-or-explicit-unsigned"') &&
     platformContractsSource.includes('"pluginCertifier": "contract-certified-runner"') &&
@@ -2200,7 +2211,7 @@ record(
     pluginAuthorityBrokerTestSource.includes('permission-denied') &&
     frontendPackage.scripts?.['test:plugin-host']?.includes('pluginAuthorityBroker.test.ts') &&
     platformContractsSource.includes('"pluginAuthorityBroker": "implemented-non-executing"') &&
-    platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-reverified"'),
+    platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-dual-signed-key-rotation-reverified"'),
   'short-lived explicit grants, detached snapshots, pending revision-guarded proposals, target-only decisions, sanitized denial, and no runtime/network/model execution',
 )
 record(
@@ -2272,6 +2283,8 @@ const pluginExecutionTestSource = text('frontend/src/extensions/pluginExecution.
 const pluginPackageRegistrySource = text('frontend/src/extensions/pluginPackageRegistry.ts')
 const pluginInstallationStoreSource = text('frontend/src/extensions/pluginInstallationStore.ts')
 const pluginInstallationStoreTestSource = text('frontend/src/extensions/pluginInstallationStore.test.ts')
+const pluginKeyRotationSource = text('scripts/plugin-key-rotation.mjs')
+const pluginKeyRotationTestSource = text('scripts/plugin-key-rotation.test.mjs')
 const pluginReviewSource = text('frontend/src/extensions/pluginReviewModel.ts')
 const pluginReviewTestSource = text('frontend/src/extensions/pluginReviewModel.test.ts')
 const pluginReviewApplicationSource = text('frontend/src/extensions/pluginReviewApplication.ts')
@@ -2289,6 +2302,9 @@ const pluginReviewAttributionEvidence = JSON.parse(
 )
 const pluginSignedInstallEvidence = JSON.parse(
   text('docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json'),
+)
+const pluginPublisherRotationEvidence = JSON.parse(
+  text('docs/audits/runs/PLUGIN-PUBLISHER-KEY-ROTATION-2026-08-11.json'),
 )
 const pluginAcceptedApplyEvidence = JSON.parse(
   text('docs/audits/runs/PLUGIN-ACCEPTED-APPLY-2026-08-11.json'),
@@ -2325,7 +2341,7 @@ record(
     mcpSource.includes('"inspect_plugin_workspace" => live("plugin.inspectWorkspace"') &&
     mcpSource.includes('"run_loaded_plugin" => live("plugin.runLoaded"') &&
     frontendPackage.scripts?.['test:plugin-composition']?.includes('pluginWorkspaceAutomation.test.ts') &&
-    platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-reverified"') &&
+    platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-dual-signed-key-rotation-reverified"') &&
     platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-revision-guarded-attributed-application"') &&
     pluginExecutionTestSource.includes('recomputes component provenance') &&
     pluginReviewTestSource.includes('converges disconnected reviews') &&
@@ -2454,8 +2470,8 @@ record(
     pluginInstallationStoreSource.includes('MAX_ENABLED_PACKAGES = 8') &&
     pluginInstallationStoreSource.includes('MAX_ENABLED_COMPONENT_BYTES = 32 * 1024 * 1024') &&
     pluginInstallationStoreSource.includes('.getAll(undefined, MAX_INSTALLED_VERSIONS + 1)') &&
-    pluginInstallationStoreSource.includes('const publisherKeys = new Map<string, string>()') &&
-    pluginInstallationStoreSource.includes('retainedLineage.some') &&
+    pluginInstallationStoreSource.includes('validatePublisherLineages') &&
+    pluginInstallationStoreSource.includes('publisherLineageTip') &&
     pluginInstallationStoreSource.includes("new PluginInstallationError('publisher-mismatch')") &&
     pluginInstallationStoreSource.includes("new PluginInstallationError('version-collision')") &&
     pluginInstallationStoreSource.includes("new PluginInstallationError('rollback-required')") &&
@@ -2486,8 +2502,9 @@ record(
     pluginWorkspaceAutomationSource.includes('installedPackages: pluginInstallationCatalog.list()') &&
     pluginWorkspaceAutomationTestSource.includes('without component or signature bodies') &&
     frontendPackage.scripts?.['test:plugin-composition']?.includes('pluginInstallationStore.test.ts') &&
-    platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-reverified"') &&
+    platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-dual-signed-key-rotation-reverified"') &&
     platformContractsSource.includes('"pluginPublisherSignatureSchema": publisher_signature_schema') &&
+    platformContractsSource.includes('"pluginPublisherKeyRotationSchema": publisher_key_rotation_schema') &&
     mcpSource.includes('This cannot install, enable, upgrade, roll back, remove') &&
     pluginSignedInstallEvidence.status === 'implemented-headless-verified' &&
     pluginSignedInstallEvidence.implementation?.maximumStoredVersions === 32 &&
@@ -2512,6 +2529,66 @@ record(
     pluginSignedInstallEvidence.notProved?.some((claim) => claim.includes('authenticates a legal person')) &&
     pluginSignedInstallEvidence.notProved?.some((claim) => claim.includes('independently built third-party')),
   'strict publisher-byte claim, same-key upgrades, exact startup/rollback revalidation, bounded IndexedDB and active capacity, explicit local lifecycle, content-minimized read-only MCP, and publisher-identity nonclaims are present',
+)
+record(
+  'plugin publisher key rotation is dual-signed, sequential, version-bound, and continuity-honest',
+  pluginPublisherKeyRotationSchema.$schema === 'https://json-schema.org/draft/2020-12/schema' &&
+    pluginPublisherKeyRotationSchema.additionalProperties === false &&
+    pluginPublisherKeyRotationSchema.properties?.sequence?.maximum === 32 &&
+    pluginPublisherKeyRotationSchema.properties?.signatures?.required?.includes('from') &&
+    pluginPublisherKeyRotationSchema.properties?.signatures?.required?.includes('to') &&
+    pluginInstallationStoreSource.includes("'syzygy-plugin-publisher-key-rotation-v1'") &&
+    pluginInstallationStoreSource.includes('DATABASE_VERSION = 2') &&
+    pluginInstallationStoreSource.includes("ROTATION_STORE_NAME = 'publisherRotations'") &&
+    pluginInstallationStoreSource.includes('MAX_PUBLISHER_ROTATIONS = 32') &&
+    pluginInstallationStoreSource.includes('verifyPublisherKeyRotation') &&
+    pluginInstallationStoreSource.includes('rotation.signatures.from') &&
+    pluginInstallationStoreSource.includes('rotation.signatures.to') &&
+    pluginInstallationStoreSource.includes('requestedRotation.sequence !== lineageTip.sequence + 1') &&
+    pluginInstallationStoreSource.includes('requestedRotation.effectiveVersion !== verifiedPlugin.manifest.version') &&
+    pluginInstallationStoreSource.includes('compareSemver(requestedRotation.effectiveVersion, highestVersion) <= 0') &&
+    pluginInstallationStoreSource.includes('await verifyLoadedPackage(record.plugin)') &&
+    pluginInstallationStoreSource.includes('await verifyPublisherSignature(retainedPlugin, record.publisherSignature)') &&
+    pluginInstallationStoreSource.includes('database.transaction(stores, \'readwrite\')') &&
+    pluginInstallationStoreTestSource.includes('upgrades the legacy package-only database in place') &&
+    pluginInstallationStoreTestSource.includes('accepts a dual-signed sequential publisher-key rotation') &&
+    pluginInstallationStoreTestSource.includes('unilateral, mismatched, skipped, or retroactive') &&
+    pluginInstallationStoreTestSource.includes('requires the current key after rotation') &&
+    pluginInstallationStoreTestSource.includes('retained publisher-rotation certificate is altered') &&
+    pluginInstallationStoreTestSource.includes('re-verifies the retained signed lineage') &&
+    pluginKeyRotationSource.includes("'syzygy-plugin-publisher-key-rotation-v1'") &&
+    pluginKeyRotationSource.includes('rotation.signatures.from = sign') &&
+    pluginKeyRotationSource.includes('rotation.signatures.to = sign') &&
+    pluginKeyRotationSource.includes('Generated publisher rotation failed self-verification') &&
+    pluginKeyRotationSource.includes('Publisher rotation output already exists') &&
+    pluginKeyRotationTestSource.includes('signed by both keys') &&
+    frontendPackage.scripts?.['rotate:plugin-key'] === 'node ../scripts/plugin-key-rotation.mjs' &&
+    frontendPackage.scripts?.['test:plugin-sdk']?.includes('plugin-key-rotation.test.mjs') &&
+    pluginWorkspaceSource.includes('Publisher key-rotation certificate') &&
+    pluginWorkspaceSource.includes('signed by both the old') &&
+    platformContractsSource.includes('"pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-dual-signed-key-rotation-reverified"') &&
+    platformContractsSource.includes('"pluginPublisherKeyRotationSchema": publisher_key_rotation_schema') &&
+    pluginPublisherRotationEvidence.status === 'implemented-headless-verified' &&
+    pluginPublisherRotationEvidence.implementation?.maximumAcceptedRotations === 32 &&
+    pluginPublisherRotationEvidence.implementation?.legacyDatabaseUpgradeInPlace === true &&
+    pluginPublisherRotationEvidence.implementation?.packageAndRotationCommitAtomic === true &&
+    pluginPublisherRotationEvidence.implementation?.humanOrOrganizationAuthenticated === false &&
+    pluginPublisherRotationEvidence.focusedValidation?.testFilesPassed === 9 &&
+    pluginPublisherRotationEvidence.focusedValidation?.testsPassed === 64 &&
+    pluginPublisherRotationEvidence.publisherToolValidation?.sdkTestsPassed === 9 &&
+    pluginPublisherRotationEvidence.publisherToolValidation?.rotationGeneratorTestsPassed === 2 &&
+    pluginPublisherRotationEvidence.mcpValidation?.toolCount === 49 &&
+    pluginPublisherRotationEvidence.mcpValidation?.publisherRotationSchemaEmbedded === true &&
+    pluginPublisherRotationEvidence.fullValidation?.pending === false &&
+    /^20260811-\d{6}-[a-f0-9]{6}$/.test(pluginPublisherRotationEvidence.fullValidation?.supervisedRunId ?? '') &&
+    pluginPublisherRotationEvidence.fullValidation?.frontendTestFilesPassed === 137 &&
+    pluginPublisherRotationEvidence.fullValidation?.frontendTestsPassed === 620 &&
+    pluginPublisherRotationEvidence.fullValidation?.frontendModulesTransformed === 1278 &&
+    pluginPublisherRotationEvidence.fullValidation?.repositoryAuditPassed === true &&
+    pluginPublisherRotationEvidence.fullValidation?.rustCheckPassed === true &&
+    pluginPublisherRotationEvidence.notProved?.some((claim) => claim.includes('compromised current private key')) &&
+    pluginPublisherRotationEvidence.notProved?.some((claim) => claim.includes('legal person')),
+  'strict dual signatures, next-sequence and exact-version transition, key epochs, legacy migration, atomic local retention, retained-lineage revalidation, authoring CLI, product input, MCP schema, and explicit trust nonclaims are present',
 )
 record(
   'plugin proposal and decision events have exact retained-device attribution with explicit unsigned fallback',

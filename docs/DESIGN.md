@@ -530,7 +530,9 @@ away, but requested authority and remote transmission are never hidden there.
 The first **Research plugins** product surface sits below adversarial review. Unsigned development
 loading remains an explicit two-file action for `syzygy-plugin.json` plus the exact component named
 by it; both remain in memory only for the current app session. Durable local installation additionally
-requires the strict publisher-signature JSON. Show the component SHA-256/size, every requested capability, the
+requires the strict publisher-signature JSON. A fourth optional **Publisher key-rotation
+certificate** JSON input is used only for the first package signed by a changed key. Show the
+component SHA-256/size, every requested capability, the
 active baseline subset, and every inactive capability before **Run in no-authority sandbox**.
 Never imply that contract certification, a structural match, or successful execution establishes
 publisher trust, semantic safety, or useful research quality. Returned proposal bodies enter
@@ -550,11 +552,16 @@ so MCP cannot omit or ambiguously reuse replacement intent. The plugin never rec
 authority. After the exact editor result is confirmed, retain an application event that binds the
 proposal, accepted decision, source/result revisions, operation, linked policy, configured researcher,
 and timestamp. Report whether that event received registered-device attribution or explicit unsigned
-fallback, while stating that a device key does not authenticate the person who clicked Apply. Signed installs show the self-described publisher name and stable key fingerprint, explicitly
-deny that the key authenticates a person or organization, retain older exact versions, and expose
-separate disable, upgrade, rollback, and disabled-version removal actions. Unsigned packages never
-silently become durable. Package discovery/reputation, signing-key rotation, capability-bearing
-worlds, cross-store atomic apply/event commit, and edited-before-apply proposal variants remain unavailable.
+fallback, while stating that a device key does not authenticate the person who clicked Apply.
+Signed installs show the self-described publisher name and stable key fingerprint, explicitly deny
+that the key authenticates a person or organization, retain older exact versions, and expose
+separate disable, upgrade, rollback, and disabled-version removal actions. If a key changes, report
+the retained rotation sequence and explain that the exact plugin/version/sequence certificate was
+signed by both the previously established key and the new key. Never call that legal identity,
+reputation, revocation, safety review, or recovery. Unsigned packages never silently become durable.
+Package discovery/reputation, organizational publisher trust, key revocation/recovery,
+capability-bearing worlds, cross-store atomic apply/event commit, and edited-before-apply proposal
+variants remain unavailable.
 
 ## Network-boundary copy
 

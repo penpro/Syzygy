@@ -360,6 +360,10 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   authored third-party interoperability, capability-bearing worlds, cross-store atomic apply/event commit, and editable apply
   variants remain open. Evidence:
   `docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json`.
+  Declarative contribution metadata now has fixed host kind labels, an installed count/kind inventory,
+  selected plain-text title/description rendering, hostile-markup SSR proof, and a description-omitting
+  installed-package MCP projection. Contribution-specific forms/actions and package-controlled UI
+  remain open. Evidence: `docs/audits/runs/PLUGIN-DECLARATIVE-CONTRIBUTIONS-2026-08-11.json`.
   Publisher-key rotation evidence:
   `docs/audits/runs/PLUGIN-PUBLISHER-KEY-ROTATION-2026-08-11.json`.
   Accepted-review Apply evidence:

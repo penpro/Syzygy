@@ -5,7 +5,8 @@ certifier, a non-executing host authority broker, and a versioned zero-import WI
 bounded in-memory WebAssembly Component executor, explicit session loader/runner, shared review UI,
 MCP inspect/run tools, and publisher-signed local install/disable/upgrade/rollback. Shared proposal/
 decision/application events receive best-effort exact-body registered-device attribution. Sequential
-dual-signed publisher-key rotation is implemented. Discovery, publisher identity/reputation/
+dual-signed publisher-key rotation and host-rendered text-only contribution metadata are implemented.
+Discovery, publisher identity/reputation/
 revocation/recovery, capability-bearing host interfaces, and native-MCP execution are not yet
 implemented.
 
@@ -134,7 +135,11 @@ Evidence and explicit non-claims:
 
 No plugin JavaScript executes inside the Tauri webview. A UI contribution is declarative data
 rendered by Syzygy components and theme tokens; arbitrary HTML, script, CSS, and active URLs are
-rejected.
+rejected. The current product maps `tool`, `evaluator`, `importer`, and `exporter` to fixed host labels,
+shows the selected title/description as React text, and reports declared count/kinds for installed
+packages. The MCP installed-package projection includes count plus ID/kind/title and omits
+contribution descriptions. These labels do not add contribution-specific inputs, file pickers,
+Drive access, or another runtime authority.
 
 The WIT file is embedded verbatim in `syzygy_platform_contracts`, alongside the world identifier
 and the truthful status `zero-import-subprocess-runtime-bounded`. A pinned Bytecode Alliance
@@ -239,6 +244,7 @@ executor:
 - `docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json`
 - `docs/audits/runs/PLUGIN-PUBLISHER-KEY-ROTATION-2026-08-11.json`
 - `docs/audits/runs/PLUGIN-EXECUTABLE-REFERENCE-2026-08-11.json`
+- `docs/audits/runs/PLUGIN-DECLARATIVE-CONTRIBUTIONS-2026-08-11.json`
 - `docs/audits/runs/SIGNED-PLUGIN-APPLICATION-EVENTS-2026-08-11.json`
 
 ## Mutation protocol

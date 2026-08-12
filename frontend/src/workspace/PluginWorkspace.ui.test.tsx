@@ -18,6 +18,7 @@ const props: PluginWorkspaceContentProps = {
     componentByteLength: 64, componentSha256: 'a'.repeat(64), publisherName: 'Example publisher',
     publisherKeyId: `ed25519-sha256:${'k'.repeat(43)}`, installedAt: 1, enabled: true,
     activationAction: 'disable',
+    contributions: [{ kind: 'evaluator', id: 'review', title: 'Review', description: 'Review' }],
   }],
   reviews: [{
     id: 'review-1', status: 'pending', decisions: [], applications: [],
@@ -49,7 +50,7 @@ const props: PluginWorkspaceContentProps = {
 describe('plugin workspace product contract', () => {
   it('shows exact authority, inactive capabilities, shared review, and stale state', () => {
     const html = renderToStaticMarkup(createElement(PluginWorkspaceContent, props))
-    expect(html).toContain('Run in no-authority sandbox')
+    expect(html).toContain('Run selected contribution in no-authority sandbox')
     expect(html).toContain('Verify signature and install locally')
     expect(html).toContain('publisher&#x27;s legal or human identity')
     expect(html).toContain('Publisher key-rotation certificate')
@@ -57,10 +58,33 @@ describe('plugin workspace product contract', () => {
     expect(html).toContain('Enabled · verified this session')
     expect(html).toContain('Active baseline: project.read, project.propose')
     expect(html).toContain('Inactive in this world: network.fetch')
+    expect(html).toContain('1 declared contribution')
+    expect(html).toContain('Evaluator · host-rendered manifest metadata')
+    expect(html).toContain('No plugin HTML, script, CSS, or active link is rendered here.')
     expect(html).toContain('Review content')
     expect(html).toContain('live draft changed')
     expect(html).toContain('Record accepted')
     expect(html).toContain('review decision only records shared history')
+  })
+
+  it('renders hostile contribution metadata only as escaped host-owned text', () => {
+    const hostile = {
+      kind: 'tool' as const,
+      id: 'hostile',
+      title: '<img src=x onerror=alert(1)>',
+      description: '<script>location="https://example.test"</script>',
+    }
+    const html = renderToStaticMarkup(createElement(PluginWorkspaceContent, {
+      ...props,
+      packages: [{ ...props.packages[0], contributions: [hostile] }],
+      installedPackages: [{ ...props.installedPackages[0], contributions: [hostile] }],
+      selectedContributionId: 'hostile',
+    }))
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
+    expect(html).toContain('&lt;script&gt;location=&quot;https://example.test&quot;&lt;/script&gt;')
+    expect(html).not.toContain('<img')
+    expect(html).not.toContain('<script')
+    expect(html).not.toContain('href=')
   })
 
   it('exposes explicit signed rollback and disabled-version removal without package lifecycle Apply authority', () => {

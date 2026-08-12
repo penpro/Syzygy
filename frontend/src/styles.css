@@ -2631,6 +2631,18 @@ input.workspace-title-input:focus {
 .plugin-package-meta,
 .plugin-authority-list,
 .plugin-review-meta { display: grid; gap: 3px; overflow-wrap: anywhere; }
+.plugin-contribution-card {
+  display: grid;
+  gap: 5px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  overflow-wrap: anywhere;
+}
+.plugin-contribution-card .mono,
+.plugin-contribution-card small { color: var(--muted); font-size: 9px; }
+.plugin-contribution-card p { margin: 0; color: var(--text-2); font-size: 11px; white-space: pre-wrap; }
 .plugin-actions,
 .plugin-review-heading {
   display: flex;

@@ -534,6 +534,12 @@ requires the strict publisher-signature JSON. A fourth optional **Publisher key-
 certificate** JSON input is used only for the first package signed by a changed key. Show the
 component SHA-256/size, every requested capability, the
 active baseline subset, and every inactive capability before **Run in no-authority sandbox**.
+Installed package cards also show the bounded declared contribution count and host-owned kind names.
+For an active package, the contribution picker prefixes every title with **Tool**, **Evaluator**,
+**Importer**, or **Exporter**, then shows the selected manifest description in a Syzygy-owned panel.
+Treat title and description as plain text even when they resemble HTML, Markdown, CSS, script, or a
+URL; never create an active link or inject package markup. Importer/exporter labels describe the
+declaration onlyâ€”the zero-import world still has no file, Drive, or network authority.
 Never imply that contract certification, a structural match, or successful execution establishes
 publisher trust, semantic safety, or useful research quality. Returned proposal bodies enter
 **Shared plugin review** with plugin/version/component/contribution/runner provenance. Collaborators

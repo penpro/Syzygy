@@ -95,6 +95,10 @@ signed first-party citation-auditor now supplies useful-but-deliberately-simple 
 behavior: it emits a human-review proposal with the invocation's exact project/revision identity,
 and a headless gate installs the same package in two isolated local catalogs. Apply is a
 separate product/automation action after shared acceptance; it is not a component host capability.
+The product now renders declared contribution inventory and the selected title/description through
+fixed Syzygy kind labels and plain React text. Hostile markup/URL-shaped fixture text remains inert;
+installed-package MCP inspection omits contribution descriptions. Contribution-specific inputs,
+package-controlled layout/icons, and importer/exporter file authority remain open.
 
 Machine-readable runtime limits, commands, results, proved claims, and explicit non-claims are in
 `docs/audits/runs/PLUGIN-ZERO-AUTHORITY-RUNTIME-2026-08-11.json`.
@@ -136,6 +140,8 @@ remain open. Evidence and falsifiers are in
 `docs/audits/runs/PLUGIN-PUBLISHER-KEY-ROTATION-2026-08-11.json`, and
 the executable signed reference proof in
 `docs/audits/runs/PLUGIN-EXECUTABLE-REFERENCE-2026-08-11.json`, plus
+the text-only contribution rendering proof in
+`docs/audits/runs/PLUGIN-DECLARATIVE-CONTRIBUTIONS-2026-08-11.json`, plus
 `docs/audits/runs/PLUGIN-ACCEPTED-APPLY-2026-08-11.json`, and the application-attribution increment in
 `docs/audits/runs/SIGNED-PLUGIN-APPLICATION-EVENTS-2026-08-11.json`.
 

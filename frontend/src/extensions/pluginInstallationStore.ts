@@ -79,6 +79,7 @@ export interface InstalledPluginSummary {
   componentName: string
   componentByteLength: number
   componentSha256: string
+  contributions: LoadedZeroAuthorityPluginPackage['manifest']['contributions']
   publisherName: string
   publisherKeyId: string
   installedAt: number
@@ -322,6 +323,7 @@ const summarize = (record: StoredPluginInstallation): InstalledPluginSummary => 
   componentName: record.plugin.componentName,
   componentByteLength: record.plugin.componentByteLength,
   componentSha256: record.plugin.componentSha256,
+  contributions: structuredClone(record.plugin.manifest.contributions),
   publisherName: record.publisherSignature.publisher.name,
   publisherKeyId: record.publisherSignature.publisher.keyId,
   installedAt: record.installedAt,

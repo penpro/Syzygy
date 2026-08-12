@@ -108,11 +108,20 @@ describe('plugin workspace automation', () => {
       componentByteLength: 64, componentSha256: 'a'.repeat(64), publisherName: 'Publisher',
       publisherKeyId: `ed25519-sha256:${'k'.repeat(43)}`, installedAt: 1, enabled: true,
       activationAction: 'disable',
+      contributions: [{
+        kind: 'evaluator', id: 'review', title: 'Citation review',
+        description: 'Review citation coverage.',
+      }],
     }])
     const inspection = inspectPluginWorkspace(doc, new PluginPackageRegistry())
     expect(inspection.installedPackages).toEqual([
       expect.objectContaining({ pluginId: 'org.example.fixture', enabled: true }),
     ])
+    expect(inspection.installedPackages[0].contributions).toEqual([expect.objectContaining({
+      kind: 'evaluator', id: 'review', title: 'Citation review',
+    })])
+    expect(inspection.installedPackages[0].contributionCount).toBe(1)
+    expect(JSON.stringify(inspection.installedPackages)).not.toContain('Review citation coverage.')
     expect(JSON.stringify(inspection.installedPackages)).not.toContain('componentBase64')
     expect(JSON.stringify(inspection.installedPackages)).not.toContain('signature')
   })

@@ -735,7 +735,7 @@ now retains exact versions in bounded IndexedDB, requires current-key continuity
 dual-signed sequential publisher-key rotation, and rechecks the manifest, component, signature, and
 rotation chain before activation. The first-party signed executable reference now passes the native
 runtime and two isolated headless install profiles. Next add independent third-party interoperation,
-declarative contribution rendering, publisher identity/reputation/revocation/recovery, and the
+contribution-specific workflows, publisher identity/reputation/revocation/recovery, and the
 advanced native MCP trust tier. Marketplace control is optional;
 local packages and open documentation are required.
 
@@ -778,6 +778,7 @@ live-provider certification separate from local conformance and report:
 `native-atomic-dependency-bound-executor` for native reservation/execution, and
 `contract-only` for custom-adapter execution,
 `signed-local-indexeddb-install-disable-upgrade-rollback-dual-signed-key-rotation-reverified` for plugin loading,
+`host-rendered-declarative-manifest-metadata-text-only` for contribution rendering,
 `shared-proposal-ledger-human-decision-revision-guarded-attributed-application` for plugin review, and
 `one-shot-child-process-fuel-epoch-store-and-parent-deadline` for plugin runtime isolation.
 The machine-readable synthetic and hostile-worker proof, including explicit non-claims, is
@@ -790,6 +791,8 @@ The publisher key-rotation proof is
 `docs/audits/runs/PLUGIN-PUBLISHER-KEY-ROTATION-2026-08-11.json`.
 The executable signed reference proof is
 `docs/audits/runs/PLUGIN-EXECUTABLE-REFERENCE-2026-08-11.json`.
+The text-only declarative contribution proof is
+`docs/audits/runs/PLUGIN-DECLARATIVE-CONTRIBUTIONS-2026-08-11.json`.
 
 Progress: OpenAI Responses one-shot request construction, bounded whole-operation timeout,
 idempotent in-flight/inter-event cancellation, and fake-network incremental SSE dispatch now pass

@@ -680,6 +680,13 @@ database in place. The package store caps 32 versions and 128 MiB of component b
 store caps 32 certificates globally. Lifecycle changes are serialized and permit only one enabled
 version per plugin ID.
 
+Installed summaries retain detached manifest contribution metadata for the product, while
+`inspectPluginWorkspace` projects only contribution IDs, host-owned kinds, titles, and a count for
+installed packages; installed contribution descriptions do not cross the MCP inspection boundary.
+`PluginWorkspace.tsx` maps the four schema kinds to Syzygy labels and renders selected titles and
+descriptions only as React text. It does not accept package HTML, Markdown renderers, CSS, script,
+icons, or active URLs. Importer/exporter declarations do not create file or Drive host authority.
+
 The first installed key is the local trust-on-first-install root. An ordinary upgrade must use the
 current key. A key change requires the next monotonically numbered, plugin-scoped certificate whose
 effective semantic version exactly equals the new package version. The old key authorizes the new

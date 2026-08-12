@@ -2355,6 +2355,9 @@ const pluginAcceptedApplyEvidence = JSON.parse(
 const pluginApplicationAttributionEvidence = JSON.parse(
   text('docs/audits/runs/SIGNED-PLUGIN-APPLICATION-EVENTS-2026-08-11.json'),
 )
+const pluginContributionEvidence = JSON.parse(
+  text('docs/audits/runs/PLUGIN-DECLARATIVE-CONTRIBUTIONS-2026-08-11.json'),
+)
 record(
   'user-selected zero-authority plugins compose into shared human review without draft authority',
   pluginExecutionSource.includes('verifyLoadedPlugin(plugin)') &&
@@ -2375,7 +2378,7 @@ record(
     pluginWorkspaceAutomationSource.includes('createPluginReviews') &&
     pluginWorkspaceAutomationSource.includes('readPluginReview(shared.discussions, input.reviewId)') &&
     pluginWorkspaceSource.includes("manifestFile.name !== 'syzygy-plugin.json'") &&
-    pluginWorkspaceSource.includes('Run in no-authority sandbox') &&
+    pluginWorkspaceSource.includes('Run selected contribution in no-authority sandbox') &&
     pluginWorkspaceSource.includes('never edit the draft automatically') &&
     pluginWorkspaceSource.includes('review decision only records shared history') &&
     text('frontend/src/workspace/WorkspaceView.tsx').includes('<PluginWorkspace project={project} />') &&
@@ -2405,6 +2408,35 @@ record(
     pluginCompositionEvidence.fullValidation?.repositoryAuditPassed === true &&
     pluginCompositionEvidence.fullValidation?.rustCheckPassed === true,
   'exact user-selected manifest/component digest, 32-MiB/eight-package session cap, project-only grant subset, serialized bounded execution, atomic shared proposal batch, conflict-visible human decisions, exact MCP revisions, content-minimized inspection, and no plugin-held draft authority',
+)
+record(
+  'plugin contributions remain declarative, host-rendered, text-only, and MCP-bounded',
+  pluginInstallationStoreSource.includes('contributions: structuredClone(record.plugin.manifest.contributions)') &&
+    pluginWorkspaceSource.includes("tool: 'Tool'") &&
+    pluginWorkspaceSource.includes("evaluator: 'Evaluator'") &&
+    pluginWorkspaceSource.includes("importer: 'Importer'") &&
+    pluginWorkspaceSource.includes("exporter: 'Exporter'") &&
+    pluginWorkspaceSource.includes('host-rendered manifest metadata') &&
+    pluginWorkspaceSource.includes('No plugin HTML, script, CSS, or active link is rendered here.') &&
+    text('frontend/src/styles.css').includes('.plugin-contribution-card') &&
+    pluginWorkspaceTestSource.includes('renders hostile contribution metadata only as escaped host-owned text') &&
+    pluginWorkspaceTestSource.includes("expect(html).not.toContain('<script')") &&
+    pluginWorkspaceTestSource.includes("expect(html).not.toContain('href=')") &&
+    pluginWorkspaceAutomationSource.includes('contributionCount: contributions.length') &&
+    pluginWorkspaceAutomationSource.includes('contributions.map(({ kind, id, title })') &&
+    pluginWorkspaceAutomationTestSource.includes("not.toContain('Review citation coverage.')") &&
+    platformContractsSource.includes('"pluginContributionRendering": "host-rendered-declarative-manifest-metadata-text-only"') &&
+    text('scripts/mcp-harness.mjs').includes('plugin contribution rendering status is inaccurate') &&
+    pluginContributionEvidence.status === 'implemented-headless-verified' &&
+    pluginContributionEvidence.focusedValidation.pluginCompositionTestsPassed === 65 &&
+    pluginContributionEvidence.mcpValidation.toolCount === 49 &&
+    pluginContributionEvidence.fullValidation.supervisedRunId === '20260811-174000-c2a0de' &&
+    pluginContributionEvidence.fullValidation.frontendTestsPassed === 622 &&
+    pluginContributionEvidence.fullValidation.repositoryAuditPassed === true &&
+    pluginContributionEvidence.fullValidation.rustCheckPassed === true &&
+    pluginContributionEvidence.fullValidation.workerAliveAfterCompletion === false &&
+    pluginContributionEvidence.notProved.some((claim) => claim.includes('Contribution-specific')),
+  'four fixed host labels, selected plain-text metadata, hostile markup/link inertness, installed inventory, description-omitting MCP projection, and explicit workflow nonclaims',
 )
 record(
   'accepted plugin proposal application remains explicit, exact-revision guarded, linked, and plugin-authority free',

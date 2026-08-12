@@ -9,6 +9,7 @@ import {
   loadZeroAuthorityPluginPackage,
   PluginExecutionError,
 } from '../extensions/pluginExecution'
+import type { PluginContributionKind } from '../extensions/pluginManifest'
 import {
   pluginPackageRegistry,
   PluginPackageRegistryError,
@@ -35,6 +36,13 @@ import {
 const MAX_MANIFEST_BYTES = 1024 * 1024
 const MAX_COMPONENT_BYTES = 8 * 1024 * 1024
 const MAX_SIGNATURE_BYTES = 64 * 1024
+
+const CONTRIBUTION_KIND_LABELS: Record<PluginContributionKind, string> = {
+  tool: 'Tool',
+  evaluator: 'Evaluator',
+  importer: 'Importer',
+  exporter: 'Exporter',
+}
 
 export interface PluginWorkspaceContentProps {
   packages: LoadedPluginPackageSummary[]
@@ -90,6 +98,9 @@ export function PluginWorkspaceContent({
   const inactiveCapabilities = selectedPackage?.requestedCapabilities.filter(
     (capability) => capability !== 'project.read' && capability !== 'project.propose',
   ) ?? []
+  const selectedContribution = selectedPackage?.contributions.find(
+    (contribution) => contribution.id === selectedContributionId,
+  ) ?? null
 
   return (
     <section className="plugin-workspace" aria-labelledby="plugin-workspace-title">
@@ -176,6 +187,10 @@ export function PluginWorkspaceContent({
             <div className="plugin-package-meta mono">
               <span>Publisher key {installed.publisherKeyId.replace('ed25519-sha256:', '').slice(0, 16)}…</span>
               <span>{installed.componentSha256.slice(0, 16)}… · {installed.componentByteLength.toLocaleString()} bytes</span>
+              <span>{installed.contributions.length} declared contribution{installed.contributions.length === 1 ? '' : 's'} · {
+                Array.from(new Set(installed.contributions.map((contribution) =>
+                  CONTRIBUTION_KIND_LABELS[contribution.kind]))).join(', ')
+              }</span>
             </div>
             <p className="plugin-scope-note">Self-described publisher: {installed.publisherName}. This signature does not authenticate an organization or person.</p>
             <div className="plugin-actions">
@@ -219,10 +234,20 @@ export function PluginWorkspaceContent({
                 Contribution
                 <select value={selectedContributionId} onChange={(event) => onSelectContribution(event.target.value)}>
                   {selectedPackage.contributions.map((contribution) => (
-                    <option key={contribution.id} value={contribution.id}>{contribution.title}</option>
+                    <option key={contribution.id} value={contribution.id}>
+                      {CONTRIBUTION_KIND_LABELS[contribution.kind]} · {contribution.title}
+                    </option>
                   ))}
                 </select>
               </label>
+              {selectedContribution ? (
+                <div className="plugin-contribution-card" data-kind={selectedContribution.kind}>
+                  <span className="mono">{CONTRIBUTION_KIND_LABELS[selectedContribution.kind]} · host-rendered manifest metadata</span>
+                  <strong>{selectedContribution.title}</strong>
+                  <p>{selectedContribution.description}</p>
+                  <small>No plugin HTML, script, CSS, or active link is rendered here.</small>
+                </div>
+              ) : null}
               <div className="plugin-authority-list" aria-label="Plugin authority for this run">
                 <span className="mono">Requested: {selectedPackage.requestedCapabilities.join(', ') || 'none'}</span>
                 <span className="mono">Active baseline: {
@@ -235,7 +260,7 @@ export function PluginWorkspaceContent({
               </div>
               <div className="plugin-actions">
                 <button type="button" disabled={busy || !healthy || !selectedContributionId} onClick={onRun}>
-                  {busy ? 'Running bounded worker…' : 'Run in no-authority sandbox'}
+                  {busy ? 'Running bounded worker…' : 'Run selected contribution in no-authority sandbox'}
                 </button>
                 <button type="button" className="btn ghost" disabled={busy} onClick={() => onRemovePackage(selectedPackage.packageId)}>
                   Unload

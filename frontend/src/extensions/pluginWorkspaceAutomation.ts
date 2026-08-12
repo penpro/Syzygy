@@ -142,7 +142,11 @@ export function inspectPluginWorkspace(
   const inspection = inspectPluginReviews(shared.discussions)
   return {
     loadedPackages: packages.list(),
-    installedPackages: pluginInstallationCatalog.list(),
+    installedPackages: pluginInstallationCatalog.list().map(({ contributions, ...installed }) => ({
+      ...installed,
+      contributionCount: contributions.length,
+      contributions: contributions.map(({ kind, id, title }) => ({ kind, id, title })),
+    })),
     reviews: listPluginReviews(shared.discussions).slice(-200).map((review) => ({
       reviewId: review.id,
       proposalEventId: review.proposal.eventId,

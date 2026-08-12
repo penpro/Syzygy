@@ -212,6 +212,8 @@ async function proveStdioContract() {
   if (byId.get(6)?.result?.isError !== false) throw new Error('platform contracts tool failed without a live GUI')
   if (contracts?.contractVersion !== 1) throw new Error('platform contract version is missing')
   if (contracts?.implementationStatus?.pluginLoader !== 'signed-local-indexeddb-install-disable-upgrade-rollback-dual-signed-key-rotation-reverified') throw new Error('plugin loader status is inaccurate')
+  if (contracts?.implementationStatus?.pluginContributionRendering !== 'host-rendered-declarative-manifest-metadata-text-only') throw new Error('plugin contribution rendering status is inaccurate')
+  if (contracts?.selfCheck?.pluginExecutableReferenceCommand !== 'npm run test:plugin-example') throw new Error('plugin executable reference self-check is missing')
   if (contracts?.implementationStatus?.pluginReview !== 'shared-proposal-ledger-human-decision-revision-guarded-attributed-application') throw new Error('plugin review status is inaccurate')
   if (contracts?.implementationStatus?.pluginReviewAttribution !== 'exact-retained-proposal-decision-application-registered-device-or-explicit-unsigned') throw new Error('plugin review attribution status is inaccurate')
   if (contracts?.implementationStatus?.pluginAuthorityBroker !== 'implemented-non-executing') throw new Error('plugin authority broker status is inaccurate')

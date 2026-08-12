@@ -924,8 +924,12 @@ preflighted 1–32 proposal publication, disconnected decision convergence/confl
 exact accepted-review append/full-replace with a real Lexical editor, stale/race/collision zero-write denial,
 exact retained proposal/decision/application hashes, application revision/identity binding, registered-device signer resolution, cross-author and
 post-signature tamper rejection, explicit unsigned fallback, content-minimized MCP inspection, and
-copy that decisions never apply the draft. The production UI
-loads `syzygy-plugin.json` and its exact component through browser file inputs; bytes remain only in
+copy that decisions never apply the draft. The production UI also renders the four declared
+contribution kinds through host-owned labels and plain React text; the hostile metadata fixture must
+remain escaped and must not acquire an image, script, style, or active-link path. Installed-package
+MCP inspection exposes contribution count/kind/ID/title but omits contribution descriptions.
+Importer/exporter names do not imply file or Drive access. The production UI loads
+`syzygy-plugin.json` and its exact component through browser file inputs; bytes remain only in
 the current app process. This command uses a fake executor for composition. Actual component
 execution and hostile worker containment remain the separate `test:plugin-runtime` gate.
 Exact application-event envelope, attribution, reload, and replay-denial evidence is retained in

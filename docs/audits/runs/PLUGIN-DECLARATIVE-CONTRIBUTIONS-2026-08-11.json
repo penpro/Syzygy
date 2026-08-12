@@ -1,0 +1,65 @@
+{
+  "verificationDate": "2026-08-11",
+  "feature": "host-rendered declarative plugin contribution metadata",
+  "status": "implemented-headless-verified",
+  "implementation": {
+    "platformStatus": "host-rendered-declarative-manifest-metadata-text-only",
+    "supportedKinds": ["tool", "evaluator", "importer", "exporter"],
+    "pluginMarkupAccepted": false,
+    "pluginCssAccepted": false,
+    "pluginScriptAccepted": false,
+    "pluginActiveUrlsAccepted": false,
+    "installedProductInventory": "count-and-host-kind-labels",
+    "selectedProductMetadata": "host-label-title-description-as-react-text",
+    "installedMcpProjection": "count-kind-id-title-with-description-omitted",
+    "newRuntimeAuthority": false
+  },
+  "focusedValidation": {
+    "command": "npm run test:plugin-composition",
+    "testFilesPassed": 9,
+    "pluginCompositionTestsPassed": 65,
+    "pluginWorkspaceUiTestsPassed": 6,
+    "hostileImgAndScriptMetadataEscaped": true,
+    "activeHrefAbsent": true,
+    "installedContributionDescriptionOmittedFromMcp": true
+  },
+  "mcpValidation": {
+    "command": "npm run test:mcp",
+    "toolCount": 49,
+    "frontendEditorTestsPassed": 10,
+    "mcpRustRoutesPassed": 22,
+    "platformContractTestsPassed": 2,
+    "platformStatusEmbedded": true,
+    "executableReferenceSelfCheckEmbedded": true,
+    "stderrProtocolClean": true
+  },
+  "buildValidation": {
+    "command": "npm run build",
+    "frontendModulesTransformed": 1278,
+    "passed": true
+  },
+  "fullValidation": {
+    "pending": false,
+    "supervisedRunId": "20260811-174000-c2a0de",
+    "elapsedSeconds": 20,
+    "frontendTestFilesPassed": 138,
+    "frontendTestsPassed": 622,
+    "frontendModulesTransformed": 1278,
+    "repositoryAuditPassed": true,
+    "rustCheckPassed": true,
+    "workerAliveAfterCompletion": false
+  },
+  "proved": [
+    "The product maps every schema-v1 contribution kind to a fixed Syzygy-owned label and renders the selected title and description through React text nodes.",
+    "HTML-, script-, and URL-shaped contribution metadata is escaped in the headless product render and does not create an image, script element, or active href.",
+    "Installed signed-package cards show the bounded contribution count and distinct declared host-kind labels without loading package-controlled UI code.",
+    "Installed-package MCP inspection returns a bounded count and contribution kind, ID, and title while omitting each contribution description, component bytes, and signatures.",
+    "The machine-readable platform contract advertises the exact text-only rendering tier and its executable-reference self-check command."
+  ],
+  "notProved": [
+    "Contribution-specific input forms, output renderers, import/export file selection, icons, layout, navigation, or package-controlled components.",
+    "Importer or exporter labels grant filesystem, Drive, network, model, or direct project mutation authority; they remain declarations in the zero-import world.",
+    "Worst-case usability for every combination of 32 stored versions and 128 contributions, marketplace discovery, publisher reputation, or independent third-party UI interoperability.",
+    "Visual pixel-level behavior in a packaged webview or accessibility testing beyond semantic server-rendered markup."
+  ]
+}

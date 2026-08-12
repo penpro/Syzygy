@@ -73,6 +73,7 @@ pub fn current() -> Result<Value, String> {
             "pluginWitContract": "zero-import-subprocess-runtime-bounded",
             "pluginRuntimeIsolation": "one-shot-child-process-fuel-epoch-store-and-parent-deadline",
             "pluginLoader": "signed-local-indexeddb-install-disable-upgrade-rollback-dual-signed-key-rotation-reverified",
+            "pluginContributionRendering": "host-rendered-declarative-manifest-metadata-text-only",
             "pluginReview": "shared-proposal-ledger-human-decision-revision-guarded-attributed-application",
             "pluginReviewAttribution": "exact-retained-proposal-decision-application-registered-device-or-explicit-unsigned",
             "scenarioPackCodec": "product-import-export-checksummed-atomic",
@@ -141,6 +142,7 @@ pub fn current() -> Result<Value, String> {
             "pluginCertifierCommand": "npm run test:plugin-sdk",
             "pluginAuthorityBrokerCommand": "npm run test:plugin-host",
             "pluginRuntimeCommand": "npm run test:plugin-runtime",
+            "pluginExecutableReferenceCommand": "npm run test:plugin-example",
             "pluginCompositionCommand": "npm run test:plugin-composition",
             "modelAdapterCertifierCommand": "npm run test:model-adapter-sdk",
             "adversarialCommand": "npm run test:adversarial",
@@ -216,6 +218,14 @@ mod tests {
         assert_eq!(
             contracts["implementationStatus"]["pluginLoader"],
             "signed-local-indexeddb-install-disable-upgrade-rollback-dual-signed-key-rotation-reverified"
+        );
+        assert_eq!(
+            contracts["implementationStatus"]["pluginContributionRendering"],
+            "host-rendered-declarative-manifest-metadata-text-only"
+        );
+        assert_eq!(
+            contracts["selfCheck"]["pluginExecutableReferenceCommand"],
+            "npm run test:plugin-example"
         );
         assert_eq!(
             contracts["implementationStatus"]["pluginReview"],

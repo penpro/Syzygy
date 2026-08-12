@@ -1,0 +1,62 @@
+{
+  "verificationDate": "2026-08-11",
+  "feature": "executable signed citation-auditor reference package",
+  "status": "implemented-headless-verified",
+  "implementation": {
+    "pluginId": "org.example.citation-auditor",
+    "version": "1.0.0",
+    "world": "syzygy:research/plugin@1.0.0",
+    "source": "examples/plugins/citation-auditor/citation-auditor.wat",
+    "artifact": "examples/plugins/citation-auditor/citation-auditor.component",
+    "artifactBytes": 1496,
+    "artifactSha256": "c7a821bc7d1ec8e159b4bd20120e3f8bf30190aa0b23f95ef06ffe7c98cb5d53",
+    "topLevelImports": 0,
+    "requestedCapabilities": ["project.read", "project.propose"],
+    "publisherAlgorithm": "Ed25519",
+    "publisherKeyId": "ed25519-sha256:Mf2S1IwWkcXRcrHHIPgcpeLnzRBWLzvorR3sckzsjp0",
+    "publisherPrivateKeyRetained": false
+  },
+  "headlessValidation": {
+    "command": "npm run test:plugin-example",
+    "componentRebuiltFromCheckedInSource": true,
+    "contractCertificationPassedWithoutExecution": true,
+    "nativeDistinctProjectRevisionInvocationsPassed": 2,
+    "nativeProposalIdentityAndRevisionGuardsPassed": true,
+    "isolatedIndexedDbProfilesInstalled": 2,
+    "bothProfilesClosedReopenedAndReverified": true,
+    "oneProfileDeletionLeftOtherProfileVerifiable": true,
+    "checkedInPublisherProofVerified": true
+  },
+  "fullValidation": {
+    "supervisedRunId": "20260811-173100-c1a0df",
+    "status": "succeeded",
+    "elapsedSeconds": 18,
+    "frontendTestFilesPassed": 138,
+    "frontendTestsPassed": 621,
+    "frontendModulesTransformed": 1278,
+    "repositoryAuditPassed": true,
+    "rustCheckPassed": true,
+    "workerAliveAfterCompletion": false
+  },
+  "recoveredValidation": {
+    "supersededRunId": "20260811-173000-c1a0de",
+    "failedStep": "frontend-build",
+    "cause": "The Vitest-only Node file imports lacked explicit TypeScript suppression while the production browser project intentionally omits Node types.",
+    "recovery": "Scoped the exception to the two test-only imports, ran the frontend build directly, then started a new fully successful supervised run.",
+    "stalled": false
+  },
+  "proved": [
+    "The checked-in Component Model artifact is reproducibly generated from reviewable WAT using the repository's pinned wat dependency and exports the exact zero-import research-plugin world.",
+    "The exact artifact executes through the production native Wasmtime function for two distinct project and revision identities and returns one append proposal preserving each invocation's plugin, project, and expected revision.",
+    "The exact manifest and component digest match a checked-in Ed25519 publisher proof accepted by the production installation store.",
+    "Two separate headless IndexedDB catalogs install, close, reopen, and reverify the package; deleting one catalog does not remove the package from the other.",
+    "The reference requests only project read and proposal authority and has no component import through which network, Drive, model, filesystem, environment, clock, random, or mutation authority could be linked."
+  ],
+  "notProved": [
+    "The fixed citation-review proposal performs substantive citation analysis, establishes research quality, or is safe to accept; all output remains pending human review.",
+    "Two fake-IndexedDB catalogs are two physical computers, packaged-app profiles, or live collaborative peers.",
+    "The first-party repository reference proves independent third-party authoring, compiler interoperability, reproducible output on another toolchain, marketplace discovery, or external security review.",
+    "The self-described publisher name or locally trusted public key authenticates a person or organization; the disposable private key used once for this public example was not retained.",
+    "Any capability-bearing WIT world, native MCP plugin tier, network/model/Drive operation host, or direct plugin mutation authority."
+  ]
+}

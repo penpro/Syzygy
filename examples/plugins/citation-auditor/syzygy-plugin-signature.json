@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "algorithm": "Ed25519",
+  "publisher": {
+    "name": "Syzygy executable example",
+    "keyId": "ed25519-sha256:Mf2S1IwWkcXRcrHHIPgcpeLnzRBWLzvorR3sckzsjp0",
+    "publicKey": "ZaE9L-dSMbjuk-BPKrtPDhVGMEJD21_O7U9k9qHnEqw"
+  },
+  "package": {
+    "pluginId": "org.example.citation-auditor",
+    "version": "1.0.0",
+    "manifestSha256": "25c0cfea86109f8bf564d8d7f9b4d2efdc440bffb18de1395014646eb9ac4410",
+    "componentName": "citation-auditor.component",
+    "componentSha256": "c7a821bc7d1ec8e159b4bd20120e3f8bf30190aa0b23f95ef06ffe7c98cb5d53",
+    "world": "syzygy:research/plugin@1.0.0"
+  },
+  "signature": "ZQx-1d_Oc0M5iCKnkELXiyVH5rdlW7Lla8iECNGVMd0vOd3KJ6mgTLQ1cEbhQ1-ouQmsXlZpBnCZZT5jQzYTBQ"
+}

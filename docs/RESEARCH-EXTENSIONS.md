@@ -90,7 +90,10 @@ resources, exact output revalidation, and no WASI dependency. Each run lives in 
 child process under a five-second kill-and-reap parent deadline. The Windows hostile-fuel fixture
 terminates only that worker and a clean successor still succeeds. This establishes the portable
 no-authority execution baseline; package discovery, publisher identity/reputation/revocation,
-capability-bearing interfaces, and useful third-party behavior remain open. Apply is a
+capability-bearing interfaces, and independently authored third-party behavior remain open. The
+signed first-party citation-auditor now supplies useful-but-deliberately-simple executable reference
+behavior: it emits a human-review proposal with the invocation's exact project/revision identity,
+and a headless gate installs the same package in two isolated local catalogs. Apply is a
 separate product/automation action after shared acceptance; it is not a component host capability.
 
 Machine-readable runtime limits, commands, results, proved claims, and explicit non-claims are in
@@ -131,6 +134,8 @@ remain open. Evidence and falsifiers are in
 `docs/audits/runs/SIGNED-PLUGIN-REVIEW-EVENTS-2026-08-11.json`, plus the lifecycle proof in
 `docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json`, the rotation proof in
 `docs/audits/runs/PLUGIN-PUBLISHER-KEY-ROTATION-2026-08-11.json`, and
+the executable signed reference proof in
+`docs/audits/runs/PLUGIN-EXECUTABLE-REFERENCE-2026-08-11.json`, plus
 `docs/audits/runs/PLUGIN-ACCEPTED-APPLY-2026-08-11.json`, and the application-attribution increment in
 `docs/audits/runs/SIGNED-PLUGIN-APPLICATION-EVENTS-2026-08-11.json`.
 

@@ -3,15 +3,15 @@
   "id": "org.example.citation-auditor",
   "name": "Citation auditor",
   "version": "1.0.0",
-  "description": "Interface-only example that checks cited claims and proposes a review note.",
+  "description": "Executable zero-authority example that proposes a revision-guarded citation review note.",
   "runtime": {
     "kind": "wasi-component",
     "component": "citation-auditor.component",
     "world": "syzygy:research/plugin@1.0.0"
   },
   "permissions": {
-    "capabilities": ["project.read", "project.propose", "network.fetch"],
-    "networkDomains": ["doi.org", "*.crossref.org"],
+    "capabilities": ["project.read", "project.propose"],
+    "networkDomains": [],
     "modelProviders": []
   },
   "contributions": [

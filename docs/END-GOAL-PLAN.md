@@ -733,9 +733,10 @@ also landed. Exact retained proposal and decision events now receive best-effort
 attribution with explicit unsigned fallback. Publisher-signed local install/disable/upgrade/rollback
 now retains exact versions in bounded IndexedDB, requires current-key continuity, supports
 dual-signed sequential publisher-key rotation, and rechecks the manifest, component, signature, and
-rotation chain before activation. Next add a useful independent executable artifact, declarative
-contribution rendering, publisher identity/reputation/revocation/recovery, and the advanced native
-MCP trust tier. Marketplace control is optional;
+rotation chain before activation. The first-party signed executable reference now passes the native
+runtime and two isolated headless install profiles. Next add independent third-party interoperation,
+declarative contribution rendering, publisher identity/reputation/revocation/recovery, and the
+advanced native MCP trust tier. Marketplace control is optional;
 local packages and open documentation are required.
 
 The authority broker now opens 15-minute sessions only from a strict manifest plus explicit grant
@@ -756,6 +757,10 @@ and appends valid output to shared conflict-visible human review. Signed package
 retain rollback versions. A dual-signed version/sequence-bound certificate can rotate the
 established key while preserving version-to-key epochs, but this establishes local package
 continuity rather than publisher identity, reputation, revocation, recovery, safety, or quality.
+The checked-in citation-auditor is now an executable signed first-party reference: its WAT source
+rebuilds deterministically, the native host preserves two distinct revision guards, and two isolated
+headless installation catalogs reopen and reverify the package. Independent third-party and physical
+two-install interoperability remain unproved.
 Plugin discovery, capability-bearing WIT, and plugin-held direct mutation remain unavailable. A
 separate exact accepted-review Apply path
 exists for append/full replacement and retains a proposal/decision/revision-bound application event
@@ -783,6 +788,8 @@ The signed local lifecycle proof is
 `docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json`.
 The publisher key-rotation proof is
 `docs/audits/runs/PLUGIN-PUBLISHER-KEY-ROTATION-2026-08-11.json`.
+The executable signed reference proof is
+`docs/audits/runs/PLUGIN-EXECUTABLE-REFERENCE-2026-08-11.json`.
 
 Progress: OpenAI Responses one-shot request construction, bounded whole-operation timeout,
 idempotent in-flight/inter-event cancellation, and fake-network incremental SSE dispatch now pass

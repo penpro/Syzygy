@@ -28,6 +28,8 @@
     "rotate:plugin-key": "node ../scripts/plugin-key-rotation.mjs",
     "test:plugin-host": "vitest run src/extensions/pluginAuthorityBroker.test.ts --reporter=verbose",
     "test:plugin-runtime": "cargo test --manifest-path src-tauri/Cargo.toml plugin_runtime -- --nocapture",
+    "build:plugin-example": "cargo run --manifest-path src-tauri/Cargo.toml --example build_citation_auditor",
+    "test:plugin-example": "npm run build:plugin-example && node ../scripts/plugin-certifier.mjs ../examples/plugins/citation-auditor && vitest run src/extensions/citationAuditorExample.test.ts --reporter=verbose && cargo test --manifest-path src-tauri/Cargo.toml plugin_runtime::tests::executes_checked_in_citation_auditor_for_distinct_projects -- --nocapture",
     "test:plugin-composition": "vitest run src/extensions/pluginExecution.test.ts src/extensions/pluginPackageRegistry.test.ts src/extensions/pluginInstallationStore.test.ts src/extensions/pluginReviewModel.test.ts src/extensions/pluginReviewApplication.test.ts src/extensions/pluginReviewApplicationIntegration.test.ts src/extensions/pluginWorkspaceAutomation.test.ts src/workspace/PluginWorkspace.ui.test.tsx src/workspace/projectResearchEventAttestation.test.ts --reporter=verbose",
     "certify:plugin": "node ../scripts/plugin-certifier.mjs",
     "test:model-adapter-sdk": "node --test ../scripts/model-adapter-certifier.test.mjs",

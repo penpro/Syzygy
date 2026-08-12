@@ -657,6 +657,15 @@ local package installation now persists bounded exact versions and dual-signed p
 key-rotation certificates in IndexedDB, but package discovery, publisher identity/reputation,
 capability-bearing worlds, and custom-adapter execution remain unavailable.
 
+`examples/plugins/citation-auditor` is the first executable signed reference package joining these
+otherwise separate gates. Its reviewable `citation-auditor.wat` has no imports and returns one
+append proposal that borrows the invocation's exact plugin, project, and revision identities.
+`frontend/src-tauri/examples/build_citation_auditor.rs` reproducibly compiles it with the already
+pinned `wat` crate. The headless reference test installs and reopens the exact signed component in
+two distinct IndexedDB catalogs, while a Rust test executes that same checked-in artifact with two
+different revisions. This is first-party two-profile proof, not two physical installations or an
+independently authored third-party interoperability claim.
+
 The non-executing plugin authority broker turns a validated manifest plus explicit grant into a
 short-lived in-memory session. It returns detached project snapshots, pending revision-guarded
 proposals, and narrow Drive/network/model authorization decisions, but contains no loader, fetch,

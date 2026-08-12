@@ -38,7 +38,7 @@ filesystem access.
 - Headless package certifier: `scripts/plugin-certifier.mjs`
 - Non-executing publisher signer: `scripts/plugin-signer.mjs`
 - Non-executing publisher key-rotation generator: `scripts/plugin-key-rotation.mjs`
-- Complete interface-only example: `examples/plugins/citation-auditor`
+- Executable signed reference package: `examples/plugins/citation-auditor`
 - Machine-readable inspection: MCP tool `syzygy_platform_contracts`
 
 Example:
@@ -164,8 +164,10 @@ Run `npm run test:plugin-runtime` for exact-world execution, proposal identity/r
 ambient-import denial, malformed/core-module/size rejection, memory-limit/trap/output validation,
 sanitized failures, hostile-worker containment, and post-failure reuse. This proves the low-level
 baseline executor. It does not prove package discovery/install/upgrade, signer trust, broker/product
-composition, capability-bearing worlds, useful plugin behavior, or a third-party runtime artifact;
-the citation-auditor example intentionally remains an interface-only non-executable marker.
+composition, capability-bearing worlds, useful plugin behavior, or a third-party runtime artifact.
+Those separate package/runtime/install layers are joined for the repository's signed executable
+citation-auditor reference by `npm run test:plugin-example`; this does not make the low-level gate a
+package certifier or turn the first-party reference into independent third-party evidence.
 
 Run `npm run test:plugin-composition` for the layer above the raw executor. In the installed product,
 the researcher explicitly selects `syzygy-plugin.json` and the exact component named by it. Syzygy
@@ -214,7 +216,8 @@ rolls back the review. These proofs identify an installation key, not a human or
 This is truthful status
 `signed-local-indexeddb-install-disable-upgrade-rollback-dual-signed-key-rotation-reverified` plus
 `shared-proposal-ledger-human-decision-revision-guarded-attributed-application`. Discovery, publisher identity/reputation and
-key revocation/recovery, a useful executable third-party example, capability-bearing WIT worlds, and
+key revocation/recovery, an independently authored third-party interoperability artifact,
+capability-bearing WIT worlds, and
 cross-store atomic application commit and editable apply variants remain open.
 
 Design basis: the upstream Component Model describes WIT worlds as the strict import/export
@@ -235,6 +238,7 @@ executor:
 - `docs/audits/runs/SIGNED-PLUGIN-REVIEW-EVENTS-2026-08-11.json`
 - `docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json`
 - `docs/audits/runs/PLUGIN-PUBLISHER-KEY-ROTATION-2026-08-11.json`
+- `docs/audits/runs/PLUGIN-EXECUTABLE-REFERENCE-2026-08-11.json`
 - `docs/audits/runs/SIGNED-PLUGIN-APPLICATION-EVENTS-2026-08-11.json`
 
 ## Mutation protocol
@@ -317,8 +321,10 @@ network hosts, and model providers. At least one denied-authority probe is manda
 report contains identifiers/counts/errors, never proposal content.
 
 `contract-certified` means package/schema/fixture/authority metadata passed. It explicitly does
-not mean the runtime artifact is valid, safe, deterministic, useful, or executed. The example's
-runtime artifact is intentionally a non-executable marker to make that distinction testable.
+not mean the runtime artifact is valid, safe, deterministic, useful, or executed. The certifier
+still never executes the citation-auditor component. The separate `test:plugin-example` gate
+rebuilds its reviewable WAT source, executes the exact artifact through the native zero-import host,
+and installs the signed bytes in two isolated headless catalogs. Keep these evidence tiers separate.
 
 The landed contract runner validates schema shape, unknown fields, duplicate fixture/probe IDs,
 bounded JSON, path containment, documentation/license/runtime presence, proposal validity and

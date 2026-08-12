@@ -303,13 +303,15 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   and remote transport remain open, so the capability is `implemented_unverified` rather than a
   product-complete claim.
   Evidence: `docs/audits/runs/HEURISTICS-CONVERGENCE-2026-07-15.json`.
-- The open researcher API now has a non-executing package certifier and a complete interface-only
-  citation-auditor example. Draft 2020-12 schemas, bounded JSON, real-path containment, valid and
+- The open researcher API now has a non-executing package certifier and an executable signed
+  citation-auditor reference. Draft 2020-12 schemas, bounded JSON, real-path containment, valid and
   invalid proposal fixtures, plugin identity, documentation/license/runtime-file presence, and
-  seven explicit authority allow/deny probes run headlessly. The report says
+  five explicit authority allow/deny probes run headlessly. The report says
   `contract-certified`, never runtime-safe; plugin discovery, install, permission-broker product
-  package discovery and capability-bearing interfaces remain open. The zero-authority product
-  composition and review surface are described below.
+  package discovery and capability-bearing interfaces remain open. A separate gate rebuilds the
+  zero-import WAT, executes the exact component for two project revisions, and installs/reopens its
+  Ed25519-signed package in two isolated catalogs. Independent third-party and physical-install
+  interoperability remain open. The zero-authority product composition and review surface are below.
 - The non-executing plugin authority broker now enforces explicit grant subsets in 15-minute
   sessions, detached bounded project snapshots, pending revision-guarded proposals, selected-Drive
   identity, granted HTTPS host patterns, and configured model providers. It returns decisions only:
@@ -354,8 +356,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   exposes the same content-minimized mutation as tool 49 and requires a boolean matching append versus
   explicit full replacement. MCP can inspect metadata and run only an
   already-active package with exact document/research revisions and content-minimized installed
-  metadata. Publisher identity/reputation/revocation/recovery, package discovery, a useful
-  executable example, capability-bearing worlds, cross-store atomic apply/event commit, and editable apply
+  metadata. Publisher identity/reputation/revocation/recovery, package discovery, independently
+  authored third-party interoperability, capability-bearing worlds, cross-store atomic apply/event commit, and editable apply
   variants remain open. Evidence:
   `docs/audits/runs/PLUGIN-SIGNED-INSTALL-LIFECYCLE-2026-08-11.json`.
   Publisher-key rotation evidence:

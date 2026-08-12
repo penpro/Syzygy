@@ -1,9 +1,19 @@
-# Citation auditor plugin contract example
+# Citation auditor executable plugin example
 
-This is an interface and certification example, not an executable plugin. It demonstrates a
-least-authority manifest, one accepted and one rejected proposal fixture, declared network hosts,
-and explicit allow/deny probes. The runtime artifact is a text marker so the contract certifier can
-prove package containment; it is intentionally not a WebAssembly component.
+This independently packaged example is an executable zero-import WebAssembly component. It reads
+the bounded project identity and revision supplied by Syzygy and returns one append proposal for
+human review. The proposal borrows the exact plugin, project, and revision fields from each
+invocation, so the host can reject stale or cross-target output. It receives no network, model,
+Drive, filesystem, environment, clock, random, or direct document-write authority.
 
-Passing `npm run certify:plugin -- ..\examples\plugins\citation-auditor` proves only schemas,
-paths, fixtures, and requested-authority behavior. It does not prove runtime safety or usefulness.
+`citation-auditor.wat` is the reviewable source. Rebuild the checked-in component from `frontend`:
+
+```powershell
+npm run build:plugin-example
+```
+
+The package also contains a public Ed25519 publisher proof. The corresponding private test key is
+deliberately not retained. `npm run test:plugin-example` rebuilds the component, verifies that exact
+artifact in the native Wasmtime boundary with two distinct project revisions, contract-certifies
+it, and installs the signed package into two isolated IndexedDB catalogs. These tests do not claim
+certification by an external auditor or execution on two physical computers.

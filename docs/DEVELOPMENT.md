@@ -867,6 +867,7 @@ npm run test:plugin-sdk
 npm run test:plugin-host
 npm run test:plugin-runtime
 npm run test:plugin-composition
+npm run test:plugin-example
 npm run certify:plugin -- ..\examples\plugins\citation-auditor
 ```
 
@@ -900,9 +901,14 @@ component execution back into the GUI process or weaken that gate merely because
 runtime version begins returning a normal fuel trap.
 
 The SDK/certification commands test schema rejection, real-path containment, wildcard-domain
-semantics, undeclared-authority denial, and the interface-only example without executing its marker
-artifact. Runtime execution is the separate third gate and accepts only an explicitly supplied
-in-memory component; it does not make a contract-certified package runtime-safe.
+semantics, and undeclared-authority denial without executing package code. Runtime execution is a
+separate gate and does not make an arbitrary contract-certified package safe. The repository's
+`test:plugin-example` composition gate rebuilds `citation-auditor.component` from its checked-in WAT,
+contract-certifies without execution, verifies its checked-in Ed25519 package proof, installs and
+reopens the exact package in two isolated fake-IndexedDB profiles, then runs that same artifact
+through Wasmtime for two distinct project/revision inputs. This is a first-party headless reference,
+not physical two-computer or independent third-party interoperability evidence. The disposable
+private key used to create the checked-in public proof is not retained.
 The host test exercises the separate in-process authority broker: explicit grant subsets,
 detached bounded snapshots, revision/identity-guarded pending proposals, HTTPS/domain decisions,
 model/Drive target decisions, expiry, revocation, and content-free errors. It performs no network,

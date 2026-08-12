@@ -16,12 +16,21 @@ test('example package passes contract certification without execution', () => {
   assert.match(report.warnings.join(' '), /not execution/)
 })
 
-test('authority checks deny undeclared capabilities, domains, and URL-shaped targets', () => {
+test('authority checks require declared capabilities and exact host-pattern semantics', () => {
   const manifest = JSON.parse(readFileSync(join(example, 'syzygy-plugin.json'), 'utf8'))
-  assert.equal(evaluateAuthority(manifest, { capability: 'network.fetch', target: 'api.crossref.org' }), 'allow')
-  assert.equal(evaluateAuthority(manifest, { capability: 'network.fetch', target: 'crossref.org' }), 'deny')
-  assert.equal(evaluateAuthority(manifest, { capability: 'network.fetch', target: 'https://doi.org' }), 'deny')
+  assert.equal(evaluateAuthority(manifest, { capability: 'network.fetch', target: 'api.crossref.org' }), 'deny')
   assert.equal(evaluateAuthority(manifest, { capability: 'drive.read' }), 'deny')
+  const networkManifest = {
+    ...manifest,
+    permissions: {
+      ...manifest.permissions,
+      capabilities: [...manifest.permissions.capabilities, 'network.fetch'],
+      networkDomains: ['*.crossref.org'],
+    },
+  }
+  assert.equal(evaluateAuthority(networkManifest, { capability: 'network.fetch', target: 'api.crossref.org' }), 'allow')
+  assert.equal(evaluateAuthority(networkManifest, { capability: 'network.fetch', target: 'crossref.org' }), 'deny')
+  assert.equal(evaluateAuthority(networkManifest, { capability: 'network.fetch', target: 'https://doi.org' }), 'deny')
 })
 
 test('package path containment rejects traversal and absolute paths', () => {

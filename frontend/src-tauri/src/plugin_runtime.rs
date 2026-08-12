@@ -792,6 +792,41 @@ mod tests {
     }
 
     #[test]
+    fn executes_checked_in_citation_auditor_for_distinct_projects() {
+        let component =
+            include_bytes!("../../../examples/plugins/citation-auditor/citation-auditor.component");
+        for (project_id, revision) in [
+            ("project-alpha", "revision-11"),
+            ("project-beta", "revision-29"),
+        ] {
+            let mut input = invocation();
+            let project = input
+                .project
+                .as_mut()
+                .expect("fixture has project authority");
+            project.project_id = project_id.into();
+            project.revision = revision.into();
+            let result = execute_component(component, &input)
+                .expect("checked-in citation auditor should execute");
+            match result.output {
+                PluginRuntimeOutput::Proposals { proposals } => {
+                    assert_eq!(proposals.len(), 1);
+                    let proposal = &proposals[0];
+                    assert_eq!(proposal.plugin_id, input.plugin_id);
+                    assert_eq!(proposal.project_id, project_id);
+                    assert_eq!(proposal.expected_revision, revision);
+                    assert_eq!(proposal.operation, PluginProposalOperation::Append);
+                    assert!(proposal.content.contains("citation coverage"));
+                }
+                PluginRuntimeOutput::NoChange { .. } => {
+                    panic!("checked-in citation auditor must return a review proposal")
+                }
+            }
+            assert!(!result.limits.ambient_imports_linked);
+        }
+    }
+
+    #[test]
     fn accepts_exact_revision_guarded_proposals_and_rejects_cross_target_output() {
         use research_plugin::{ChangeProposal, Output, ProposalOperation};
         let input = invocation();

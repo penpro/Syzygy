@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -2183,6 +2184,15 @@ const pluginAuthorityBrokerTestSource = text('frontend/src/extensions/pluginAuth
 const pluginWasiContractSource = text('frontend/src/extensions/pluginWasiContract.ts')
 const pluginWasiContractTestSource = text('frontend/src/extensions/pluginWasiContract.test.ts')
 const pluginWitSource = text('docs/wit/syzygy-research-plugin-v1.wit')
+const citationAuditorManifest = JSON.parse(text('examples/plugins/citation-auditor/syzygy-plugin.json'))
+const citationAuditorSignature = JSON.parse(text('examples/plugins/citation-auditor/syzygy-plugin-signature.json'))
+const citationAuditorWatSource = text('examples/plugins/citation-auditor/citation-auditor.wat')
+const citationAuditorComponent = readFileSync(join(root, 'examples/plugins/citation-auditor/citation-auditor.component'))
+const citationAuditorGeneratorSource = text('frontend/src-tauri/examples/build_citation_auditor.rs')
+const citationAuditorProfileTestSource = text('frontend/src/extensions/citationAuditorExample.test.ts')
+const citationAuditorEvidence = JSON.parse(
+  text('docs/audits/runs/PLUGIN-EXECUTABLE-REFERENCE-2026-08-11.json'),
+)
 record(
   'plugin package certification remains non-executing',
   rootPackage.devDependencies?.ajv === '8.20.0' &&
@@ -2192,8 +2202,8 @@ record(
     pluginCertifierSource.includes('expected-valid and one expected-invalid') &&
     pluginCertifierSource.includes('at least one denied-authority probe') &&
     !/child_process|\bspawn\s*\(|\bexec(?:File)?\s*\(/.test(pluginCertifierSource) &&
-    text('examples/plugins/citation-auditor/citation-auditor.component').includes('NOT AN EXECUTABLE'),
-  'exact Draft 2020 validator, real-path and adversarial-fixture gates, no process execution, interface-only example',
+    citationAuditorComponent.length > 8,
+  'exact Draft 2020 validator, real-path and adversarial-fixture gates, and no process execution even though the separate reference artifact is executable',
 )
 record(
   'plugin host authority broker remains least-authority and non-executing',
@@ -2277,6 +2287,39 @@ record(
     pluginRuntimeEvidence.notProved?.some((claim) => claim.includes('operating-system-level cap')) &&
     pluginRuntimeEvidence.notProved?.some((claim) => claim.includes('useful third-party plugin artifact')),
   'empty linker, explicit top-level import denial, 8-MiB component/1-MiB envelope/32-MiB memory bounds, fuel plus epoch interruption, five-second kill-and-reap parent deadline, sanitized stderr, exact post-worker validation, and crash-recovery harness',
+)
+record(
+  'signed executable plugin reference joins runtime and isolated-install gates',
+  citationAuditorComponent.subarray(0, 8).toString('hex') === '0061736d0d000100' &&
+    createHash('sha256').update(citationAuditorComponent).digest('hex') === citationAuditorSignature.package.componentSha256 &&
+    citationAuditorManifest.permissions.capabilities.join(',') === 'project.read,project.propose' &&
+    citationAuditorManifest.permissions.networkDomains.length === 0 &&
+    citationAuditorWatSource.includes('(export "syzygy:research/research-plugin@1.0.0"') &&
+    !citationAuditorWatSource.includes('(import ') &&
+    citationAuditorWatSource.includes('local.get $project-id-pointer') &&
+    citationAuditorWatSource.includes('local.get $revision-pointer') &&
+    citationAuditorGeneratorSource.includes('wat::parse_file') &&
+    citationAuditorGeneratorSource.includes('citation-auditor.component') &&
+    citationAuditorProfileTestSource.includes("['alpha', 'beta']") &&
+    citationAuditorProfileTestSource.includes('restoreEnabled()') &&
+    citationAuditorProfileTestSource.includes('getVerified(plugin.packageId)') &&
+    pluginRuntimeSource.includes('executes_checked_in_citation_auditor_for_distinct_projects') &&
+    frontendPackage.scripts?.['test:plugin-example']?.includes('citationAuditorExample.test.ts') &&
+    frontendPackage.scripts?.['test:plugin-example']?.includes('executes_checked_in_citation_auditor_for_distinct_projects') &&
+    citationAuditorEvidence.status === 'implemented-headless-verified' &&
+    citationAuditorEvidence.implementation.artifactBytes === citationAuditorComponent.length &&
+    citationAuditorEvidence.implementation.artifactSha256 === citationAuditorSignature.package.componentSha256 &&
+    citationAuditorEvidence.implementation.publisherPrivateKeyRetained === false &&
+    citationAuditorEvidence.headlessValidation.isolatedIndexedDbProfilesInstalled === 2 &&
+    citationAuditorEvidence.fullValidation.supervisedRunId === '20260811-173100-c1a0df' &&
+    citationAuditorEvidence.fullValidation.frontendTestsPassed === 621 &&
+    citationAuditorEvidence.fullValidation.repositoryAuditPassed === true &&
+    citationAuditorEvidence.fullValidation.rustCheckPassed === true &&
+    citationAuditorEvidence.fullValidation.workerAliveAfterCompletion === false &&
+    citationAuditorEvidence.recoveredValidation.stalled === false &&
+    citationAuditorEvidence.notProved.some((claim) => claim.includes('physical computers')) &&
+    citationAuditorEvidence.notProved.some((claim) => claim.includes('first-party')),
+  'reviewable zero-import WAT, exact signed bytes, two dynamic native revisions, two isolated reopened catalogs, and explicit first-party/physical-install nonclaims',
 )
 const pluginExecutionSource = text('frontend/src/extensions/pluginExecution.ts')
 const pluginExecutionTestSource = text('frontend/src/extensions/pluginExecution.test.ts')

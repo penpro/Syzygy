@@ -18,6 +18,7 @@ const fixture = () => {
   const root = mkdtempSync(join(tmpdir(), 'syzygy-plugin-signer-'))
   const packageRoot = join(root, 'package')
   cpSync(example, packageRoot, { recursive: true })
+  rmSync(join(packageRoot, 'syzygy-plugin-signature.json'))
   const keys = generateKeyPairSync('ed25519')
   const privateKeyPath = join(root, 'publisher-private.pem')
   writeFileSync(privateKeyPath, keys.privateKey.export({ type: 'pkcs8', format: 'pem' }), { mode: 0o600 })

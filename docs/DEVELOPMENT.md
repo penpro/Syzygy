@@ -913,9 +913,12 @@ The packaged app never runs guest code in the GUI process. It starts itself with
 `--plugin-runtime-worker`, sends one bounded request over inherited pipes, suppresses worker stderr,
 revalidates the response, and kills and reaps the worker after five seconds. The hostile-fuel
 integration fixture intentionally covers a Windows behavior where the pinned runtime worker can
-abort; the test must prove the parent survives and a fresh follow-up worker succeeds. Do not move
-component execution back into the GUI process or weaken that gate merely because an upstream
-runtime version begins returning a normal fuel trap.
+abort as well as Linux/macOS behavior where Wasmtime can return the normal bounded fuel or epoch
+deadline error first. The accepted outcome is therefore one of the two content-free execution-limit
+errors or the two content-free worker-containment errors; in every case the test must prove the
+parent survives and a fresh follow-up worker succeeds. Do not move component execution back into
+the GUI process or weaken that recovery gate merely because an upstream runtime changes which
+bounded outcome wins the race.
 
 The SDK/certification commands test schema rejection, real-path containment, wildcard-domain
 semantics, and undeclared-authority denial without executing package code. Runtime execution is a

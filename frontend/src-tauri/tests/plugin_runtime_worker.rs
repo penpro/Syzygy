@@ -133,10 +133,16 @@ fn plugin_runtime_worker_abort_is_reaped_and_the_host_remains_reusable() {
         encoded_component("(loop br 0)", "unreachable"),
         invocation(),
     );
-    assert!(matches!(
-        hostile.as_ref().err().map(String::as_str),
-        Some("plugin-runtime:worker-failed") | Some("plugin-runtime:worker-deadline")
-    ));
+    assert!(
+        matches!(
+            hostile.as_ref().err().map(String::as_str),
+            Some("plugin-runtime:execution-fuel")
+                | Some("plugin-runtime:execution-deadline")
+                | Some("plugin-runtime:worker-failed")
+                | Some("plugin-runtime:worker-deadline")
+        ),
+        "hostile worker returned an unexpected outcome: {hostile:?}"
+    );
     assert!(started.elapsed() < Duration::from_secs(7));
 
     let recovered = plugin_component_run_with_executable(

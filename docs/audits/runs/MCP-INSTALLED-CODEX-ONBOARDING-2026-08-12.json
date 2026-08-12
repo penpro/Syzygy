@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "date": "2026-08-12",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "claim": "The installed Syzygy app can explicitly register its exact local MCP server or app-owned authenticated LAN attachment in Codex without repository script paths, while preserving unrelated Codex TOML and requiring only one host restart after a change.",
   "commands": [
     "npm --prefix frontend exec vitest run src/components/LanAgentSettings.ui.test.ts src/components/McpSetupModal.ui.test.ts",
@@ -26,12 +26,13 @@
     "releaseLanCrossLanguageEncryption": true,
     "unrelatedCodexConfigPreserved": true,
     "repeatInstallIdempotent": true,
+    "pairedLanToolsAuthorizedForUnattendedTesting": true,
     "repositoryScriptRequiredByInstalledRegistration": false
   },
   "falsifiers": [
     "A Codex restart is still required after an MCP configuration change because the host loads configured servers at startup.",
     "This evidence does not substitute for the physical two-install Drive/LAN convergence run; that begins after both installed apps are updated and the restarted Codex task exposes syzygy-lan tools.",
     "The LAN attachment requires Node.js because the current encrypted coordinator protocol is implemented by the embedded Node runtime scripts.",
-    "Codex writes remain approval-gated by default; registration does not grant Syzygy or an assistant ambient filesystem, Drive, model, or human-identity authority."
+    "Ordinary local MCP writes remain approval-gated. The explicit paired LAN developer connection authorizes its test tools, but grants no ambient filesystem, model, credential, or human-identity authority beyond the native Syzygy tool contracts."
   ]
 }

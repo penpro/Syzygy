@@ -3249,10 +3249,11 @@ record(
     mcpSetupRustSource.includes('Document') &&
     mcpSetupRustSource.includes('toml.syzygy-backup') &&
     mcpSetupRustSource.includes('default_tools_approval_mode') &&
+    mcpSetupRustSource.includes('"approve"') &&
     mcpSetupRustSource.includes('codex_mcp_install_local') &&
     mcpSetupRustSource.includes('codex_mcp_install_lan') &&
     text('frontend/src-tauri/src/lib.rs').includes('mcp_setup::codex_mcp_install_lan'),
-  'named local/LAN MCP tables preserve unrelated Codex TOML, recover on replace failure, prompt for writes, and report restart state',
+  'named local/LAN MCP tables preserve unrelated Codex TOML, recover on replace failure, keep ordinary writes prompted, explicitly approve paired LAN test tools, and report restart state',
 )
 record(
   'MCP loopback security boundary',

@@ -127,7 +127,7 @@ export function McpSetupModal({ onClose }: { onClose: () => void }) {
                 <button className="btn sm" type="button" disabled={installingCodex} onClick={() => void installCodex()}>
                   {installingCodex ? 'Connecting Codex…' : CODEX_CONNECT_LABEL}
                 </button>
-                <span className="hint">Writes prompt by default; read-only inspection can run unattended.</span>
+                <span className="hint">Ordinary workspace writes prompt by default. The separate private-LAN developer connection can explicitly authorize unattended test operations.</span>
               </div>
               {codexMessage ? <div className="mcp-status" role="status">{codexMessage}</div> : null}
               <div className="mcp-format" role="group" aria-label="Configuration format">

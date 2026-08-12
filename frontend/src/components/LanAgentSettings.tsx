@@ -350,7 +350,7 @@ export function LanAgentSettings() {
             {CODEX_LAN_CONNECT_LABEL}
           </button>
           <em className="hint">
-            This installs the app-owned loopback MCP attachment. After one Codex restart, the assistant can discover, probe, and control every authenticated computer {CODEX_LAN_AUTOMATION_COPY}.
+            This explicitly authorizes the app-owned test MCP tools. After one Codex restart, the assistant can discover, probe, and control every authenticated computer {CODEX_LAN_AUTOMATION_COPY} or repeated write approvals.
           </em>
         </div>
       ) : null}

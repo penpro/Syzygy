@@ -681,7 +681,9 @@ the `mcp_servers.syzygy-live` table in `~/.codex/config.toml`, preserves other c
 `toml_edit`, stages a same-directory replacement, and restores the preserved original if installation
 fails. The LAN-host action similarly installs `mcp_servers.syzygy-lan`, but its command points to the
 attachment materialized under Syzygy's app cache and the exact applied pairing-file path—never the
-checkout. Both default to prompting on writes and require one Codex restart when changed. Tests must
+checkout. The ordinary local MCP prompts on writes; the explicitly authorized pairing-key-protected
+LAN test MCP uses Codex's `approve` mode so physical harness writes do not require repeated human
+confirmation. Both require one Codex restart when changed. Tests must
 prove unrelated settings survive, repeated installation is byte-idempotent, and no backup artifact
 remains after success.
 

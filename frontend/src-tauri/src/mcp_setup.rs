@@ -49,12 +49,14 @@ fn codex_config_path(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 fn server_table_mut<'a>(document: &'a mut Document, server_name: &str) -> &'a mut Table {
-    if !document["mcp_servers"].is_table() {
-        document["mcp_servers"] = Item::Table(Table::new());
-    }
-    let servers = document["mcp_servers"]
+    let servers_item = document
         .as_table_mut()
-        .expect("table installed above");
+        .entry("mcp_servers")
+        .or_insert(Item::Table(Table::new()));
+    if !servers_item.is_table() {
+        *servers_item = Item::Table(Table::new());
+    }
+    let servers = servers_item.as_table_mut().expect("table installed above");
     if !servers.get(server_name).is_some_and(Item::is_table) {
         servers[server_name] = Item::Table(Table::new());
     }
@@ -68,6 +70,7 @@ fn install_server_at_path(
     server_name: &str,
     command: &str,
     args: &[String],
+    approval_mode: &str,
 ) -> Result<bool, String> {
     let source = if config_path.exists() {
         fs::read_to_string(config_path)
@@ -90,7 +93,7 @@ fn install_server_at_path(
     server["required"] = value(false);
     server["startup_timeout_sec"] = value(10);
     server["tool_timeout_sec"] = value(65);
-    server["default_tools_approval_mode"] = value("writes");
+    server["default_tools_approval_mode"] = value(approval_mode);
     let next = document.to_string();
     if next == before {
         return Ok(false);
@@ -137,8 +140,9 @@ fn install_result(
     server_name: &str,
     command: &str,
     args: &[String],
+    approval_mode: &str,
 ) -> Result<CodexMcpInstallResult, String> {
-    let changed = install_server_at_path(&config_path, server_name, command, args)?;
+    let changed = install_server_at_path(&config_path, server_name, command, args, approval_mode)?;
     Ok(CodexMcpInstallResult {
         server_name: server_name.to_string(),
         config_path: config_path.to_string_lossy().into_owned(),
@@ -219,6 +223,7 @@ pub fn codex_mcp_install_local(app: AppHandle) -> Result<CodexMcpInstallResult, 
         MCP_SERVER_NAME,
         &connection.executable_path,
         &connection.arguments,
+        "writes",
     )
 }
 
@@ -239,6 +244,7 @@ pub fn codex_mcp_install_lan(app: AppHandle) -> Result<CodexMcpInstallResult, St
         LAN_MCP_SERVER_NAME,
         &attachment.command,
         &args,
+        "approve",
     )
 }
 
@@ -301,14 +307,16 @@ mod tests {
             &path,
             MCP_SERVER_NAME,
             r"C:\Program Files\Syzygy\Syzygy.exe",
-            &args
+            &args,
+            "writes"
         )
         .unwrap());
         assert!(!install_server_at_path(
             &path,
             MCP_SERVER_NAME,
             r"C:\Program Files\Syzygy\Syzygy.exe",
-            &args
+            &args,
+            "writes"
         )
         .unwrap());
         let installed = fs::read_to_string(&path).unwrap();
@@ -327,6 +335,32 @@ mod tests {
             Some("writes")
         );
         assert!(!path.with_extension("toml.syzygy-backup").exists());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn lan_install_explicitly_approves_unattended_control_tools() {
+        let root =
+            std::env::temp_dir().join(format!("syzygy-codex-lan-mcp-{}", std::process::id()));
+        let path = root.join("config.toml");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        assert!(install_server_at_path(
+            &path,
+            LAN_MCP_SERVER_NAME,
+            r"C:\Program Files\nodejs\node.exe",
+            &["attachment.mjs".to_string()],
+            "approve"
+        )
+        .unwrap());
+        let parsed = fs::read_to_string(&path)
+            .unwrap()
+            .parse::<Document>()
+            .unwrap();
+        assert_eq!(
+            parsed["mcp_servers"][LAN_MCP_SERVER_NAME]["default_tools_approval_mode"].as_str(),
+            Some("approve")
+        );
         let _ = fs::remove_dir_all(&root);
     }
 }

@@ -76,6 +76,9 @@ materializes the authenticated loopback attachment under its app cache, register
 shared MCP configuration, and tells you whether one Codex restart is required. After that restart,
 the assistant should call `lan_nodes` and `lan_probe` itself; a person should not have to paste
 commands or report booleans during normal operation.
+The button is also the explicit authorization for Codex to run LAN test-tool writes without repeated
+approval prompts. Native revision guards, bounded operations, and pairing-key authentication remain
+in force; ordinary non-LAN Syzygy MCP writes retain their conservative prompt-on-write default.
 
 The repository wrapper below is diagnostic-only. It remains useful for protocol development but is
 not the installed product path.

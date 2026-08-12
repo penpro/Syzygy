@@ -484,6 +484,8 @@ An applied host exposes **Connect Codex to this private network**. That action r
 app-materialized loopback attachment in Codex; it must never point at a repository script or invent
 a pairing-key path. After the one required Codex restart, copy says the assistant can discover and
 probe authenticated installations itself instead of asking the person to run PowerShell checks.
+Because this is an explicit developer-network authorization protected by the pairing key, its Codex
+registration approves the LAN MCP tools for unattended test writes; it must say so beside the button.
 PowerShell is explicitly diagnostic-only. Both modes must say that the control network does not itself
 synchronize research data. Disabling or reconfiguring stops the old process before reporting new state;
 app shutdown stops the outbound agent before the host coordinator.

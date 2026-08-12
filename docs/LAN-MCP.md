@@ -48,13 +48,9 @@ pairing key protects and encrypts the protocol but cannot make a compromised end
 
 ## One-time setup
 
-On the primary development computer, create the key file once:
-
-```powershell
-node D:\PolicyPad\syzygy\scripts\lan-pairing-key.mjs --out "$env:USERPROFILE\.syzygy-lan.key"
-```
-
-Copy that file securely to the second computer. Record the primary computer's private IPv4
+On the primary computer, use **Create pairing file & start host** in Syzygy. The native app creates
+the key without overwriting an existing file. Copy it securely to the second computer; do not put it
+in Drive or the repository. Record the primary computer's private IPv4
 address, for example `192.168.1.20`. Allow inbound TCP port `37663` only on the Windows **Private**
 network profile and only from the office subnet. Do not configure router port forwarding.
 
@@ -74,6 +70,15 @@ during disable, reconfiguration, update, or app shutdown. The control attachment
 on `127.0.0.1:37664`; it uses a separate authenticated protocol and is never exposed on the LAN.
 
 ## Connect ChatGPT/Codex on the primary computer
+
+After host mode is applied and running, choose **Connect Codex to this private network**. Syzygy
+materializes the authenticated loopback attachment under its app cache, registers it in Codex's
+shared MCP configuration, and tells you whether one Codex restart is required. After that restart,
+the assistant should call `lan_nodes` and `lan_probe` itself; a person should not have to paste
+commands or report booleans during normal operation.
+
+The repository wrapper below is diagnostic-only. It remains useful for protocol development but is
+not the installed product path.
 
 The host wrapper first probes the authenticated loopback control port. When the app owns the
 coordinator it attaches without starting a duplicate server or agent. If app host mode is off, the

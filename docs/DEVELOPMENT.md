@@ -676,6 +676,15 @@ The packaged UI exposes the same Rust-generated values under **Settings → Conn
 setup guide**. Do not hard-code an installer location in React or documentation; installed paths
 vary by OS, installer choice, and portable/dev execution.
 
+The primary Codex path is the explicit **Connect Codex on this computer** action. Rust updates only
+the `mcp_servers.syzygy-live` table in `~/.codex/config.toml`, preserves other configuration with
+`toml_edit`, stages a same-directory replacement, and restores the preserved original if installation
+fails. The LAN-host action similarly installs `mcp_servers.syzygy-lan`, but its command points to the
+attachment materialized under Syzygy's app cache and the exact applied pairing-file path—never the
+checkout. Both default to prompting on writes and require one Codex restart when changed. Tests must
+prove unrelated settings survive, repeated installation is byte-idempotent, and no backup artifact
+remains after success.
+
 ## Headless LAN MCP control-plane proof
 
 Run the LAN suites through the bounded-command watchdog. No command may exceed a one-minute
@@ -710,7 +719,9 @@ listener all exit within bounded deadlines. Rust and server-rendered UI tests se
 agent/host configuration, private-address/key-path validation, startup order, disable/reconfigure
 replacement, native non-overwriting 32-byte pairing-file creation, unapplied-draft labeling,
 graceful two-second shutdown, kill-and-reap fallback, and shutdown order. The physical
-harness requires two exact node labels and all thirty-seven native tools on each installation. Its
+harness also requires that the primary app can register its materialized loopback attachment in
+Codex without a repository script path; manual PowerShell remains diagnosis, not normal setup. The
+physical harness requires two exact node labels and all thirty-seven native tools on each installation. Its
 default mode performs only catalog/identity checks; `--mutate` uses a dedicated proof project, exact
 revisions, guarded share/join, partition-like concurrent document appends, bidirectional readback,
 and stale-write rejection. It also creates one scenario turn, makes simultaneous revisions, reads

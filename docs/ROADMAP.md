@@ -618,6 +618,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   and the production frontend build pass. The 2026-07-18 physical probe still found only
   `office-primary` on v0.1.19; `office-secondary` and the physical convergence gate remain open.
 
+- The installed MCP onboarding follow-up closes the distinction between shipping a server and making
+  it available to the actual assistant host. Syzygy can now explicitly register its exact local
+  executable and its app-materialized LAN loopback attachment in Codex while preserving unrelated
+  configuration. One Codex restart is still required by the host; after that, node discovery and
+  probing belong to the assistant, not the person operating the two computers.
+
 - S-06 now publishes a strict eight-feature network-boundary manifest, product Settings summary,
   complete production URL-origin classifier, adversarial redaction tests, sanitized proof artifact, and
   MCP discovery. It catches stale local-only copy and any new unclassified literal origin. Runtime packet

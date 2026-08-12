@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
+  codexMcpInstallLan,
   createLanPairingKeyFile,
   lanAgentConfigure,
   lanAgentReconnect,
@@ -20,6 +21,9 @@ const DEFAULT_CONFIG: LanAgentConfig = {
   port: 37_663,
   keyFile: '',
 }
+
+export const CODEX_LAN_CONNECT_LABEL = 'Connect Codex to this private network'
+export const CODEX_LAN_AUTOMATION_COPY = 'without PowerShell or repository scripts'
 
 export function lanConnectionStatus({
   busy,
@@ -200,6 +204,21 @@ export function LanAgentSettings() {
     }
   }
 
+  const connectCodex = async () => {
+    setBusy(true)
+    setMessage('')
+    try {
+      const result = await codexMcpInstallLan()
+      setMessage(result.restartRequired
+        ? `Codex is connected to this private network in ${result.configPath}. Restart Codex once; it can then probe and control every authenticated Syzygy computer.`
+        : 'Codex is already connected to this private network. No configuration change was needed.')
+    } catch (error) {
+      setMessage((error as { message?: string })?.message ?? String(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const status = lanConnectionStatus({ busy, draft, hostEnabled, report, hostReport })
 
   return (
@@ -325,6 +344,16 @@ export function LanAgentSettings() {
         {report?.lastError ? <span className="error-text">{report.lastError}</span> : null}
         {hostReport?.lastError ? <span className="error-text">{hostReport.lastError}</span> : null}
       </div>
+      {hostReport?.config.enabled ? (
+        <div className="field">
+          <button type="button" className="btn sm" disabled={busy || !hostReport.running} onClick={() => void connectCodex()}>
+            {CODEX_LAN_CONNECT_LABEL}
+          </button>
+          <em className="hint">
+            This installs the app-owned loopback MCP attachment. After one Codex restart, the assistant can discover, probe, and control every authenticated computer {CODEX_LAN_AUTOMATION_COPY}.
+          </em>
+        </div>
+      ) : null}
       {message ? <em className="hint" aria-live="polite">{message}</em> : null}
     </div>
   )

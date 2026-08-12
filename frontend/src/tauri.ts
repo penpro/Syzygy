@@ -93,6 +93,13 @@ export interface ProviderResearchSource {
   excerpt: string
 }
 
+export interface CodexMcpInstallResult {
+  serverName: string
+  configPath: string
+  changed: boolean
+  restartRequired: boolean
+}
+
 export interface CollaborationRelayConfig {
   enabled: boolean
   listen: string
@@ -926,6 +933,14 @@ export const automationReady = (): Promise<void> => invoke('automation_ready')
 
 /** Exact, copy-ready connection details generated from the currently running executable. */
 export const mcpConnectionInfo = (): Promise<McpConnectionInfo> => invoke('mcp_connection_info')
+
+/** Register this exact installed executable in Codex's shared MCP configuration. */
+export const codexMcpInstallLocal = (): Promise<CodexMcpInstallResult> =>
+  invoke('codex_mcp_install_local')
+
+/** Register the app-owned private-LAN control attachment in Codex's shared MCP configuration. */
+export const codexMcpInstallLan = (): Promise<CodexMcpInstallResult> =>
+  invoke('codex_mcp_install_lan')
 
 /** Current opt-in outbound LAN test connection. The pairing key itself never crosses this boundary. */
 export const lanAgentSettings = (): Promise<LanAgentReport> => invoke('lan_agent_settings')

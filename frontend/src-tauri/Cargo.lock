@@ -133,7 +133,7 @@ checksum = "2a4385e2e34eb35d6b3efe798b9eb88096925d87726c0798709bf56d9ed84af3"
 
 [[package]]
 name = "app"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",
@@ -160,6 +160,7 @@ dependencies = [
  "tauri-plugin-updater",
  "tauri-plugin-upload",
  "tokio",
+ "toml_edit 0.20.2",
  "tungstenite",
  "url",
  "wasmparser 0.202.0",

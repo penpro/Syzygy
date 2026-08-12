@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Modal } from './Modal'
-import { mcpConnectionInfo, openPath, type McpConnectionInfo } from '../tauri'
+import {
+  codexMcpInstallLocal,
+  mcpConnectionInfo,
+  openPath,
+  type McpConnectionInfo,
+} from '../tauri'
 
 type CopyTarget = 'json' | 'toml' | 'connection' | 'starter'
+
+export const CODEX_CONNECT_LABEL = 'Connect Codex on this computer'
+export const CODEX_RESTART_COPY = 'Restart Codex once'
 
 function CopyButton({ value, target, copied, onCopy }: {
   value: string
@@ -22,6 +30,8 @@ export function McpSetupModal({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState('')
   const [copied, setCopied] = useState<CopyTarget | null>(null)
   const [format, setFormat] = useState<'json' | 'toml'>('json')
+  const [installingCodex, setInstallingCodex] = useState(false)
+  const [codexMessage, setCodexMessage] = useState('')
 
   useEffect(() => {
     let active = true
@@ -60,6 +70,22 @@ export function McpSetupModal({ onClose }: { onClose: () => void }) {
 
   const config = format === 'json' ? info?.genericJson : info?.codexToml
 
+  const installCodex = async () => {
+    setInstallingCodex(true)
+    setError('')
+    setCodexMessage('')
+    try {
+      const result = await codexMcpInstallLocal()
+      setCodexMessage(result.restartRequired
+        ? `Connected in ${result.configPath}. ${CODEX_RESTART_COPY}; future tasks can pilot this installed Syzygy directly.`
+        : `Codex is already connected through ${result.serverName}. No configuration change was needed.`)
+    } catch (nextError) {
+      setError((nextError as { message?: string })?.message ?? String(nextError))
+    } finally {
+      setInstallingCodex(false)
+    }
+  }
+
   return (
     <Modal title="Connect an LLM" onClose={onClose} wide footer={<div className="row full"><div className="grow" /><button className="btn" onClick={onClose}>Done</button></div>}>
       <div className="mcp-setup">
@@ -93,10 +119,17 @@ export function McpSetupModal({ onClose }: { onClose: () => void }) {
               <div className="mcp-step-head">
                 <span className="mcp-step-number" aria-hidden="true">2</span>
                 <div>
-                  <h3 id="mcp-config-heading">Add the local MCP server</h3>
-                  <p>Paste this into the MCP settings for your assistant. Restart that client if it asks you to.</p>
+                  <h3 id="mcp-config-heading">Connect your assistant</h3>
+                  <p>Codex can be configured here in one click. Copy configuration only for another MCP-capable client.</p>
                 </div>
               </div>
+              <div className="row gap">
+                <button className="btn sm" type="button" disabled={installingCodex} onClick={() => void installCodex()}>
+                  {installingCodex ? 'Connecting Codex…' : CODEX_CONNECT_LABEL}
+                </button>
+                <span className="hint">Writes prompt by default; read-only inspection can run unattended.</span>
+              </div>
+              {codexMessage ? <div className="mcp-status" role="status">{codexMessage}</div> : null}
               <div className="mcp-format" role="group" aria-label="Configuration format">
                 <button className={format === 'json' ? 'btn sm' : 'btn sm ghost'} type="button" onClick={() => setFormat('json')}>JSON hosts</button>
                 <button className={format === 'toml' ? 'btn sm' : 'btn sm ghost'} type="button" onClick={() => setFormat('toml')}>Codex TOML</button>
@@ -109,8 +142,8 @@ export function McpSetupModal({ onClose }: { onClose: () => void }) {
               <div className="mcp-step-head">
                 <span className="mcp-step-number" aria-hidden="true">3</span>
                 <div>
-                  <h3 id="mcp-prompt-heading">Let the assistant help connect itself</h3>
-                  <p>If the client can edit its own MCP settings, paste this prompt there. Otherwise it will tell you where the configuration belongs.</p>
+                  <h3 id="mcp-prompt-heading">Connect another MCP client</h3>
+                  <p>Use this only when the one-click Codex connection does not apply to that client.</p>
                 </div>
               </div>
               <textarea className="mcp-copy-area mcp-prompt-area" readOnly value={info.connectionPrompt} aria-label="MCP connection prompt" />

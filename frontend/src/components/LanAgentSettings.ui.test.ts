@@ -1,7 +1,12 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { LanAgentSettings, lanConnectionStatus } from './LanAgentSettings'
+import {
+  CODEX_LAN_AUTOMATION_COPY,
+  CODEX_LAN_CONNECT_LABEL,
+  LanAgentSettings,
+  lanConnectionStatus,
+} from './LanAgentSettings'
 
 describe('LanAgentSettings', () => {
   it('offers app-owned developer hosting while keeping the default outbound boundary honest', () => {
@@ -53,5 +58,10 @@ describe('LanAgentSettings', () => {
         lastError: null,
       },
     })).toBe('Changes not applied')
+  })
+
+  it('offers an installed app-owned Codex network attachment without repository commands', () => {
+    expect(CODEX_LAN_CONNECT_LABEL).toBe('Connect Codex to this private network')
+    expect(CODEX_LAN_AUTOMATION_COPY).toBe('without PowerShell or repository scripts')
   })
 })

@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.1.21"
+version = "0.1.22"
 description = "Syzygy local-first collaborative research workspace"
 authors = ["Penumbra"]
 license = "MIT"
@@ -21,6 +21,7 @@ tauri-build = { version = "2.6.3", features = [] }
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
+toml_edit = "=0.20.2"
 log = "0.4"
 tauri = { version = "2.11.3", features = [] }
 tauri-plugin-log = "2"

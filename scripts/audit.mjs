@@ -3233,6 +3233,7 @@ record(
   'collapsed settings UI supports four OS-vault credentials, clears password fields, stores no app state, and has no generation authority',
 )
 const mcpSetupSource = text('frontend/src/components/McpSetupModal.tsx')
+const mcpSetupRustSource = text('frontend/src-tauri/src/mcp_setup.rs')
 record(
   'in-app MCP setup is executable-derived',
   mcpSetupSource.includes('mcpConnectionInfo()') &&
@@ -3240,6 +3241,18 @@ record(
     mcpSetupSource.includes('info.connectionPrompt') &&
     text('frontend/src-tauri/src/lib.rs').includes('mcp_setup::mcp_connection_info'),
   'Settings guide uses the typed Rust-generated path, config, and prompt',
+)
+record(
+  'Codex MCP registration is installed-app-owned, preserving, and restart-explicit',
+  mcpSetupSource.includes('Connect Codex on this computer') &&
+    mcpSetupSource.includes('codexMcpInstallLocal()') &&
+    mcpSetupRustSource.includes('Document') &&
+    mcpSetupRustSource.includes('toml.syzygy-backup') &&
+    mcpSetupRustSource.includes('default_tools_approval_mode') &&
+    mcpSetupRustSource.includes('codex_mcp_install_local') &&
+    mcpSetupRustSource.includes('codex_mcp_install_lan') &&
+    text('frontend/src-tauri/src/lib.rs').includes('mcp_setup::codex_mcp_install_lan'),
+  'named local/LAN MCP tables preserve unrelated Codex TOML, recover on replace failure, prompt for writes, and report restart state',
 )
 record(
   'MCP loopback security boundary',
@@ -3263,6 +3276,15 @@ const lanPackagedHarnessSource = text('scripts/lan-packaged-agent-harness.mjs')
 const lanLocalMcpSource = text('scripts/lan-local-mcp.mjs')
 const lanDriveHarnessSource = text('scripts/lan-drive-live-harness.mjs')
 const lanSettingsSource = text('frontend/src/components/LanAgentSettings.tsx')
+record(
+  'installed LAN MCP attachment does not depend on checkout scripts',
+  lanDevCoordinatorSource.includes('ATTACH_SOURCE') &&
+    lanDevCoordinatorSource.includes('codex_lan_attachment') &&
+    lanDevCoordinatorSource.includes('process.execPath') &&
+    lanSettingsSource.includes('Connect Codex to this private network') &&
+    lanSettingsSource.includes('without PowerShell or repository scripts'),
+  'the app materializes the authenticated loopback attachment and exposes one explicit Codex registration action',
+)
 record(
   'LAN MCP control plane remains outbound, authenticated, encrypted, replay-safe, and bounded',
   text('frontend/src-tauri/src/main.rs').includes('"--lan-agent"') &&

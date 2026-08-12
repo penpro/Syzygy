@@ -19,6 +19,7 @@ use tauri::{AppHandle, Manager, State};
 const CONFIG_FILE: &str = "lan-dev-coordinator.json";
 const SCRIPT_DIRECTORY: &str = "lan-dev-runtime";
 const COORDINATOR_FILE: &str = "lan-mcp-coordinator.mjs";
+const ATTACH_FILE: &str = "lan-mcp-attach.mjs";
 const PROTOCOL_FILE: &str = "lan-bridge-protocol.mjs";
 const DEFAULT_PORT: u16 = 37_663;
 const SUPERVISOR_INTERVAL: Duration = Duration::from_secs(2);
@@ -31,6 +32,7 @@ const RESTART_DELAYS: [Duration; 4] = [
     Duration::from_secs(10),
 ];
 const COORDINATOR_SOURCE: &str = include_str!("../../../scripts/lan-mcp-coordinator.mjs");
+const ATTACH_SOURCE: &str = include_str!("../../../scripts/lan-mcp-attach.mjs");
 const PROTOCOL_SOURCE: &str = include_str!("../../../scripts/lan-bridge-protocol.mjs");
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -201,9 +203,68 @@ fn materialize_scripts(app: &AppHandle) -> Result<PathBuf, String> {
     fs::create_dir_all(&directory)
         .map_err(|error| format!("Could not create the LAN developer runtime folder: {error}"))?;
     write_if_changed(&directory.join(PROTOCOL_FILE), PROTOCOL_SOURCE)?;
+    write_if_changed(&directory.join(ATTACH_FILE), ATTACH_SOURCE)?;
     let coordinator = directory.join(COORDINATOR_FILE);
     write_if_changed(&coordinator, COORDINATOR_SOURCE)?;
     Ok(coordinator)
+}
+
+pub(crate) struct CodexLanAttachment {
+    pub command: String,
+    pub script: PathBuf,
+    pub control_port: u16,
+    pub key_file: String,
+}
+
+fn node_executable() -> Result<String, String> {
+    let mut command = Command::new("node");
+    command
+        .args(["-p", "process.execPath"])
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .stdout(Stdio::piped());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    let output = command.output().map_err(|error| {
+        format!("Could not locate Node.js for the Codex LAN attachment: {error}")
+    })?;
+    if !output.status.success() {
+        return Err(
+            "Node.js did not report its executable path for the Codex LAN attachment".into(),
+        );
+    }
+    let path = String::from_utf8(output.stdout)
+        .map_err(|_| "Node.js returned an invalid executable path".to_string())?;
+    let path = PathBuf::from(path.trim());
+    if !path.is_absolute() || !path.is_file() {
+        return Err("Node.js returned a missing or non-absolute executable path".into());
+    }
+    Ok(path
+        .canonicalize()
+        .unwrap_or(path)
+        .to_string_lossy()
+        .into_owned())
+}
+
+/// Returns an installed-app-owned loopback attachment for Codex. The repository host script is
+/// intentionally not involved: app host mode already owns the coordinator and local agent.
+pub(crate) fn codex_lan_attachment(app: &AppHandle) -> Result<CodexLanAttachment, String> {
+    let config = load_config(app)?
+        .filter(|config| config.enabled)
+        .ok_or_else(|| "Enable and apply Syzygy private-LAN host mode first".to_string())?;
+    let directory = materialize_scripts(app)?
+        .parent()
+        .map(PathBuf::from)
+        .ok_or_else(|| "The installed LAN runtime has no parent folder".to_string())?;
+    Ok(CodexLanAttachment {
+        command: node_executable()?,
+        script: directory.join(ATTACH_FILE),
+        control_port: control_port(config.port)?,
+        key_file: config.key_file,
+    })
 }
 
 fn coordinator_arguments(

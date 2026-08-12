@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-08-12",
+  "version": "0.1.22",
+  "claim": "The installed Syzygy app can explicitly register its exact local MCP server or app-owned authenticated LAN attachment in Codex without repository script paths, while preserving unrelated Codex TOML and requiring only one host restart after a change.",
+  "commands": [
+    "npm --prefix frontend exec vitest run src/components/LanAgentSettings.ui.test.ts src/components/McpSetupModal.ui.test.ts",
+    "cargo test --offline --manifest-path frontend/src-tauri/Cargo.toml mcp_setup::tests:: -- --nocapture",
+    "npm --prefix frontend run build",
+    "npm --prefix frontend run audit",
+    "node --test scripts/lan-dev-mode.test.mjs",
+    "npm --prefix frontend run build:supervised",
+    "node scripts/lan-packaged-agent-harness.mjs --executable frontend/src-tauri/target/release/Syzygy.exe"
+  ],
+  "results": {
+    "focusedUiTestsPassed": 4,
+    "rustRegistrationTestsPassed": 3,
+    "frontendProductionBuildPassed": true,
+    "repositoryAuditPassed": true,
+    "lanLifecyclePassed": true,
+    "supervisedPackageRunId": "20260812-042508-0040de",
+    "supervisedPackageElapsedSeconds": 208,
+    "packagedMcpToolCount": 49,
+    "packagedMcpProtocolClean": true,
+    "releaseLanAgentAuthenticated": true,
+    "releaseLanCrossLanguageEncryption": true,
+    "unrelatedCodexConfigPreserved": true,
+    "repeatInstallIdempotent": true,
+    "repositoryScriptRequiredByInstalledRegistration": false
+  },
+  "falsifiers": [
+    "A Codex restart is still required after an MCP configuration change because the host loads configured servers at startup.",
+    "This evidence does not substitute for the physical two-install Drive/LAN convergence run; that begins after both installed apps are updated and the restarted Codex task exposes syzygy-lan tools.",
+    "The LAN attachment requires Node.js because the current encrypted coordinator protocol is implemented by the embedded Node runtime scripts.",
+    "Codex writes remain approval-gated by default; registration does not grant Syzygy or an assistant ambient filesystem, Drive, model, or human-identity authority."
+  ]
+}

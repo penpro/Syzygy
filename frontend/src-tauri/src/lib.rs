@@ -244,6 +244,8 @@ pub fn run() {
             collaboration_device_trust::collaboration_device_trust_status,
             collaboration_device_trust::collaboration_device_trust_change,
             mcp_setup::mcp_connection_info,
+            mcp_setup::codex_mcp_install_local,
+            mcp_setup::codex_mcp_install_lan,
             provider_runtime::provider_generate,
             provider_runtime::provider_generate_stream,
             provider_runtime::provider_continue_source_locator,

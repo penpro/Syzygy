@@ -453,9 +453,10 @@ must never imply that signature failure discarded the already-saved suggestion e
 ## MCP connection guide
 
 Settings includes a **Connect an LLM** guide for people who should not need to understand MCP
-internals. The flow is numbered and concrete: show the detected executable/install folder, copy
-host configuration, copy a connection prompt, then copy a safe first task. Paths and generated
-text come from the running Rust executable, not UI constants. Technical values use Plex Mono;
+internals. Codex gets a primary **Connect Codex on this computer** action that preserves unrelated
+Codex configuration, registers the exact installed executable, and says clearly when one client
+restart is required. Copyable host configuration and prompts remain secondary paths for other MCP
+clients. Paths and generated text come from the running Rust executable, not UI constants. Technical values use Plex Mono;
 explanations stay in plain Plex Sans. Copy success is expressed in text, errors say what failed,
 and all cards, borders, states, and narrow-layout behavior use theme tokens.
 
@@ -479,6 +480,10 @@ The default client state says that the installation makes an outbound encrypted 
 no LAN listener. The optional **Host the collaboration developer network on this computer** toggle says
 that the primary opens one encrypted private listener and one authenticated loopback MCP attachment,
 requires Node.js, starts and supervises the server with Syzygy, and stops/reaps it during shutdown.
+An applied host exposes **Connect Codex to this private network**. That action registers an
+app-materialized loopback attachment in Codex; it must never point at a repository script or invent
+a pairing-key path. After the one required Codex restart, copy says the assistant can discover and
+probe authenticated installations itself instead of asking the person to run PowerShell checks.
 PowerShell is explicitly diagnostic-only. Both modes must say that the control network does not itself
 synchronize research data. Disabling or reconfiguring stops the old process before reporting new state;
 app shutdown stops the outbound agent before the host coordinator.

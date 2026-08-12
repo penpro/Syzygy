@@ -14,10 +14,11 @@ presence and live-provider compatibility must still be reported honestly.
 
 ## Connect an MCP host
 
-The streamlined path is **Syzygy → Settings → Connect an LLM → MCP setup guide**. The running app
-detects its exact executable and install folder, then generates JSON-host configuration, Codex
-TOML, a connection prompt, and a safe first task. Use those generated values because install paths
-vary across computers.
+The streamlined path is **Syzygy → Settings → Connect an LLM → MCP setup guide → Connect Codex on
+this computer**. The running app detects its exact executable and safely installs the named MCP
+table in Codex's shared configuration while preserving unrelated settings. Restart Codex once when
+Syzygy reports a change. From then on, Codex can inspect and pilot the live app directly. Generated
+JSON/TOML and prompts remain available for other MCP clients because install paths vary.
 
 To configure a host manually, use a local stdio server with the full path to the installed Syzygy
 executable:

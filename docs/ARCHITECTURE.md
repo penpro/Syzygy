@@ -48,6 +48,11 @@ supervises that process with bounded restart backoff, starts it before the prima
 persists only listen address/port and pairing-key **path**. Host mode currently requires Node.js on the
 primary computer.
 
+The host onboarding surface can ask Rust to create a new user-selected pairing file with 32 random
+bytes encoded as unpadded base64url. Native creation refuses overwrite and uses owner-only mode on
+Unix; only the resulting absolute path returns to the webview. The secret bytes remain file-backed
+and are copied explicitly to client installations rather than entering app settings or diagnostics.
+
 Each `Syzygy --lan-agent` process spawns its installation's local stdio MCP and makes an outbound,
 pairing-key-authenticated encrypted connection. Protocol `syzygy-lan-v1` uses fresh challenge nonces,
 HMAC-SHA-256 proof, HKDF-SHA-256 direction keys, AES-256-GCM frames, replay counters, bounded requests,
@@ -773,7 +778,7 @@ installation, permission-grant UI, capability-bearing WIT, or direct mutation au
 | Models (GGUF) | `<app-data>/models/` |
 | Optional Drive mirror folder | `<Documents>/Syzygy` (manual sync with Drive folder "Syzygy") |
 | Ephemeral MCP bridge descriptor | OS temp `syzygy-automation-v1.json` (port/token/PID/version only; removed on shutdown) |
-| LAN pairing key | User-chosen 32-byte base64url key file; never stored in app settings, repository, Drive, command-line arguments, or coordinator descriptors |
+| LAN pairing key | Native-generated or existing user-chosen 32-byte base64url key file; never stored in app settings, repository, Drive, command-line arguments, or coordinator descriptors |
 | Optional LAN agent settings | `<app-config>/lan-agent.json` (enabled flag, node label, private coordinator address/port, pairing-key path only; no key contents) |
 | Optional LAN host settings | `<app-config>/lan-dev-coordinator.json` (enabled flag, explicit private listen address/port, pairing-key path only; no key contents) |
 

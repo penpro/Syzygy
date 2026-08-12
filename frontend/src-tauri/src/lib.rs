@@ -222,6 +222,7 @@ pub fn run() {
             lan_runtime::lan_agent_settings,
             lan_runtime::lan_agent_configure,
             lan_runtime::lan_agent_reconnect,
+            lan_runtime::lan_pairing_key_create,
             lan_dev_coordinator::lan_dev_coordinator_settings,
             lan_dev_coordinator::lan_dev_coordinator_configure,
             collaboration_relay_runtime::collaboration_relay_settings,

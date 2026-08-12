@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
+  createLanPairingKeyFile,
   lanAgentConfigure,
   lanAgentReconnect,
   lanAgentSettings,
@@ -18,6 +19,47 @@ const DEFAULT_CONFIG: LanAgentConfig = {
   coordinator: '',
   port: 37_663,
   keyFile: '',
+}
+
+export function lanConnectionStatus({
+  busy,
+  draft,
+  hostEnabled,
+  report,
+  hostReport,
+}: {
+  busy: boolean
+  draft: LanAgentConfig
+  hostEnabled: boolean
+  report: LanAgentReport | null
+  hostReport: LanDevCoordinatorReport | null
+}): string {
+  const authenticated = report?.connectionState === 'connected'
+  const savedHostEnabled = hostReport?.config.enabled === true
+  const savedAgentEnabled = report?.config.enabled === true
+  const unapplied = Boolean(report && hostReport) && (
+    draft.enabled !== report?.config.enabled
+    || draft.nodeId !== report?.config.nodeId
+    || draft.coordinator !== report?.config.coordinator
+    || draft.port !== report?.config.port
+    || draft.keyFile !== report?.config.keyFile
+    || hostEnabled !== savedHostEnabled
+  )
+  return busy
+    ? 'Applying'
+    : unapplied
+      ? 'Changes not applied'
+      : savedAgentEnabled
+        ? savedHostEnabled
+          ? authenticated && hostReport?.running
+            ? 'Developer network connected'
+            : 'Host enabled, recovering'
+          : authenticated
+            ? 'Authenticated'
+            : report?.connectionState === 'starting'
+              ? 'Starting'
+              : 'Enabled, retrying'
+        : 'Off'
 }
 
 export function LanAgentSettings() {
@@ -65,24 +107,53 @@ export function LanAgentSettings() {
     if (selected) setDraft((current) => ({ ...current, keyFile: selected }))
   }
 
+  const createKey = async () => {
+    const selected = await createLanPairingKeyFile()
+    if (!selected) return null
+    setDraft((current) => ({ ...current, keyFile: selected }))
+    setMessage('Pairing file created. Apply the host connection, then copy this file securely to each client and choose it there.')
+    return selected
+  }
+
+  const createKeyOnly = async () => {
+    setBusy(true)
+    setMessage('')
+    try {
+      await createKey()
+    } catch (error) {
+      setMessage((error as { message?: string })?.message ?? String(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const apply = async () => {
     setBusy(true)
     setMessage('')
-    const hostConfig: LanDevCoordinatorConfig = {
-      enabled: draft.enabled && hostEnabled,
-      listen: draft.coordinator,
-      port: draft.port,
-      keyFile: draft.keyFile,
-    }
     try {
+      let appliedDraft = draft
+      if (draft.enabled && hostEnabled && !draft.keyFile) {
+        const keyFile = await createKey()
+        if (!keyFile) {
+          setMessage('Host setup was cancelled before a pairing file was created.')
+          return
+        }
+        appliedDraft = { ...draft, keyFile }
+      }
+      const hostConfig: LanDevCoordinatorConfig = {
+        enabled: appliedDraft.enabled && hostEnabled,
+        listen: appliedDraft.coordinator,
+        port: appliedDraft.port,
+        keyFile: appliedDraft.keyFile,
+      }
       let nextAgent: LanAgentReport
       let nextHost: LanDevCoordinatorReport
       if (hostConfig.enabled) {
         nextHost = await lanDevCoordinatorConfigure(hostConfig)
-        nextAgent = await lanAgentConfigure(draft)
+        nextAgent = await lanAgentConfigure(appliedDraft)
       } else {
         // Disconnect the outbound agent before closing the server it may be using.
-        nextAgent = await lanAgentConfigure(draft)
+        nextAgent = await lanAgentConfigure(appliedDraft)
         nextHost = await lanDevCoordinatorConfigure(hostConfig)
       }
       setDraft(nextAgent.config)
@@ -129,18 +200,7 @@ export function LanAgentSettings() {
     }
   }
 
-  const authenticated = report?.connectionState === 'connected'
-  const status = draft.enabled
-    ? hostEnabled
-      ? authenticated && hostReport?.running
-        ? 'Developer network connected'
-        : 'Host enabled, recovering'
-      : authenticated
-        ? 'Authenticated'
-        : report?.connectionState === 'starting'
-          ? 'Starting'
-          : 'Enabled, retrying'
-    : 'Off'
+  const status = lanConnectionStatus({ busy, draft, hostEnabled, report, hostReport })
 
   return (
     <div className="field">
@@ -175,6 +235,11 @@ export function LanAgentSettings() {
         {hostEnabled
           ? 'The primary opens one encrypted listener on the private address below and an authenticated loopback-only MCP attachment. Node.js must be installed. This control network does not sync research data by itself.'
           : 'This computer makes an outbound encrypted control connection and never opens a LAN listener. It does not sync research data by itself.'}
+      </em>
+      <em className="hint">
+        {hostEnabled
+          ? 'Start here: create a pairing file, apply this host, then copy that file securely to each client. Treat the file like a password.'
+          : 'Copy the pairing file from the host computer, choose it below, then apply this client connection.'}
       </em>
       <label className="field">
         <span>Computer label</span>
@@ -228,17 +293,26 @@ export function LanAgentSettings() {
         </div>
       ) : null}
       <label className="field">
-        <span>Pairing-key file</span>
+        <span>LAN pairing file</span>
         <div className="row gap">
-          <input className="grow" readOnly value={draft.keyFile} placeholder="Choose the copied .syzygy-lan.key file" />
+          <input className="grow" readOnly value={draft.keyFile} placeholder={hostEnabled ? 'Create a new .syzygy-lan.key file' : 'Choose the file copied from the host'} />
+          {hostEnabled ? (
+            <button type="button" className="btn sm ghost" disabled={busy} onClick={() => void createKeyOnly()}>
+              Create file
+            </button>
+          ) : null}
           <button type="button" className="btn sm ghost" onClick={() => void chooseKey()}>
-            Choose file
+            {hostEnabled ? 'Use existing' : 'Choose file'}
           </button>
         </div>
       </label>
       <div className="row gap">
         <button type="button" className="btn sm" disabled={busy} onClick={() => void apply()}>
-          {busy ? 'Applying…' : 'Apply developer connection'}
+          {busy
+            ? 'Applying…'
+            : hostEnabled && !draft.keyFile
+              ? 'Create pairing file & start host'
+              : 'Apply developer connection'}
         </button>
         <button
           type="button"

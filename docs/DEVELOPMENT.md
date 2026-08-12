@@ -708,7 +708,8 @@ rejects the wrong pairing key, authenticates the loopback MCP attachment, negoti
 the app-owned input, and proves the coordinator, attachment process, private listener, and control
 listener all exit within bounded deadlines. Rust and server-rendered UI tests separately cover saved
 agent/host configuration, private-address/key-path validation, startup order, disable/reconfigure
-replacement, graceful two-second shutdown, kill-and-reap fallback, and shutdown order. The physical
+replacement, native non-overwriting 32-byte pairing-file creation, unapplied-draft labeling,
+graceful two-second shutdown, kill-and-reap fallback, and shutdown order. The physical
 harness requires two exact node labels and all thirty-seven native tools on each installation. Its
 default mode performs only catalog/identity checks; `--mutate` uses a dedicated proof project, exact
 revisions, guarded share/join, partition-like concurrent document appends, bidirectional readback,

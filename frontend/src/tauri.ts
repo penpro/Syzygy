@@ -1090,6 +1090,16 @@ export async function pickLanPairingKeyFile(): Promise<string | null> {
   return typeof selected === 'string' ? selected : null
 }
 
+/** Create fresh native-only LAN pairing material at a user-selected path. */
+export async function createLanPairingKeyFile(): Promise<string | null> {
+  const selected = await save({
+    defaultPath: 'syzygy-network.syzygy-lan.key',
+    filters: [{ name: 'Syzygy LAN pairing file', extensions: ['key'] }],
+  })
+  if (!selected) return null
+  return invoke<string>('lan_pairing_key_create', { path: selected })
+}
+
 // ---------- optional remote-provider credentials ----------
 
 /**

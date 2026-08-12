@@ -464,9 +464,12 @@ unfinished evaluation or presence features are available. Drive project sharing 
 It must also say that MCP does not automatically gain Drive, filesystem, or local-model authority.
 
 Settings also includes **Private LAN test connection** as an opt-in advanced control. It asks for
-a plain-language computer label, one explicit private coordinator address and port, and a pairing-
-key file chosen through the native file picker. The status distinguishes saved configuration, a
-running outbound agent, a running app-owned host, recovery, and actionable failure.
+a plain-language computer label and one explicit private coordinator address and port. Host setup
+can create a fresh `.syzygy-lan.key` through the native Save dialog; key generation and writing stay
+native-only. Nearby copy tells the host to copy that file securely to each client and tells a client
+to choose the copied file. It also says to treat the file like a password. The status distinguishes
+unapplied draft controls, saved configuration, a running outbound agent, a running app-owned host,
+recovery, and actionable failure. Merely checking a box must never report host mode as enabled.
 The UI must not infer connectivity from a child PID. It reports authenticated only after the
 encrypted handshake event, otherwise shows starting, retrying, recovering, or stopped; it also exposes
 the last successful handshake, retry count, sanitized failure, and an explicit **Reconnect now**

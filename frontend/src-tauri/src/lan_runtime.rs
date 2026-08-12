@@ -4,9 +4,10 @@
 //! key itself remains in that file and is read only by the child agent. The GUI never opens a LAN
 //! listener; it starts one outbound child and reaps it before the desktop process exits.
 
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::io::{BufRead, BufReader};
+use std::fs::{self, OpenOptions};
+use std::io::{BufRead, BufReader, Write};
 use std::net::{IpAddr, Ipv6Addr};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -109,6 +110,52 @@ impl Default for LanAgentInner {
 
 #[derive(Default)]
 pub struct LanAgentRuntime(Mutex<LanAgentInner>);
+
+fn create_pairing_key_file(path: &Path) -> Result<PathBuf, String> {
+    if !path.is_absolute() {
+        return Err("Choose an absolute path for the LAN pairing file".into());
+    }
+    let parent = path
+        .parent()
+        .filter(|directory| directory.is_dir())
+        .ok_or_else(|| "The LAN pairing-file folder is not available".to_string())?;
+    let mut key = [0_u8; 32];
+    getrandom::getrandom(&mut key)
+        .map_err(|_| "Could not generate secure LAN pairing material".to_string())?;
+    let encoded = URL_SAFE_NO_PAD.encode(key);
+
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options.open(path).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::AlreadyExists {
+            "That LAN pairing file already exists. Choose a new filename so an active network is not silently replaced".to_string()
+        } else {
+            format!("Could not create the LAN pairing file: {error}")
+        }
+    })?;
+    file.write_all(encoded.as_bytes())
+        .and_then(|_| file.write_all(b"\n"))
+        .and_then(|_| file.sync_all())
+        .map_err(|error| format!("Could not finish the LAN pairing file: {error}"))?;
+    parent
+        .join(
+            path.file_name()
+                .ok_or_else(|| "Choose a filename for the LAN pairing file".to_string())?,
+        )
+        .canonicalize()
+        .map_err(|_| "The new LAN pairing file could not be resolved".to_string())
+}
+
+#[tauri::command]
+pub fn lan_pairing_key_create(path: String) -> Result<String, String> {
+    create_pairing_key_file(Path::new(path.trim()))
+        .map(|created| created.to_string_lossy().into_owned())
+}
 
 fn config_path(app: &AppHandle) -> Result<PathBuf, String> {
     app.path()
@@ -542,6 +589,28 @@ pub fn shutdown(app: &AppHandle) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn creates_one_non_overwriting_native_pairing_key_file() {
+        let directory = std::env::temp_dir().join(format!(
+            "syzygy-lan-key-{}-{}",
+            std::process::id(),
+            now_ms()
+        ));
+        fs::create_dir_all(&directory).expect("temporary pairing directory");
+        let path = directory.join("office.syzygy-lan.key");
+        let created = create_pairing_key_file(&path).expect("pairing key");
+        assert_eq!(created, path.canonicalize().expect("canonical key path"));
+        let raw = fs::read_to_string(&path).expect("pairing key contents");
+        let decoded = URL_SAFE_NO_PAD
+            .decode(raw.trim())
+            .expect("base64url pairing key");
+        assert_eq!(decoded.len(), 32);
+        assert!(create_pairing_key_file(&path)
+            .expect_err("must not overwrite a pairing key")
+            .contains("already exists"));
+        fs::remove_dir_all(directory).expect("remove temporary pairing directory");
+    }
 
     #[test]
     fn accepts_only_private_explicit_coordinators() {

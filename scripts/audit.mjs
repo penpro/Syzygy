@@ -3279,6 +3279,8 @@ record(
     lanRuntimeSource.includes('lan-agent.json') &&
     lanRuntimeSource.includes('Command::new(executable)') &&
     lanRuntimeSource.includes('pub fn shutdown') &&
+    lanRuntimeSource.includes('pub fn lan_pairing_key_create') &&
+    lanRuntimeSource.includes('.create_new(true)') &&
     lanRuntimeSource.includes('key_path.is_absolute()') &&
     lanHostSource.includes('superviseLanAgent') &&
     lanHostSource.includes('attaching to the coordinator already owned by Syzygy developer mode') &&
@@ -3300,6 +3302,9 @@ record(
     lanLocalMcpSource.includes('if (child.kill()) return') &&
     lanSettingsSource.includes('Private LAN test connection') &&
     lanSettingsSource.includes('pickLanPairingKeyFile') &&
+    lanSettingsSource.includes('createLanPairingKeyFile') &&
+    lanSettingsSource.includes('Create pairing file & start host') &&
+    lanSettingsSource.includes('Changes not applied') &&
     lanSettingsSource.includes('Host the collaboration developer network on this computer') &&
     lanSettingsSource.includes('PowerShell is diagnostic-only') &&
     lanDriveHarnessSource.includes("'--mutate'") &&

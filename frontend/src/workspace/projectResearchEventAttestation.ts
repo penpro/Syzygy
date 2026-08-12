@@ -27,6 +27,7 @@ const EVENT_KINDS: readonly ProjectResearchEventKind[] = [
   'suggestion',
   'policy-version',
   'adversarial-review',
+  'provider-review',
   'plugin-review',
   'heuristic',
   'scenario-rerun',

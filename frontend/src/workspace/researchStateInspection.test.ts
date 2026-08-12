@@ -183,6 +183,13 @@ describe('research state inspection', () => {
       archiveCount: 0, decisionCount: 0, invalidRecords: 0,
       conflictedRunIds: [], truncated: false, items: [],
     })
+    expect(result.providerReviews).toEqual({
+      archiveCount: 0,
+      conflictedRunIds: [],
+      totalBytes: 0,
+      truncated: false,
+      items: [],
+    })
     expect(result.projectDevices).toEqual({
       registrationCount: 1,
       deviceCount: 1,

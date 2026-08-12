@@ -2818,7 +2818,7 @@ record(
     adversarialHistoryTestSource.includes('counts hostile collaborative records without returning their bodies') &&
     automationBridgeSource.includes("case 'research.saveAdversarialReview'") &&
     automationBridgeSource.includes("case 'research.decideAdversarialReview'") &&
-    researchStateInspectionSource.includes('adversarial-review question/source/result/decision-note bodies') &&
+    researchStateInspectionSource.includes('adversarial-review and provider-review question/source/result/tool-proposal bodies, adversarial decision-note bodies') &&
     mcpSource.includes('"save_adversarial_review"') &&
     mcpSource.includes('"decide_adversarial_review"') &&
     mcpHarnessSource.includes('tools.length < 49') &&
@@ -3108,6 +3108,32 @@ record(
     !text('frontend/src/tauri.ts').includes('disclosureAccepted') &&
     text('frontend/src-tauri/src/bin/provider-runtime-harness.rs').includes('interop-secret-canary'),
   'OpenAI, Anthropic, Gemini, and xAI request/stream/custom-proposal contracts plus a four-turn native exact-source locator use provider-issued call binding, stateless native-only replay, fresh disclosure, bounded pending state, content-free run metadata, and truthful no-live-proof status',
+)
+record(
+  'completed single-provider reviews require explicit immutable shared archival with conflict retention and device attribution',
+  text('frontend/src/workspace/providerReviewHistory.ts').includes("PROVIDER_REVIEW_PREFIX = 'provider-review:v1:'") &&
+    text('frontend/src/workspace/providerReviewHistory.ts').includes('MAX_PROVIDER_REVIEW_ARCHIVE_BYTES = 8 * 1024 * 1024') &&
+    text('frontend/src/workspace/providerReviewHistory.ts').includes('MAX_PROVIDER_REVIEW_HISTORY_BYTES = 32 * 1024 * 1024') &&
+    text('frontend/src/workspace/providerReviewHistory.ts').includes('validateProviderRunRecord') &&
+    text('frontend/src/workspace/providerReviewHistory.ts').includes('projectStateFingerprint(document) !== input.expectedResearchRevision') &&
+    text('frontend/src/workspace/providerReviewHistory.ts').includes("'syzygy-provider-review-archive'") &&
+    text('frontend/src/workspace/providerReviewHistory.test.ts').includes('keeps same-run divergent peer archives as an explicit conflict') &&
+    text('frontend/src/workspace/providerReviewHistory.test.ts').includes('fails before mutation on stale research, hostile records, and native provenance mismatch') &&
+    text('frontend/src/workspace/RemoteResearchReview.tsx').includes('Share full review with project') &&
+    text('frontend/src/workspace/RemoteResearchReview.tsx').includes('outcome.toolContinuationAvailable') &&
+    text('frontend/src/workspace/RemoteResearchReview.tsx').includes('attestProviderReviewArchiveEvent') &&
+    text('frontend/src/workspace/RemoteResearchReview.ui.test.tsx').includes('keeps shared history content-free until an exact verified archive is selected') &&
+    text('frontend/src/workspace/researchEventAttribution.ts').includes("'provider-review'") &&
+    text('frontend/src/workspace/projectResearchEventAttestation.ts').includes("'provider-review'") &&
+    text('frontend/src-tauri/src/collaboration_identity.rs').includes('| "provider-review"') &&
+    text('frontend/src/tauri.ts').includes("| 'provider-review'") &&
+    text('frontend/src/workspace/researchStateInspection.ts').includes('providerReviews: {') &&
+    text('frontend/src/workspace/researchStateInspection.ts').includes('provider-review question/source/result/tool-proposal bodies') &&
+    platformContractsSource.includes('"providerReviewHistory": "explicit-full-content-shared-immutable-conflict-retained-device-attributed-no-draft-mutation"') &&
+    platformContractsSource.includes('"providerReviewHistoryCommand": "npm run test:provider-review-history"') &&
+    frontendPackage.scripts?.['test:provider-review-history']?.includes('run-with-heartbeat.mjs') &&
+    text('docs/audits/runs/PROVIDER-REVIEW-HISTORY-2026-08-11.json').includes('"status": "implemented_unverified"'),
+  'a separate human action stores the exact frozen request, normalized response, tool proposals, and native content-free provenance in bounded Yjs history; malformed history and divergent same-run archives fail closed, draft mutation remains absent, and registered-device signing is best effort after commit',
 )
 record(
   'adversarial batch authorization is native, content-bound, exact, and expiring',

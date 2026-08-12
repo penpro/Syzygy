@@ -1,5 +1,6 @@
 import type * as Y from 'yjs'
 import { inspectAdversarialReviewHistory } from '../extensions/adversarialHistory'
+import { inspectProviderReviewHistory } from './providerReviewHistory'
 import { listHeuristics } from './heuristicsModel'
 import { inspectHeuristicExamples } from './heuristicExampleModel'
 import { inspectHeuristicCheckResults } from './heuristicCheckResultModel'
@@ -79,6 +80,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
     researchEventAttestationResolver(discussions, settings, versionMap, scenarioMap),
   )
   const adversarialReviewInspection = await inspectAdversarialReviewHistory(discussions)
+  const providerReviewInspection = await inspectProviderReviewHistory(discussions)
   const allVersions = await listPolicyVersions(versionMap)
   const versions = allVersions.filter((version) => version.projectId === expectedProjectId)
   const foreignProjectVersions = allVersions.length - versions.length
@@ -102,6 +104,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
   issues.push(...labelInspection.issues)
   issues.push(...suggestionInspection.issues)
   issues.push(...adversarialReviewInspection.issues)
+  issues.push(...providerReviewInspection.issues)
   if (presence.available && !presence.healthy) issues.push(`${presence.invalidRecords} presence record(s) failed validation or exceeded the bound`)
   if (!projectDevices.healthy) {
     issues.push(`${projectDevices.invalidRecords + projectDevices.unavailableRecords} project device registration(s) failed validation, verification, or bounds`)
@@ -337,6 +340,13 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
       truncated: adversarialReviewInspection.items.length > MAX_RETURNED_ITEMS,
       items: adversarialReviewInspection.items.slice(0, MAX_RETURNED_ITEMS),
     },
+    providerReviews: {
+      archiveCount: providerReviewInspection.archiveCount,
+      conflictedRunIds: providerReviewInspection.conflictedRunIds,
+      totalBytes: providerReviewInspection.totalBytes,
+      truncated: providerReviewInspection.items.length > MAX_RETURNED_ITEMS,
+      items: providerReviewInspection.items.slice(0, MAX_RETURNED_ITEMS),
+    },
     versions: {
       totalRecords: versionMap.size,
       validRecords: versions.length,
@@ -363,7 +373,7 @@ export async function inspectResearchState(doc: Y.Doc, expectedProjectId: string
       'inspection itself is read-only; separate revision-guarded MCP tools can mutate scenarios, votes, annotations, labels, and policy versions, but suggestion decisions, heuristic mutation, and broader scenario lifecycle remain unavailable through MCP',
       'presence reports only active provider mode and bounded session counts; Drive polling is explicitly not live presence, and inspection does not prove an underlying transport healthy',
       'project device registrations expose stable public fingerprints and self-reported participant IDs from shared project state; they prove only possession of self-issued keys and grant no identity, role, revocation, or relay authority',
-      'counts and integrity are checked; policy text, adversarial-review question/source/result/decision-note bodies, suggestion content and decision bodies, heuristic guidance, example bodies/attribution, and heuristic-check rationale, uncertainty, citation text, scenario background/turn content/revision bodies, scenario-evaluation response/rationale/uncertainty bodies, annotation/voter bodies, label event bodies, edit values, and version notes are omitted',
+      'counts and integrity are checked; policy text, adversarial-review and provider-review question/source/result/tool-proposal bodies, adversarial decision-note bodies, suggestion content and decision bodies, heuristic guidance, example bodies/attribution, and heuristic-check rationale, uncertainty, citation text, scenario background/turn content/revision bodies, scenario-evaluation response/rationale/uncertainty bodies, annotation/voter bodies, label event bodies, edit values, and version notes are omitted',
     ],
   }
 }

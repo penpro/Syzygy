@@ -237,6 +237,8 @@ async function proveStdioContract() {
   if (contracts?.implementationStatus?.remoteProviderAdapters !== 'native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-custom-tool-review-bounded-source-locator-continuation-no-live-proof') throw new Error('aggregate provider status is inaccurate')
   if (contracts?.implementationStatus?.providerToolContinuation !== 'native-exact-frozen-source-read-only-stateless-replay-four-turn-no-live-proof') throw new Error('provider tool continuation status is inaccurate')
   if (contracts?.selfCheck?.providerToolContinuationCommand !== 'npm run test:provider-tool-continuation') throw new Error('provider tool continuation self-check is missing')
+  if (contracts?.implementationStatus?.providerReviewHistory !== 'explicit-full-content-shared-immutable-conflict-retained-device-attributed-no-draft-mutation') throw new Error('provider review history status is inaccurate')
+  if (contracts?.selfCheck?.providerReviewHistoryCommand !== 'npm run test:provider-review-history') throw new Error('provider review history self-check is missing')
   if (contracts?.implementationStatus?.credentialVault !== 'settings-vault-ui') throw new Error('credential vault status is inaccurate')
 
   return {

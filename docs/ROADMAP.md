@@ -77,7 +77,7 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   strict plugin/proposal schemas, the public adversarial record, native content-bound
   multi-provider execution, and three resumable MCP job tools. The execution path is loopback
   conformance-tested and remains non-mutating/pending-human-review; live-provider compatibility,
-  durable run UI/history, benchmark quality, plugin discovery/publisher trust, and capability-
+  benchmark quality, plugin discovery/publisher trust, and capability-
   bearing plugin hosts remain open. The zero-import runtime now has explicit session loading,
   publisher-signed local lifecycle, product/MCP execution, and shared non-applying review.
   Evidence and
@@ -435,7 +435,12 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 - A strict public provider-run record now captures content-free call provenance, disclosure,
   destination, dated policy, storage/ZDR state, terminal outcome, usage, and cost. Its semantic
   validator and MCP embedding are implemented; the Rust task command now emits authoritative
-  records, while workflow persistence and live-provider evidence remain open.
+  records. The ordinary Remote perspective now has explicit workflow persistence: a completed
+  response can be shared as one immutable, bounded, conflict-retaining full archive with exact
+  frozen request/response/run provenance and best-effort registered-device attribution. Routine
+  inspection stays body-free and the draft remains untouched. Packaged two-install propagation,
+  live-provider evidence, near-limit usability, and a durable local history for failed/cancelled
+  calls remain open.
 - Custom compatible model adapters now have strict profile/certification schemas, a non-executing
   package runner, hostile profile fixtures, exact endpoint probes, and a documented local-vLLM
   example. Runtime transport and credentials remain `contract-only`.
@@ -749,7 +754,8 @@ collaborators are not required to download large project folders.
    re-resolves the live event hash and retained author, rejecting cross-author claims, and omits proof
    and research bodies or label names. Signing failure is explicitly unsigned and never rolls back
    the mutation or checkpoint. Suggestion, heuristic, and scenario-rerun adoption now complete the
-   exact retained-state resolver set for all ten named research-event domains. Device-bound admin credentials now expose a strict reserved
+   exact retained-state resolver set for all twelve named research-event domains, including full
+   single-provider review archives. Device-bound admin credentials now expose a strict reserved
    control channel: the relay consumes the ordinary fresh proof, verifies a second action/revision
    signature, durably mutates/reloads membership, and evicts room peers. The product exposes those
    controls on a remotely hosted project only for the enrolled admin installation. A repeatable exact

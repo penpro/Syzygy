@@ -66,7 +66,7 @@ Recommended first instruction to an MCP-capable model:
 | `open_project` | navigation | Opens a non-archived project by stable ID |
 | `rename_project` | local metadata or Drive title event | Local projects change local metadata. Drive projects require the complete exact `sharedTitle.revisionGuards`; stale calls fail, simultaneous siblings remain visible, and an all-tip rename reconciles without deleting history |
 | `read_active_project` | no | Returns the manifest plus structured blocks, plain text, and a revision; Drive projects also return bounded shared-title tips and exact rename guards |
-| `inspect_research_state` | no | Validates bounded signed project-device registrations, exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, suggestion, plugin proposal/decision/application, heuristic, policy-version, and adversarial archive/decision events, and relay-approval intent metadata plus live scenario/vote/flag/note/label/suggestion/heuristic/adversarial-review/version/head/lineage state; omits proof bodies, private keys, member capabilities, and research bodies; shared state explicitly cannot attest the relay host's current policy and grants no human identity, role, revocation, relay, or mutation authority |
+| `inspect_research_state` | no | Validates bounded signed project-device registrations, exact-hash installation attestations for scenario lifecycle, turn, vote, annotation, label, suggestion, plugin proposal/decision/application, heuristic, policy-version, adversarial archive/decision, and full single-provider review archive events, plus relay-approval intent metadata and live scenario/vote/flag/note/label/suggestion/heuristic/adversarial/provider-review/version/head/lineage state; provider-review projection returns metadata/counts/conflicts only and omits question/source/response/tool bodies; all inspection omits proof bodies, private keys, member capabilities, and research bodies; shared state explicitly cannot attest the relay host's current policy and grants no human identity, role, revocation, relay, or mutation authority |
 | `inspect_plugin_workspace` | no | Returns bounded local installed-version, active-package, and shared plugin-review metadata without component, proposal, or signature bodies, including each proposal's exact source revision, accepted decision event ID, application count/event ID/result revision when present, plus the current research revision and a no-automatic-mutation disclosure. Read the current document revision separately with `read_active_project`; inspection cannot change package lifecycle. |
 | `run_loaded_plugin` | shared proposal events | Runs only an exact package already active in the current GUI, including a signed installed package restored after exact re-verification, under document/research revision guards; publishes a bounded proposal batch, reports each proposal's signed-device or explicit unsigned attribution, and never applies draft text |
 | `apply_accepted_plugin_review` | active policy draft plus application event | Separately applies one accepted non-conflicted review under exact review/proposal/decision/research/document guards. `confirmFullReplacement` must be `false` for append and `true` for replace. Append preserves all current blocks and creates one linked review-policy block; replace removes the current draft and creates one linked block. After exact editor confirmation, one immutable application event binds the source/result revisions and configured researcher and reports registered-device or explicit unsigned attribution. Stale, raced, cross-project, rejected/conflicted, replayed, colliding, or confirmation-mismatched state fails before the write; the plugin receives no mutation authority and the response omits proposal content. |
@@ -183,6 +183,10 @@ MCP host
   to know whether the host currently enforces a signer quorum. Inspection omits approval action
   bodies, keys, signatures, participant IDs, and expiry timestamps and cannot register, sign,
   approve, configure policy, revoke, authenticate, assign a role, or change relay access.
+  Ordinary provider-review projection adds only run/provider/model/author/time/source/token/count,
+  byte-bound, and conflict metadata. Full questions, frozen excerpts, responses, and retained tool
+  proposals remain available only through the product's explicit verified-archive selection; MCP has
+  no full provider-review body read or archive mutation tool.
 - `inspect_relay_approval_policy` is a separate authoritative host-local read. It works only when the
   active WebSocket project's exact endpoint and room belong to the relay running in this Syzygy
   process. It returns aggregate member counts, current policy key IDs/quorum, and healthy project-
@@ -234,11 +238,13 @@ MCP host
   inspection returns event/key/participant/hash metadata but omits public keys, signatures, display
   names, and vote bodies. A stale call fails before adding an event. Installation signatures improve
   attribution continuity but are self-issued device claims, so the tool is not an authenticated
-  election, person/organization identity, or Sybil-resistant consensus. All ten named event kinds
+  election, person/organization identity, or Sybil-resistant consensus. All twelve named event kinds
   now have production resolvers. Suggestion proposal/decision tools and product heuristic
   definition/example/check-result and scenario-rerun definition/control/item/result mutations follow
   the same commit-first exact-retained-event pattern. Scenario-rerun adds no new MCP mutation route;
   broad read-only research inspection validates its product-authored attestations.
+  Explicitly shared single-provider archives use the same commit-first pattern under the separate
+  `provider-review` kind; signing failure leaves the immutable archive intact and never edits the draft.
 - Scenario-turn add, revise, and reconcile retain an exact immutable revision before best-effort
   registered-device signing. The canonical hash binds edit ID, role, body, participant, caller time,
   complete parent set, and create/edit/reconcile source; a length-prefixed locator binds the scenario

@@ -10,6 +10,18 @@ bounded timeout/cancellation, normalized results, and content-free run records. 
 loopback providers only; no live-provider compatibility or quality claim is made. Custom remote
 adapters remain contract-only.
 
+A successful ordinary remote review still begins as a transient artifact. **Share full review with
+project** is a separate revision-checked mutation that writes one canonical immutable archive to the
+project's Yjs discussions map. The archive binds the exact structured request and frozen sources,
+normalized response and retained tool proposals, native content-free run record, project/document,
+editor source revision, save-time research revision, and installation-provided author snapshot.
+Per-record/history bounds are 8 MiB/32 MiB with at most 256 archives. Same-run divergent hashes are
+retained as a conflict; malformed, oversized, stale, duplicate, or provenance-mismatched state fails
+before mutation. Routine `inspect_research_state` returns archive metadata and integrity only. The
+full body is decoded only after explicit selection in the product. A pending source-locator turn
+cannot be shared. After commit, best-effort `provider-review` device attribution signs the exact
+retained archive hash without rolling back on failure. Neither path changes the policy draft.
+
 The adversarial path uses one native batch decision. Its request contains the exact research
 question, frozen source objects, complete call graph, provider/model routes, dependencies,
 presentation order, per-call execution limits, route ceilings, and total ceiling. Rust validates
@@ -182,6 +194,10 @@ in `docs/audits/runs/PROVIDER-SOURCE-LOCATOR-CONTINUATION-2026-08-11.json`.
 - The native source locator searches only already-disclosed frozen excerpts, uses provider-issued
   call IDs, retains replay only in process memory, and requires a fresh native disclosure per turn.
   It grants no general custom-tool or external-resource authority.
+- Ordinary review persistence is a separate explicit shared-history action. It preserves full
+  research content in the configured project transport, exposes conflicts instead of selecting a
+  winner, and has no draft-mutation authority. Device signatures identify self-issued installation
+  keys, not authenticated people or organizations.
 - Custom endpoints are visibly unverified and require HTTPS unless the user explicitly selects a
   loopback development endpoint.
 
@@ -346,6 +362,8 @@ Every adapter runs the same fake-server and live opt-in tests:
 8. provider policy URL and review date present.
 9. a schema-valid provider-run record passes semantic validation without raw research content.
 10. custom profiles pass hostile package and exact endpoint-probe certification without execution.
+11. shared ordinary-review history rejects stale/hostile/provenance-mismatched archives, retains
+    peer conflicts, keeps routine inspection body-free, and never mutates the draft.
 
 Passing the contract suite establishes protocol behavior for a named adapter version; it does not
 establish model quality or a provider's legal/privacy suitability for a particular study.
@@ -354,3 +372,4 @@ Run the currently executable Rust provider slice with `npm run test:providers`.
 Run the internal vault/task/provenance bridge with `npm run test:provider-runtime`.
 Run its Rust-to-TypeScript record proof with `npm run test:provider-runtime-interop`.
 Run its incremental streaming parser with `npm run test:provider-streams`.
+Run explicit shared ordinary-review history with `npm run test:provider-review-history`.

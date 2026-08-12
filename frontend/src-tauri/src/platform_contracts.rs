@@ -62,6 +62,7 @@ pub fn current() -> Result<Value, String> {
             "remoteProviderAdapters": "native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-custom-tool-review-bounded-source-locator-continuation-no-live-proof",
             "providerTaskRuntime": "native-disclosure-research-envelope",
             "providerToolContinuation": "native-exact-frozen-source-read-only-stateless-replay-four-turn-no-live-proof",
+            "providerReviewHistory": "explicit-full-content-shared-immutable-conflict-retained-device-attributed-no-draft-mutation",
             "providerBatchAuthorization": "native-content-bound-call-graph-authorizer",
             "providerBatchReservation": "native-atomic-dependency-bound-executor",
             "providerRunRecordValidator": "implemented",
@@ -139,6 +140,7 @@ pub fn current() -> Result<Value, String> {
             "providerRuntimeInteropCommand": "npm run test:provider-runtime-interop",
             "providerStreamCommand": "npm run test:provider-streams",
             "providerToolContinuationCommand": "npm run test:provider-tool-continuation",
+            "providerReviewHistoryCommand": "npm run test:provider-review-history",
             "credentialCommand": "npm run test:credentials",
             "credentialLiveCommand": "npm run test:credentials:live",
             "pluginCertifierCommand": "npm run test:plugin-sdk",
@@ -176,6 +178,14 @@ mod tests {
         assert_eq!(
             contracts["selfCheck"]["providerToolContinuationCommand"],
             "npm run test:provider-tool-continuation"
+        );
+        assert_eq!(
+            contracts["implementationStatus"]["providerReviewHistory"],
+            "explicit-full-content-shared-immutable-conflict-retained-device-attributed-no-draft-mutation"
+        );
+        assert_eq!(
+            contracts["selfCheck"]["providerReviewHistoryCommand"],
+            "npm run test:provider-review-history"
         );
         assert_eq!(
             contracts["implementationStatus"]["providerTaskRuntime"],

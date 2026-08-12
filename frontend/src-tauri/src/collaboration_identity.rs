@@ -529,6 +529,7 @@ fn research_event_kind(value: &str) -> bool {
             | "suggestion"
             | "policy-version"
             | "adversarial-review"
+            | "provider-review"
             | "plugin-review"
             | "heuristic"
             | "scenario-rerun"
@@ -1415,6 +1416,10 @@ mod tests {
         let mut plugin_review = research_event_claim();
         plugin_review.event_kind = "plugin-review".into();
         assert_eq!(validate_research_event_claim(&plugin_review), Ok(()));
+
+        let mut provider_review = research_event_claim();
+        provider_review.event_kind = "provider-review".into();
+        assert_eq!(validate_research_event_claim(&provider_review), Ok(()));
 
         let mut maximum_locator = research_event_claim();
         maximum_locator.event_id = "x".repeat(1024);

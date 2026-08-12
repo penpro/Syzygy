@@ -499,6 +499,17 @@ themes.
 Browser-only design previews show a neutral **Available in the installed app** state rather than a
 false credential failure; the installed Tauri webview performs the real vault presence check.
 
+The single-provider **Remote perspective** remains transient after a response until the researcher
+chooses **Share full review with project**. That action must say that the full question, frozen
+source excerpts, normalized response, retained tool proposals, and content-free provider provenance
+enter collaborative project history and may travel through the configured Drive or relay transport.
+It never changes the policy draft. A pending native source-locator turn cannot be archived. Shared
+history lists only provider/model/author/time/source/token metadata until a researcher explicitly
+opens one verified archive. Same-run divergent peer archives remain visible conflicts with no
+selected winner; malformed history disables new shares. After commit, show pending, shortened
+registered-device signature, or explicit unsigned status, while stating that an installation key is
+not a person or organization and signing failure did not discard the archive.
+
 The **Adversarial review** surface is a distinct, optional workflow below the single-provider
 perspective. It lets the researcher select 1–200 exact non-empty draft blocks, configure two to
 eight independent perspectives plus a blinded judge and compute-matched baseline, and see the exact

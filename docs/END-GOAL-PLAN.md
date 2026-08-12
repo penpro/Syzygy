@@ -171,7 +171,8 @@ connection proofs, and a second action-bound signature for device-administered e
 membership. A repeatable exact-binary five-client partition/reconnect soak passes. Shared-directory
 approval, propagated identity revocation, device-key rotation/recovery, presence-proof replay
 rejection, and physical two-install product proof remain open. Exact retained-event signing now
-covers all ten named research-event domains, so
+covers all twelve named research-event domains, including immutable full single-provider review
+archives, so
 P-11 is `implemented_unverified`.
 
 
@@ -669,9 +670,12 @@ making a paid provider mandatory.
 Progress: the strict Draft 2020-12 provider-run schema and plan-independent semantic validator now
 land. Synthetic fixtures prove content exclusion, remote disclosure/HTTPS, dated policy metadata,
 typed retention attestation, terminal-state consistency, source identity, token totals, and cost
-bounds. MCP embeds the same schema. The registered Rust one-shot command now authors the record;
-workflow persistence and live-provider evidence remain open, and client-authored records are not
-authoritative evidence.
+bounds. MCP embeds the same schema. The registered Rust one-shot command now authors the record.
+Completed ordinary reviews now have explicit workflow persistence as bounded immutable full-content
+Yjs archives with conflict retention, body-free routine inspection, exact native-run provenance,
+and best-effort registered-device attribution. Failed/cancelled-call history, packaged two-install
+propagation, near-limit usability, and live-provider evidence remain open; client-authored records
+are not authoritative provider evidence.
 
 The constrained custom-adapter profile and non-executing headless certifier now also land. They
 cover OpenAI Responses, Chat Completions, and Anthropic Messages compatibility; pin literal

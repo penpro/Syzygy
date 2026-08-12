@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type * as Y from 'yjs'
 import {
   desktopRuntimeAvailable,
   providerCancel,
@@ -7,10 +8,12 @@ import {
   providerGenerate,
   providerGenerateStream,
   type ProviderTaskOutcome,
+  type ProviderResearchTaskRequest,
   type ProviderToolDefinition,
   type ProviderToolProposalValidation,
   type RemoteProviderId,
 } from '../tauri'
+import { useStore } from '../store'
 import {
   applyProviderStreamEvent,
   initialProviderStreamState,
@@ -18,12 +21,34 @@ import {
 } from '../providerStream'
 import { validateProviderToolProposal } from '../providerToolValidation'
 import { getAutomationEditorController } from './editorAutomationRegistry'
+import { getProjectSharedTypes, projectStateFingerprint } from './projectModel'
+import {
+  inspectProviderReviewHistory,
+  readProviderReviewArchive,
+  saveProviderReview,
+  type ProviderReviewArchive,
+  type ProviderReviewHistoryInspection,
+} from './providerReviewHistory'
+import {
+  attestProviderReviewArchiveEvent,
+  type ResearchEventAttributionResult,
+} from './researchEventAttribution'
 import type { ResearchProjectManifest } from './schema'
 import { buildRemoteReviewRequest, parseProviderToolDefinitions, REMOTE_REVIEW_PROVIDERS } from './remoteResearchTask'
+import { subscribeAutomationProjectDocument } from './workspaceAutomationRegistry'
 
 const DEFAULT_QUESTION = 'Identify the three most consequential unsupported assumptions or failure modes in this draft. Cite the relevant supplied passage and distinguish evidence from inference.'
 
 type ReviewPhase = 'idle' | 'preparing' | 'running' | 'cancelling' | 'complete' | 'error'
+
+const EMPTY_PROVIDER_HISTORY: ProviderReviewHistoryInspection = {
+  healthy: true,
+  archiveCount: 0,
+  items: [],
+  conflictedRunIds: [],
+  issues: [],
+  totalBytes: 0,
+}
 
 export function reconcileSourceLocatorContinuation(
   previous: ProviderTaskOutcome | null,
@@ -51,6 +76,7 @@ export type RemoteResearchReviewResultProps = {
   toolDefinitions?: ProviderToolDefinition[]
   onContinueTools?: () => void
   continuingTools?: boolean
+  shared?: boolean
 }
 
 export function providerUsesNativeStreaming(provider: RemoteProviderId): boolean {
@@ -80,6 +106,7 @@ export function RemoteResearchReviewResult({
   toolDefinitions = [],
   onContinueTools,
   continuingTools = false,
+  shared = false,
 }: RemoteResearchReviewResultProps) {
   const response = outcome?.response
   const text = response?.text ?? streamState?.text ?? ''
@@ -128,12 +155,91 @@ export function RemoteResearchReviewResult({
       ) : null}
       {streamState?.warnings.length ? <div className="remote-review-retention mono">Provider notices: {streamState.warnings.join(', ')}</div> : null}
       {outcome?.zeroDataRetention !== null && outcome?.zeroDataRetention !== undefined && <div className="remote-review-retention mono">Provider reported zero data retention: {outcome.zeroDataRetention ? 'yes' : 'no'}</div>}
-      <div className="remote-review-retention mono">Transient review · never applied to the shared draft automatically</div>
+      <div className="remote-review-retention mono">
+        {shared ? 'Shared immutable review archive' : 'Transient review'} · never applied to the shared draft automatically
+      </div>
     </div>
   )
 }
 
+export function ProviderReviewHistoryView({
+  inspection,
+  loading,
+  selectedRunId,
+  selectedArchive,
+  onSelect,
+}: {
+  inspection: ProviderReviewHistoryInspection
+  loading: boolean
+  selectedRunId: string | null
+  selectedArchive: ProviderReviewArchive | null
+  onSelect: (runId: string) => void
+}) {
+  return <section className="adversarial-history" aria-label="Shared provider review history">
+    <div className="adversarial-section-heading">
+      <strong>Shared provider review history</strong>
+      <span className="mono">{inspection.archiveCount} archive{inspection.archiveCount === 1 ? '' : 's'}</span>
+    </div>
+    {loading && <p className="scenario-state" role="status">Checking shared provider review history…</p>}
+    {inspection.issues.length > 0 && <div className="scenario-state error" role="alert">
+      New archives are disabled until history integrity is repaired: {inspection.issues.join('; ')}
+    </div>}
+    {!loading && inspection.archiveCount === 0 && <p className="scenario-state">
+      No single-provider reviews have been shared with this project.
+    </p>}
+    {inspection.conflictedRunIds.map((runId) => <div className="adversarial-conflict" key={runId}>
+      <strong>Provider review conflict · {runId}</strong>
+      <p>Collaborators retained different immutable archives for this run. No archive was selected.</p>
+    </div>)}
+    {inspection.items.length > 0 && <nav className="adversarial-history-list" aria-label="Saved provider reviews">
+      {inspection.items.map((item) => <button
+        className={item.runId === selectedRunId ? 'adversarial-history-item active' : 'adversarial-history-item'}
+        key={item.runId}
+        type="button"
+        onClick={() => onSelect(item.runId)}
+      >
+        <span>{item.providerId} · {item.model}</span>
+        <span className="mono">{new Date(item.createdAt).toISOString()} · {item.totalTokens ?? 'usage unknown'}{item.totalTokens === null ? '' : ' tokens'}</span>
+        <span className="mono">{item.createdBy.displayName} · {item.sourceCount} frozen source{item.sourceCount === 1 ? '' : 's'}</span>
+      </button>)}
+    </nav>}
+    {selectedRunId && !selectedArchive && !loading && !inspection.conflictedRunIds.includes(selectedRunId) && (
+      <p className="scenario-state error" role="alert">The selected provider review could not be verified.</p>
+    )}
+    {selectedArchive && <article className="remote-review-result" aria-label="Selected shared provider review">
+      <div className="remote-review-result-meta mono">
+        {selectedArchive.runRecord.provider.id} · {selectedArchive.runRecord.provider.model} · {selectedArchive.runRecord.usage.totalTokens ?? 'usage unknown'}{selectedArchive.runRecord.usage.totalTokens === null ? '' : ' tokens'}
+      </div>
+      <h4>Research question</h4>
+      <p>{selectedArchive.request.question}</p>
+      <details>
+        <summary>Frozen sources · {selectedArchive.request.sources.length}</summary>
+        {selectedArchive.request.sources.map((source) => <div key={source.snapshotId}>
+          <div className="mono">{source.label} · {source.snapshotId}</div>
+          <pre className="remote-review-result-text">{source.excerpt}</pre>
+        </div>)}
+      </details>
+      <h4>Provider response</h4>
+      <div className="remote-review-result-text">{selectedArchive.response.text}</div>
+      {selectedArchive.response.toolProposals.length > 0 && <details>
+        <summary>Retained tool proposals · {selectedArchive.response.toolProposals.length}</summary>
+        {selectedArchive.response.toolProposals.map((proposal) => <pre key={proposal.callId}>
+          {JSON.stringify(proposal, null, 2)}
+        </pre>)}
+      </details>}
+      <div className="remote-review-retention mono">
+        Immutable archive {selectedArchive.recordSha256.slice(0, 12)}… · source revision {selectedArchive.sourceDocumentRevision}
+      </div>
+      <div className="remote-review-retention mono">
+        Installation-provided author {selectedArchive.createdBy.displayName} · not authenticated human identity
+      </div>
+    </article>}
+  </section>
+}
+
 export function RemoteResearchReview({ project }: { project: ResearchProjectManifest }) {
+  const researcherId = useStore((state) => state.settings.researcherId)
+  const researcherName = useStore((state) => state.settings.researcherName)
   const [provider, setProvider] = useState<RemoteProviderId>('openai')
   const [model, setModel] = useState(REMOTE_REVIEW_PROVIDERS[0].defaultModel)
   const [question, setQuestion] = useState(DEFAULT_QUESTION)
@@ -146,19 +252,103 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
   const [streamState, setStreamState] = useState<ProviderStreamState | null>(null)
   const [activeCallId, setActiveCallId] = useState<string | null>(null)
   const [toolThreadCallId, setToolThreadCallId] = useState<string | null>(null)
+  const [submittedRequest, setSubmittedRequest] = useState<ProviderResearchTaskRequest | null>(null)
+  const [sourceDocumentRevision, setSourceDocumentRevision] = useState<string | null>(null)
+  const [document, setDocument] = useState<Y.Doc | null>(null)
+  const [researchTick, setResearchTick] = useState(0)
+  const [history, setHistory] = useState<ProviderReviewHistoryInspection>(EMPTY_PROVIDER_HISTORY)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
+  const [selectedArchive, setSelectedArchive] = useState<ProviderReviewArchive | null>(null)
+  const [archiveBusy, setArchiveBusy] = useState(false)
+  const [savedRunId, setSavedRunId] = useState<string | null>(null)
+  const [archiveAttribution, setArchiveAttribution] = useState<ResearchEventAttributionResult | null>(null)
+  const archiveOperation = useRef(0)
+
+  useEffect(() => {
+    archiveOperation.current += 1
+    setSubmittedRequest(null)
+    setSourceDocumentRevision(null)
+    setSelectedRunId(null)
+    setSelectedArchive(null)
+    setSavedRunId(null)
+    setArchiveAttribution(null)
+  }, [project.id])
+
+  useEffect(() => {
+    let activeDiscussions: Y.Map<unknown> | null = null
+    const onHistoryUpdate = () => setResearchTick((value) => value + 1)
+    const unsubscribe = subscribeAutomationProjectDocument(project.id, (next) => {
+      activeDiscussions?.unobserve(onHistoryUpdate)
+      activeDiscussions = next ? getProjectSharedTypes(next).discussions : null
+      setDocument(next)
+      activeDiscussions?.observe(onHistoryUpdate)
+      setResearchTick((value) => value + 1)
+    })
+    return () => {
+      activeDiscussions?.unobserve(onHistoryUpdate)
+      unsubscribe()
+    }
+  }, [project.id])
+
+  useEffect(() => {
+    let cancelled = false
+    if (!document) {
+      setHistory(EMPTY_PROVIDER_HISTORY)
+      setHistoryLoading(false)
+      setSelectedArchive(null)
+      return
+    }
+    setHistoryLoading(true)
+    void inspectProviderReviewHistory(getProjectSharedTypes(document).discussions).then((inspection) => {
+      if (cancelled) return
+      setHistory(inspection)
+      if (selectedRunId && !inspection.items.some(({ runId }) => runId === selectedRunId)) {
+        setSelectedRunId(null)
+        setSelectedArchive(null)
+      }
+      setHistoryLoading(false)
+    }).catch((error) => {
+      if (cancelled) return
+      setHistoryLoading(false)
+      setMessage(error instanceof Error ? error.message : 'Could not inspect shared provider review history')
+    })
+    return () => { cancelled = true }
+  }, [document, researchTick, selectedRunId])
+
+  const selectSharedArchive = async (runId: string) => {
+    setSelectedRunId(runId)
+    setSelectedArchive(null)
+    if (!document) return
+    setHistoryLoading(true)
+    try {
+      const archive = await readProviderReviewArchive(getProjectSharedTypes(document).discussions, runId)
+      setSelectedArchive(archive)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not read the selected provider review')
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
 
   const chooseProvider = (next: RemoteProviderId) => {
+    archiveOperation.current += 1
     setProvider(next)
     setModel(REMOTE_REVIEW_PROVIDERS.find(({ id }) => id === next)?.defaultModel ?? '')
     setOutcome(null)
     setStreamState(null)
     setSubmittedToolDefinitions([])
+    setSubmittedRequest(null)
+    setSourceDocumentRevision(null)
     setToolThreadCallId(null)
+    setSavedRunId(null)
+    setArchiveAttribution(null)
     setPhase('idle')
     setMessage('Nothing is sent until the native Send once confirmation.')
   }
 
   const runReview = async () => {
+    archiveOperation.current += 1
     if (!desktopRuntimeAvailable()) {
       setPhase('error')
       setMessage('Remote review is available in the installed app.')
@@ -169,6 +359,10 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
     setOutcome(null)
     setStreamState(null)
     setToolThreadCallId(null)
+    setSubmittedRequest(null)
+    setSourceDocumentRevision(null)
+    setSavedRunId(null)
+    setArchiveAttribution(null)
     setPhase('preparing')
     setMessage('Checking the OS credential vault…')
     try {
@@ -185,6 +379,8 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
           revision: snapshot.revision, text: snapshot.text,
         },
       })
+      setSubmittedRequest(request)
+      setSourceDocumentRevision(snapshot.revision)
       setPhase('running')
       setMessage('Native approval or the provider response is pending. Research leaves only after Send once.')
       let observedStream = initialProviderStreamState()
@@ -233,6 +429,9 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
         callId,
       })
       const reconciled = reconcileSourceLocatorContinuation(outcome, result)
+      if (submittedRequest && result.runRecord.callId !== submittedRequest.callId) {
+        setSubmittedRequest({ ...submittedRequest, callId: result.runRecord.callId })
+      }
       setOutcome(reconciled.displayedOutcome)
       setStreamState(null)
       if (result.response) {
@@ -269,7 +468,47 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
     }
   }
 
-  const busy = ['preparing', 'waiting-approval', 'running', 'cancelling'].includes(phase)
+  const shareReview = async () => {
+    if (!document || !submittedRequest || !sourceDocumentRevision || !outcome?.response ||
+      outcome.toolContinuationAvailable || archiveBusy || !history.healthy) return
+    const operation = ++archiveOperation.current
+    setArchiveBusy(true)
+    setArchiveAttribution(null)
+    setMessage('Saving the full review to shared project history…')
+    try {
+      const archive = await saveProviderReview(document, {
+        expectedResearchRevision: projectStateFingerprint(document),
+        projectId: project.id,
+        documentId: project.documentId,
+        sourceDocumentRevision,
+        request: submittedRequest,
+        response: outcome.response,
+        runRecord: outcome.runRecord,
+        participantId: researcherId,
+        displayName: researcherName,
+        createdAt: Date.now(),
+      })
+      if (operation !== archiveOperation.current) return
+      setSavedRunId(archive.runId)
+      setSelectedRunId(archive.runId)
+      setSelectedArchive(archive)
+      setMessage('Full question, frozen sources, response, tool proposals, and content-free provenance were added to shared project history. The draft was not changed. Saving device attribution…')
+      const attribution = await attestProviderReviewArchiveEvent(document, project.id, archive)
+      if (operation !== archiveOperation.current) return
+      setArchiveAttribution(attribution)
+      setMessage(attribution.status === 'signed-device'
+        ? 'Shared provider review saved with an exact registered-device signature. The signature identifies an installation key, not a person or organization.'
+        : `Shared provider review saved without a device signature (${attribution.reason}). The archive remains committed and the draft was not changed.`)
+    } catch (error) {
+      if (operation === archiveOperation.current) {
+        setMessage(error instanceof Error ? error.message : 'Could not share the provider review')
+      }
+    } finally {
+      if (operation === archiveOperation.current) setArchiveBusy(false)
+    }
+  }
+
+  const busy = ['preparing', 'waiting-approval', 'running', 'cancelling'].includes(phase) || archiveBusy
   return (
     <div className="remote-review">
       <div className="workspace-panel-label mono">Remote perspective</div>
@@ -328,6 +567,38 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
         toolDefinitions={submittedToolDefinitions}
         onContinueTools={toolThreadCallId ? () => void continueSourceLocator() : undefined}
         continuingTools={phase === 'preparing' || phase === 'running'}
+        shared={Boolean(submittedRequest && savedRunId === submittedRequest.runId)}
+      />
+      {outcome?.response && submittedRequest && !outcome.toolContinuationAvailable && (
+        <div className="remote-review-tools">
+          <div className="remote-review-actions">
+            <button
+              className="btn primary"
+              type="button"
+              disabled={archiveBusy || !document || !history.healthy || savedRunId === submittedRequest.runId}
+              onClick={() => void shareReview()}
+            >
+              {archiveBusy ? 'Sharing and checking signature…' : savedRunId === submittedRequest.runId ? 'Shared with project' : 'Share full review with project'}
+            </button>
+          </div>
+          <p>
+            Sharing writes the full question, frozen excerpts, normalized response, retained tool proposals,
+            and content-free provider provenance to collaborative project history. It never changes the policy draft.
+          </p>
+          {archiveAttribution?.status === 'signed-device' && <div className="remote-review-retention mono">
+            Exact archive signed by registered device key · {archiveAttribution.keyId.replace('ed25519-sha256:', '').slice(0, 12)}…
+          </div>}
+          {archiveAttribution?.status === 'unsigned' && <div className="remote-review-retention mono">
+            Archive retained without device signature · {archiveAttribution.reason}
+          </div>}
+        </div>
+      )}
+      <ProviderReviewHistoryView
+        inspection={history}
+        loading={historyLoading}
+        selectedRunId={selectedRunId}
+        selectedArchive={selectedArchive}
+        onSelect={(runId) => void selectSharedArchive(runId)}
       />
     </div>
   )

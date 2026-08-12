@@ -18,6 +18,7 @@ cargo check                # in src-tauri (cargo is at C:\Users\penum\.cargo\bin
 npm run audit              # architecture, identity, provenance, capability-ledger invariants
 npm run test:providers     # fake-server remote-provider boundary; no live key or network required
 npm run test:provider-runtime # fake-vault task bridge and Rust-authored provenance; no live key/network
+npm run test:provider-review-history # explicit shared archive, conflict, attribution, and body-free inspection
 npm run test:provider-runtime-interop # Rust record → public TS schema + semantic validator
 npm run test:contracts     # public provider-run/adversarial/plugin schemas and semantic validators
 npm run test:provider-streams # fragmented/multiline/unknown/malformed SSE conformance
@@ -787,7 +788,8 @@ the OS dialog remains a packaged-GUI check.
 The workspace single-review panel is now the first product caller: its pure envelope tests bind the
 current semantic draft to a SHA-256 source identity, retain editable provider/model/question fields,
 and cannot supply approval, categories, provenance, or credentials. Result text remains transient
-and does not mutate the shared draft. Live-key execution and UI interaction remain separate gates.
+until a separate explicit share action and never mutates the shared draft. Live-key execution and UI
+interaction remain separate gates.
 The command also does not accept free-form disclosure categories or a detached source-ID list.
 `ProviderResearchTaskRequest` carries a question, optional task instructions, labeled source
 snapshots, and optional bounded custom-function definitions; Rust serializes the actual payload,
@@ -800,6 +802,15 @@ subset fail before disclosure. Rust validates every complete proposal against th
 definition and authors valid/invalid/missing-definition status; the frontend's pinned AJV 2020
 validator independently checks definition preflight and streaming display. Both paths keep domain
 review unperformed and execution false.
+`npm run test:provider-review-history` proves that an explicitly shared completed review becomes one
+strict 8-MiB-per-record/32-MiB-total immutable Yjs archive binding the exact frozen request,
+response/tool proposals, native run record, project/document, live editor source revision, author
+snapshot, and save-time research revision. Same-run divergent peer archives remain a blocking
+conflict; stale research, hostile values, and provenance mismatch fail before mutation; routine
+inspection returns metadata only. The archive commits before best-effort attribution under the
+closed `provider-review` installation-signature kind. Pending native tool turns cannot be shared.
+This is engine-free synthetic evidence; packaged native-dialog interaction, physical two-install
+propagation, live-provider behavior, and near-limit UI usability remain separate gates.
 Evidence and remaining domain/live-provider gaps are recorded in
 `docs/audits/runs/PROVIDER-RESEARCH-ENVELOPE-2026-07-15.json`.
 The evidence and explicit limitations are recorded in

@@ -13,6 +13,12 @@ import {
   readPluginReviewEvent,
   type PluginReviewEvent,
 } from '../extensions/pluginReviewModel'
+import {
+  providerReviewArchiveAttestationEventId,
+  providerReviewArchiveEventSha256,
+  readProviderReviewArchive,
+  type ProviderReviewArchive,
+} from './providerReviewHistory'
 import { getProjectSharedTypes } from './projectModel'
 import {
   createProjectResearchEventAttestation,
@@ -195,6 +201,12 @@ export function adversarialReviewDecisionAttestationEventId(
   event: AdversarialReviewDecisionEvent,
 ): string {
   return `d:${event.runId.length}:${event.runId}${event.eventId}`
+}
+
+function parseProviderReviewAttestationEventId(value: string): string | null {
+  return value.startsWith('archive:') && value.length > 'archive:'.length
+    ? value.slice('archive:'.length)
+    : null
 }
 
 export function suggestionAttestationEventId(event: SuggestionEvent): string {
@@ -418,6 +430,7 @@ export function researchEventAttestationResolver(
     if (eventKind !== 'scenario' && eventKind !== 'scenario-vote' && eventKind !== 'scenario-annotation' &&
       eventKind !== 'scenario-label' && eventKind !== 'policy-version' &&
       eventKind !== 'scenario-turn' && eventKind !== 'adversarial-review' &&
+      eventKind !== 'provider-review' &&
       eventKind !== 'plugin-review' &&
       eventKind !== 'suggestion' && eventKind !== 'heuristic' && eventKind !== 'scenario-rerun') return null
     const cacheKey = `${eventKind}:${attestationEventId}`
@@ -513,6 +526,15 @@ export function researchEventAttestationResolver(
           participantId: event.participantId,
         } : null
       }
+      if (eventKind === 'provider-review') {
+        const runId = parseProviderReviewAttestationEventId(attestationEventId)
+        if (!runId) return null
+        const archive = await readProviderReviewArchive(discussions, runId)
+        return archive ? {
+          eventSha256: await providerReviewArchiveEventSha256(archive),
+          participantId: archive.createdBy.participantId,
+        } : null
+      }
       if (eventKind === 'scenario') {
         if (!scenarios) return null
         const identity = parseScenarioEditAttestationEventId(attestationEventId)
@@ -582,7 +604,7 @@ async function attestResearchEvent(
   document: Y.Doc,
   projectId: string,
   eventKind: 'scenario' | 'scenario-vote' | 'scenario-annotation' | 'scenario-label' |
-    'policy-version' | 'scenario-turn' | 'adversarial-review' | 'plugin-review' | 'suggestion' | 'heuristic' | 'scenario-rerun',
+    'policy-version' | 'scenario-turn' | 'adversarial-review' | 'provider-review' | 'plugin-review' | 'suggestion' | 'heuristic' | 'scenario-rerun',
   eventId: string,
   participantId: string,
   eventHash: () => Promise<string>,
@@ -646,6 +668,24 @@ async function attestResearchEvent(
       authority: 'installation-device-not-human-identity',
     }
   }
+}
+
+/** Best-effort device attribution after one immutable provider review archive has committed. */
+export async function attestProviderReviewArchiveEvent(
+  document: Y.Doc,
+  projectId: string,
+  archive: ProviderReviewArchive,
+  dependencies: ResearchEventAttributionDependencies = DEFAULT_DEPENDENCIES,
+): Promise<ResearchEventAttributionResult> {
+  return attestResearchEvent(
+    document,
+    projectId,
+    'provider-review',
+    providerReviewArchiveAttestationEventId(archive),
+    archive.createdBy.participantId,
+    () => providerReviewArchiveEventSha256(archive),
+    dependencies,
+  )
 }
 
 export async function attestHeuristicEditEvent(

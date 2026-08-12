@@ -117,6 +117,7 @@
 | `frontend/src/workspace/WorkspaceView.tsx` | Penumbra original | Original three-column research workspace scaffold |
 | `frontend/src/workspace/PolicyVersionRail.tsx` | Penumbra original | Live-document subscribed exact-revision checkpoint UI, historical metadata rail, and deterministic engine-free parent-diff presentation |
 | `frontend/src/workspace/RemoteResearchReview.tsx` | Penumbra original | Optional single-provider review UI with native disclosure, cancellation, and non-mutating result presentation |
+| `frontend/src/workspace/providerReviewHistory.ts` | Penumbra original | Strict bounded immutable shared-provider-review archive with explicit sharing, conflict retention, device attribution, and content-minimized inspection |
 | `frontend/src/workspace/AdversarialReviewWorkspace.tsx` | Penumbra original | Exact-block and route configuration over the bounded native job registry, explicit full-content collaborative archive action, complete evidence/conflict history, and immutable no-draft-mutation human decisions |
 | `frontend/src/workspace/AdversarialEvidenceView.tsx` | Penumbra original | Lazy evidence categories and deterministic 50-artifact progressive pages that avoid eager DOM materialization while retaining explicit access to every stored artifact |
 | `frontend/src/workspace/AdversarialReviewWorkspace.ui.test.tsx` | Penumbra original | Headless product contract for source/call bounds, safety disclosure, evidence/provenance rendering, and absence of implicit Apply authority |

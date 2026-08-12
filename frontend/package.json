@@ -39,6 +39,7 @@
     "test:provider-runtime-interop": "node ../scripts/provider-runtime-interop.mjs",
     "test:provider-tool-validation-interop": "node ../scripts/provider-tool-validation-interop.mjs",
     "test:provider-tool-continuation": "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path src-tauri/Cargo.toml source_locator --lib && node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path src-tauri/Cargo.toml provider_replay_builders_bind_exact_tool_results_without_server_side_state --lib",
+    "test:provider-review-history": "node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- npm exec vitest run src/workspace/providerReviewHistory.test.ts src/workspace/RemoteResearchReview.ui.test.tsx src/workspace/researchStateInspection.test.ts src/workspace/projectResearchEventAttestation.test.ts && node ../scripts/run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- cargo test --manifest-path src-tauri/Cargo.toml collaboration_identity::tests::durable_research_event_binds_project_participant_kind_identity_hash_time_and_nonce",
     "test:provider-streams": "cargo test --manifest-path src-tauri/Cargo.toml provider_stream::tests:: -- --nocapture",
     "test:credentials": "cargo test --manifest-path src-tauri/Cargo.toml credential_vault::tests:: -- --nocapture",
     "test:credentials:live": "cargo run --manifest-path src-tauri/Cargo.toml --bin credential-harness",

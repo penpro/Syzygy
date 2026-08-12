@@ -7,15 +7,16 @@
 
 use crate::credential_vault::{CredentialId, CredentialVault, OsCredentialVault};
 use crate::model_provider::{
-    execute_anthropic_response_controlled, execute_anthropic_stream_controlled,
-    execute_gemini_response_controlled, execute_gemini_stream_controlled,
-    execute_openai_response_controlled, execute_openai_stream_controlled,
-    execute_xai_response_controlled, execute_xai_stream_controlled, normalize_tool_proposal,
-    provider_execution, validate_tool_proposals, GenerationRequest, InputRole, NormalizedResponse,
-    NormalizedToolProposal, NormalizedUsage, ProviderCancellation, ProviderError, ProviderInput,
-    ProviderToolDefinition, RemoteProviderId, TransmissionApproval, ANTHROPIC_ADAPTER_STATUS,
-    GEMINI_ADAPTER_STATUS, MAX_TOOL_ARGUMENT_BYTES, MAX_TOOL_ARGUMENT_TOTAL_BYTES, MAX_TOOL_CALLS,
-    OPENAI_ADAPTER_STATUS, XAI_ADAPTER_STATUS,
+    execute_anthropic_response_with_replay_controlled, execute_anthropic_stream_controlled,
+    execute_gemini_response_with_replay_controlled, execute_gemini_stream_controlled,
+    execute_openai_response_with_replay_controlled, execute_openai_stream_controlled,
+    execute_xai_response_with_replay_controlled, execute_xai_stream_controlled,
+    normalize_tool_proposal, provider_execution, validate_tool_proposals, GenerationRequest,
+    InputRole, NormalizedResponse, NormalizedToolProposal, NormalizedUsage, ProviderCancellation,
+    ProviderConversationReplay, ProviderError, ProviderInput, ProviderResponseWithReplay,
+    ProviderToolDefinition, ProviderToolDomainStatus, ProviderToolSchemaStatus, RemoteProviderId,
+    TransmissionApproval, ANTHROPIC_ADAPTER_STATUS, GEMINI_ADAPTER_STATUS, MAX_TOOL_ARGUMENT_BYTES,
+    MAX_TOOL_ARGUMENT_TOTAL_BYTES, MAX_TOOL_CALLS, OPENAI_ADAPTER_STATUS, XAI_ADAPTER_STATUS,
 };
 use crate::provider_stream::NormalizedStreamEvent;
 use chrono::{SecondsFormat, Utc};
@@ -33,11 +34,26 @@ const DEFAULT_PROFILE: &str = "default";
 const BATCH_AUTHORIZATION_LIFETIME: Duration = Duration::from_secs(30 * 60);
 const MAX_BATCH_AUTHORIZATIONS: usize = 64;
 const MAX_ADVERSARIAL_UPSTREAM_BYTES: usize = 64 * 1024 * 1024;
+const SOURCE_LOCATOR_TOOL_NAME: &str = "syzygy_locate_exact_source_text";
+const MAX_PROVIDER_TOOL_TURNS: u8 = 4;
+const MAX_PENDING_PROVIDER_TOOL_TURNS: usize = 32;
+const PENDING_PROVIDER_TOOL_LIFETIME: Duration = Duration::from_secs(10 * 60);
+const MAX_SOURCE_LOCATOR_RESULT_BYTES: usize = 32 * 1024;
+const SOURCE_LOCATOR_CONTEXT_CHARS: usize = 240;
 
 #[derive(Default)]
 pub struct ProviderRuntimeState {
     calls: Mutex<HashMap<String, ProviderCancellation>>,
     batch_authorizations: Mutex<HashMap<String, ProviderBatchAuthorization>>,
+    pending_tool_turns: Mutex<HashMap<String, PendingProviderToolTurn>>,
+}
+
+#[derive(Clone, Debug)]
+struct PendingProviderToolTurn {
+    pending_id: String,
+    request: ProviderTaskRequest,
+    proposals: Vec<NormalizedToolProposal>,
+    expires_at: Instant,
 }
 
 #[derive(Clone, Debug)]
@@ -63,9 +79,13 @@ pub struct ProviderTaskRequest {
     pub task_type: String,
     pub provider: RemoteProviderId,
     pub source_snapshot_ids: Vec<String>,
+    pub source_snapshots: Vec<ProviderResearchSource>,
     pub timeout_ms: u64,
     pub content_categories: Vec<String>,
     pub generation: GenerationRequest,
+    pub tool_thread_id: Option<String>,
+    pub tool_turn: u8,
+    pub source_locator_enabled: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -205,6 +225,15 @@ pub struct ProviderResearchTaskRequest {
     pub max_output_tokens: u32,
     #[serde(default)]
     pub tool_definitions: Vec<ProviderToolDefinition>,
+    #[serde(default)]
+    pub enable_source_locator: bool,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderSourceLocatorContinuationRequest {
+    pub thread_call_id: String,
+    pub call_id: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -214,6 +243,8 @@ pub struct ProviderTaskOutcome {
     pub zero_data_retention: Option<bool>,
     pub error_code: Option<String>,
     pub run_record: Value,
+    pub tool_continuation_available: bool,
+    pub tool_continuation_turn: Option<u8>,
 }
 
 struct ProviderProfile {
@@ -279,6 +310,145 @@ fn valid_task_type(value: &str) -> bool {
         && bytes.all(|byte| {
             byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'.' | b'-')
         })
+}
+
+fn source_locator_tool_definition() -> ProviderToolDefinition {
+    ProviderToolDefinition {
+        name: SOURCE_LOCATOR_TOOL_NAME.to_owned(),
+        description: "Locate an exact text fragment inside one frozen source snapshot already supplied in this request. Returns bounded surrounding context and cannot access files, Drive, MCP, plugins, the editor, or the network.".to_owned(),
+        parameters: json!({
+            "type": "object",
+            "properties": {
+                "snapshotId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "Exact snapshotId from the supplied source list"
+                },
+                "exactText": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256,
+                    "description": "Literal case-sensitive text to locate"
+                },
+                "maxMatches": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10,
+                    "description": "Maximum bounded matches to return"
+                }
+            },
+            "required": ["snapshotId", "exactText", "maxMatches"],
+            "additionalProperties": false
+        }),
+    }
+}
+
+fn authorize_source_locator_proposals(
+    sources: &[ProviderResearchSource],
+    proposals: &mut [NormalizedToolProposal],
+) {
+    for proposal in proposals {
+        if proposal.name != SOURCE_LOCATOR_TOOL_NAME {
+            continue;
+        }
+        let snapshot_id = proposal.arguments.get("snapshotId").and_then(Value::as_str);
+        let exact_text = proposal.arguments.get("exactText").and_then(Value::as_str);
+        let max_matches = proposal.arguments.get("maxMatches").and_then(Value::as_u64);
+        let domain_valid = proposal.validation.schema_status == ProviderToolSchemaStatus::Valid
+            && snapshot_id.is_some_and(|id| sources.iter().any(|source| source.snapshot_id == id))
+            && exact_text.is_some_and(|text| {
+                !text.is_empty()
+                    && text.chars().count() <= 256
+                    && !text.chars().any(char::is_control)
+            })
+            && max_matches.is_some_and(|count| (1..=10).contains(&count));
+        proposal.validation.domain_status = if domain_valid {
+            ProviderToolDomainStatus::SourceSnapshotApproved
+        } else {
+            ProviderToolDomainStatus::SourceSnapshotRejected
+        };
+        proposal.validation.executable = domain_valid;
+        if !domain_valid && proposal.validation.errors.len() < 8 {
+            proposal
+                .validation
+                .errors
+                .push("$:source-snapshot-authority".to_owned());
+        }
+    }
+}
+
+fn source_context(text: &str, start: usize, end: usize) -> String {
+    let before = text[..start]
+        .chars()
+        .rev()
+        .take(SOURCE_LOCATOR_CONTEXT_CHARS)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>();
+    let after = text[end..]
+        .chars()
+        .take(SOURCE_LOCATOR_CONTEXT_CHARS)
+        .collect::<String>();
+    format!("{before}{}{after}", &text[start..end])
+}
+
+fn execute_source_locator(
+    sources: &[ProviderResearchSource],
+    proposal: &NormalizedToolProposal,
+) -> Result<String, String> {
+    if proposal.name != SOURCE_LOCATOR_TOOL_NAME || !proposal.validation.executable {
+        return Err("Provider tool proposal is not authorized for native execution".to_owned());
+    }
+    let snapshot_id = proposal
+        .arguments
+        .get("snapshotId")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "Source locator snapshot identity is invalid".to_owned())?;
+    let exact_text = proposal
+        .arguments
+        .get("exactText")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "Source locator exact text is invalid".to_owned())?;
+    let max_matches = proposal
+        .arguments
+        .get("maxMatches")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .filter(|value| (1..=10).contains(value))
+        .ok_or_else(|| "Source locator match bound is invalid".to_owned())?;
+    let source = sources
+        .iter()
+        .find(|source| source.snapshot_id == snapshot_id)
+        .ok_or_else(|| "Source locator snapshot is outside the frozen request".to_owned())?;
+    let mut all_matches = source.excerpt.match_indices(exact_text);
+    let matches = all_matches
+        .by_ref()
+        .take(max_matches)
+        .map(|(start, matched)| {
+            let end = start + matched.len();
+            json!({
+                "startByte": start,
+                "endByte": end,
+                "context": source_context(&source.excerpt, start, end),
+            })
+        })
+        .collect::<Vec<_>>();
+    let truncated = all_matches.next().is_some();
+    let output = serde_json::to_string(&json!({
+        "ok": true,
+        "snapshotId": snapshot_id,
+        "exactTextSha256": sha256(exact_text.as_bytes()),
+        "returnedMatches": matches.len(),
+        "truncated": truncated,
+        "matches": matches,
+    }))
+    .map_err(|_| "Source locator result could not be serialized".to_owned())?;
+    if output.len() > MAX_SOURCE_LOCATOR_RESULT_BYTES {
+        return Err("Source locator result exceeds its native bound".to_owned());
+    }
+    Ok(output)
 }
 
 fn route_identity(provider: RemoteProviderId, model: &str) -> String {
@@ -611,12 +781,49 @@ fn validate_batch_authorization(
 
 fn validate_task(request: &ProviderTaskRequest) -> Result<(), String> {
     let unique_sources: HashSet<_> = request.source_snapshot_ids.iter().collect();
+    let structured_source_ids = request
+        .source_snapshots
+        .iter()
+        .map(|source| source.snapshot_id.as_str())
+        .collect::<Vec<_>>();
+    let source_locator_count = request
+        .generation
+        .tools
+        .iter()
+        .filter(|tool| tool.name == SOURCE_LOCATOR_TOOL_NAME)
+        .count();
+    let valid_tool_thread = if request.source_locator_enabled {
+        request.tool_thread_id.as_deref().is_some_and(valid_id)
+            && source_locator_count == 1
+            && request.tool_turn <= MAX_PROVIDER_TOOL_TURNS
+            && ((request.tool_turn == 0 && request.generation.replay.is_none())
+                || (request.tool_turn > 0 && request.generation.replay.is_some()))
+    } else {
+        request.tool_thread_id.is_none()
+            && request.tool_turn == 0
+            && source_locator_count == 0
+            && request.generation.replay.is_none()
+    };
     if !valid_id(&request.run_id)
         || !valid_id(&request.call_id)
         || !valid_task_type(&request.task_type)
         || request.source_snapshot_ids.len() > 10_000
+        || request.source_snapshots.len() > 200
         || unique_sources.len() != request.source_snapshot_ids.len()
         || request.source_snapshot_ids.iter().any(|id| !valid_id(id))
+        || structured_source_ids
+            != request
+                .source_snapshot_ids
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>()
+        || request.source_snapshots.iter().any(|source| {
+            source.label.trim().is_empty()
+                || source.label.chars().count() > 500
+                || source.label.chars().any(char::is_control)
+                || source.excerpt.trim().is_empty()
+                || source.excerpt.len() > 4 * 1024 * 1024
+        })
         || request.generation.model.trim().is_empty()
         || request.generation.validate().is_err()
         || request.generation.model.chars().count() > 200
@@ -636,6 +843,7 @@ fn validate_task(request: &ProviderTaskRequest) -> Result<(), String> {
                 || category.chars().count() > 100
                 || category.chars().any(char::is_control)
         })
+        || !valid_tool_thread
     {
         return Err(
             "Provider task identity, model, disclosure, or source provenance is invalid".to_owned(),
@@ -645,7 +853,7 @@ fn validate_task(request: &ProviderTaskRequest) -> Result<(), String> {
 }
 
 fn build_research_task(
-    request: ProviderResearchTaskRequest,
+    mut request: ProviderResearchTaskRequest,
 ) -> Result<ProviderTaskRequest, String> {
     if !valid_id(&request.run_id)
         || !valid_id(&request.call_id)
@@ -665,6 +873,10 @@ fn build_research_task(
                 || source.excerpt.trim().is_empty()
                 || source.excerpt.len() > 4 * 1024 * 1024
         })
+        || request
+            .tool_definitions
+            .iter()
+            .any(|tool| tool.name == SOURCE_LOCATOR_TOOL_NAME)
     {
         return Err("Remote research task content or identity is invalid".to_owned());
     }
@@ -708,12 +920,24 @@ fn build_research_task(
     if !request.tool_definitions.is_empty() {
         content_categories.push("tool names, descriptions, and argument schemas".to_owned());
     }
+    if request.enable_source_locator {
+        request
+            .tool_definitions
+            .push(source_locator_tool_definition());
+        content_categories.push(
+            "host-owned exact-text locator over already supplied source snapshots".to_owned(),
+        );
+    }
+    let thread_call_id = request
+        .enable_source_locator
+        .then(|| request.call_id.clone());
     let task = ProviderTaskRequest {
         run_id: request.run_id,
         call_id: request.call_id,
         task_type: request.task_type,
         provider: request.provider,
         source_snapshot_ids,
+        source_snapshots: request.sources,
         timeout_ms: request.timeout_ms,
         content_categories,
         generation: GenerationRequest {
@@ -721,7 +945,11 @@ fn build_research_task(
             input,
             max_output_tokens: request.max_output_tokens,
             tools: request.tool_definitions,
+            replay: None,
         },
+        tool_thread_id: thread_call_id,
+        tool_turn: 0,
+        source_locator_enabled: request.enable_source_locator,
     };
     validate_task(&task)?;
     Ok(task)
@@ -864,6 +1092,7 @@ fn build_adversarial_task(
         ),
         provider: reservation.planned_call.provider,
         source_snapshot_ids,
+        source_snapshots: request.sources.clone(),
         timeout_ms: reservation.planned_call.timeout_ms,
         content_categories,
         generation: GenerationRequest {
@@ -880,7 +1109,11 @@ fn build_adversarial_task(
             ],
             max_output_tokens: reservation.planned_call.max_output_tokens,
             tools: Vec::new(),
+            replay: None,
         },
+        tool_thread_id: None,
+        tool_turn: 0,
+        source_locator_enabled: false,
     };
     validate_task(&task)?;
     Ok(task)
@@ -945,6 +1178,13 @@ fn random_authorization_id() -> Result<String, String> {
     let mut bytes = [0_u8; 32];
     getrandom::getrandom(&mut bytes)
         .map_err(|_| "Remote batch authorization ID could not be created".to_owned())?;
+    Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
+fn random_pending_tool_id() -> Result<String, String> {
+    let mut bytes = [0_u8; 32];
+    getrandom::getrandom(&mut bytes)
+        .map_err(|_| "Provider tool continuation ID could not be created".to_owned())?;
     Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
@@ -1303,7 +1543,7 @@ fn run_record(
         ),
         None => (provider_profile.zero_retention, Value::Null),
     };
-    json!({
+    let mut record = json!({
         "recordVersion": 1,
         "runId": request.run_id,
         "callId": request.call_id,
@@ -1349,7 +1589,22 @@ fn run_record(
             "totalTokens": usage.map(|value| value.total_tokens),
             "costUsd": Value::Null
         }
-    })
+    });
+    if request.source_locator_enabled {
+        let request_record = record["request"]
+            .as_object_mut()
+            .expect("provider request record is an object");
+        request_record.insert("toolContinuationTurn".to_owned(), json!(request.tool_turn));
+        request_record.insert(
+            "toolThreadIdSha256".to_owned(),
+            json!(request
+                .tool_thread_id
+                .as_ref()
+                .map(|id| sha256(id.as_bytes()))
+                .expect("validated source locator requests have a thread id")),
+        );
+    }
+    record
 }
 
 const MAX_ACCUMULATED_STREAM_BYTES: usize = 8 * 1024 * 1024;
@@ -1525,6 +1780,11 @@ where
     F: FnMut(NormalizedStreamEvent) -> Result<(), ProviderError>,
 {
     validate_task(&request)?;
+    if request.source_locator_enabled {
+        return Err(
+            "Host-owned provider tools require the bounded one-shot continuation path".to_owned(),
+        );
+    }
     let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     if !disclosure_accepted {
         let error = ProviderError::DisclosureRequired;
@@ -1543,6 +1803,8 @@ where
             response: None,
             zero_data_retention: None,
             error_code: Some(error_code(&error).to_owned()),
+            tool_continuation_available: false,
+            tool_continuation_turn: None,
         });
     }
     let (execution, cancellation) = provider_execution(Duration::from_millis(request.timeout_ms))
@@ -1650,6 +1912,8 @@ where
             response: Some(response),
             zero_data_retention,
             error_code: None,
+            tool_continuation_available: false,
+            tool_continuation_turn: None,
         }),
         Err(error) => Ok(ProviderTaskOutcome {
             run_record: stream_run_record(
@@ -1665,8 +1929,76 @@ where
             response: None,
             zero_data_retention: None,
             error_code: Some(error_code(&error).to_owned()),
+            tool_continuation_available: false,
+            tool_continuation_turn: None,
         }),
     }
+}
+
+fn retain_pending_tool_turn(
+    state: &ProviderRuntimeState,
+    request: &ProviderTaskRequest,
+    replay: ProviderConversationReplay,
+    proposals: &[NormalizedToolProposal],
+) -> Result<Option<u8>, String> {
+    let Some(thread_call_id) = request.tool_thread_id.as_ref() else {
+        return Ok(None);
+    };
+    let mut pending = state
+        .pending_tool_turns
+        .lock()
+        .map_err(|_| "Provider tool continuation registry is unavailable".to_owned())?;
+    let now = Instant::now();
+    pending.retain(|_, turn| turn.expires_at > now);
+    pending.remove(thread_call_id);
+    let next_turn = request.tool_turn.saturating_add(1);
+    let available = request.source_locator_enabled
+        && next_turn <= MAX_PROVIDER_TOOL_TURNS
+        && !proposals.is_empty()
+        && proposals
+            .iter()
+            .all(|proposal| proposal.validation.executable)
+        && pending.len() < MAX_PENDING_PROVIDER_TOOL_TURNS;
+    if !available {
+        return Ok(None);
+    }
+    replay.validate().map_err(|error| error.to_string())?;
+    let mut next_request = request.clone();
+    next_request.call_id.clear();
+    next_request.tool_turn = next_turn;
+    next_request.generation.replay = Some(replay);
+    pending.insert(
+        thread_call_id.clone(),
+        PendingProviderToolTurn {
+            pending_id: random_pending_tool_id()?,
+            request: next_request,
+            proposals: proposals.to_vec(),
+            expires_at: now + PENDING_PROVIDER_TOOL_LIFETIME,
+        },
+    );
+    Ok(Some(next_turn))
+}
+
+fn consume_pending_tool_turn(
+    state: &ProviderRuntimeState,
+    thread_call_id: &str,
+    expected_pending_id: &str,
+    expected_turn: u8,
+) -> Result<(), String> {
+    let mut pending = state
+        .pending_tool_turns
+        .lock()
+        .map_err(|_| "Provider tool continuation registry is unavailable".to_owned())?;
+    let now = Instant::now();
+    pending.retain(|_, turn| turn.expires_at > now);
+    let current = pending
+        .get(thread_call_id)
+        .ok_or_else(|| "Provider tool continuation was already consumed or expired".to_owned())?;
+    if current.pending_id != expected_pending_id || current.request.tool_turn != expected_turn {
+        return Err("Provider tool continuation changed before dispatch".to_owned());
+    }
+    pending.remove(thread_call_id);
+    Ok(())
 }
 
 #[doc(hidden)]
@@ -1697,6 +2029,8 @@ pub async fn execute_with<V: CredentialVault>(
             response: None,
             zero_data_retention: None,
             error_code: Some(error_code(&error).to_owned()),
+            tool_continuation_available: false,
+            tool_continuation_turn: None,
         });
     }
     let (execution, cancellation) = provider_execution(Duration::from_millis(request.timeout_ms))
@@ -1722,7 +2056,7 @@ pub async fn execute_with<V: CredentialVault>(
         accepted: true,
     };
     let result = match request.provider {
-        RemoteProviderId::OpenAi => execute_openai_response_controlled(
+        RemoteProviderId::OpenAi => execute_openai_response_with_replay_controlled(
             client,
             &endpoint,
             &secret,
@@ -1732,7 +2066,7 @@ pub async fn execute_with<V: CredentialVault>(
         )
         .await
         .map(|response| (response, None)),
-        RemoteProviderId::Anthropic => execute_anthropic_response_controlled(
+        RemoteProviderId::Anthropic => execute_anthropic_response_with_replay_controlled(
             client,
             &endpoint,
             &secret,
@@ -1742,7 +2076,7 @@ pub async fn execute_with<V: CredentialVault>(
         )
         .await
         .map(|response| (response, None)),
-        RemoteProviderId::Gemini => execute_gemini_response_controlled(
+        RemoteProviderId::Gemini => execute_gemini_response_with_replay_controlled(
             client,
             &endpoint,
             &secret,
@@ -1752,7 +2086,7 @@ pub async fn execute_with<V: CredentialVault>(
         )
         .await
         .map(|response| (response, None)),
-        RemoteProviderId::Xai => execute_xai_response_controlled(
+        RemoteProviderId::Xai => execute_xai_response_with_replay_controlled(
             client,
             &endpoint,
             &secret,
@@ -1768,8 +2102,32 @@ pub async fn execute_with<V: CredentialVault>(
     }
     let completed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     match result {
-        Ok((mut response, zero_data_retention)) => {
+        Ok((
+            ProviderResponseWithReplay {
+                mut response,
+                replay,
+            },
+            zero_data_retention,
+        )) => {
             validate_tool_proposals(&request.generation.tools, &mut response.tool_proposals);
+            if request.source_locator_enabled {
+                authorize_source_locator_proposals(
+                    &request.source_snapshots,
+                    &mut response.tool_proposals,
+                );
+            }
+            let mut full_replay = request.generation.replay.clone();
+            if let Some(history) = full_replay.as_mut() {
+                history.extend(replay).map_err(|error| error.to_string())?;
+            } else {
+                full_replay = Some(replay);
+            }
+            let continuation_turn = retain_pending_tool_turn(
+                state,
+                &request,
+                full_replay.expect("provider response always supplies replay state"),
+                &response.tool_proposals,
+            )?;
             Ok(ProviderTaskOutcome {
                 run_record: run_record(
                     &request,
@@ -1784,6 +2142,8 @@ pub async fn execute_with<V: CredentialVault>(
                 response: Some(response),
                 zero_data_retention,
                 error_code: None,
+                tool_continuation_available: continuation_turn.is_some(),
+                tool_continuation_turn: continuation_turn,
             })
         }
         Err(error) => Ok(ProviderTaskOutcome {
@@ -1800,6 +2160,8 @@ pub async fn execute_with<V: CredentialVault>(
             response: None,
             zero_data_retention: None,
             error_code: Some(error_code(&error).to_owned()),
+            tool_continuation_available: false,
+            tool_continuation_turn: None,
         }),
     }
 }
@@ -1832,6 +2194,130 @@ pub async fn provider_generate(
         &Client::new(),
         endpoint,
         request,
+        approved,
+    )
+    .await
+}
+
+fn append_source_locator_results(
+    mut replay: ProviderConversationReplay,
+    proposals: &[NormalizedToolProposal],
+    sources: &[ProviderResearchSource],
+) -> Result<ProviderConversationReplay, String> {
+    let results = proposals
+        .iter()
+        .map(|proposal| execute_source_locator(sources, proposal).map(|output| (proposal, output)))
+        .collect::<Result<Vec<_>, _>>()?;
+    let items = match &replay {
+        ProviderConversationReplay::Responses(_) => results
+            .iter()
+            .map(|(proposal, output)| {
+                json!({
+                    "type": "function_call_output",
+                    "call_id": proposal.call_id,
+                    "output": output,
+                })
+            })
+            .collect(),
+        ProviderConversationReplay::Anthropic(_) => vec![json!({
+            "role": "user",
+            "content": results.iter().map(|(proposal, output)| json!({
+                "type": "tool_result",
+                "tool_use_id": proposal.call_id,
+                "content": output,
+                "is_error": false,
+            })).collect::<Vec<_>>(),
+        })],
+        ProviderConversationReplay::Gemini(_) => results
+            .iter()
+            .map(|(proposal, output)| {
+                json!({
+                    "type": "function_result",
+                    "name": proposal.name,
+                    "call_id": proposal.call_id,
+                    "result": [{ "type": "text", "text": output }],
+                })
+            })
+            .collect(),
+    };
+    replay.append(items).map_err(|error| error.to_string())?;
+    Ok(replay)
+}
+
+#[tauri::command]
+pub async fn provider_continue_source_locator(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, ProviderRuntimeState>,
+    request: ProviderSourceLocatorContinuationRequest,
+) -> Result<ProviderTaskOutcome, String> {
+    if !valid_id(&request.thread_call_id)
+        || !valid_id(&request.call_id)
+        || request.thread_call_id == request.call_id
+    {
+        return Err("Provider tool continuation identity is invalid".to_owned());
+    }
+    let pending_turn = {
+        let mut pending = state
+            .pending_tool_turns
+            .lock()
+            .map_err(|_| "Provider tool continuation registry is unavailable".to_owned())?;
+        let now = Instant::now();
+        pending.retain(|_, turn| turn.expires_at > now);
+        pending
+            .get(&request.thread_call_id)
+            .cloned()
+            .ok_or_else(|| "Provider tool continuation is absent or expired".to_owned())?
+    };
+    let mut task = pending_turn.request.clone();
+    task.call_id = request.call_id;
+    let replay = task
+        .generation
+        .replay
+        .take()
+        .ok_or_else(|| "Provider tool continuation replay is missing".to_owned())?;
+    task.generation.replay = Some(append_source_locator_results(
+        replay,
+        &pending_turn.proposals,
+        &task.source_snapshots,
+    )?);
+    if !task
+        .content_categories
+        .iter()
+        .any(|category| category == "bounded native source-locator results")
+    {
+        task.content_categories
+            .push("bounded native source-locator results".to_owned());
+    }
+    validate_task(&task)?;
+    let endpoint = Url::parse(profile(task.provider).endpoint)
+        .map_err(|_| "Built-in provider endpoint is invalid".to_owned())?;
+    let message = disclosure_message(&task, &endpoint);
+    let approved = tauri::async_runtime::spawn_blocking(move || {
+        app.dialog()
+            .message(message)
+            .title("Remote model tool continuation")
+            .buttons(MessageDialogButtons::OkCancelCustom(
+                "Send results once".to_owned(),
+                "Cancel".to_owned(),
+            ))
+            .blocking_show()
+    })
+    .await
+    .map_err(|_| "Remote model continuation dialog could not be shown".to_owned())?;
+    if approved {
+        consume_pending_tool_turn(
+            &state,
+            &request.thread_call_id,
+            &pending_turn.pending_id,
+            task.tool_turn,
+        )?;
+    }
+    execute_with(
+        &OsCredentialVault,
+        &state,
+        &Client::new(),
+        endpoint,
+        task,
         approved,
     )
     .await
@@ -2064,6 +2550,142 @@ mod tests {
         }
     }
 
+    fn read_complete_http_request(stream: &mut std::net::TcpStream) -> String {
+        stream
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .expect("request timeout");
+        let mut request = Vec::new();
+        let mut content_length = None;
+        loop {
+            let mut chunk = [0_u8; 16 * 1024];
+            let read = stream.read(&mut chunk).expect("read request");
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..read]);
+            if content_length.is_none() {
+                if let Some(header_end) =
+                    request.windows(4).position(|window| window == b"\r\n\r\n")
+                {
+                    let headers = String::from_utf8_lossy(&request[..header_end]);
+                    content_length = headers.lines().find_map(|line| {
+                        line.split_once(':').and_then(|(name, value)| {
+                            name.eq_ignore_ascii_case("content-length")
+                                .then(|| value.trim().parse::<usize>().ok())
+                                .flatten()
+                        })
+                    });
+                }
+            }
+            if let (Some(header_end), Some(length)) = (
+                request.windows(4).position(|window| window == b"\r\n\r\n"),
+                content_length,
+            ) {
+                if request.len() >= header_end + 4 + length {
+                    break;
+                }
+            }
+        }
+        String::from_utf8(request).expect("UTF-8 request")
+    }
+
+    fn source_locator_provider_response(
+        provider: RemoteProviderId,
+        model: &str,
+        final_response: bool,
+    ) -> String {
+        if final_response {
+            return match provider {
+                RemoteProviderId::OpenAi | RemoteProviderId::Xai => json!({
+                    "id": "provider-final",
+                    "status": "completed",
+                    "model": model,
+                    "output": [{
+                        "type": "message",
+                        "content": [{ "type": "output_text", "text": "Source result incorporated." }]
+                    }],
+                    "usage": { "input_tokens": 8, "output_tokens": 3, "total_tokens": 11 }
+                }),
+                RemoteProviderId::Anthropic => json!({
+                    "id": "provider-final",
+                    "type": "message",
+                    "role": "assistant",
+                    "model": model,
+                    "content": [{ "type": "text", "text": "Source result incorporated." }],
+                    "stop_reason": "end_turn",
+                    "usage": { "input_tokens": 8, "output_tokens": 3 }
+                }),
+                RemoteProviderId::Gemini => json!({
+                    "id": "provider-final",
+                    "object": "interaction",
+                    "model": model,
+                    "status": "completed",
+                    "steps": [{
+                        "type": "model_output",
+                        "content": [{ "type": "text", "text": "Source result incorporated." }]
+                    }],
+                    "usage": {
+                        "total_input_tokens": 8,
+                        "total_output_tokens": 3,
+                        "total_tokens": 11
+                    }
+                }),
+            }
+            .to_string();
+        }
+        let arguments = json!({
+            "snapshotId": "source-snapshot-001",
+            "exactText": "bounded fixture evidence",
+            "maxMatches": 2
+        });
+        match provider {
+            RemoteProviderId::OpenAi | RemoteProviderId::Xai => json!({
+                "id": "provider-tool-turn",
+                "status": "completed",
+                "model": model,
+                "output": [{
+                    "type": "function_call",
+                    "call_id": "provider-call-exact",
+                    "name": SOURCE_LOCATOR_TOOL_NAME,
+                    "arguments": arguments.to_string()
+                }],
+                "usage": { "input_tokens": 6, "output_tokens": 2, "total_tokens": 8 }
+            }),
+            RemoteProviderId::Anthropic => json!({
+                "id": "provider-tool-turn",
+                "type": "message",
+                "role": "assistant",
+                "model": model,
+                "content": [{
+                    "type": "tool_use",
+                    "id": "provider-call-exact",
+                    "name": SOURCE_LOCATOR_TOOL_NAME,
+                    "input": arguments
+                }],
+                "stop_reason": "tool_use",
+                "usage": { "input_tokens": 6, "output_tokens": 2 }
+            }),
+            RemoteProviderId::Gemini => json!({
+                "id": "provider-tool-turn",
+                "object": "interaction",
+                "model": model,
+                "status": "requires_action",
+                "steps": [{
+                    "type": "function_call",
+                    "id": "provider-call-exact",
+                    "name": SOURCE_LOCATOR_TOOL_NAME,
+                    "arguments": arguments
+                }],
+                "usage": {
+                    "total_input_tokens": 6,
+                    "total_output_tokens": 2,
+                    "total_tokens": 8
+                }
+            }),
+        }
+        .to_string()
+    }
+
     fn task() -> ProviderTaskRequest {
         ProviderTaskRequest {
             run_id: "runtime-run-001".to_owned(),
@@ -2071,6 +2693,11 @@ mod tests {
             task_type: "adversarial.candidate".to_owned(),
             provider: RemoteProviderId::OpenAi,
             source_snapshot_ids: vec!["source-a".to_owned()],
+            source_snapshots: vec![ProviderResearchSource {
+                snapshot_id: "source-a".to_owned(),
+                label: "Source A".to_owned(),
+                excerpt: "fixture question".to_owned(),
+            }],
             timeout_ms: 5_000,
             content_categories: vec!["selected research excerpts".to_owned()],
             generation: GenerationRequest {
@@ -2081,7 +2708,11 @@ mod tests {
                 }],
                 max_output_tokens: 128,
                 tools: Vec::new(),
+                replay: None,
             },
+            tool_thread_id: None,
+            tool_turn: 0,
+            source_locator_enabled: false,
         }
     }
 
@@ -2102,6 +2733,7 @@ mod tests {
             }],
             max_output_tokens: 128,
             tool_definitions: Vec::new(),
+            enable_source_locator: false,
         }
     }
 
@@ -2313,10 +2945,339 @@ mod tests {
         );
         assert_eq!(outcome.run_record["result"]["status"], "completed");
         assert_eq!(outcome.run_record["usage"]["totalTokens"], 6);
+        assert!(outcome.run_record["request"]
+            .get("toolContinuationTurn")
+            .is_none());
+        assert!(outcome.run_record["request"]
+            .get("toolThreadIdSha256")
+            .is_none());
         let serialized = serde_json::to_string(&outcome).unwrap();
         assert!(!serialized.contains("runtime-secret-canary"));
         assert!(!serialized.contains("fixture question"));
         assert!(!serialized.contains("selected research excerpts"));
+    }
+
+    #[test]
+    fn native_source_locator_continues_all_provider_contracts_with_exact_call_binding() {
+        for (provider, model, path) in [
+            (
+                RemoteProviderId::OpenAi,
+                "openai-tool-model",
+                "/v1/responses",
+            ),
+            (
+                RemoteProviderId::Anthropic,
+                "anthropic-tool-model",
+                "/v1/messages",
+            ),
+            (
+                RemoteProviderId::Gemini,
+                "gemini-tool-model",
+                "/v1/interactions",
+            ),
+            (RemoteProviderId::Xai, "xai-tool-model", "/v1/responses"),
+        ] {
+            let listener = TcpListener::bind("127.0.0.1:0").expect("listener");
+            let endpoint = Url::parse(&format!(
+                "http://{}{}",
+                listener.local_addr().unwrap(),
+                path
+            ))
+            .expect("endpoint");
+            let responses = [
+                source_locator_provider_response(provider, model, false),
+                source_locator_provider_response(provider, model, true),
+            ];
+            let (captured_tx, captured_rx) = std::sync::mpsc::channel();
+            let server = thread::spawn(move || {
+                for body in responses {
+                    let (mut stream, _) = listener.accept().expect("provider request");
+                    captured_tx
+                        .send(read_complete_http_request(&mut stream))
+                        .expect("capture provider request");
+                    let zdr = if provider == RemoteProviderId::Xai {
+                        "x-zero-data-retention: true\r\n"
+                    } else {
+                        ""
+                    };
+                    write!(
+                        stream,
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n{zdr}Content-Length: {}\r\nConnection: close\r\n\r\n{}",
+                        body.len(),
+                        body
+                    )
+                    .expect("provider response");
+                }
+            });
+
+            let vault = MemoryVault::default();
+            let credential_id = CredentialId::new(provider, DEFAULT_PROFILE.to_owned()).unwrap();
+            vault
+                .set(
+                    &credential_id,
+                    &ProviderSecret::new(format!("{provider:?}-tool-secret")).unwrap(),
+                )
+                .unwrap();
+            let state = ProviderRuntimeState::default();
+            let mut public_request = research_task();
+            public_request.provider = provider;
+            public_request.model = model.to_owned();
+            public_request.call_id = format!("{provider:?}-tool-thread");
+            public_request.run_id = format!("{provider:?}-tool-run");
+            public_request.enable_source_locator = true;
+            let thread_call_id = public_request.call_id.clone();
+            let initial_task = build_research_task(public_request).expect("native tool task");
+            let initial = tauri::async_runtime::block_on(execute_with(
+                &vault,
+                &state,
+                &Client::new(),
+                endpoint.clone(),
+                initial_task,
+                true,
+            ))
+            .expect("initial provider tool turn");
+            let proposal = &initial
+                .response
+                .as_ref()
+                .expect("tool response")
+                .tool_proposals[0];
+            assert_eq!(proposal.call_id, "provider-call-exact");
+            assert_eq!(
+                proposal.validation.domain_status,
+                ProviderToolDomainStatus::SourceSnapshotApproved
+            );
+            assert!(proposal.validation.executable);
+            assert!(initial.tool_continuation_available);
+            assert_eq!(initial.tool_continuation_turn, Some(1));
+            assert_eq!(initial.run_record["request"]["toolContinuationTurn"], 0);
+            assert_eq!(
+                initial.run_record["request"]["toolThreadIdSha256"],
+                sha256(thread_call_id.as_bytes())
+            );
+            let initial_wire = captured_rx.recv().expect("initial request");
+            let initial_body: Value = serde_json::from_str(
+                initial_wire
+                    .split_once("\r\n\r\n")
+                    .expect("initial HTTP request")
+                    .1,
+            )
+            .expect("initial JSON");
+            assert_eq!(initial_body["tools"][0]["name"], SOURCE_LOCATOR_TOOL_NAME);
+
+            let pending = state
+                .pending_tool_turns
+                .lock()
+                .unwrap()
+                .remove(&thread_call_id)
+                .expect("pending native tool turn");
+            let mut continuation_task = pending.request;
+            continuation_task.call_id = format!("{provider:?}-tool-continuation");
+            let replay = continuation_task
+                .generation
+                .replay
+                .take()
+                .expect("provider replay");
+            continuation_task.generation.replay = Some(
+                append_source_locator_results(
+                    replay,
+                    &pending.proposals,
+                    &continuation_task.source_snapshots,
+                )
+                .expect("native result replay"),
+            );
+            continuation_task
+                .content_categories
+                .push("bounded native source-locator results".to_owned());
+            let final_outcome = tauri::async_runtime::block_on(execute_with(
+                &vault,
+                &state,
+                &Client::new(),
+                endpoint,
+                continuation_task,
+                true,
+            ))
+            .expect("provider continuation");
+            assert_eq!(
+                final_outcome
+                    .response
+                    .as_ref()
+                    .map(|response| response.text.as_str()),
+                Some("Source result incorporated.")
+            );
+            assert!(!final_outcome.tool_continuation_available);
+            assert_eq!(
+                final_outcome.run_record["request"]["toolContinuationTurn"],
+                1
+            );
+            assert_eq!(
+                final_outcome.run_record["request"]["toolThreadIdSha256"],
+                sha256(thread_call_id.as_bytes())
+            );
+
+            let continuation_wire = captured_rx.recv().expect("continuation request");
+            let continuation_body: Value = serde_json::from_str(
+                continuation_wire
+                    .split_once("\r\n\r\n")
+                    .expect("continuation HTTP request")
+                    .1,
+            )
+            .expect("continuation JSON");
+            let result_item = match provider {
+                RemoteProviderId::OpenAi | RemoteProviderId::Xai => {
+                    assert_eq!(continuation_body["store"], false);
+                    assert!(continuation_body.get("previous_response_id").is_none());
+                    continuation_body["input"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .find(|item| item["type"] == "function_call_output")
+                        .expect("Responses function result")
+                }
+                RemoteProviderId::Anthropic => continuation_body["messages"]
+                    .as_array()
+                    .unwrap()
+                    .last()
+                    .and_then(|message| message["content"].as_array())
+                    .and_then(|content| content.first())
+                    .expect("Anthropic tool result"),
+                RemoteProviderId::Gemini => {
+                    assert_eq!(continuation_body["store"], false);
+                    assert!(continuation_body.get("previous_interaction_id").is_none());
+                    continuation_body["input"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .find(|item| item["type"] == "function_result")
+                        .expect("Gemini function result")
+                }
+            };
+            let (call_id, output) = match provider {
+                RemoteProviderId::OpenAi | RemoteProviderId::Xai => (
+                    result_item["call_id"].as_str().unwrap(),
+                    result_item["output"].as_str().unwrap(),
+                ),
+                RemoteProviderId::Anthropic => (
+                    result_item["tool_use_id"].as_str().unwrap(),
+                    result_item["content"].as_str().unwrap(),
+                ),
+                RemoteProviderId::Gemini => (
+                    result_item["call_id"].as_str().unwrap(),
+                    result_item["result"][0]["text"].as_str().unwrap(),
+                ),
+            };
+            assert_eq!(call_id, "provider-call-exact");
+            let output: Value = serde_json::from_str(output).expect("native result JSON");
+            assert_eq!(output["ok"], true);
+            assert_eq!(output["returnedMatches"], 1);
+            assert!(output["matches"][0]["context"]
+                .as_str()
+                .unwrap()
+                .contains("bounded fixture evidence"));
+            server.join().expect("provider server");
+        }
+    }
+
+    #[test]
+    fn source_locator_rejects_foreign_snapshots_reserved_spoofing_and_unreviewed_tools() {
+        let sources = research_task().sources;
+        let mut proposal = normalize_tool_proposal(
+            "foreign-call",
+            SOURCE_LOCATOR_TOOL_NAME,
+            json!({
+                "snapshotId": "foreign-snapshot",
+                "exactText": "bounded fixture evidence",
+                "maxMatches": 2
+            }),
+        )
+        .expect("proposal shape");
+        validate_tool_proposals(
+            &[source_locator_tool_definition()],
+            std::slice::from_mut(&mut proposal),
+        );
+        authorize_source_locator_proposals(&sources, std::slice::from_mut(&mut proposal));
+        assert_eq!(
+            proposal.validation.domain_status,
+            ProviderToolDomainStatus::SourceSnapshotRejected
+        );
+        assert!(!proposal.validation.executable);
+        assert!(execute_source_locator(&sources, &proposal).is_err());
+
+        let mut spoofed = research_task();
+        spoofed.tool_definitions = vec![source_locator_tool_definition()];
+        spoofed.enable_source_locator = true;
+        assert!(build_research_task(spoofed).is_err());
+
+        let custom = normalize_tool_proposal(
+            "custom-call",
+            "lookup_source",
+            json!({ "query": "bounded" }),
+        )
+        .expect("custom proposal");
+        assert!(append_source_locator_results(
+            ProviderConversationReplay::Responses(vec![json!({ "type": "function_call" })]),
+            &[custom],
+            &sources,
+        )
+        .is_err());
+
+        let state = ProviderRuntimeState::default();
+        let thread_call_id = "pending-race-thread".to_owned();
+        let replacement = PendingProviderToolTurn {
+            pending_id: "replacement-pending-id".to_owned(),
+            request: task(),
+            proposals: Vec::new(),
+            expires_at: Instant::now() + PENDING_PROVIDER_TOOL_LIFETIME,
+        };
+        state
+            .pending_tool_turns
+            .lock()
+            .unwrap()
+            .insert(thread_call_id.clone(), replacement);
+        assert!(
+            consume_pending_tool_turn(&state, &thread_call_id, "stale-pending-id", 0)
+                .unwrap_err()
+                .contains("changed before dispatch")
+        );
+        assert_eq!(
+            state.pending_tool_turns.lock().unwrap()[&thread_call_id].pending_id,
+            "replacement-pending-id"
+        );
+        consume_pending_tool_turn(&state, &thread_call_id, "replacement-pending-id", 0)
+            .expect("exact pending turn consumed");
+        assert!(state.pending_tool_turns.lock().unwrap().is_empty());
+
+        let mut public_request = research_task();
+        public_request.enable_source_locator = true;
+        let oversized_task = build_research_task(public_request).expect("native tool task");
+        let mut approved = normalize_tool_proposal(
+            "bounded-replay-call",
+            SOURCE_LOCATOR_TOOL_NAME,
+            json!({
+                "snapshotId": "source-snapshot-001",
+                "exactText": "bounded fixture evidence",
+                "maxMatches": 1
+            }),
+        )
+        .expect("bounded proposal");
+        validate_tool_proposals(
+            &oversized_task.generation.tools,
+            std::slice::from_mut(&mut approved),
+        );
+        authorize_source_locator_proposals(
+            &oversized_task.source_snapshots,
+            std::slice::from_mut(&mut approved),
+        );
+        assert!(retain_pending_tool_turn(
+            &state,
+            &oversized_task,
+            ProviderConversationReplay::Responses(
+                (0..257).map(|index| json!({ "index": index })).collect()
+            ),
+            &[approved],
+        )
+        .unwrap_err()
+        .contains("invalid"));
+        assert!(state.pending_tool_turns.lock().unwrap().is_empty());
     }
 
     #[test]

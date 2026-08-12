@@ -68,6 +68,11 @@ fn main() {
         task_type: "interop.provider-record".to_owned(),
         provider: RemoteProviderId::OpenAi,
         source_snapshot_ids: vec!["interop-source-001".to_owned()],
+        source_snapshots: vec![app_lib::provider_runtime::ProviderResearchSource {
+            snapshot_id: "interop-source-001".to_owned(),
+            label: "Synthetic interoperability fixture".to_owned(),
+            excerpt: "interop prompt canary".to_owned(),
+        }],
         timeout_ms: 5_000,
         content_categories: vec!["synthetic interoperability fixture".to_owned()],
         generation: GenerationRequest {
@@ -93,7 +98,11 @@ fn main() {
                 })
                 .into_iter()
                 .collect(),
+            replay: None,
         },
+        tool_thread_id: None,
+        tool_turn: 0,
+        source_locator_enabled: false,
     };
     let outcome = tauri::async_runtime::block_on(execute_with(
         &FixtureVault,

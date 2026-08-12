@@ -59,8 +59,9 @@ pub fn current() -> Result<Value, String> {
         "contractVersion": 1,
         "implementationStatus": {
             "localProvider": "available",
-            "remoteProviderAdapters": "native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-tool-proposal-review-ui-no-live-proof",
+            "remoteProviderAdapters": "native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-custom-tool-review-bounded-source-locator-continuation-no-live-proof",
             "providerTaskRuntime": "native-disclosure-research-envelope",
+            "providerToolContinuation": "native-exact-frozen-source-read-only-stateless-replay-four-turn-no-live-proof",
             "providerBatchAuthorization": "native-content-bound-call-graph-authorizer",
             "providerBatchReservation": "native-atomic-dependency-bound-executor",
             "providerRunRecordValidator": "implemented",
@@ -137,6 +138,7 @@ pub fn current() -> Result<Value, String> {
             "providerRuntimeCommand": "npm run test:provider-runtime",
             "providerRuntimeInteropCommand": "npm run test:provider-runtime-interop",
             "providerStreamCommand": "npm run test:provider-streams",
+            "providerToolContinuationCommand": "npm run test:provider-tool-continuation",
             "credentialCommand": "npm run test:credentials",
             "credentialLiveCommand": "npm run test:credentials:live",
             "pluginCertifierCommand": "npm run test:plugin-sdk",
@@ -165,7 +167,15 @@ mod tests {
         assert_eq!(contracts["contractVersion"], 1);
         assert_eq!(
             contracts["implementationStatus"]["remoteProviderAdapters"],
-            "native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-tool-proposal-review-ui-no-live-proof"
+            "native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-custom-tool-review-bounded-source-locator-continuation-no-live-proof"
+        );
+        assert_eq!(
+            contracts["implementationStatus"]["providerToolContinuation"],
+            "native-exact-frozen-source-read-only-stateless-replay-four-turn-no-live-proof"
+        );
+        assert_eq!(
+            contracts["selfCheck"]["providerToolContinuationCommand"],
+            "npm run test:provider-tool-continuation"
         );
         assert_eq!(
             contracts["implementationStatus"]["providerTaskRuntime"],

@@ -814,11 +814,18 @@ installation, permission-grant UI, capability-bearing WIT, or direct mutation au
   derives phase prompts, and dispatches only through built-in provider transports. MCP may start,
   inspect, or cancel this one revision-guarded workflow, but cannot choose arbitrary source bytes,
   prompts, endpoints, credentials, Drive content, or shared mutations. Results remain pending
-  human review. Conformance uses loopback providers; live-provider certification, tool execution and
-  result continuation, durable run UI/history, and quality evidence remain open. Current custom-function
-  output is an inspectable transient proposal with no MCP, Drive, filesystem, plugin, editor, network,
-  or shared-project mutation authority. Safe-subset schema validation is structural only: domain state
-  remains explicitly unreviewed and execution remains false even when arguments match.
+  human review. Conformance uses loopback providers; live-provider certification, arbitrary/custom
+  tool execution, streamed tool continuation, durable run UI/history, and quality evidence remain
+  open. Custom-function output is an inspectable transient proposal with no MCP, Drive, filesystem,
+  plugin, editor, network, or shared-project mutation authority. Safe-subset schema validation is
+  structural only: domain state remains explicitly unreviewed and execution remains false even when
+  arguments match. One separately enabled host-owned `syzygy_locate_exact_source_text` tool may
+  perform a bounded literal search over only the exact already-disclosed frozen source excerpts.
+  Its one-shot continuation replay, provider-issued call IDs, and result carriers remain native-only;
+  pending state is process-memory bounded/expiring, stops after four turns, and each transmission
+  requires a fresh native disclosure. It cannot discover or mutate Drive, files, MCP, plugins, the
+  editor, the network, or shared project state. Four-provider fake-server evidence exists; packaged
+  dialog and live-provider evidence do not.
   Plugins declare capabilities and submit revision-guarded proposals. A user may select one exact
   manifest/component pair into session memory and run a contribution in the zero-import child;
   no guest code executes in the webview. Valid output enters shared human review with component

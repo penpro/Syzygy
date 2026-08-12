@@ -745,8 +745,10 @@ order, fragmented delivery, sanitized errors/warnings, and omission of private t
 `npm run test:provider-runtime` also routes that stream through the product task accumulator and
 proves secrets, prompts, categories, and private-thinking canaries stay out of serialized outcomes.
 Fragmented `input_json_delta` tool arguments normalize into bounded non-executing proposals and
-malformed or unfinished calls fail closed. This does not prove tool execution/result continuation,
-a live credential/provider, or packaged native-dialog interaction.
+malformed or unfinished calls fail closed. `npm run test:provider-tool-continuation` separately
+proves the host-owned exact-source locator's one-shot `tool_use`/`tool_result` call binding. This
+does not prove arbitrary/custom execution, streamed continuation, a live credential/provider, or
+packaged native-dialog interaction.
 
 It also certifies the stable-v1 Gemini Interactions one-shot and streaming boundary. Fake servers check
 `POST /v1/interactions`, `x-goog-api-key`, `store:false`, `background:false`, `stream:false`,
@@ -757,8 +759,10 @@ usage/status/`[DONE]`, fragmented delivery, omission of thought/signature bodies
 of complete function-call steps into the common non-executing proposal lifecycle. The test
 rejects `/v1beta` instead of silently drifting API versions. The runtime suite routes the same stream
 through the product accumulator and excludes secret, prompt, category, and thought canaries from
-serialized outcomes. Tool execution/result continuation, thought-signature continuation, a live credential,
-and packaged native-dialog interaction remain open.
+serialized outcomes. Arbitrary/custom execution, streamed continuation, a live credential, and
+packaged native-dialog interaction remain open for the general surface. The bounded native
+locator's one-shot `function_call`/`function_result` carrier is covered by
+`npm run test:provider-tool-continuation`; arbitrary/custom and streamed execution remain open.
 
 The xAI Responses one-shot and SSE boundaries use the Responses shape without assuming OpenAI's
 privacy semantics. Fake servers check bearer auth, `store:false`, no previous-response/cache
@@ -766,8 +770,10 @@ identifier, bounded normalization, timeout/cancellation, `stream:true` plus even
 negotiation, and a mandatory boolean `x-zero-data-retention` response header. The stream rejects a
 missing or non-boolean header before dispatching any event and preserves the attestation in the
 authoritative content-free run record. Whole custom function-call chunks normalize into bounded
-non-executing proposals. Tool execution/result continuation, encrypted reasoning continuation, WebSocket mode, live policy/rate/
-cost behavior, packaged native-dialog interaction, and live proof remain open.
+non-executing proposals. The bounded native locator's one-shot exact-call result and native-only
+opaque response replay are covered by `npm run test:provider-tool-continuation`. Arbitrary/custom
+execution, streamed/WebSocket continuation, live policy/rate/cost behavior, packaged native-dialog
+interaction, and live proof remain open.
 
 `npm run test:provider-runtime` proves the next internal boundary: a typed task retrieves a key
 from an injected vault, executes through the existing provider transport, normalizes the result,

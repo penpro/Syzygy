@@ -358,6 +358,7 @@ export interface ProviderResearchTaskRequest {
   sources: ProviderResearchSource[]
   maxOutputTokens: number
   toolDefinitions?: ProviderToolDefinition[]
+  enableSourceLocator?: boolean
 }
 
 export interface ProviderNormalizedUsage {
@@ -387,8 +388,8 @@ export interface ProviderToolProposal {
 
 export interface ProviderToolProposalValidation {
   schemaStatus: 'pending' | 'valid' | 'invalid' | 'missing-definition'
-  domainStatus: 'unreviewed'
-  executable: false
+  domainStatus: 'unreviewed' | 'source-snapshot-approved' | 'source-snapshot-rejected'
+  executable: boolean
   errors: string[]
 }
 
@@ -397,6 +398,13 @@ export interface ProviderTaskOutcome {
   zeroDataRetention: boolean | null
   errorCode: string | null
   runRecord: ProviderRunRecord
+  toolContinuationAvailable: boolean
+  toolContinuationTurn: number | null
+}
+
+export interface ProviderSourceLocatorContinuationRequest {
+  threadCallId: string
+  callId: string
 }
 
 export interface ProviderBatchRoute {
@@ -1089,6 +1097,10 @@ export async function pickLanPairingKeyFile(): Promise<string | null> {
  */
 export const providerGenerate = (request: ProviderResearchTaskRequest): Promise<ProviderTaskOutcome> =>
   invoke('provider_generate', { request })
+
+export const providerContinueSourceLocator = (
+  request: ProviderSourceLocatorContinuationRequest,
+): Promise<ProviderTaskOutcome> => invoke('provider_continue_source_locator', { request })
 
 /**
  * Run one supported provider request over a scoped, ordered IPC channel. The native command owns

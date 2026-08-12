@@ -245,6 +245,7 @@ pub fn run() {
             mcp_setup::mcp_connection_info,
             provider_runtime::provider_generate,
             provider_runtime::provider_generate_stream,
+            provider_runtime::provider_continue_source_locator,
             provider_runtime::provider_cancel,
             provider_runtime::provider_adversarial_authorize,
             provider_runtime::provider_adversarial_execute,

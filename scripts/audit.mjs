@@ -2934,11 +2934,15 @@ record(
     providerRunRecordSource.includes('totalTokens must equal inputTokens plus outputTokens') &&
     providerRunRecordSource.includes('must not contain prompts, outputs, credentials, or raw payloads') &&
     providerRunSchema.properties?.executionMode?.enum?.includes('loopback-conformance') &&
+    providerRunSchema.properties?.request?.properties?.toolContinuationTurn?.maximum === 4 &&
+    providerRunSchema.properties?.request?.properties?.toolThreadIdSha256?.$ref === '#/$defs/sha256' &&
     providerRunRecordSource.includes('loopback conformance destination must use literal loopback') &&
+    providerRunRecordSource.includes('tool continuation turn and thread hash must be recorded together') &&
+    providerRunRecordSource.includes('tool continuation metadata requires a non-streaming remote execution') &&
     providerRuntimeInteropSource.includes('SYZYGY_PROVIDER_RUN_RECORD') &&
     platformContractsSource.includes('"providerRunRecordSchema"') &&
     platformContractsSource.includes('"providerRunRecordValidator": "implemented"'),
-  'strict public schema plus product/conformance endpoint honesty, disclosure, retention, accounting, content-exclusion, cross-language harness, and MCP gates present',
+  'strict backward-compatible public schema plus product/conformance endpoint honesty, disclosure, bounded paired continuation metadata, retention, accounting, content-exclusion, cross-language harness, and MCP gates present',
 )
 const modelAdapterProfileSource = text('frontend/src/extensions/modelAdapterProfile.ts')
 const modelAdapterCertifierSource = text('scripts/model-adapter-certifier.mjs')
@@ -3023,7 +3027,7 @@ record(
     rustWiringSource.includes('provider_runtime::provider_adversarial_execute') &&
     rustWiringSource.includes('provider_runtime::provider_adversarial_revoke') &&
     rustWiringSource.includes('provider_runtime::provider_adversarial_authorization_status') &&
-    providerTaskRuntimeSource.includes('execute_openai_response_controlled') &&
+    providerTaskRuntimeSource.includes('execute_openai_response_with_replay_controlled') &&
     providerTaskRuntimeSource.includes('execute_openai_stream_controlled') &&
     providerTaskRuntimeSource.includes('execute_anthropic_stream_controlled') &&
     providerTaskRuntimeSource.includes('execute_gemini_stream_controlled') &&
@@ -3031,21 +3035,24 @@ record(
     providerTaskRuntimeSource.includes('tauri::ipc::Channel<NormalizedStreamEvent>') &&
     providerTaskRuntimeSource.includes('record["request"]["stream"] = Value::Bool(true)') &&
     providerTaskRuntimeSource.includes('MAX_ACCUMULATED_STREAM_BYTES') &&
-    providerTaskRuntimeSource.includes('execute_anthropic_response_controlled') &&
-    providerTaskRuntimeSource.includes('execute_gemini_response_controlled') &&
-    providerTaskRuntimeSource.includes('execute_xai_response_controlled') &&
+    providerTaskRuntimeSource.includes('execute_anthropic_response_with_replay_controlled') &&
+    providerTaskRuntimeSource.includes('execute_gemini_response_with_replay_controlled') &&
+    providerTaskRuntimeSource.includes('execute_xai_response_with_replay_controlled') &&
     providerTaskRuntimeSource.includes('run_record(') &&
     providerTaskRuntimeSource.includes('MessageDialogButtons::OkCancelCustom') &&
     providerTaskRuntimeSource.includes('.blocking_show()') &&
     providerTaskRuntimeSource.includes('spawn_blocking') &&
     !providerTaskRuntimeSource.includes('pub disclosure_accepted') &&
-    platformContractsSource.includes('"remoteProviderAdapters": "native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-tool-proposal-review-ui-no-live-proof"') &&
+    platformContractsSource.includes('"remoteProviderAdapters": "native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-custom-tool-review-bounded-source-locator-continuation-no-live-proof"') &&
+    platformContractsSource.includes('"providerToolContinuation": "native-exact-frozen-source-read-only-stateless-replay-four-turn-no-live-proof"') &&
+    platformContractsSource.includes('"providerToolContinuationCommand": "npm run test:provider-tool-continuation"') &&
     platformContractsSource.includes('"providerTaskRuntime": "native-disclosure-research-envelope"') &&
     providerTaskRuntimeSource.includes('"executionMode": execution_mode') &&
     text('frontend/src/tauri.ts').includes("invoke('provider_generate'") &&
     text('frontend/src/tauri.ts').includes("invoke('provider_generate_stream'") &&
     text('frontend/src/tauri.ts').includes('new Channel<ProviderStreamEvent>') &&
     text('frontend/src/tauri.ts').includes("invoke('provider_cancel'") &&
+    text('frontend/src/tauri.ts').includes("invoke('provider_continue_source_locator'") &&
     text('frontend/src/workspace/RemoteResearchReview.tsx').includes('providerGenerateStream(request') &&
     text('frontend/src/workspace/RemoteResearchReview.tsx').includes("provider === 'openai' || provider === 'anthropic'") &&
     text('frontend/src/workspace/RemoteResearchReview.ui.test.tsx').includes("providerUsesNativeStreaming('anthropic')") &&
@@ -3071,16 +3078,36 @@ record(
     text('frontend/src/workspace/remoteResearchTask.ts').includes("crypto.subtle.digest('SHA-256'") &&
     text('frontend/src/workspace/remoteResearchTask.test.ts').includes('without forging disclosure or provenance fields') &&
     text('frontend/src/workspace/remoteResearchTask.ts').includes('parseProviderToolDefinitions') &&
-    text('frontend/src/workspace/RemoteResearchReview.tsx').includes('Tool proposals · inspect only · not executed') &&
-    text('frontend/src/workspace/RemoteResearchReview.tsx').includes('Schema matches · domain unreviewed · not executable') &&
-    !text('frontend/src/workspace/RemoteResearchReview.tsx').includes('Run tool') &&
+    text('frontend/src/workspace/remoteResearchTask.ts').includes('SOURCE_LOCATOR_TOOL_NAME') &&
+    text('frontend/src/workspace/remoteResearchTask.ts').includes('enableSourceLocator') &&
+    text('frontend/src/workspace/RemoteResearchReview.tsx').includes('inspect only · not executed') &&
+    text('frontend/src/workspace/RemoteResearchReview.tsx').includes('domain unreviewed · not executable') &&
+    text('frontend/src/workspace/RemoteResearchReview.tsx').includes('frozen snapshot approved · native read only') &&
+    text('frontend/src/workspace/RemoteResearchReview.tsx').includes('Run native source locator and continue') &&
+    providerTaskRuntimeSource.includes('syzygy_locate_exact_source_text') &&
+    providerTaskRuntimeSource.includes('MAX_PROVIDER_TOOL_TURNS: u8 = 4') &&
+    providerTaskRuntimeSource.includes('PENDING_PROVIDER_TOOL_LIFETIME') &&
+    providerTaskRuntimeSource.includes('append_source_locator_results') &&
+    providerTaskRuntimeSource.includes('random_pending_tool_id') &&
+    providerTaskRuntimeSource.includes('consume_pending_tool_turn') &&
+    providerTaskRuntimeSource.includes('provider_continue_source_locator') &&
+    providerTaskRuntimeSource.includes('native_source_locator_continues_all_provider_contracts_with_exact_call_binding') &&
+    providerTaskRuntimeSource.includes('source_locator_rejects_foreign_snapshots_reserved_spoofing_and_unreviewed_tools') &&
+    providerRuntimeSource.includes('ProviderConversationReplay') &&
+    providerRuntimeSource.includes('MAX_PROVIDER_REPLAY_BYTES') &&
+    providerRuntimeSource.includes('MAX_PROVIDER_REPLAY_ITEMS') &&
+    providerRuntimeSource.includes('provider_replay_builders_bind_exact_tool_results_without_server_side_state') &&
+    rustWiringSource.includes('provider_runtime::provider_continue_source_locator') &&
+    text('frontend/src/workspace/RemoteResearchReview.tsx').includes('reconcileSourceLocatorContinuation') &&
+    text('frontend/src/workspace/RemoteResearchReview.ui.test.tsx').includes('retains the reviewed native proposal when fresh result disclosure is cancelled') &&
+    frontendPackage.scripts?.['test:provider-tool-continuation']?.includes('run-with-heartbeat.mjs') &&
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_authorize'") &&
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_execute'") &&
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_revoke'") &&
     text('frontend/src/tauri.ts').includes("invoke('provider_adversarial_authorization_status'") &&
     !text('frontend/src/tauri.ts').includes('disclosureAccepted') &&
     text('frontend/src-tauri/src/bin/provider-runtime-harness.rs').includes('interop-secret-canary'),
-  'OpenAI, Anthropic, Gemini, and xAI request/stream/tool-proposal wire contracts, scoped product event channel, content-free task runtime, native non-forgeable disclosure, cancellation, transient inspect-only exact-draft UI, xAI ZDR attestation, and truthful no-live-proof status present',
+  'OpenAI, Anthropic, Gemini, and xAI request/stream/custom-proposal contracts plus a four-turn native exact-source locator use provider-issued call binding, stateless native-only replay, fresh disclosure, bounded pending state, content-free run metadata, and truthful no-live-proof status',
 )
 record(
   'adversarial batch authorization is native, content-bound, exact, and expiring',

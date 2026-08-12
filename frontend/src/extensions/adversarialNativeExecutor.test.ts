@@ -43,6 +43,8 @@ function outcome(provider: RemoteProviderId, text: string, usage = true): Provid
     zeroDataRetention: null,
     errorCode: null,
     runRecord: {} as ProviderTaskOutcome['runRecord'],
+    toolContinuationAvailable: false,
+    toolContinuationTurn: null,
   }
 }
 

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   desktopRuntimeAvailable,
   providerCancel,
+  providerContinueSourceLocator,
   providerCredentialStatus,
   providerGenerate,
   providerGenerateStream,
@@ -24,12 +25,32 @@ const DEFAULT_QUESTION = 'Identify the three most consequential unsupported assu
 
 type ReviewPhase = 'idle' | 'preparing' | 'running' | 'cancelling' | 'complete' | 'error'
 
+export function reconcileSourceLocatorContinuation(
+  previous: ProviderTaskOutcome | null,
+  result: ProviderTaskOutcome,
+): {
+  displayedOutcome: ProviderTaskOutcome | null
+  continuationAvailable: boolean
+  disclosureCancelled: boolean
+} {
+  const disclosureCancelled = result.response === null && result.errorCode === 'disclosure-required'
+  return {
+    displayedOutcome: disclosureCancelled ? previous : result,
+    continuationAvailable: disclosureCancelled
+      ? previous?.toolContinuationAvailable === true
+      : result.toolContinuationAvailable,
+    disclosureCancelled,
+  }
+}
+
 export type RemoteResearchReviewResultProps = {
   provider: RemoteProviderId
   model: string
   outcome: ProviderTaskOutcome | null
   streamState: ProviderStreamState | null
   toolDefinitions?: ProviderToolDefinition[]
+  onContinueTools?: () => void
+  continuingTools?: boolean
 }
 
 export function providerUsesNativeStreaming(provider: RemoteProviderId): boolean {
@@ -37,6 +58,12 @@ export function providerUsesNativeStreaming(provider: RemoteProviderId): boolean
 }
 
 function validationLabel(validation: ProviderToolProposalValidation): string {
+  if (validation.domainStatus === 'source-snapshot-approved' && validation.executable) {
+    return 'Schema matches · frozen snapshot approved · native read only'
+  }
+  if (validation.domainStatus === 'source-snapshot-rejected') {
+    return 'Source scope rejected · not executable'
+  }
   switch (validation.schemaStatus) {
     case 'pending': return 'Schema check pending · domain unreviewed · not executable'
     case 'valid': return 'Schema matches · domain unreviewed · not executable'
@@ -45,12 +72,23 @@ function validationLabel(validation: ProviderToolProposalValidation): string {
   }
 }
 
-export function RemoteResearchReviewResult({ provider, model, outcome, streamState, toolDefinitions = [] }: RemoteResearchReviewResultProps) {
+export function RemoteResearchReviewResult({
+  provider,
+  model,
+  outcome,
+  streamState,
+  toolDefinitions = [],
+  onContinueTools,
+  continuingTools = false,
+}: RemoteResearchReviewResultProps) {
   const response = outcome?.response
   const text = response?.text ?? streamState?.text ?? ''
   const toolProposals = response?.toolProposals ?? streamState?.toolCalls ?? []
   if (!text && !toolProposals.length) return null
   const tokens = response?.usage?.totalTokens ?? streamState?.usage?.totalTokens
+  const hasExecutableNativeTool = toolProposals.some((proposal) => (
+    'validation' in proposal && proposal.validation.executable
+  ))
   return (
     <div className="remote-review-result" aria-live="polite">
       <div className="remote-review-result-meta mono">
@@ -59,7 +97,11 @@ export function RemoteResearchReviewResult({ provider, model, outcome, streamSta
       {text ? <div className="remote-review-result-text">{text}</div> : null}
       {toolProposals.length ? (
         <div className="remote-review-tool-proposals">
-          <div className="remote-review-tool-heading">Tool proposals · inspect only · not executed</div>
+          <div className="remote-review-tool-heading">
+            {hasExecutableNativeTool
+              ? 'Tool proposals · native source scope reviewed · execution requires confirmation'
+              : 'Tool proposals · inspect only · not executed'}
+          </div>
           {toolProposals.map((proposal) => {
             const validation = 'validation' in proposal
               ? proposal.validation
@@ -79,6 +121,11 @@ export function RemoteResearchReviewResult({ provider, model, outcome, streamSta
           })}
         </div>
       ) : null}
+      {outcome?.toolContinuationAvailable && onContinueTools ? (
+        <button className="btn" type="button" disabled={continuingTools} onClick={onContinueTools}>
+          {continuingTools ? 'Continuing…' : `Run native source locator and continue${outcome.toolContinuationTurn ? ` · turn ${outcome.toolContinuationTurn}` : ''}`}
+        </button>
+      ) : null}
       {streamState?.warnings.length ? <div className="remote-review-retention mono">Provider notices: {streamState.warnings.join(', ')}</div> : null}
       {outcome?.zeroDataRetention !== null && outcome?.zeroDataRetention !== undefined && <div className="remote-review-retention mono">Provider reported zero data retention: {outcome.zeroDataRetention ? 'yes' : 'no'}</div>}
       <div className="remote-review-retention mono">Transient review · never applied to the shared draft automatically</div>
@@ -91,12 +138,14 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
   const [model, setModel] = useState(REMOTE_REVIEW_PROVIDERS[0].defaultModel)
   const [question, setQuestion] = useState(DEFAULT_QUESTION)
   const [toolDefinitionsJson, setToolDefinitionsJson] = useState('')
+  const [sourceLocatorEnabled, setSourceLocatorEnabled] = useState(false)
   const [submittedToolDefinitions, setSubmittedToolDefinitions] = useState<ProviderToolDefinition[]>([])
   const [phase, setPhase] = useState<ReviewPhase>('idle')
   const [message, setMessage] = useState('Nothing is sent until the native Send once confirmation.')
   const [outcome, setOutcome] = useState<ProviderTaskOutcome | null>(null)
   const [streamState, setStreamState] = useState<ProviderStreamState | null>(null)
   const [activeCallId, setActiveCallId] = useState<string | null>(null)
+  const [toolThreadCallId, setToolThreadCallId] = useState<string | null>(null)
 
   const chooseProvider = (next: RemoteProviderId) => {
     setProvider(next)
@@ -104,6 +153,7 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
     setOutcome(null)
     setStreamState(null)
     setSubmittedToolDefinitions([])
+    setToolThreadCallId(null)
     setPhase('idle')
     setMessage('Nothing is sent until the native Send once confirmation.')
   }
@@ -118,6 +168,7 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
     setActiveCallId(callId)
     setOutcome(null)
     setStreamState(null)
+    setToolThreadCallId(null)
     setPhase('preparing')
     setMessage('Checking the OS credential vault…')
     try {
@@ -128,6 +179,7 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
       const request = await buildRemoteReviewRequest({
         provider, model, question, runId: `remote-review-${crypto.randomUUID()}`, callId,
         toolDefinitions,
+        enableSourceLocator: sourceLocatorEnabled,
         draft: {
           projectId: project.id, documentId: project.documentId, projectTitle: project.title,
           revision: snapshot.revision, text: snapshot.text,
@@ -138,7 +190,7 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
       let observedStream = initialProviderStreamState()
       let streamProtocolError: Error | null = null
       const providerLabel = REMOTE_REVIEW_PROVIDERS.find(({ id }) => id === provider)?.name ?? provider
-      const result = providerUsesNativeStreaming(provider)
+      const result = providerUsesNativeStreaming(provider) && !sourceLocatorEnabled
         ? await providerGenerateStream(request, (event) => {
             if (streamProtocolError) return
             try {
@@ -153,12 +205,48 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
         : await providerGenerate(request)
       if (streamProtocolError) throw streamProtocolError
       setOutcome(result)
+      setToolThreadCallId(result.toolContinuationAvailable ? callId : null)
       if (result.response) {
         setPhase('complete')
         setMessage('Remote review returned. It remains a local review artifact and was not added to the shared draft.')
       } else {
         setPhase(result.errorCode === 'cancelled' ? 'idle' : 'error')
         setMessage(result.errorCode === 'cancelled' ? 'Remote review cancelled.' : `Remote review failed (${result.errorCode ?? 'unknown'}).`)
+      }
+    } catch (error) {
+      setPhase('error')
+      setMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setActiveCallId(null)
+    }
+  }
+
+  const continueSourceLocator = async () => {
+    if (!toolThreadCallId) return
+    const callId = `remote-review-tool-${crypto.randomUUID()}`
+    setActiveCallId(callId)
+    setPhase('preparing')
+    setMessage('Preparing bounded native source-locator results for a fresh disclosure…')
+    try {
+      const result = await providerContinueSourceLocator({
+        threadCallId: toolThreadCallId,
+        callId,
+      })
+      const reconciled = reconcileSourceLocatorContinuation(outcome, result)
+      setOutcome(reconciled.displayedOutcome)
+      setStreamState(null)
+      if (result.response) {
+        setPhase('complete')
+        setMessage(result.toolContinuationAvailable
+          ? 'The provider requested another approved source lookup. Review it before continuing.'
+          : 'The provider used the native source result and returned a final transient review.')
+        if (!reconciled.continuationAvailable) setToolThreadCallId(null)
+      } else {
+        setPhase(reconciled.disclosureCancelled ? 'idle' : 'error')
+        setMessage(reconciled.disclosureCancelled
+          ? 'Tool continuation was not sent. The reviewed proposal remains available until it expires.'
+          : `Tool continuation failed (${result.errorCode ?? 'unknown'}).`)
+        if (!reconciled.continuationAvailable) setToolThreadCallId(null)
       }
     } catch (error) {
       setPhase('error')
@@ -202,7 +290,17 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
       </label>
       <details className="remote-review-tools">
         <summary>Tool proposals (advanced)</summary>
-        <p>Optionally provide a JSON array of custom function schemas from Syzygy's bounded safe subset. Returned arguments are checked against the matching schema, but domain review remains separate. Syzygy never executes the calls or sends results back.</p>
+        <p>Optionally provide a JSON array of custom function schemas from Syzygy's bounded safe subset. Returned arguments are checked against the matching schema, but custom functions remain inspect-only and are never executed or continued.</p>
+        <label className="remote-review-source-locator">
+          <input
+            type="checkbox"
+            checked={sourceLocatorEnabled}
+            disabled={busy}
+            onChange={(event) => setSourceLocatorEnabled(event.target.checked)}
+          />
+          Allow Syzygy's native exact-text locator over the frozen source snapshots in this request
+        </label>
+        <p>The native locator is read-only and bounded. It cannot reach Drive, files, MCP, plugins, the editor, or the network. Tool-enabled requests use a one-shot response so opaque continuation state stays in native memory; every result turn requires a fresh native disclosure. Custom functions remain inspect-only.</p>
         <label>
           Function schemas (JSON)
           <textarea
@@ -228,6 +326,8 @@ export function RemoteResearchReview({ project }: { project: ResearchProjectMani
         outcome={outcome}
         streamState={streamState}
         toolDefinitions={submittedToolDefinitions}
+        onContinueTools={toolThreadCallId ? () => void continueSourceLocator() : undefined}
+        continuingTools={phase === 'preparing' || phase === 'running'}
       />
     </div>
   )

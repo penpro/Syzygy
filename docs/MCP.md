@@ -50,7 +50,7 @@ Recommended first instruction to an MCP-capable model:
 | `syzygy_status` | no | Running version/view, active project, editor readiness, honest capability report |
 | `launch_syzygy` | launches app | Starts the GUI from the same installed executable and waits for readiness |
 | `syzygy_installation` | no | Exact executable/install folder, protocol, JSON/TOML configuration, connection prompt, and starter prompt; works without the GUI |
-| `syzygy_platform_contracts` | no | Provider-run, custom-adapter, public adversarial-run, portable scenario-pack, and plugin schemas, honest runtime status, and self-check commands; works without the GUI |
+| `syzygy_platform_contracts` | no | Provider-run, bounded native source-locator continuation, custom-adapter, public adversarial-run, portable scenario-pack, and plugin schemas/status/self-checks; works without the GUI |
 | `workspace_walkthrough` | no | State-aware explanation of the current use case and next step |
 | `list_projects` | no | Stable IDs, titles, archive state, transport, active project |
 | `inspect_drive_project_discovery` | no | Explicitly refreshes selected-workspace shared-project metadata; returns short folder code, bounded project/document identities, count, truncation, and time without tokens, Drive file IDs, titles, or document content |
@@ -297,8 +297,10 @@ MCP host
   It reports ordinary remote execution separately from live-provider proof; adversarial execution
   is `native-multi-provider-executor-resumable-mcp-pending-human-review`, authorization is
   `native-content-bound-call-graph-authorizer`, and reservation/execution is
-  `native-atomic-dependency-bound-executor`. Plugin loading and custom-adapter execution remain
-  `contract-only`. The platform-contract response contains no provider key, account, project
+  `native-atomic-dependency-bound-executor`. It separately reports the native provider tool as
+  `native-exact-frozen-source-read-only-stateless-replay-four-turn-no-live-proof` and publishes
+  `npm run test:provider-tool-continuation`; this is not generic MCP/custom-tool authority. Plugin
+  loading and custom-adapter execution remain `contract-only`. The platform-contract response contains no provider key, account, project
   content, Drive credential, prompt, or model output.
 
 ## Private-LAN multi-install control
@@ -344,7 +346,9 @@ It fails unless:
 8. the actual compiled application binary speaks newline-delimited JSON-RPC over stdio without
    contaminating stdout.
 9. research-state inspection rejects tampered hashes/lineage and omits synthetic secret bodies; and
-10. `syzygy_platform_contracts` returns the strict S-06 network-boundary manifest and its headless self-check command without research content.
+10. `syzygy_platform_contracts` returns the strict S-06 network-boundary manifest and its headless self-check command without research content; and
+11. the same contract reports the four-turn native exact-source locator separately from custom
+    inspect-only proposals and supplies its watchdog-wrapped fake-provider self-check.
 
 The harness uses a fake semantic live responder for protocol routing and the real Lexical editor
 for mutation behavior. A packaged-app live smoke proof remains a separate release check because

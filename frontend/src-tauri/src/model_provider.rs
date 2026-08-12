@@ -45,6 +45,8 @@ const MAX_TOOL_SCHEMA_TOTAL_BYTES: usize = 256 * 1024;
 const MAX_TOOL_SCHEMA_DEPTH: usize = 12;
 const MAX_TOOL_SCHEMA_NODES: usize = 2_048;
 const MAX_TOOL_VALIDATION_ERRORS: usize = 8;
+const MAX_PROVIDER_REPLAY_BYTES: usize = 8 * 1024 * 1024;
+const MAX_PROVIDER_REPLAY_ITEMS: usize = 256;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum RemoteProviderId {
@@ -182,6 +184,8 @@ pub enum ProviderToolSchemaStatus {
 #[serde(rename_all = "kebab-case")]
 pub enum ProviderToolDomainStatus {
     Unreviewed,
+    SourceSnapshotApproved,
+    SourceSnapshotRejected,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -210,6 +214,60 @@ pub struct GenerationRequest {
     pub max_output_tokens: u32,
     #[serde(default)]
     pub tools: Vec<ProviderToolDefinition>,
+    #[serde(default)]
+    pub replay: Option<ProviderConversationReplay>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(tag = "provider", content = "items", rename_all = "lowercase")]
+pub enum ProviderConversationReplay {
+    Responses(Vec<Value>),
+    Anthropic(Vec<Value>),
+    Gemini(Vec<Value>),
+}
+
+impl ProviderConversationReplay {
+    fn items(&self) -> &[Value] {
+        match self {
+            Self::Responses(items) | Self::Anthropic(items) | Self::Gemini(items) => items,
+        }
+    }
+
+    pub(crate) fn append(&mut self, mut items: Vec<Value>) -> Result<(), ProviderError> {
+        let target = match self {
+            Self::Responses(target) | Self::Anthropic(target) | Self::Gemini(target) => target,
+        };
+        target.append(&mut items);
+        validate_replay(self)
+    }
+
+    pub(crate) fn validate(&self) -> Result<(), ProviderError> {
+        validate_replay(self)
+    }
+
+    pub(crate) fn extend(&mut self, next: ProviderConversationReplay) -> Result<(), ProviderError> {
+        match next {
+            Self::Responses(mut items) => match self {
+                Self::Responses(target) => target.append(&mut items),
+                _ => return Err(ProviderError::InvalidRequest),
+            },
+            Self::Anthropic(mut items) => match self {
+                Self::Anthropic(target) => target.append(&mut items),
+                _ => return Err(ProviderError::InvalidRequest),
+            },
+            Self::Gemini(mut items) => match self {
+                Self::Gemini(target) => target.append(&mut items),
+                _ => return Err(ProviderError::InvalidRequest),
+            },
+        }
+        validate_replay(self)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ProviderResponseWithReplay {
+    pub response: NormalizedResponse,
+    pub replay: ProviderConversationReplay,
 }
 
 impl GenerationRequest {
@@ -224,11 +282,28 @@ impl GenerationRequest {
                 .any(|item| item.content.is_empty() || item.content.len() > 4 * 1024 * 1024)
             || !(1..=1_000_000).contains(&self.max_output_tokens)
             || !valid_tool_definitions(&self.tools)
+            || self
+                .replay
+                .as_ref()
+                .is_some_and(|replay| validate_replay(replay).is_err())
         {
             return Err(ProviderError::InvalidRequest);
         }
         Ok(())
     }
+}
+
+fn validate_replay(replay: &ProviderConversationReplay) -> Result<(), ProviderError> {
+    if replay.items().is_empty()
+        || replay.items().len() > MAX_PROVIDER_REPLAY_ITEMS
+        || serde_json::to_vec(replay)
+            .map_err(|_| ProviderError::InvalidRequest)?
+            .len()
+            > MAX_PROVIDER_REPLAY_BYTES
+    {
+        return Err(ProviderError::InvalidRequest);
+    }
+    Ok(())
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -905,13 +980,25 @@ fn validate_endpoint(endpoint: &Url, expected_path: &str) -> Result<(), Provider
     Ok(())
 }
 
-fn openai_body(request: &GenerationRequest, stream: bool) -> Value {
+fn openai_body(request: &GenerationRequest, stream: bool) -> Result<Value, ProviderError> {
+    let mut input = request
+        .input
+        .iter()
+        .map(|item| {
+            json!({
+                "role": item.role,
+                "content": item.content,
+            })
+        })
+        .collect::<Vec<_>>();
+    match &request.replay {
+        None => {}
+        Some(ProviderConversationReplay::Responses(items)) => input.extend(items.iter().cloned()),
+        Some(_) => return Err(ProviderError::InvalidRequest),
+    }
     let mut body = json!({
         "model": request.model,
-        "input": request.input.iter().map(|item| json!({
-            "role": item.role,
-            "content": item.content,
-        })).collect::<Vec<_>>(),
+        "input": input,
         "max_output_tokens": request.max_output_tokens,
         "store": false,
         "stream": stream,
@@ -934,16 +1021,23 @@ fn openai_body(request: &GenerationRequest, stream: bool) -> Value {
         body["tool_choice"] = Value::String("auto".to_owned());
         body["parallel_tool_calls"] = Value::Bool(true);
     }
-    body
+    Ok(body)
 }
 
 fn anthropic_body(request: &GenerationRequest, stream: bool) -> Result<Value, ProviderError> {
-    let messages = request
+    let mut messages = request
         .input
         .iter()
         .filter(|item| item.role == InputRole::User)
         .map(|item| json!({ "role": "user", "content": item.content }))
         .collect::<Vec<_>>();
+    match &request.replay {
+        None => {}
+        Some(ProviderConversationReplay::Anthropic(items)) => {
+            messages.extend(items.iter().cloned())
+        }
+        Some(_) => return Err(ProviderError::InvalidRequest),
+    }
     if messages.is_empty() {
         return Err(ProviderError::InvalidRequest);
     }
@@ -982,14 +1076,14 @@ fn anthropic_body(request: &GenerationRequest, stream: bool) -> Result<Value, Pr
 }
 
 fn gemini_body(request: &GenerationRequest, stream: bool) -> Result<Value, ProviderError> {
-    let input = request
+    let user_input = request
         .input
         .iter()
         .filter(|item| item.role == InputRole::User)
         .map(|item| item.content.as_str())
         .collect::<Vec<_>>()
         .join("\n\n");
-    if input.is_empty() {
+    if user_input.is_empty() {
         return Err(ProviderError::InvalidRequest);
     }
     let system_instruction = request
@@ -999,6 +1093,25 @@ fn gemini_body(request: &GenerationRequest, stream: bool) -> Result<Value, Provi
         .map(|item| item.content.as_str())
         .collect::<Vec<_>>()
         .join("\n\n");
+    let input = match &request.replay {
+        None => Value::String(user_input),
+        Some(ProviderConversationReplay::Gemini(items)) => {
+            let mut history = request
+                .input
+                .iter()
+                .filter(|item| item.role == InputRole::User)
+                .map(|item| {
+                    json!({
+                        "type": "user_input",
+                        "content": [{ "type": "text", "text": item.content }],
+                    })
+                })
+                .collect::<Vec<_>>();
+            history.extend(items.iter().cloned());
+            Value::Array(history)
+        }
+        Some(_) => return Err(ProviderError::InvalidRequest),
+    };
     let mut body = json!({
         "model": request.model,
         "input": input,
@@ -1031,6 +1144,36 @@ fn gemini_body(request: &GenerationRequest, stream: bool) -> Result<Value, Provi
         body["tool_choice"] = Value::String("auto".to_owned());
     }
     Ok(body)
+}
+
+fn responses_replay(value: &Value) -> Result<ProviderConversationReplay, ProviderError> {
+    let items = value
+        .get("output")
+        .and_then(Value::as_array)
+        .ok_or(ProviderError::MalformedResponse)?
+        .clone();
+    Ok(ProviderConversationReplay::Responses(items))
+}
+
+fn anthropic_replay(value: &Value) -> Result<ProviderConversationReplay, ProviderError> {
+    let content = value
+        .get("content")
+        .and_then(Value::as_array)
+        .ok_or(ProviderError::MalformedResponse)?
+        .clone();
+    Ok(ProviderConversationReplay::Anthropic(vec![json!({
+        "role": "assistant",
+        "content": content,
+    })]))
+}
+
+fn gemini_replay(value: &Value) -> Result<ProviderConversationReplay, ProviderError> {
+    let items = value
+        .get("steps")
+        .and_then(Value::as_array)
+        .ok_or(ProviderError::MalformedResponse)?
+        .clone();
+    Ok(ProviderConversationReplay::Gemini(items))
 }
 
 async fn bounded_body(response: reqwest::Response) -> Result<Vec<u8>, ProviderError> {
@@ -1181,6 +1324,12 @@ fn normalize_openai(value: Value) -> Result<NormalizedResponse, ProviderError> {
 #[serde(rename_all = "camelCase")]
 pub struct XaiNormalizedResponse {
     pub response: NormalizedResponse,
+    pub zero_data_retention: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct XaiResponseWithReplay {
+    pub response: ProviderResponseWithReplay,
     pub zero_data_retention: bool,
 }
 
@@ -1402,6 +1551,21 @@ pub async fn execute_openai_response_controlled(
     approval: &TransmissionApproval,
     execution: ProviderExecution,
 ) -> Result<NormalizedResponse, ProviderError> {
+    execute_openai_response_with_replay_controlled(
+        client, endpoint, secret, request, approval, execution,
+    )
+    .await
+    .map(|result| result.response)
+}
+
+pub async fn execute_openai_response_with_replay_controlled(
+    client: &Client,
+    endpoint: &Url,
+    secret: &ProviderSecret,
+    request: &GenerationRequest,
+    approval: &TransmissionApproval,
+    execution: ProviderExecution,
+) -> Result<ProviderResponseWithReplay, ProviderError> {
     validate_endpoint(endpoint, "/v1/responses")?;
     request.validate()?;
     approval.validate_for(RemoteProviderId::OpenAi)?;
@@ -1411,7 +1575,7 @@ pub async fn execute_openai_response_controlled(
             .timeout(execution.timeout)
             .bearer_auth(secret.expose())
             .header("content-type", "application/json")
-            .json(&openai_body(request, false))
+            .json(&openai_body(request, false)?)
             .send()
             .await
             .map_err(|error| classify_transport_error(&error))?;
@@ -1420,7 +1584,11 @@ pub async fn execute_openai_response_controlled(
         }
         let body = bounded_body(response).await?;
         let value = serde_json::from_slice(&body).map_err(|_| ProviderError::MalformedResponse)?;
-        normalize_openai(value)
+        let replay = responses_replay(&value)?;
+        Ok(ProviderResponseWithReplay {
+            response: normalize_openai(value)?,
+            replay,
+        })
     };
     Abortable::new(operation, execution.cancellation)
         .await
@@ -1448,7 +1616,7 @@ where
             .timeout(execution.timeout)
             .bearer_auth(secret.expose())
             .header("content-type", "application/json")
-            .json(&openai_body(request, true))
+            .json(&openai_body(request, true)?)
             .send()
             .await
             .map_err(|error| classify_transport_error(&error))?;
@@ -1505,6 +1673,21 @@ pub async fn execute_anthropic_response_controlled(
     approval: &TransmissionApproval,
     execution: ProviderExecution,
 ) -> Result<NormalizedResponse, ProviderError> {
+    execute_anthropic_response_with_replay_controlled(
+        client, endpoint, secret, request, approval, execution,
+    )
+    .await
+    .map(|result| result.response)
+}
+
+pub async fn execute_anthropic_response_with_replay_controlled(
+    client: &Client,
+    endpoint: &Url,
+    secret: &ProviderSecret,
+    request: &GenerationRequest,
+    approval: &TransmissionApproval,
+    execution: ProviderExecution,
+) -> Result<ProviderResponseWithReplay, ProviderError> {
     validate_endpoint(endpoint, "/v1/messages")?;
     request.validate()?;
     approval.validate_for(RemoteProviderId::Anthropic)?;
@@ -1525,7 +1708,11 @@ pub async fn execute_anthropic_response_controlled(
         }
         let body = bounded_body(response).await?;
         let value = serde_json::from_slice(&body).map_err(|_| ProviderError::MalformedResponse)?;
-        normalize_anthropic(value)
+        let replay = anthropic_replay(&value)?;
+        Ok(ProviderResponseWithReplay {
+            response: normalize_anthropic(value)?,
+            replay,
+        })
     };
     Abortable::new(operation, execution.cancellation)
         .await
@@ -1611,6 +1798,21 @@ pub async fn execute_gemini_response_controlled(
     approval: &TransmissionApproval,
     execution: ProviderExecution,
 ) -> Result<NormalizedResponse, ProviderError> {
+    execute_gemini_response_with_replay_controlled(
+        client, endpoint, secret, request, approval, execution,
+    )
+    .await
+    .map(|result| result.response)
+}
+
+pub async fn execute_gemini_response_with_replay_controlled(
+    client: &Client,
+    endpoint: &Url,
+    secret: &ProviderSecret,
+    request: &GenerationRequest,
+    approval: &TransmissionApproval,
+    execution: ProviderExecution,
+) -> Result<ProviderResponseWithReplay, ProviderError> {
     validate_endpoint(endpoint, "/v1/interactions")?;
     request.validate()?;
     approval.validate_for(RemoteProviderId::Gemini)?;
@@ -1630,7 +1832,11 @@ pub async fn execute_gemini_response_controlled(
         }
         let body = bounded_body(response).await?;
         let value = serde_json::from_slice(&body).map_err(|_| ProviderError::MalformedResponse)?;
-        normalize_gemini(value)
+        let replay = gemini_replay(&value)?;
+        Ok(ProviderResponseWithReplay {
+            response: normalize_gemini(value)?,
+            replay,
+        })
     };
     Abortable::new(operation, execution.cancellation)
         .await
@@ -1716,6 +1922,24 @@ pub async fn execute_xai_response_controlled(
     approval: &TransmissionApproval,
     execution: ProviderExecution,
 ) -> Result<XaiNormalizedResponse, ProviderError> {
+    execute_xai_response_with_replay_controlled(
+        client, endpoint, secret, request, approval, execution,
+    )
+    .await
+    .map(|result| XaiNormalizedResponse {
+        response: result.response.response,
+        zero_data_retention: result.zero_data_retention,
+    })
+}
+
+pub async fn execute_xai_response_with_replay_controlled(
+    client: &Client,
+    endpoint: &Url,
+    secret: &ProviderSecret,
+    request: &GenerationRequest,
+    approval: &TransmissionApproval,
+    execution: ProviderExecution,
+) -> Result<XaiResponseWithReplay, ProviderError> {
     validate_endpoint(endpoint, "/v1/responses")?;
     request.validate()?;
     approval.validate_for(RemoteProviderId::Xai)?;
@@ -1725,7 +1949,7 @@ pub async fn execute_xai_response_controlled(
             .timeout(execution.timeout)
             .bearer_auth(secret.expose())
             .header("content-type", "application/json")
-            .json(&openai_body(request, false))
+            .json(&openai_body(request, false)?)
             .send()
             .await
             .map_err(|error| classify_transport_error(&error))?;
@@ -1735,8 +1959,12 @@ pub async fn execute_xai_response_controlled(
         let zero_data_retention = xai_zero_data_retention(response.headers())?;
         let body = bounded_body(response).await?;
         let value = serde_json::from_slice(&body).map_err(|_| ProviderError::MalformedResponse)?;
-        Ok(XaiNormalizedResponse {
-            response: normalize_responses_api(value, RemoteProviderId::Xai)?,
+        let replay = responses_replay(&value)?;
+        Ok(XaiResponseWithReplay {
+            response: ProviderResponseWithReplay {
+                response: normalize_responses_api(value, RemoteProviderId::Xai)?,
+                replay,
+            },
             zero_data_retention,
         })
     };
@@ -1767,7 +1995,7 @@ where
             .bearer_auth(secret.expose())
             .header("content-type", "application/json")
             .header(ACCEPT, "text/event-stream")
-            .json(&openai_body(request, true))
+            .json(&openai_body(request, true)?)
             .send()
             .await
             .map_err(|error| classify_transport_error(&error))?;
@@ -1828,6 +2056,7 @@ mod tests {
             }],
             max_output_tokens: 700,
             tools: Vec::new(),
+            replay: None,
         }
     }
 
@@ -1881,7 +2110,7 @@ mod tests {
         tool_request.tools = vec![tool_definition()];
         tool_request.validate().expect("valid tool definition");
 
-        let responses = openai_body(&tool_request, true);
+        let responses = openai_body(&tool_request, true).expect("Responses body");
         assert_eq!(responses["tools"][0]["type"], "function");
         assert_eq!(responses["tools"][0]["name"], "lookup_source");
         assert_eq!(responses["tools"][0]["parameters"]["type"], "object");
@@ -1912,6 +2141,97 @@ mod tests {
             Value::String("(a+)+$".to_owned());
         assert_eq!(
             unsafe_pattern.validate(),
+            Err(ProviderError::InvalidRequest)
+        );
+    }
+
+    #[test]
+    fn provider_replay_builders_bind_exact_tool_results_without_server_side_state() {
+        let mut responses_request = request();
+        responses_request.tools = vec![tool_definition()];
+        responses_request.replay = Some(ProviderConversationReplay::Responses(vec![
+            json!({
+                "type": "function_call",
+                "call_id": "call-responses",
+                "name": "lookup_source",
+                "arguments": "{\"query\":\"budget\"}"
+            }),
+            json!({
+                "type": "function_call_output",
+                "call_id": "call-responses",
+                "output": "{\"ok\":true}"
+            }),
+        ]));
+        let responses = openai_body(&responses_request, false).expect("Responses replay body");
+        assert_eq!(responses["store"], false);
+        assert!(responses.get("previous_response_id").is_none());
+        assert_eq!(responses["input"][1]["call_id"], "call-responses");
+        assert_eq!(responses["input"][2]["type"], "function_call_output");
+
+        let mut anthropic_request = request();
+        anthropic_request.tools = vec![tool_definition()];
+        anthropic_request.replay = Some(ProviderConversationReplay::Anthropic(vec![
+            json!({
+                "role": "assistant",
+                "content": [{
+                    "type": "tool_use",
+                    "id": "call-anthropic",
+                    "name": "lookup_source",
+                    "input": { "query": "budget" }
+                }]
+            }),
+            json!({
+                "role": "user",
+                "content": [{
+                    "type": "tool_result",
+                    "tool_use_id": "call-anthropic",
+                    "content": "{\"ok\":true}",
+                    "is_error": false
+                }]
+            }),
+        ]));
+        let anthropic = anthropic_body(&anthropic_request, false).expect("Anthropic replay body");
+        assert_eq!(anthropic["messages"][1]["role"], "assistant");
+        assert_eq!(
+            anthropic["messages"][2]["content"][0]["type"],
+            "tool_result"
+        );
+        assert_eq!(
+            anthropic["messages"][2]["content"][0]["tool_use_id"],
+            "call-anthropic"
+        );
+
+        let mut gemini_request = request();
+        gemini_request.tools = vec![tool_definition()];
+        gemini_request.replay = Some(ProviderConversationReplay::Gemini(vec![
+            json!({
+                "type": "function_call",
+                "id": "call-gemini",
+                "name": "lookup_source",
+                "arguments": { "query": "budget" }
+            }),
+            json!({
+                "type": "function_result",
+                "name": "lookup_source",
+                "call_id": "call-gemini",
+                "result": [{ "type": "text", "text": "{\"ok\":true}" }]
+            }),
+        ]));
+        let gemini = gemini_body(&gemini_request, false).expect("Gemini replay body");
+        assert_eq!(gemini["store"], false);
+        assert!(gemini.get("previous_interaction_id").is_none());
+        assert_eq!(gemini["input"][0]["type"], "user_input");
+        assert_eq!(gemini["input"][2]["type"], "function_result");
+        assert_eq!(gemini["input"][2]["call_id"], "call-gemini");
+
+        let mut mismatched = request();
+        mismatched.replay = responses_request.replay;
+        assert_eq!(
+            anthropic_body(&mismatched, false),
+            Err(ProviderError::InvalidRequest)
+        );
+        assert_eq!(
+            gemini_body(&mismatched, false),
             Err(ProviderError::InvalidRequest)
         );
     }
@@ -2726,6 +3046,7 @@ mod tests {
             ],
             max_output_tokens: 700,
             tools: Vec::new(),
+            replay: None,
         };
         let secret_canary = "sk-ant-wire-canary";
         let response = tauri::async_runtime::block_on(execute_anthropic_response(
@@ -2879,6 +3200,7 @@ mod tests {
             }],
             max_output_tokens: 10,
             tools: Vec::new(),
+            replay: None,
         };
         let missing_user = tauri::async_runtime::block_on(execute_anthropic_response(
             &Client::new(),
@@ -2992,6 +3314,7 @@ mod tests {
             ],
             max_output_tokens: 700,
             tools: Vec::new(),
+            replay: None,
         };
         let secret_canary = "gemini-wire-canary";
         let response = tauri::async_runtime::block_on(execute_gemini_response(
@@ -3168,6 +3491,7 @@ mod tests {
             }],
             max_output_tokens: 10,
             tools: Vec::new(),
+            replay: None,
         };
         let missing_user = tauri::async_runtime::block_on(execute_gemini_response(
             &client,

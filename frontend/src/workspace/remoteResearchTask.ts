@@ -3,6 +3,7 @@ import { assertSafeProviderToolSchema } from '../providerToolValidation'
 
 const MAX_TOOL_DEFINITIONS = 32
 const MAX_TOOL_DEFINITION_JSON_CHARS = 256 * 1024
+export const SOURCE_LOCATOR_TOOL_NAME = 'syzygy_locate_exact_source_text'
 
 export const REMOTE_REVIEW_PROVIDERS: ReadonlyArray<{
   id: RemoteProviderId
@@ -48,6 +49,7 @@ export function parseProviderToolDefinitions(value: string): ProviderToolDefinit
     if (typeof name !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(name) || names.has(name)) {
       throw new Error('Tool names must be unique and use 1–64 letters, numbers, underscores, or hyphens')
     }
+    if (name === SOURCE_LOCATOR_TOOL_NAME) throw new Error(`${SOURCE_LOCATOR_TOOL_NAME} is reserved for Syzygy's native source locator`)
     if (typeof description !== 'string' || !description.trim() || description.length > 4_096 || [...description].some((character) => character < ' ')) {
       throw new Error(`Tool ${name} needs a printable description of at most 4,096 characters`)
     }
@@ -69,6 +71,7 @@ export async function buildRemoteReviewRequest(input: {
   callId: string
   draft: RemoteReviewDraft
   toolDefinitions?: ProviderToolDefinition[]
+  enableSourceLocator?: boolean
 }): Promise<ProviderResearchTaskRequest> {
   const model = input.model.trim()
   const question = input.question.trim()
@@ -94,6 +97,7 @@ export async function buildRemoteReviewRequest(input: {
     }],
     maxOutputTokens: 1_200,
     toolDefinitions: input.toolDefinitions ?? [],
+    enableSourceLocator: input.enableSourceLocator ?? false,
   }
 }
 

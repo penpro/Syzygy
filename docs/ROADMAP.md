@@ -284,8 +284,9 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   The adapter is labeled `request-stream-and-schema-validated-tool-proposal-conformance`; its scoped frontend streaming
   bridge and bounded non-executing custom-function proposal lifecycle have landed. Complete
   proposals now receive safe-subset schema valid/invalid/missing-definition status while domain
-  review remains unreviewed and execution remains false. Tool execution,
-  slow-consumer stress, and opt-in live-provider proof remain gates before
+  review remains unreviewed and execution remains false. A separately enabled native exact-source
+  locator now has bounded one-shot exact-call continuation over already-disclosed frozen excerpts.
+  Arbitrary/custom execution, streamed continuation, slow-consumer stress, and opt-in live-provider proof remain gates before
   broader availability.
 - The provider credential vault now has a collapsed product Settings caller. Its provider-neutral
   trait passes an in-memory set/read/delete/error-redaction suite; secret strings zeroize on drop;
@@ -398,26 +399,39 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   current `/v1/messages` path, `x-api-key`, pinned API version, system/user mapping, bounds,
   normalized text/cumulative usage, thinking-body non-retention, sanitized failure, timeout,
   cancellation, SSE lifecycle/terminal ordering, partial-JSON tool assembly, exact safe-subset schema validation, and product review
-  routing. Tool execution/result continuation, packaged-dialog interaction, and live proof remain open; the shared
+  routing. Its separately enabled native exact-source locator now has one-shot `tool_use`/
+  `tool_result` fake-server continuation with exact call binding. Arbitrary/custom tool execution,
+  streamed continuation, packaged-dialog interaction, and live proof remain open; the shared
   adversarial product workflow continues to route bounded Anthropic calls.
 - Gemini Interactions now has stable-v1 `request-stream-and-schema-validated-tool-proposal-conformance`. Fake servers
   prove header auth, storage/background off, thought-summary suppression, system/user mapping,
   output bounds, text-only retention, consistent aggregate usage, sanitized failure, timeout,
   cancellation, indexed SSE step lifecycle, complete function-call proposal normalization/schema validation, and
-  product review routing. Tool execution/result continuation,
-  thought-signature continuation, packaged-dialog interaction, and live proof remain open.
+  product review routing. Its separately enabled native exact-source locator now has one-shot
+  `function_call`/`function_result` fake-server continuation with exact call binding and native-only
+  step replay. Arbitrary/custom tool execution, streamed continuation, packaged-dialog interaction,
+  and live proof remain open.
 - xAI Responses now has `request-stream-and-schema-validated-tool-proposal-conformance`. Fake servers prove storage-off/
   no-threading request shape, bearer auth, event-stream negotiation, bounded fragmented delivery,
   terminal ordering, controls, product review routing, documented whole function-call proposals with schema validation, and mandatory
   boolean ZDR attestation before dispatch without confusing standard retention with enterprise ZDR.
-  Tool execution/result continuation, encrypted reasoning/WebSocket continuation, packaged-dialog interaction, and live
-  policy/rate/cost proof remain open.
+  Its separately enabled native exact-source locator now has one-shot fake-server continuation with
+  exact call binding, `store:false`, and native-only opaque response replay. Arbitrary/custom tool
+  execution, streamed/WebSocket continuation, packaged-dialog interaction, and live policy/rate/
+  cost proof remain open.
 - Provider-neutral tool-proposal bounds, cross-provider lifecycle mapping, hostile malformed/
   incomplete fixtures, inspect-only UI, authority exclusions, and explicit non-claims are recorded
   in `docs/audits/runs/PROVIDER-TOOL-PROPOSALS-2026-08-11.json`.
 - The safe JSON Schema subset, cross-language valid/invalid/missing-definition results, bounded
   diagnostics, and explicit domain-unreviewed/executable-false state are recorded in
   `docs/audits/runs/PROVIDER-TOOL-SCHEMA-VALIDATION-2026-08-11.json`.
+- The one executable provider tool is the host-owned, separately enabled exact-source locator. It
+  searches only already-disclosed frozen excerpts, returns bounded context, keeps provider replay
+  in native process memory, expires pending state after ten minutes, stops after four turns, and
+  requires a fresh native disclosure for every result transmission. Cross-provider exact-carrier/
+  call-ID fixtures and hostile snapshot/spoof/custom-tool denials are recorded in
+  `docs/audits/runs/PROVIDER-SOURCE-LOCATOR-CONTINUATION-2026-08-11.json`; packaged-dialog and live
+  provider evidence remain open.
 - A strict public provider-run record now captures content-free call provenance, disclosure,
   destination, dated policy, storage/ZDR state, terminal outcome, usage, and cost. Its semantic
   validator and MCP embedding are implemented; the Rust task command now emits authoritative
@@ -667,8 +681,9 @@ collaborators are not required to download large project folders.
 3. **Certify the open research platform boundary** — the first OpenAI fake-server/key-canary
    request/stream/control gates, Windows credential-vault canary, native disclosure, provider
    settings/task workflow, scoped OpenAI/Anthropic/Gemini/xAI streaming event bridge, and bounded
-   proposal-only tool normalization and safe-subset schema-validation proof have landed; next add
-   opt-in live/provider-policy evidence and explicit domain/authority design before any tool-result loop.
+   custom proposal normalization, safe-subset schema-validation proof, and the narrowly authorized
+   native exact-source locator loop have landed; next add opt-in live/provider-policy evidence and
+   a general capability/authority design before any broader tool-result loop.
    Build the adversarial benchmark before claiming panel quality. The no-authority component host
    now composes user-selected session packages with project-only grants and shared human proposal
    review. Exact retained proposal and decision events now receive best-effort registered-device

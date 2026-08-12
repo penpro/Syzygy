@@ -109,12 +109,21 @@ evaluation panel. Versioning is live: the rail provides a compact optional note,
 bounded block-change list. Saving and diffing require no model. The researcher display name is
 editable in Settings and old attribution remains visually historical.
 
-The optional **Remote perspective** advanced tool panel accepts only the documented bounded schema
-subset. A returned function call is always labeled **inspect only · not executed**. Each call shows
-one separate structural state—schema pending, matches, mismatch, or definition missing—alongside
-**domain unreviewed · not executable**. Validation failures may show bounded path/keyword codes but
-never an execution affordance. A green structural match must not look like approval, truth, safety,
-or permission; domain review and any future authority grant are distinct later actions.
+The optional **Remote perspective** advanced tool panel accepts custom functions only from the
+documented bounded schema subset. A returned custom function call is always labeled
+**inspect only · not executed**. Each custom call shows one separate structural state—schema
+pending, matches, mismatch, or definition missing—alongside **domain unreviewed · not executable**.
+Validation failures may show bounded path/keyword codes but never a custom execution affordance. A
+green structural match must not look like approval, truth, safety, or permission.
+
+A separate unchecked control may allow Syzygy's native exact-text locator over the frozen source
+snapshots in that request. Its nearby copy must state that it is read-only/bounded, uses one-shot
+native-memory continuation, requires a fresh disclosure per result turn, and cannot reach Drive,
+files, MCP, plugins, the editor, or the network. Only Rust-authorized locator proposals receive
+**frozen snapshot approved · native read only** and the explicit **Run native source locator and
+continue · turn N** action. Rejected source scope remains **not executable**; custom proposals never
+inherit this affordance. A successful continuation remains a transient review and never edits the
+shared draft automatically.
 
 Restore is a deliberate two-step action on a non-head checkpoint. **Prepare restore** reveals the
 exact short checkpoint ID, a cancel action, and **Restore as new version**. The copy states that the

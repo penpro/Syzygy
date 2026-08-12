@@ -81,7 +81,17 @@
         "inputSha256": { "$ref": "#/$defs/sha256" },
         "maxOutputTokens": { "type": "integer", "minimum": 1, "maximum": 10000000 },
         "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 86400000 },
-        "stream": { "type": "boolean" }
+        "stream": { "type": "boolean" },
+        "toolContinuationTurn": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4,
+          "description": "Optional backward-compatible marker for a native bounded source-locator turn. Zero is the initial tool-enabled request."
+        },
+        "toolThreadIdSha256": {
+          "$ref": "#/$defs/sha256",
+          "description": "Content-free hash binding all turns in one native source-locator continuation thread."
+        }
       }
     },
     "disclosure": {

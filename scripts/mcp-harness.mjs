@@ -233,7 +233,10 @@ async function proveStdioContract() {
   if (contracts?.implementationStatus?.providerBatchReservation !== 'native-atomic-dependency-bound-executor') throw new Error('provider batch reservation status is inaccurate')
   if (contracts?.implementationStatus?.adversarialRunner !== 'native-multi-provider-executor-resumable-mcp-pending-human-review') throw new Error('adversarial runner status is inaccurate')
   if (contracts?.providerRunRecordSchema?.properties?.executionMode?.enum?.includes('loopback-conformance') !== true) throw new Error('provider run schema omits honest conformance mode')
-  if (contracts?.implementationStatus?.remoteProviderAdapters !== 'native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-tool-proposal-review-ui-no-live-proof') throw new Error('aggregate provider status is inaccurate')
+  if (contracts?.providerRunRecordSchema?.properties?.request?.properties?.toolContinuationTurn?.maximum !== 4) throw new Error('provider run schema omits bounded tool continuation metadata')
+  if (contracts?.implementationStatus?.remoteProviderAdapters !== 'native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-custom-tool-review-bounded-source-locator-continuation-no-live-proof') throw new Error('aggregate provider status is inaccurate')
+  if (contracts?.implementationStatus?.providerToolContinuation !== 'native-exact-frozen-source-read-only-stateless-replay-four-turn-no-live-proof') throw new Error('provider tool continuation status is inaccurate')
+  if (contracts?.selfCheck?.providerToolContinuationCommand !== 'npm run test:provider-tool-continuation') throw new Error('provider tool continuation self-check is missing')
   if (contracts?.implementationStatus?.credentialVault !== 'settings-vault-ui') throw new Error('credential vault status is inaccurate')
 
   return {

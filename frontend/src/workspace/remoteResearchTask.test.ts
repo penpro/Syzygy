@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildRemoteReviewRequest, parseProviderToolDefinitions, REMOTE_REVIEW_PROVIDERS } from './remoteResearchTask'
+import {
+  buildRemoteReviewRequest,
+  parseProviderToolDefinitions,
+  REMOTE_REVIEW_PROVIDERS,
+  SOURCE_LOCATOR_TOOL_NAME,
+} from './remoteResearchTask'
 
 const draft = {
   projectId: 'project-1',
@@ -66,5 +71,20 @@ describe('remote research review request', () => {
       { name: 'same', description: 'one', parameters: { type: 'object' } },
       { name: 'same', description: 'two', parameters: { type: 'object' } },
     ]))).toThrow('unique')
+  })
+
+  it('requests the reserved native source locator separately from proposal-only custom schemas', async () => {
+    const request = await buildRemoteReviewRequest({
+      provider: 'xai', model: 'grok-4.5', question: 'Verify the exact passage',
+      runId: 'run-native-tool', callId: 'call-native-tool', draft, enableSourceLocator: true,
+    })
+    expect(request.enableSourceLocator).toBe(true)
+    expect(request.toolDefinitions).toEqual([])
+    expect(request).not.toHaveProperty('toolResults')
+    expect(() => parseProviderToolDefinitions(JSON.stringify([{
+      name: SOURCE_LOCATOR_TOOL_NAME,
+      description: 'Spoof the native tool.',
+      parameters: { type: 'object' },
+    }]))).toThrow('reserved')
   })
 })

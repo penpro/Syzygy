@@ -52,6 +52,28 @@ describe('provider run record', () => {
     expect(validateProviderRunRecord(fixture)).toEqual([])
   })
 
+  it('accepts bounded native tool-thread metadata without invalidating older v1 records', () => {
+    const fixture = remoteRecord()
+    fixture.request.toolContinuationTurn = 2
+    fixture.request.toolThreadIdSha256 = sha('d')
+    expect(validatePublicSchema(fixture), JSON.stringify(validatePublicSchema.errors)).toBe(true)
+    expect(validateProviderRunRecord(fixture)).toEqual([])
+
+    delete fixture.request.toolThreadIdSha256
+    expect(validateProviderRunRecord(fixture)).toContain(
+      'tool continuation turn and thread hash must be recorded together',
+    )
+    fixture.request.toolThreadIdSha256 = 'not-a-hash'
+    fixture.request.toolContinuationTurn = 5
+    fixture.request.stream = true
+    expect(validatePublicSchema(fixture)).toBe(false)
+    expect(validateProviderRunRecord(fixture)).toEqual(expect.arrayContaining([
+      expect.stringContaining('zero through four'),
+      expect.stringContaining('SHA-256'),
+      expect.stringContaining('non-streaming remote'),
+    ]))
+  })
+
   it('records local execution without pretending a remote disclosure or retention policy applies', () => {
     const fixture = remoteRecord()
     fixture.provider = {

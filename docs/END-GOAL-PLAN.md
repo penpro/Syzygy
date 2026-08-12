@@ -797,7 +797,7 @@ The text-only declarative contribution proof is
 Progress: OpenAI Responses one-shot request construction, bounded whole-operation timeout,
 idempotent in-flight/inter-event cancellation, and fake-network incremental SSE dispatch now pass
 unwired Rust conformance suites and are reported as `request-stream-and-schema-validated-tool-proposal-conformance`.
-Aggregate remote execution is now `native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-tool-proposal-review-ui-no-live-proof`: the registered task bridge
+Aggregate remote execution is now `native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-custom-tool-review-bounded-source-locator-continuation-no-live-proof`: the registered task bridge
 retrieves an OS-vault credential, applies native one-use disclosure/timeout/cancellation controls,
 normalizes the response, and authors content-free provenance. All four built-in providers use an ordered per-call Tauri
 channel and bounded Rust/TypeScript accumulators so one workspace component can render the exact-draft
@@ -806,29 +806,37 @@ header into the typed outcome and content-free run record before any stream even
 All four transports map bounded custom-function definitions and normalize calls to a common
 start/delta/complete lifecycle. The product renders those calls as transient inspect-only proposals;
 Rust and the pinned frontend AJV independently classify complete arguments against the exact
-approved safe-subset schema as valid, invalid, or missing-definition. Domain status remains
-unreviewed and execution false. The surface has no result loop or MCP/Drive/filesystem/plugin/editor/
-network/shared-mutation authority. Tool execution, domain validation/authority design,
-slow-consumer/backpressure proof, packaged adversarial UI interaction, and
-opt-in live-provider evidence remain open; the durable product workflow and shared history are implemented.
+approved safe-subset schema as valid, invalid, or missing-definition. Custom domain status remains
+unreviewed and execution false. One separately enabled host-owned exact-source locator has bounded
+one-shot continuation for all four provider carriers. It searches only already-disclosed frozen
+excerpts, keeps replay in native memory, binds provider call IDs, and requires fresh disclosure per
+turn; it has no MCP/Drive/filesystem/plugin/editor/network/shared-mutation authority. Arbitrary/
+custom execution, general authority design, slow-consumer/backpressure proof, packaged adversarial
+UI interaction, and opt-in live-provider evidence remain open; the durable product workflow and
+shared history are implemented.
 The cross-language record gate now passes: the Rust loopback execution record is explicitly marked
 as conformance evidence and passes both the public TypeScript schema and semantic validator without
 leaking its secret or prompt canaries.
 
 Anthropic Messages request/stream/control conformance now passes the same bounded Rust boundary and
 the exact-draft review routes its normalized SSE events and fragmented tool proposals through the
-scoped product channel with safe-subset schema status. Tool execution/result continuation, domain
-validation/authority design, and live-provider evidence remain open,
-so no live compatibility claim is made.
+scoped product channel with safe-subset schema status. The separately enabled native exact-source
+locator has one-shot `tool_use`/`tool_result` fake-server continuation with exact call binding.
+Arbitrary/custom tool execution, streamed continuation, general authority design, and live-provider
+evidence remain open, so no live compatibility claim is made.
 Gemini Interactions stable-v1 request/stream/control conformance now passes with storage,
 background execution, and thought summaries forced off. Its indexed SSE step path is routed through
 the exact-draft review while omitting thought/signature bodies and normalizing/schema-validating complete function-call
-steps. Tool execution/result continuation, domain validation/authority design, and
-live-provider evidence remain open, so no live compatibility claim is made.
+steps. The native exact-source locator has one-shot fake-server continuation with native-only step
+replay and exact call binding. Arbitrary/custom execution, streamed continuation, general authority
+design, and live-provider evidence remain open, so no live compatibility claim is made.
 xAI Responses request/stream/control conformance now passes with storage off, no thread/cache
 identifier, explicit pre-dispatch ZDR response attestation, bounded Responses SSE normalization,
-whole-call custom-function proposal normalization/schema validation, and exact-draft product routing. Tool execution/result continuation, domain validation/authority design, encrypted-reasoning/
-WebSocket continuation, and live-provider evidence remain open, so no live compatibility claim is made.
+whole-call custom-function proposal normalization/schema validation, and exact-draft product routing.
+The native exact-source locator has one-shot fake-server continuation with exact call binding,
+`store:false`, and native-only opaque response replay. Arbitrary/custom execution, streamed/
+WebSocket continuation, general authority design, and live-provider evidence remain open, so no
+live compatibility claim is made.
 
 Credential progress: the cross-platform OS-vault abstraction, zeroizing secret wrapper, memory
 contract tests, and an opt-in Windows Credential Manager create/read/delete/absence canary pass.

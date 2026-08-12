@@ -1,8 +1,10 @@
 # Model provider API
 
 **Contract version:** 1. **Runtime status:** local inference remains available; OpenAI Responses,
-Anthropic Messages, Gemini Interactions, and xAI Responses request, stream, and non-executing tool
-proposal controls are at `request-stream-and-schema-validated-tool-proposal-conformance`. Ordinary remote review and content-bound adversarial execution
+Anthropic Messages, Gemini Interactions, and xAI Responses request, stream, and non-executing custom
+tool proposal controls are at `request-stream-and-schema-validated-tool-proposal-conformance`.
+Each built-in adapter also has fake-server conformance for one separately authorized, bounded native
+exact-source locator continuation. Ordinary remote review and content-bound adversarial execution
 use registered Rust commands, OS-vault credentials, fixed built-in endpoints, native disclosure,
 bounded timeout/cancellation, normalized results, and content-free run records. Tests use
 loopback providers only; no live-provider compatibility or quality claim is made. Custom remote
@@ -56,7 +58,10 @@ It records adapter status, task type, bounds, destination, disclosure approval, 
 storage request, typed zero-retention attestation, terminal state, token usage, and cost. The
 semantic validator rejects cross-field lies that JSON Schema cannot express, including an
 undisclosed remote call, HTTP remote endpoint, false ZDR claim, output attached to a failed call,
-or inconsistent token total. MCP publishes the exact schema and truthful validator status.
+or inconsistent token total. Native source-locator runs additionally record a paired continuation
+turn (`0` through `4`) and a content-free thread hash; both fields are optional so older v1 records
+remain valid, while half-formed or streamed continuation metadata fails validation. MCP publishes
+the exact schema and truthful validator status.
 
 This record is an interchange and audit boundary, not proof that a provider honored its policy.
 The transport's fake/live evidence and the dated policy source remain separate artifacts.
@@ -78,7 +83,7 @@ usage, finish, provider warning, and error. Parsers must tolerate fragmented fra
 future event types. Tool arguments and structured output are untrusted until schema validation and
 domain semantic validation both pass.
 
-## Non-executing tool proposals
+## Custom proposals and the native source locator
 
 Remote research requests may include at most 32 custom function definitions. Names are unique,
 1–64 ASCII letters/numbers/underscore/hyphen; descriptions are printable and at most 4,096
@@ -94,8 +99,8 @@ whole-call chunk are represented as one bounded delta. Calls are capped at 32, a
 KiB each and 1 MiB total, IDs/names must match across events, final JSON must be an object and must
 equal the accumulated fragments, and unfinished/orphan/duplicate/malformed calls fail closed.
 
-This is deliberately proposal-only. Syzygy displays the function name, call ID, and arguments in a
-transient **inspect only · not executed** panel. It has no tool-result loop and grants no MCP,
+Custom definitions are deliberately proposal-only. Syzygy displays the function name, call ID, and
+arguments in a transient **inspect only · not executed** panel. They have no tool-result loop and grant no MCP,
 Drive, filesystem, plugin, editor, network, or shared-project mutation authority. Tool bodies are
 present in the transient result but remain absent from content-free run records; the record's
 `outputSha256` nevertheless commits to both normalized text, proposal bodies, and their validation
@@ -114,13 +119,36 @@ After complete argument assembly, Rust validates the exact normalized object aga
 definition and authors `schemaStatus` as `valid`, `invalid`, or `missing-definition`, with at most
 eight bounded path/keyword diagnostics. The frontend independently preflights definitions with the
 pinned AJV 2020 implementation and validates completed streaming proposals for immediate display.
-`pending` is display-only while a call is incomplete. Every result separately reports
+`pending` is display-only while a call is incomplete. Every custom result separately reports
 `domainStatus: unreviewed` and `executable: false`: schema success is structural evidence, not a
-semantic judgment, permission grant, or execution capability. Any future tool-result loop must add
-tool-specific domain validation and explicit authority review.
+semantic judgment, permission grant, or execution capability.
+
+The only executable provider tool is host-owned
+`syzygy_locate_exact_source_text`. A researcher must opt in separately; a custom definition cannot
+shadow its reserved name. It performs a case-sensitive literal search over only the exact
+`{ snapshotId, label, excerpt }` objects already frozen into and disclosed for that request. The
+model supplies printable exact text of 1–256 characters and may request 1–10 matches. Results retain
+at most 240 Unicode characters of context on each side and 32 KiB total. The tool cannot fetch a
+new Drive object or use the filesystem, MCP, plugins, editor, network, or shared mutation APIs.
+
+Tool-enabled requests use the one-shot path. Rust retains provider output/reasoning carriers only in
+native process memory, binds every result to the provider-issued call ID, and replays the full
+provider-specific conversation with storage disabled instead of trusting server-side response or
+interaction IDs. Pending state is limited to 32 threads, expires after ten minutes, disappears on
+restart, stops after four continuation turns, and rejects replay above 8 MiB or 256 items before it
+can enter pending state. A fresh native **Send results once** disclosure is
+required for every result transmission; state is consumed before network dispatch. Source mismatch,
+invalid arguments, unreviewed custom calls, mixed executable/non-executable proposals, reserved-name
+spoofing, expiry, stale pending-generation replacement, and replay-shape mismatch fail closed. A
+cancelled result disclosure keeps the reviewed proposal available until that exact pending turn
+expires. Fake servers prove the OpenAI/xAI
+`function_call_output`, Anthropic `tool_result`, and Gemini `function_result` carriers and exact call
+binding. Packaged native-dialog behavior and opt-in live-provider compatibility remain unverified.
+
 Primary contracts: [OpenAI function calling](https://developers.openai.com/api/docs/guides/function-calling),
-[Anthropic streaming](https://platform.claude.com/docs/en/build-with-claude/streaming),
-[Gemini Interactions v1](https://ai.google.dev/api/interactions-api-v1), and
+[Anthropic tool handling](https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls),
+[Gemini function calling](https://ai.google.dev/gemini-api/docs/function-calling),
+[Gemini Interactions](https://ai.google.dev/gemini-api/docs/interactions-overview), and
 [xAI function calling](https://docs.x.ai/developers/tools/function-calling).
 Schema semantics and frontend settings were checked against
 [JSON Schema Draft 2020-12 validation](https://json-schema.org/draft/2020-12/json-schema-validation.html)
@@ -130,6 +158,8 @@ Adversarial fixtures, exact limits, implementation anchors, and non-claims are r
 `docs/audits/runs/PROVIDER-TOOL-PROPOSALS-2026-08-11.json`.
 Cross-language schema-validation fixtures and the remaining domain/authority gap are recorded in
 `docs/audits/runs/PROVIDER-TOOL-SCHEMA-VALIDATION-2026-08-11.json`.
+The native continuation wire fixtures, hostile authority cases, limits, and non-claims are recorded
+in `docs/audits/runs/PROVIDER-SOURCE-LOCATOR-CONTINUATION-2026-08-11.json`.
 
 ## Security boundary
 
@@ -149,6 +179,9 @@ Cross-language schema-validation fixtures and the remaining domain/authority gap
 - The resumable MCP surface derives sources only from an exact live-document revision and selected
   block indexes. It grants no arbitrary prompt, endpoint, credential, Drive, filesystem, or shared
   mutation authority.
+- The native source locator searches only already-disclosed frozen excerpts, uses provider-issued
+  call IDs, retains replay only in process memory, and requires a fresh native disclosure per turn.
+  It grants no general custom-tool or external-resource authority.
 - Custom endpoints are visibly unverified and require HTTPS unless the user explicitly selects a
   loopback development endpoint.
 
@@ -174,10 +207,11 @@ events, distinguishes sanitized provider failure, and cancels between events. Th
 runtime now routes that stream through one ordered per-call Tauri channel, accumulates the same
 bounded normalized response in Rust, removes the cancellation registration on every terminal path,
 and marks the authoritative content-free run record as streamed. The workspace renders OpenAI,
-Anthropic, Gemini, or xAI text, usage, warnings, and proposal-only tool calls incrementally as a
-transient review; it never executes a call or applies the response to the shared draft automatically.
+Anthropic, Gemini, or xAI text, usage, warnings, and custom proposal calls incrementally as a
+transient review. The separately enabled native exact-source locator uses one-shot continuation;
+neither path applies a response to the shared draft automatically.
 No live service has been contacted. `syzygy_platform_contracts` reports aggregate status as
-`native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-tool-proposal-review-ui-no-live-proof`.
+`native-disclosure-openai-anthropic-gemini-xai-stream-schema-validated-custom-tool-review-bounded-source-locator-continuation-no-live-proof`.
 
 The incremental OpenAI SSE decoder accepts arbitrary byte fragmentation, including split Unicode;
 joins multiline `data:` fields; ignores keepalives; validates optional SSE event labels against
@@ -185,8 +219,10 @@ the JSON event type; emits normalized start, text, usage, finish, error, and end
 unknown future types as warnings; strips provider error messages; and bounds pending frames to one
 MiB. Malformed JSON, label mismatch, partial usage, oversized frames, and truncated streams fail
 closed. Function-call item start, fragmented argument delta, completion, duplicate confirmation,
-JSON/body bounds, and incomplete lifecycle are normalized fail-closed; execution, retry semantics,
-slow-consumer stress, and reconnect remain open. Cancellation covers the complete one-shot request/body future and the fake-network stream
+JSON/body bounds, and incomplete lifecycle are normalized fail-closed. The bounded native exact-source
+locator has fake-server-only one-shot `function_call`/`function_call_output` continuation evidence;
+arbitrary/custom execution, streamed continuation, retry semantics, slow-consumer stress, and reconnect
+remain open. Cancellation covers the complete one-shot request/body future and the fake-network stream
 through normalized event dispatch. Product wiring preserves that boundary through a scoped ordered
 channel; slow-consumer/backpressure stress, reconnect, retries, and duplicate-event policy remain open.
 
@@ -213,8 +249,10 @@ into the bounded transient proposal lifecycle and remain absent from run records
 label/type mismatch, decreasing cumulative usage, malformed/truncated lifecycle, and missing
 terminal events. The normalizer computes overflow-safe total usage, maps refusal to a sanitized
 marker, and shares the disclosure, timeout, cancellation, TLS/loopback, and error-redaction gates.
-Tool execution/result continuation, beta headers, upstream request IDs beyond the message ID, live policy
-validation, packaged native-dialog interaction, and opt-in live proof remain open.
+Arbitrary/custom tool execution, streamed tool continuation, beta headers, upstream request IDs
+beyond the message ID, live policy validation, packaged native-dialog interaction, and opt-in live
+proof remain open. The bounded native exact-source locator has fake-server-only one-shot
+`tool_use`/`tool_result` continuation evidence.
 
 The Gemini slice targets the stable `/v1/interactions` API rather than silently following an SDK's
 preview default. One-shot fake-server evidence proves `x-goog-api-key`, content type, model, joined
@@ -229,9 +267,11 @@ label/type mismatch, unfinished steps, missing terminal events, and oversized st
 Thought summaries/signatures remain content-free warning types only. Complete `function_call` steps
 become bounded proposal lifecycles; the one-shot normalizer retains text and function proposals and accepts
 usage only when total tokens cover input plus output. The endpoint, disclosure, byte bound,
-redaction, timeout, and cancellation gates match the other remote slices. Tool execution/result continuation,
-thought-signature continuation, structured output, stored state, live terms validation, packaged
-dialog interaction, and opt-in live proof remain open.
+redaction, timeout, and cancellation gates match the other remote slices. Arbitrary/custom tool
+execution, streamed continuation, structured output, stored state, live terms validation, packaged
+dialog interaction, and opt-in live proof remain open. The bounded native exact-source locator has
+fake-server-only one-shot `function_call`/`function_result` continuation evidence, with the exact
+provider-issued call ID and raw required step carriers retained only in native memory.
 
 The xAI slice deliberately reuses only the compatible Responses event grammar, not OpenAI privacy
 assumptions. One-shot and SSE requests send bearer auth to `/v1/responses`, force `store:false`, and
@@ -243,10 +283,12 @@ the first event, and the typed outcome/content-free run record expose whether en
 actually active instead of treating `store:false` as ZDR. Text, usage, terminal status, sanitized
 errors, and `[DONE]` use the provider-neutral Responses normalizer. Documented whole custom-function
 calls become one bounded start/delta/complete proposal; unsupported built-in/reasoning events surface
-only their type as a warning and reasoning bodies are omitted. xAI's primary streaming, function,
-and security documentation was rechecked on 2026-08-11. Tool execution/result continuation,
-encrypted reasoning continuation, WebSocket mode, slow-consumer/retry semantics, cost ticks,
-packaged dialog interaction, and opt-in live proof remain open.
+only their type as a warning and reasoning bodies are omitted from normalized output and run
+records. xAI's primary streaming, function, and security documentation was rechecked on 2026-08-11.
+The bounded native exact-source locator retains the opaque raw one-shot response only in native
+memory and replays it with exact call binding and `store:false`. Arbitrary/custom tool execution,
+streamed continuation, WebSocket mode, slow-consumer/retry semantics, cost ticks, packaged dialog
+interaction, and opt-in live proof remain open.
 
 Primary xAI sources: <https://docs.x.ai/developers/model-capabilities/text/streaming>,
 <https://docs.x.ai/developers/tools/overview>,

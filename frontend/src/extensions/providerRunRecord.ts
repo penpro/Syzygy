@@ -32,6 +32,8 @@ export interface ProviderRunRecord {
     maxOutputTokens: number
     timeoutMs: number
     stream: boolean
+    toolContinuationTurn?: number
+    toolThreadIdSha256?: string
   }
   disclosure: {
     required: boolean
@@ -84,6 +86,24 @@ export function validateProviderRunRecord(record: ProviderRunRecord): string[] {
   if (!record.runId.trim() || !record.callId.trim()) errors.push('runId and callId are required')
   if (!unique(record.request.sourceSnapshotIds) || record.request.sourceSnapshotIds.some((id) => !id.trim())) {
     errors.push('sourceSnapshotIds must be unique and non-empty')
+  }
+  const hasToolTurn = record.request.toolContinuationTurn !== undefined
+  const hasToolThread = record.request.toolThreadIdSha256 !== undefined
+  if (hasToolTurn !== hasToolThread) {
+    errors.push('tool continuation turn and thread hash must be recorded together')
+  }
+  if (hasToolTurn && (
+    !Number.isInteger(record.request.toolContinuationTurn) ||
+    record.request.toolContinuationTurn! < 0 ||
+    record.request.toolContinuationTurn! > 4
+  )) {
+    errors.push('tool continuation turn must be an integer from zero through four')
+  }
+  if (hasToolThread && !/^[a-f0-9]{64}$/.test(record.request.toolThreadIdSha256!)) {
+    errors.push('tool continuation thread hash must be a SHA-256 value')
+  }
+  if ((hasToolTurn || hasToolThread) && (!record.provider.remote || record.request.stream)) {
+    errors.push('tool continuation metadata requires a non-streaming remote execution')
   }
   if (
     !validTimestamp(record.request.startedAt) ||

@@ -711,12 +711,20 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   Fix: routine syncs never emit `'reload'` (remote changes reach Lexical via `Y.applyUpdate` →
   `observeDeep` alone); regression test pins the behavior. The event had been emitted since the
   original Drive-share commit — previously masked by the reconnect-thrash (#5) rebuilding the
-  binding nonstop.
+  binding nonstop. With the fix installed as v0.1.26 on both machines, **S-07 passed the full
+  physical `--mutate` ledger** (two-way document mutation, concurrent Yjs merge, stale-revision
+  rejection, shared-title ledger both directions, and the complete scenario suite —
+  `docs/audits/runs/LAN-DRIVE-LIVE-2026-10-29.json`), and **S-01 passed on both installations**
+  (141-file workspace, native Google-file canary answered by the bundled local model on each
+  machine's own stored grant — `docs/audits/runs/DRIVE-LIVE-2026-10-29.json`, closing the
+  July record's second-install limitation). Both capabilities are now `verified` in the ledger —
+  the first two verified capabilities in the project.
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **42 capabilities**: **42 are
-`implemented_unverified`, 0 are `planned`, and 0 are `verified`**. MCP onboarding improves
+The machine-readable end-goal ledger currently contains **42 capabilities**: **40 are
+`implemented_unverified`, 0 are `planned`, and 2 are `verified`** (S-01 and S-07, both
+physically verified across two installations on 2026-10-29). MCP onboarding improves
 operability and automated testing but does not close a research-workflow capability by itself.
 The next product-critical gaps remain the custom editor/domain nodes, remaining crash/recovery local
 lifecycle, Drive-backed Yjs convergence, optional presence, third-party scenario-pack interoperability,

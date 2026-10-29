@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-10-29",
+  "releaseCandidate": "0.1.26",
+  "command": "node scripts/lan-drive-live-harness.mjs --listen <lan-ip> --port 37663 --key-file <pairing-key> --local-executable <installed Syzygy.exe> --mutate",
+  "environment": "Two physical Windows installations (office-primary local, office-secondary over the private LAN); installed v0.1.26 builds; one authenticated LAN MCP coordinator; production OAuth consent screen; live Google Drive transport",
+  "result": {
+    "passed": true,
+    "mode": "two-way-mutation",
+    "authenticatedNodes": 2,
+    "exactSharedIdentity": true,
+    "primaryToSecondary": true,
+    "secondaryToPrimary": true,
+    "concurrentMerge": true,
+    "staleRevisionRejected": true,
+    "sharedTitlePrimaryToSecondary": true,
+    "sharedTitleSecondaryToPrimary": true,
+    "sharedTitleStaleRevisionRejected": true,
+    "sharedTitleRestored": true,
+    "scenarioPrimaryToSecondary": true,
+    "scenarioIndexReadback": true,
+    "scenarioSiblingMerge": true,
+    "scenarioCurrentConverged": true,
+    "scenarioSiblingReconciliation": true,
+    "scenarioStaleRevisionRejected": true
+  },
+  "privacy": {
+    "lanAddressesCommitted": false,
+    "pairingKeyCommitted": false,
+    "oauthDataCommitted": false
+  },
+  "defectsFixedToReachThisPass": [
+    "same-named Drive update duplicates from the non-atomic push race (v0.1.24)",
+    "permanently-dead provider after one transient connect failure (v0.1.25)",
+    "quota-hostile 3-second polling saturating Google's per-minute query-cost cap (v0.1.25)",
+    "untimed reqwest clients hanging sync silently (v0.1.26)",
+    "CollaborationPlugin reconnect-thrash from an unstable initialEditorState prop (v0.1.25)",
+    "editor binding detach from emitting Lexical's doc-replacement 'reload' event on every routine sync (v0.1.26)"
+  ],
+  "limitations": [
+    "Both installations are signed into the same Google account; a cross-account share is not exercised by this run.",
+    "The run exercises the Drive transport over a 30-second poll cadence; realtime transports are covered elsewhere."
+  ]
+}

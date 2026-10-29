@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-10-29",
+  "releaseCandidate": "0.1.26",
+  "command": "npm run test:drive-live (office-primary) + the same drive-harness binary with the second installation's own stored grant (office-secondary)",
+  "environment": "Two physical Windows installations, each with its own stored production OAuth grant and the shared selected Drive workspace; bundled loopback model launched with the app's engine arguments (--reasoning off)",
+  "result": {
+    "passed": true,
+    "bothInstallationsPassed": true,
+    "visibleFiles": 141,
+    "supportedFiles": 129,
+    "nativeGoogleFiles": 2,
+    "canarySource": "native Google-file evidence",
+    "modelAnswerMatchedCanary": true
+  },
+  "privacy": {
+    "canaryValueCommitted": false,
+    "fileNamesCommitted": false,
+    "oauthDataCommitted": false,
+    "modelPathCommitted": false
+  },
+  "limitations": [
+    "Both installations are signed into the same Google account; the collaborator file was created from the same account. A cross-account share remains unexercised.",
+    "The loopback model must be launched with the app's engine arguments: a bare llama-server launch without --reasoning off fails the model's output-format check (500) before any answer is produced."
+  ],
+  "closesLimitationOf": "docs/audits/runs/DRIVE-LIVE-2026-07-14.json (second-install reproduction)"
+}

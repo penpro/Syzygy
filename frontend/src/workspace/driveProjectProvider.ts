@@ -30,8 +30,24 @@ import { registerProjectPresence } from './presenceRegistry'
 import { registerDriveProjectMaintenance } from './driveProjectMaintenanceRegistry'
 import { clearDriveProjectTitleState, publishDriveProjectTitleState } from './driveProjectTitleStatus'
 
-const POLL_INTERVAL_MS = 3_000
+// Remote-change poll cadence. Every poll costs ~10+ Drive API queries
+// (workspace validation, manifest lookup, folder resolution, listings, title
+// state), and Google's "Total Query Cost / Units per minute per user" quota
+// saturates with just two installations polling at seconds-scale — first hit
+// physically 2026-10-29, where sustained 403s killed every reconnect. Local
+// edits still reach Drive within PUSH_DEBOUNCE_MS via schedulePush; this
+// interval only bounds how fast OTHER installations' changes arrive.
+const POLL_INTERVAL_MS = 30_000
 const PUSH_DEBOUNCE_MS = 750
+// When Drive reports quota exhaustion, keep polling but much more slowly —
+// hammering a saturated quota just keeps it saturated for the whole fleet.
+const QUOTA_BACKOFF_MS = 90_000
+// A failed connect used to leave the provider permanently dead until the
+// editor remounted — one transient Drive error (a quota 403, a network blip)
+// silently ended sync for the session. Connect failures now retry with capped
+// exponential backoff while the provider stays connected.
+const INITIAL_CONNECT_RETRY_MS = 5_000
+const MAX_CONNECT_RETRY_MS = 60_000
 
 export interface DriveProjectRemote {
   pull(projectId: string, documentId: string, knownUpdateIds: string[]): Promise<DriveProjectPullResult>
@@ -67,6 +83,12 @@ const tauriRemote: DriveProjectRemote = {
   readTitle: googleDriveProjectTitleState,
   compactTitle: googleDriveProjectTitleCompact,
   updateTitle: googleDriveProjectTitleUpdate,
+}
+
+/** Google's quota rejections survive sanitization as this phrase; everything
+ *  else is treated as an ordinary transient error. */
+function isQuotaError(error: unknown): boolean {
+  return /quota exceeded/i.test(String(error))
 }
 
 export function bytesToBase64(bytes: Uint8Array): string {
@@ -108,8 +130,10 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
   private connected = false
   private generation = 0
   private pendingUpdates: Uint8Array[] = []
-  private pollTimer: ReturnType<typeof setInterval> | null = null
+  private pollTimer: ReturnType<typeof setTimeout> | null = null
   private pushTimer: ReturnType<typeof setTimeout> | null = null
+  private retryTimer: ReturnType<typeof setTimeout> | null = null
+  private retryDelayMs = INITIAL_CONNECT_RETRY_MS
   private syncing: Promise<void> | null = null
   private unregisterAutomation: (() => void) | null = null
   private unregisterPresence: (() => void) | null = null
@@ -162,10 +186,13 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
   disconnect(): void {
     this.generation += 1
     this.connected = false
-    if (this.pollTimer) clearInterval(this.pollTimer)
+    if (this.pollTimer) clearTimeout(this.pollTimer)
     if (this.pushTimer) clearTimeout(this.pushTimer)
+    if (this.retryTimer) clearTimeout(this.retryTimer)
     this.pollTimer = null
     this.pushTimer = null
+    this.retryTimer = null
+    this.retryDelayMs = INITIAL_CONNECT_RETRY_MS
     if (this.updatesAttached) this.doc.off('update', this.forwardUpdate)
     this.updatesAttached = false
     this.unregisterAutomation?.()
@@ -265,8 +292,10 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
     try {
       await this.local.whenReady()
       if (!this.connected || generation !== this.generation) return
-      this.doc.on('update', this.forwardUpdate)
-      this.updatesAttached = true
+      if (!this.updatesAttached) {
+        this.doc.on('update', this.forwardUpdate)
+        this.updatesAttached = true
+      }
       await this.pullRemote()
       await this.pullTitleState()
       migrateScenarioDocument(this.doc)
@@ -277,15 +306,51 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
       this.unregisterAutomation = registerAutomationProjectDocument(this.manifest.id, this.doc)
       this.emit('sync', true)
       this.reportStatus({ state: 'synced', syncedAt: Date.now() })
+      this.retryDelayMs = INITIAL_CONNECT_RETRY_MS
       this.resolveReady?.()
-      this.pollTimer = setInterval(() => void this.syncNow().catch((error) => {
-        this.reportStatus({ state: 'error', error: String(error) })
-      }), POLL_INTERVAL_MS)
+      this.schedulePoll(generation, POLL_INTERVAL_MS)
     } catch (error) {
       if (!this.connected || generation !== this.generation) return
       this.reportStatus({ state: 'error', error: String(error) })
       this.rejectReady?.(error)
+      // Keep trying while connected: callers awaiting whenReady still see the
+      // first failure, but the session heals itself once Drive recovers
+      // (update listeners are reattached idempotently via updatesAttached).
+      const delay = Math.max(
+        this.retryDelayMs,
+        isQuotaError(error) ? QUOTA_BACKOFF_MS : 0,
+      )
+      this.retryDelayMs = Math.min(this.retryDelayMs * 2, MAX_CONNECT_RETRY_MS)
+      this.retryTimer = setTimeout(() => {
+        this.retryTimer = null
+        if (!this.connected || generation !== this.generation) return
+        this.reportStatus({ state: 'connecting' })
+        void this.initialize(generation)
+      }, delay)
     }
+  }
+
+  /** Self-scheduling poll chain (not setInterval) so a quota-exhausted Drive
+   *  gets a long breather instead of a steady hammer. */
+  private schedulePoll(generation: number, delay: number): void {
+    if (this.pollTimer) clearTimeout(this.pollTimer)
+    this.pollTimer = setTimeout(() => {
+      this.pollTimer = null
+      if (!this.connected || generation !== this.generation) return
+      void this.syncNow()
+        .then(() => {
+          if (!this.connected || generation !== this.generation) return
+          this.schedulePoll(generation, POLL_INTERVAL_MS)
+        })
+        .catch((error) => {
+          if (!this.connected || generation !== this.generation) return
+          this.reportStatus({ state: 'error', error: String(error) })
+          this.schedulePoll(
+            generation,
+            isQuotaError(error) ? QUOTA_BACKOFF_MS : POLL_INTERVAL_MS,
+          )
+        })
+    }, delay)
   }
 
   private async performSync(): Promise<void> {

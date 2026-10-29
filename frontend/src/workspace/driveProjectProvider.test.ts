@@ -1,6 +1,6 @@
 import { Awareness } from 'y-protocols/awareness'
 import * as Y from 'yjs'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type {
   ProjectCollaborationProvider,
   ProjectProviderEvent,
@@ -217,6 +217,48 @@ function provider(doc: Y.Doc, hub: DriveProjectRemote): DriveProjectProvider {
 }
 
 describe('DriveProjectProvider', () => {
+  it('retries a failed connect instead of staying dead for the session', async () => {
+    // A transient Drive failure during connect (e.g. a quota 403) used to
+    // leave the provider permanently disconnected — no title state, no sync —
+    // until the editor remounted. It must heal itself.
+    vi.useFakeTimers()
+    try {
+      const hub = new FakeDriveHub()
+      let failuresLeft = 2
+      const flaky: DriveProjectRemote = {
+        ...hub,
+        pull: async (projectId, documentId, knownUpdateIds) => {
+          if (failuresLeft > 0) {
+            failuresLeft -= 1
+            throw new Error('Quota exceeded for quota metric Total Query Cost')
+          }
+          return hub.pull(projectId, documentId, knownUpdateIds)
+        },
+        push: hub.push.bind(hub),
+        compact: hub.compact.bind(hub),
+        readTitle: hub.readTitle.bind(hub),
+        compactTitle: hub.compactTitle.bind(hub),
+        updateTitle: hub.updateTitle.bind(hub),
+      }
+      const doc = new Y.Doc({ guid: manifest.documentId })
+      const value = provider(doc, flaky)
+      value.connect()
+      await value.whenReady().catch(() => {})
+      expect(currentDriveProjectTitleState(manifest.id)).toBeNull()
+      // Two quota failures: each retry waits at least the quota backoff.
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        await vi.advanceTimersByTimeAsync(90_000)
+      }
+      expect(failuresLeft).toBe(0)
+      expect(currentDriveProjectTitleState(manifest.id)).toMatchObject({
+        title: 'Drive convergence test',
+        conflict: false,
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('converges two installations through immutable updates and reconnect merging', async () => {
     const hub = new FakeDriveHub()
     const docA = new Y.Doc({ guid: manifest.documentId })

@@ -19,6 +19,11 @@ export function clearDriveProjectStatus(projectId: string): void {
   listeners.get(projectId)?.forEach((listener) => listener(null))
 }
 
+/** Live sync status for automation/diagnostics (read_active_project). */
+export function currentDriveProjectStatus(projectId: string): DriveProjectSyncStatus | null {
+  return statuses.get(projectId) ?? null
+}
+
 export function subscribeDriveProjectStatus(
   projectId: string,
   listener: DriveProjectStatusListener,

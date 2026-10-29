@@ -680,6 +680,26 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   New operational gotchas recorded in `DEVELOPMENT.md` (SSH job-object reaping, GUI-not-running
   probe failures, sanitized `invalid_grant`).
 
+- **2026-10-29 — overnight hardening run; S-07 advanced to its final phase.** With fresh Drive
+  auth, the physical mutate gate exposed and fixed five real defects in sequence:
+  (1) same-named Drive update duplicates from the non-atomic push race (v0.1.24: deterministic
+  lowest-id winner + recoverable self-healing trash); (2) permanently-dead providers after one
+  transient connect failure (v0.1.25: capped-backoff retry); (3) quota-hostile 3-second polling
+  that saturated Google's per-minute query-cost cap fleet-wide (v0.1.25: 30 s poll + 90 s quota
+  backoff); (4) untimed reqwest clients in `google_drive.rs`/`google_auth.rs` that could hang
+  sync forever on a dead socket (30 s timeouts everywhere); (5) a render feedback loop that
+  reconnect-thrashed the provider ~14 times/second via an unstable `initialEditorState` prop
+  (stable bootstrap callback + no-op title writes). New diagnostics: `read_active_project`
+  returns `syncStatus`, `syzygy_status` returns the log tail, and provider initialize logs
+  step breadcrumbs. Harness fixes: fresh revision before `replace_active_document`, and timing
+  rescaled to the 30 s sync cadence (15 min ledger budget, 90 s propagation windows).
+  Gate progress: title baseline, two-way shared-title renames, restore, and primary→secondary
+  document propagation all **passed physically for the first time**. Remaining blocker: after
+  provider reconnects, the Lexical↔Yjs binding can detach — editors show empty content and stop
+  applying remote updates while every update is verifiably present on Drive. Close that, rerun
+  `--mutate` and `npm run test:drive-live`. (v0.1.25 is committed and both office installs run
+  it; the release tag awaits a manual push.)
+
 ## Current completion snapshot
 
 The machine-readable end-goal ledger currently contains **42 capabilities**: **42 are

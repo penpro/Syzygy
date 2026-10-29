@@ -21,7 +21,12 @@ const primaryNode = option(options, '--primary-node', 'office-primary')
 const secondaryNode = option(options, '--secondary-node', 'office-secondary')
 const mutate = options.has('--mutate')
 const proofTitle = option(options, '--proof-title', 'Syzygy live collaboration proof')
-const absoluteDeadline = Date.now() + 2 * 60_000
+// Budget for the WHOLE ledger. Cross-node visibility rides the Drive
+// provider's remote poll (30 s, quota-bounded — see driveProjectProvider.ts),
+// so each propagation wait can legitimately take ~35-40 s and the full mutate
+// ledger several minutes. The old 2-minute budget dated from the 3-second
+// poll era and killed runs mid-ledger.
+const absoluteDeadline = Date.now() + 15 * 60_000
 
 function terminate(child) {
   if (!child?.pid || child.exitCode !== null) return
@@ -254,7 +259,7 @@ try {
         && primary.sharedTitle.conflict === false && secondary.sharedTitle.conflict === false
         && primary.sharedTitle.title === secondary.sharedTitle.title
         && JSON.stringify(primary.sharedTitle.revisionGuards) === JSON.stringify(secondary.sharedTitle.revisionGuards),
-      45_000,
+      90_000,
       'shared project title baseline on both installations',
     )
     const originalSharedTitle = titleBaseline[0].sharedTitle.title
@@ -274,7 +279,7 @@ try {
         && primary.project.title === primarySharedTitle
         && secondary.project.title === primarySharedTitle
         && JSON.stringify(primary.sharedTitle.revisionGuards) === JSON.stringify(secondary.sharedTitle.revisionGuards),
-      60_000,
+      90_000,
       'primary shared-title rename on the secondary installation',
     )
     evidence.sharedTitlePrimaryToSecondary = true
@@ -306,7 +311,7 @@ try {
       ([primary, secondary]) => primary.sharedTitle?.title === secondarySharedTitle
         && secondary.sharedTitle?.title === secondarySharedTitle
         && JSON.stringify(primary.sharedTitle.revisionGuards) === JSON.stringify(secondary.sharedTitle.revisionGuards),
-      60_000,
+      90_000,
       'secondary shared-title rename on the primary installation',
     )
     evidence.sharedTitleSecondaryToPrimary = true
@@ -325,20 +330,24 @@ try {
         && secondary.sharedTitle?.title === originalSharedTitle
         && primary.project.title === originalSharedTitle
         && secondary.project.title === originalSharedTitle,
-      60_000,
+      90_000,
       'restored shared title on both installations',
     )
     evidence.sharedTitleRestored = true
     const baseline = `# Syzygy two-install collaboration proof\n\nBaseline ${runId}`
+    // Fresh read: the revision from ensureProofProject is stale by now — the
+    // shared-title ledger and both providers' connect pulls/pushes have run
+    // since, and the guard (correctly) rejects an outdated revision.
+    const primaryBeforeReset = await lanCall(session, primaryNode, 'read_active_project')
     const reset = await lanCall(session, primaryNode, 'replace_active_document', {
-      expectedRevision: primaryRead.document.revision,
+      expectedRevision: primaryBeforeReset.document.revision,
       content: baseline,
     })
 
     const secondaryBaseline = await waitFor(
       () => lanCall(session, secondaryNode, 'read_active_project'),
       (value) => value.project.id === project.id && value.document.text.includes(`Baseline ${runId}`),
-      45_000,
+      90_000,
       'primary edit on the secondary installation',
     )
     evidence.primaryToSecondary = true
@@ -372,7 +381,7 @@ try {
         && secondary.document.text.includes(markerA)
         && secondary.document.text.includes(markerB)
         && primary.document.text === secondary.document.text,
-      60_000,
+      90_000,
       'two-way Yjs convergence',
     )
     evidence.secondaryToPrimary = converged[0].document.text.includes(markerB)
@@ -410,7 +419,7 @@ try {
     const secondaryBase = await waitFor(
       () => optionalLanCall(session, secondaryNode, 'read_scenario_turn_revision', { scenarioId, turnId }),
       (value) => value?.revision?.content === baseTurnBody && value?.turn?.revisionCount === 1,
-      60_000,
+      90_000,
       'scenario turn from primary on the secondary installation',
     )
     evidence.scenarioPrimaryToSecondary = secondaryBase.revision.content === baseTurnBody
@@ -451,7 +460,7 @@ try {
         && values[2].revision.content === primaryBranchBody
         && values[3].revision.content === secondaryBranchBody
         && values.every((value) => value.turn.revisionCount === 3),
-      60_000,
+      90_000,
       'both scenario revision bodies on both installations',
     )
     evidence.scenarioSiblingMerge = siblingReads.every((value) => value.turn.revisionCount === 3)
@@ -470,7 +479,7 @@ try {
         && primary.turn.tipEditIds.length === 2 && secondary.turn.tipEditIds.length === 2
         && primary.turn.tipEditIds.includes(primaryEditId) && primary.turn.tipEditIds.includes(secondaryEditId)
         && secondary.turn.tipEditIds.includes(primaryEditId) && secondary.turn.tipEditIds.includes(secondaryEditId),
-      60_000,
+      90_000,
       'deterministic current scenario turn on both installations',
     )
     evidence.scenarioCurrentConverged = currentTurns[0].revision.editId === currentTurns[1].revision.editId
@@ -499,7 +508,7 @@ try {
         && primary.turn.requiresReconciliation === false && secondary.turn.requiresReconciliation === false
         && primary.turn.tipEditIds.length === 1 && primary.turn.tipEditIds[0] === mergeEditId
         && secondary.turn.tipEditIds.length === 1 && secondary.turn.tipEditIds[0] === mergeEditId,
-      60_000,
+      90_000,
       'explicit scenario sibling reconciliation on both installations',
     )
     const expectedMergeParents = [primaryEditId, secondaryEditId].sort()

@@ -20,7 +20,7 @@ import {
   UNDO_COMMAND,
 } from 'lexical'
 import { $createHeadingNode, $createQuoteNode, HeadingNode, QuoteNode } from '@lexical/rich-text'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store'
 import type { ResearchProjectManifest } from './schema'
 import { createLocalProviderFactory } from './localProvider'
@@ -270,6 +270,26 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
         : createLocalProviderFactory(project),
     [project.documentId, project.id, transportKey],
   )
+  // CollaborationPlugin treats a changed initialEditorState identity as a
+  // reason to tear down and rebuild the collaboration binding — which calls
+  // provider.disconnect()/connect(). An inline arrow here changed identity on
+  // EVERY render, and since the Drive provider's title pull writes the store
+  // (applySharedProjectTitle -> re-render), that closed a feedback loop that
+  // reconnect-thrashed the provider forever: sync never reached "synced",
+  // shared titles flickered and died, and the physical two-install gate hung
+  // on its title baseline. The bootstrap callback must be referentially
+  // stable; the latest title is read through a ref.
+  const titleRef = useRef(project.title)
+  titleRef.current = project.title
+  const [bootstrapEditorState] = useState(() => () => {
+    const root = $getRoot()
+    root.append(
+      $createHeadingNode('h1').append($createTextNode(titleRef.current)),
+      $createParagraphNode().append(
+        $createTextNode('Start with the behavior the model should follow. This draft is stored locally and structured for collaboration.'),
+      ),
+    )
+  })
   const initialConfig = useMemo(
     () => ({
       namespace: `syzygy-project-${project.documentId}`,
@@ -311,15 +331,7 @@ export function ResearchEditor({ project }: { project: ResearchProjectManifest }
             awarenessData={awarenessData}
             cursorColor="var(--accent)"
             selectionHighlight
-            initialEditorState={() => {
-              const root = $getRoot()
-              root.append(
-                $createHeadingNode('h1').append($createTextNode(project.title)),
-                $createParagraphNode().append(
-                  $createTextNode('Start with the behavior the model should follow. This draft is stored locally and structured for collaboration.'),
-                ),
-              )
-            }}
+            initialEditorState={bootstrapEditorState}
           />
           <ConnectedPolicyContentBridgeNotice />
           </div>

@@ -58,6 +58,8 @@ import {
   updateDriveProjectTitle,
 } from './workspace/driveProjectMaintenanceRegistry'
 import { currentDriveProjectTitleState } from './workspace/driveProjectTitleStatus'
+import { currentDriveProjectStatus } from './workspace/driveProjectStatus'
+import { getLog } from './log'
 import { driveTitleRepairJobs, type DriveTitleRepairJob } from './workspace/driveTitleRepairJobs'
 import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
 import { projectStateFingerprint } from './workspace/projectModel'
@@ -119,6 +121,15 @@ export async function dispatchAutomationRequest(
         editorReady: activeProject ? automationEditorReady(activeProject.id) : false,
         researchStateReady: activeProject ? automationProjectDocumentReady(activeProject.id) : false,
         capabilities: AUTOMATION_CAPABILITIES,
+        // Tail of the diagnostic ring buffer, so a remote harness can read
+        // what the Settings log viewer shows without touching the screen.
+        recentLog: getLog().slice(-14).map((entry) => ({
+          ts: entry.ts,
+          level: entry.level,
+          tag: entry.tag,
+          message: entry.message.slice(0, 220),
+          count: entry.count,
+        })),
       }
     }
     case 'project.list':
@@ -332,6 +343,12 @@ export async function dispatchAutomationRequest(
         project: summarizeProject(project, latest.activeProjectId),
         document: getAutomationEditorController(project.id).read(),
         sharedTitle: titleState ? summarizeDriveTitle(titleState) : null,
+        // Diagnostics: the provider's live sync state, so a remote harness can
+        // tell "connecting", "synced", a real error, and "no provider at all"
+        // (null) apart instead of inferring from a missing sharedTitle.
+        syncStatus: project.transport.kind === 'drive'
+          ? currentDriveProjectStatus(project.id)
+          : null,
       }
     }
     case 'project.readResearchState': {

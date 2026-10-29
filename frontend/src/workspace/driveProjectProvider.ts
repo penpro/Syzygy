@@ -29,6 +29,7 @@ import { publishDriveProjectStatus, type DriveProjectSyncStatus } from './driveP
 import { registerProjectPresence } from './presenceRegistry'
 import { registerDriveProjectMaintenance } from './driveProjectMaintenanceRegistry'
 import { clearDriveProjectTitleState, publishDriveProjectTitleState } from './driveProjectTitleStatus'
+import { logError, logInfo } from '../log'
 
 // Remote-change poll cadence. Every poll costs ~10+ Drive API queries
 // (workspace validation, manifest lookup, folder resolution, listings, title
@@ -290,17 +291,27 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
 
   private async initialize(generation: number): Promise<void> {
     try {
+      // Step breadcrumbs: initialize historically stalled silently (no error,
+      // status stuck "connecting"); these mark exactly how far it got.
+      const step = (name: string) =>
+        logInfo('drive-provider', `init ${name} (${this.manifest.id.slice(0, 8)} gen ${generation})`)
       await this.local.whenReady()
       if (!this.connected || generation !== this.generation) return
+      step('local-ready')
       if (!this.updatesAttached) {
         this.doc.on('update', this.forwardUpdate)
         this.updatesAttached = true
       }
       await this.pullRemote()
+      step('pulled')
       await this.pullTitleState()
+      step('title-pulled')
       migrateScenarioDocument(this.doc)
+      step('migrated')
       await this.pushUpdate(Y.encodeStateAsUpdate(this.doc))
+      step('pushed')
       await this.flushPending()
+      step('flushed')
       if (!this.connected || generation !== this.generation) return
       this.unregisterMaintenance = registerDriveProjectMaintenance(this.manifest.id, this)
       this.unregisterAutomation = registerAutomationProjectDocument(this.manifest.id, this.doc)
@@ -311,6 +322,7 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
       this.schedulePoll(generation, POLL_INTERVAL_MS)
     } catch (error) {
       if (!this.connected || generation !== this.generation) return
+      logError('drive-provider', `init failed (${this.manifest.id.slice(0, 8)} gen ${generation}): ${String(error).slice(0, 180)}`)
       this.reportStatus({ state: 'error', error: String(error) })
       this.rejectReady?.(error)
       // Keep trying while connected: callers awaiting whenReady still see the

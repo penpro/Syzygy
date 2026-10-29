@@ -98,14 +98,20 @@ export const useStore = create<AppState>()(
       applySharedProjectTitle: (id, title) => {
         const normalized = title.trim()
         if (!normalized || [...normalized].length > 200) throw new Error('Shared project title is invalid')
-        set((state) => ({
-          projects: state.projects.map((project) => {
-            if (project.id !== id || project.transport.kind !== 'drive' || project.title === normalized) {
-              return project
-            }
-            return { ...project, title: normalized, updatedAt: now() }
-          }),
-        }))
+        set((state) => {
+          // No-op when nothing changes: this runs on every Drive title pull
+          // (30s per shared project), and an unconditional new projects array
+          // re-renders every subscriber each poll for no reason.
+          const target = state.projects.find((project) => project.id === id)
+          if (!target || target.transport.kind !== 'drive' || target.title === normalized) {
+            return state
+          }
+          return {
+            projects: state.projects.map((project) =>
+              project.id === id ? { ...project, title: normalized, updatedAt: now() } : project,
+            ),
+          }
+        })
       },
       openProject: (id) => set({ activeProjectId: id, view: 'workspace' }),
       browseSharedProjects: () => set({ activeProjectId: null, view: 'workspace' }),

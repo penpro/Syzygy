@@ -29,3 +29,6 @@ src-tauri/bin/
 
 # Detached local build-supervisor checkpoints and output
 .syzygy-dev-runs/
+
+# Machine-local Codex MCP registration written by the app (local IPs/paths)
+.codex/

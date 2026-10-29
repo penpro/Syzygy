@@ -183,8 +183,17 @@ struct TokenResponse {
     error: Option<String>,
 }
 
+/// Timed HTTP client: an untimed reqwest client can stall forever on a dead
+/// socket, freezing token refresh (and with it every Drive sync) silently.
+fn timed_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|error| format!("Auth HTTP client init failed: {error}"))
+}
+
 async fn token_request(params: &[(&str, &str)]) -> Result<TokenResponse, String> {
-    let client = reqwest::Client::new();
+    let client = timed_client()?;
     let resp = client
         .post(TOKEN_ENDPOINT)
         .form(params)
@@ -345,7 +354,7 @@ pub fn google_oauth_cancel() {
 #[tauri::command]
 pub async fn google_oauth_disconnect(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(stored) = read_stored(&app) {
-        let client = reqwest::Client::new();
+        let client = timed_client()?;
         let _ = client
             .post(REVOKE_ENDPOINT)
             .form(&[("token", stored.refresh_token.as_str())])
@@ -424,7 +433,7 @@ pub async fn google_drive_create_folder(
 ) -> Result<String, String> {
     require_collaboration_access(&app)?;
     let token = access_token(&app).await?;
-    let client = reqwest::Client::new();
+    let client = timed_client()?;
 
     // Look for an existing, non-trashed folder with this name first.
     let query = format!(

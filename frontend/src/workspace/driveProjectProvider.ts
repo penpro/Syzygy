@@ -369,7 +369,13 @@ export class DriveProjectProvider implements ProjectCollaborationProvider {
     await this.pullRemote()
     await this.pullTitleState()
     await this.flushPending()
-    this.emit('reload', { transport: 'drive', syncedAt: Date.now() })
+    // Never emit 'reload' here. Lexical's CollaborationPlugin reserves that
+    // event for a transport handing over a brand-new Y.Doc: its handler clears
+    // the editor WITHOUT writing to Yjs and swaps the tracked doc for the
+    // event payload. Emitting it per-sync detached the editor binding — the
+    // document read empty on every poll while all updates sat intact on
+    // Drive. Remote changes already reach Lexical via Y.applyUpdate ->
+    // observeDeep; no event is needed.
     this.reportStatus({ state: 'synced', syncedAt: Date.now() })
   }
 

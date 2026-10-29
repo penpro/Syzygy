@@ -57,6 +57,18 @@ fn workspace_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join("drive_workspace.json"))
 }
 
+/// Every Drive request from this module runs on a timed client. An untimed
+/// `timed_client()?` can stall forever on a dead socket, which froze
+/// provider connects upstream as a silent "CONNECTING…" with no error and no
+/// retry (first observed physically 2026-10-29). 30 s matches
+/// `drive_projects::drive_client`.
+fn timed_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|error| format!("Drive HTTP client init failed: {error}"))
+}
+
 fn read_workspace(app: &tauri::AppHandle) -> Option<DriveWorkspace> {
     let text = std::fs::read_to_string(workspace_file(app).ok()?).ok()?;
     serde_json::from_str(&text).ok()
@@ -78,7 +90,7 @@ async fn drive_get_json(
     operation: &str,
 ) -> Result<serde_json::Value, String> {
     let query = shared_drive_query(query, url == FILES_ENDPOINT);
-    let resp = reqwest::Client::new()
+    let resp = timed_client()?
         .get(url)
         .bearer_auth(token)
         .query(&query)
@@ -144,7 +156,7 @@ pub(crate) async fn find_or_create_folder(token: &str, name: &str) -> Result<Str
     if let Some(id) = found["files"].get(0).and_then(|f| f["id"].as_str()) {
         return Ok(id.to_string());
     }
-    let created = reqwest::Client::new()
+    let created = timed_client()?
         .post(FILES_ENDPOINT)
         .bearer_auth(token)
         .query(&[("supportsAllDrives", "true"), ("fields", "id")])
@@ -345,7 +357,7 @@ async fn find_file(token: &str, folder_id: &str, name: &str) -> Result<Option<St
 }
 
 async fn read_file_content(token: &str, file_id: &str) -> Result<String, String> {
-    let resp = reqwest::Client::new()
+    let resp = timed_client()?
         .get(format!("{FILES_ENDPOINT}/{file_id}"))
         .bearer_auth(token)
         .query(&[("alt", "media"), ("supportsAllDrives", "true")])
@@ -380,7 +392,7 @@ async fn create_text_file(
                 .mime_str("text/plain")
                 .map_err(|e| e.to_string())?,
         );
-    let v = reqwest::Client::new()
+    let v = timed_client()?
         .post(UPLOAD_ENDPOINT)
         .bearer_auth(token)
         .query(&[
@@ -401,7 +413,7 @@ async fn create_text_file(
 
 /// Overwrite an existing file's content (media upload PATCH).
 async fn update_text_file(token: &str, file_id: &str, content: &str) -> Result<(), String> {
-    let resp = reqwest::Client::new()
+    let resp = timed_client()?
         .patch(format!("{UPLOAD_ENDPOINT}/{file_id}"))
         .bearer_auth(token)
         .query(&[("uploadType", "media"), ("supportsAllDrives", "true")])
@@ -613,7 +625,7 @@ pub async fn retrieve_context_report(
     max_chars: usize,
 ) -> Result<DriveContextReport, String> {
     let files = list_folder_tree(token, &workspace.id, 2_000).await?;
-    let client = reqwest::Client::new();
+    let client = timed_client()?;
     let mut chunks = Vec::new();
     let mut native_chunks = Vec::new();
     let mut sources = Vec::new();
@@ -727,7 +739,7 @@ pub async fn write_sheet_range(
         .push(file_id)
         .push("values")
         .push(&start_cell);
-    let response = reqwest::Client::new()
+    let response = timed_client()?
         .put(url)
         .bearer_auth(token)
         .query(&[("valueInputOption", "RAW")])
@@ -780,7 +792,7 @@ pub async fn read_sheet_range(
         .push(file_id)
         .push("values")
         .push(range);
-    let response = reqwest::Client::new()
+    let response = timed_client()?
         .get(url)
         .bearer_auth(token)
         .query(&[("valueRenderOption", "UNFORMATTED_VALUE")])
@@ -827,7 +839,7 @@ pub async fn create_native_spreadsheet(
     parent_id: &str,
     name: &str,
 ) -> Result<String, String> {
-    let response = reqwest::Client::new()
+    let response = timed_client()?
         .post(FILES_ENDPOINT)
         .bearer_auth(token)
         .query(&[("supportsAllDrives", "true"), ("fields", "id")])
@@ -847,7 +859,7 @@ pub async fn create_native_spreadsheet(
 }
 
 pub async fn trash_file(token: &str, file_id: &str) -> Result<(), String> {
-    let response = reqwest::Client::new()
+    let response = timed_client()?
         .patch(format!("{FILES_ENDPOINT}/{file_id}"))
         .bearer_auth(token)
         .query(&[("supportsAllDrives", "true"), ("fields", "id,trashed")])
@@ -954,7 +966,7 @@ pub async fn google_drive_read_file(
         .into_iter()
         .find(|file| file.id == file_id)
         .ok_or("That file is outside the selected Drive workspace.")?;
-    let bytes = drive_file_bytes(&reqwest::Client::new(), &token, &file.id, &file.mime)
+    let bytes = drive_file_bytes(&timed_client()?, &token, &file.id, &file.mime)
         .await?
         .ok_or("That Drive file type cannot be read as text.")?;
     supported_text(&file.mime, &bytes).ok_or("That Drive file has no extractable text.".into())
@@ -1111,7 +1123,7 @@ pub async fn google_drive_sync_folder(
     let workspace = resolve_workspace(&app, &token, &folder_name).await?;
     let mirror = google_drive_mirror_dir(app.clone())?;
     let mirror_path = PathBuf::from(&mirror);
-    let client = reqwest::Client::new();
+    let client = timed_client()?;
 
     // Remote inventory (plain files only — native Google Docs types can't download as media).
     let q = format!("'{}' in parents and trashed = false", esc(&workspace.id));

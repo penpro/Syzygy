@@ -293,6 +293,27 @@ describe('DriveProjectProvider', () => {
     expect(Y.encodeStateVector(docB)).toEqual(Y.encodeStateVector(docA))
   })
 
+  it("never emits Lexical's doc-replacement 'reload' event during routine sync", async () => {
+    // Lexical's CollaborationPlugin treats 'reload' as "the transport replaced
+    // the whole Y.Doc": its handler clears the editor without writing to Yjs
+    // and swaps the tracked doc for the event payload. Emitting it per-sync
+    // detached the editor binding on both physical installations — documents
+    // read empty while every update sat intact on Drive.
+    const hub = new FakeDriveHub()
+    const doc = new Y.Doc({ guid: manifest.documentId })
+    const value = provider(doc, hub)
+    const reloads: unknown[] = []
+    value.on('reload', (payload) => reloads.push(payload))
+    value.connect()
+    await value.whenReady()
+    const peer = new Y.Doc({ guid: manifest.documentId })
+    peer.getMap('research').set('from-peer', 'arrived')
+    await hub.push(manifest.id, manifest.documentId, 'peer', bytesToBase64(Y.encodeStateAsUpdate(peer)))
+    await value.syncNow()
+    expect(doc.getMap('research').get('from-peer')).toBe('arrived')
+    expect(reloads).toEqual([])
+  })
+
   it('migrates a legacy scenario only after the initial remote pull and republishes v2 state', async () => {
     const hub = new FakeDriveHub()
     const legacy = new Y.Doc({ guid: manifest.documentId })

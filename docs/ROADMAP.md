@@ -694,11 +694,24 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   step breadcrumbs. Harness fixes: fresh revision before `replace_active_document`, and timing
   rescaled to the 30 s sync cadence (15 min ledger budget, 90 s propagation windows).
   Gate progress: title baseline, two-way shared-title renames, restore, and primary→secondary
-  document propagation all **passed physically for the first time**. Remaining blocker: after
-  provider reconnects, the Lexical↔Yjs binding can detach — editors show empty content and stop
-  applying remote updates while every update is verifiably present on Drive. Close that, rerun
-  `--mutate` and `npm run test:drive-live`. (v0.1.25 is committed and both office installs run
-  it; the release tag awaits a manual push.)
+  document propagation all **passed physically for the first time**. Remaining blocker at the
+  time: after provider reconnects, the Lexical↔Yjs binding could detach — editors showed empty
+  content and stopped applying remote updates while every update was verifiably present on
+  Drive. (v0.1.25 released; both office installs run it.)
+
+- **2026-10-29 (daytime) — binding-detach root cause found and fixed (defect #6).** The Drive
+  provider emitted `'reload'` after **every successful sync**. Lexical's CollaborationPlugin
+  reserves `'reload'` for a transport handing over a brand-new Y.Doc: its handler clears the
+  editor *without writing to Yjs* (Lexical and the Y.Doc permanently diverge — later events
+  sync deltas, not state), swaps the tracked doc for the event payload (here a junk
+  `{transport,syncedAt}` object), and flips an internal `isReloadingDoc` flag that only a
+  `'sync'` emit resets — which this provider sends once per initialize, i.e. on reconnect,
+  explaining the reconnect correlation and the sequence resets. The doc-state change also
+  triggers the plugin's binding-effect cleanup, destroying the binding root with no rebuild.
+  Fix: routine syncs never emit `'reload'` (remote changes reach Lexical via `Y.applyUpdate` →
+  `observeDeep` alone); regression test pins the behavior. The event had been emitted since the
+  original Drive-share commit — previously masked by the reconnect-thrash (#5) rebuilding the
+  binding nonstop.
 
 ## Current completion snapshot
 

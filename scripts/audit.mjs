@@ -3331,7 +3331,7 @@ record(
     lanSettingsSource.includes('Host the collaboration developer network on this computer') &&
     lanSettingsSource.includes('PowerShell is diagnostic-only') &&
     lanDriveHarnessSource.includes("'--mutate'") &&
-    lanDriveHarnessSource.includes('absoluteDeadline = Date.now() + 2 * 60_000') &&
+    lanDriveHarnessSource.includes('absoluteDeadline = Date.now() + 15 * 60_000') &&
     lanDriveHarnessSource.includes('Math.min(timeoutMs, 60_000)') &&
     lanDriveHarnessSource.includes('staleRevisionRejected') &&
     lanDriveHarnessSource.includes('item.toolCount >= 46') &&

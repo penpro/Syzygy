@@ -665,6 +665,21 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   stdio, and structural gates pass. A packaged physical two-install merge remains unverified and is
   required before this collaboration slice can move beyond `implemented_unverified`.
 
+- **2026-10-28 — first passing physical two-install probe.** Both office machines now run
+  v0.1.23 (darktower updated over SSH via silent NSIS install; pairing keys verified identical).
+  The secondary's outbound agent runs as a Windows scheduled task (`SyzygyLanAgent`) to survive
+  SSH session teardown, and its GUI was launched remotely with `lan_call office-secondary
+  launch_syzygy`. The read-only physical harness passed for the first time:
+  `{"passed":true,"mode":"read-only-probe","authenticatedNodes":2,"exactSharedIdentity":true}` —
+  both installations resolve the same Drive workspace (`1ayhlbUS19jQ3fkZfqo0S84gXL7ybUosw`).
+  The `--mutate` convergence gate (S-07) and the second-install Drive gate (S-01) are blocked
+  solely by fleet-wide expired Drive refresh tokens (OAuth consent screen still in Testing →
+  7-day token lifetime; links dated 07/14 and 07/17). Unblock: publish the consent screen to
+  Production, re-link Drive on both installs, then re-run
+  `scripts/lan-drive-live-harness.mjs --mutate` and `npm run test:drive-live`.
+  New operational gotchas recorded in `DEVELOPMENT.md` (SSH job-object reaping, GUI-not-running
+  probe failures, sanitized `invalid_grant`).
+
 ## Current completion snapshot
 
 The machine-readable end-goal ledger currently contains **42 capabilities**: **42 are

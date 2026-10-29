@@ -699,7 +699,7 @@ node scripts\run-with-heartbeat.mjs --timeout-seconds 60 --heartbeat-seconds 15 
 node scripts\run-with-heartbeat.mjs --timeout-seconds 60 --heartbeat-seconds 15 -- node --test scripts\lan-dev-mode.test.mjs
 node scripts\run-with-heartbeat.mjs --timeout-seconds 90 --heartbeat-seconds 15 -- node scripts\lan-mcp-harness.mjs
 node scripts\run-with-heartbeat.mjs --timeout-seconds 90 --heartbeat-seconds 15 -- node scripts\lan-packaged-agent-harness.mjs
-node scripts\run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts\lan-drive-live-harness.mjs --listen 192.168.1.20 --port 37663 --key-file "$env:USERPROFILE\.syzygy-lan.key" --local-executable "$env:LOCALAPPDATA\Syzygy\Syzygy.exe" --primary-node office-primary --secondary-node office-secondary --mutate
+node scripts\run-with-heartbeat.mjs --timeout-seconds 120 --heartbeat-seconds 30 -- node scripts\lan-drive-live-harness.mjs --listen 192.168.1.73 --port 37663 --key-file "$env:USERPROFILE\.syzygy-lan.key" --local-executable "$env:LOCALAPPDATA\Syzygy\Syzygy.exe" --primary-node office-primary --secondary-node office-secondary --mutate
 ```
 
 The unit suite proves pairing-key/node/nonce binding, directional session keys, authenticated
@@ -1115,6 +1115,9 @@ Updater endpoint: `https://github.com/penpro/Syzygy/releases/latest/download/lat
 | `npm run bump` reports a file didn't contain the old version | Version files drifted out of lockstep — fix the odd one by hand, keep all five identical. |
 | Windows says "protected your PC" on the installer | Unsigned (no code-signing cert — separate thing from updater signing). More info → Run anyway. |
 | "Check for updates" says up-to-date — or errors `None of the fallback platforms … found` — right after tagging | The CI matrix uploads `latest.json` **per-OS as each job finishes** (Windows is slowest). Fixed structurally: releases are created as **drafts** and a final `publish` job flips them live only after all three OS jobs upload — so the feed is always complete. If you ever see it again, the publish job failed; check the run. |
+| Remote LAN agent started over SSH dies the moment the SSH command returns | Windows OpenSSH puts every child — even `Start-Process` "detached" ones — in the session's job object and kills the tree on disconnect. Run the agent as a **scheduled task** (`schtasks /create /sc once …` + `/run`) or hold the SSH session open; capture stderr with `cmd /c … 2>&1` redirection (PowerShell `Start-Job` native-stderr capture is unreliable). |
+| Physical harness: secondary authenticates but `lan_probe` reports `ok:false` | That node's **GUI isn't running** — live-workspace tools bridge into the running app ("The Syzygy GUI is not running"). Remedy without touching the machine: `lan_call <node> launch_syzygy` through the coordinator, then re-probe. |
+| Every Drive call on a node fails `Bad Request` | Sanitized Google `invalid_grant`: the **refresh token expired** (7-day lifetime while the OAuth consent screen is in Testing). Publish the consent screen to Production, then re-link Drive on each affected install. `google_auth.json` mtime shows the link age. |
 
 ## Diagnostic log
 

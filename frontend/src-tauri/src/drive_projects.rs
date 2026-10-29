@@ -31,6 +31,9 @@ const MAX_PULL_BYTES: usize = 32 * 1024 * 1024;
 const MAX_UPDATE_FILES: usize = 5_000;
 const MAX_KNOWN_IDS: usize = 10_000;
 const MAX_LISTED_FILES: usize = 10_000;
+/// Bound on best-effort duplicate-record trashing per pull/push so self-healing
+/// never turns one sync into a Drive quota storm.
+const MAX_DUPLICATE_TRASH_PER_CALL: usize = 8;
 const MAX_COMPACTION_BATCH: usize = 200;
 const COMPACTION_CONCURRENCY: usize = 8;
 const DRIVE_REQUEST_TIMEOUT_SECONDS: u64 = 30;
@@ -140,6 +143,42 @@ async fn response_json(
         .json()
         .await
         .map_err(|error| format!("Drive project {operation} returned unreadable JSON: {error}"))
+}
+
+/// Every non-trashed child with exactly this name. Unlike `find_child`, more
+/// than one match is NOT an error: content-addressed update records tolerate
+/// duplicates, and the caller resolves the deterministic winner.
+async fn find_children_named(
+    token: &str,
+    parent_id: &str,
+    name: &str,
+) -> Result<Vec<String>, String> {
+    let query = format!(
+        "name = '{}' and '{}' in parents and trashed = false",
+        esc(name),
+        esc(parent_id),
+    );
+    let response = drive_client()?
+        .get(FILES_ENDPOINT)
+        .bearer_auth(token)
+        .query(&[
+            ("q", query.as_str()),
+            ("fields", "files(id)"),
+            ("pageSize", "10"),
+            ("supportsAllDrives", "true"),
+            ("includeItemsFromAllDrives", "true"),
+        ])
+        .send()
+        .await
+        .map_err(|error| format!("Drive project lookup failed before Google responded: {error}"))?;
+    let value = response_json(response, "lookup").await?;
+    Ok(value["files"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|file| file["id"].as_str().map(str::to_string))
+        .collect())
 }
 
 async fn find_child(
@@ -306,6 +345,59 @@ async fn read_text_file(token: &str, file_id: &str) -> Result<String, String> {
     }
     String::from_utf8(bytes.to_vec())
         .map_err(|_| "Drive project record is not valid UTF-8 JSON.".into())
+}
+
+/// Move a Drive file to the trash (recoverable, never a permanent delete).
+/// Used only for byte-identical duplicate update records.
+async fn trash_file(token: &str, file_id: &str) -> Result<(), String> {
+    let response = drive_client()?
+        .patch(format!("{FILES_ENDPOINT}/{file_id}"))
+        .bearer_auth(token)
+        .query(&[("supportsAllDrives", "true"), ("fields", "id")])
+        .json(&serde_json::json!({ "trashed": true }))
+        .send()
+        .await
+        .map_err(|error| {
+            format!("Drive duplicate cleanup failed before Google responded: {error}")
+        })?;
+    require_success(response, "duplicate cleanup").await?;
+    Ok(())
+}
+
+/// Concurrent pushes of the same content-addressed update record can both land
+/// on Drive: the name check and the create are separate requests, and Drive
+/// allows same-named siblings, so two installations syncing the same document
+/// state race their way into two files with one name. Duplicates of an
+/// `update-<sha256>.json` name are byte-identical by construction, so instead
+/// of failing every later lookup, keep one deterministic winner per name — the
+/// lexicographically smallest file id, which every installation computes
+/// identically — and report the rest for best-effort trashing.
+fn split_same_named_update_duplicates(
+    mut listed: Vec<ListedFile>,
+) -> (Vec<ListedFile>, Vec<String>) {
+    listed.sort_by(|left, right| left.name.cmp(&right.name).then(left.id.cmp(&right.id)));
+    let mut kept: Vec<ListedFile> = Vec::with_capacity(listed.len());
+    let mut duplicates = Vec::new();
+    for file in listed {
+        match kept.last() {
+            Some(previous)
+                if previous.name == file.name && file.name.starts_with("update-") =>
+            {
+                duplicates.push(file.id);
+            }
+            _ => kept.push(file),
+        }
+    }
+    (kept, duplicates)
+}
+
+/// Best-effort, bounded trashing of duplicate update records. Failure is
+/// swallowed on purpose: the winner is already readable, both installations
+/// agree on it, and the next sync retries whatever cleanup did not land.
+async fn trash_duplicate_updates(token: &str, duplicate_ids: &[String]) {
+    for file_id in duplicate_ids.iter().take(MAX_DUPLICATE_TRASH_PER_CALL) {
+        let _ = trash_file(token, file_id).await;
+    }
 }
 
 async fn move_file_to_folder(
@@ -1916,16 +2008,22 @@ async fn push_update(
     let updates_folder = find_or_create_folder(token, project_folder_id, UPDATES_FOLDER).await?;
     let name = format!("update-{}.json", update.sha256);
     let content = serde_json::to_string(&update).map_err(|error| error.to_string())?;
-    if let Some(existing_id) = find_child(token, &updates_folder, &name, None).await? {
+    // Same-named duplicates are expected here (two installations pushing the
+    // same content race the non-atomic name-check/create), so resolve to the
+    // deterministic winner instead of failing the sync.
+    let mut candidates = find_children_named(token, &updates_folder, &name).await?;
+    candidates.sort();
+    if let Some(winner) = candidates.first() {
         let existing: StoredProjectUpdate =
-            serde_json::from_str(&read_text_file(token, &existing_id).await?)
+            serde_json::from_str(&read_text_file(token, winner).await?)
                 .map_err(|_| "Existing Drive project update is malformed.".to_string())?;
         existing.validate_for(project_id, document_id)?;
         if existing != update {
             return Err("Existing Drive update name collides with different content.".into());
         }
+        trash_duplicate_updates(token, &candidates[1..]).await;
         return Ok(DriveProjectPushResult {
-            update_id: existing_id,
+            update_id: winner.clone(),
         });
     }
     Ok(DriveProjectPushResult {
@@ -2644,8 +2742,12 @@ pub async fn google_drive_project_pull(
             updates: Vec::new(),
         });
     };
-    let mut listed = list_children(&token, &updates_folder).await?;
-    listed.sort_by(|left, right| left.name.cmp(&right.name).then(left.id.cmp(&right.id)));
+    let listed = list_children(&token, &updates_folder).await?;
+    // Self-heal duplicate update records left by past concurrent pushes:
+    // apply only the deterministic winner of each name and best-effort trash
+    // the byte-identical extras, so lookups stop tripping over them.
+    let (listed, duplicate_ids) = split_same_named_update_duplicates(listed);
+    trash_duplicate_updates(&token, &duplicate_ids).await;
     if listed
         .iter()
         .filter(|file| file.name.starts_with("update-"))
@@ -2793,6 +2895,46 @@ mod tests {
         atomic::{AtomicBool, Ordering},
         Arc,
     };
+
+    fn listed(id: &str, name: &str) -> ListedFile {
+        ListedFile {
+            id: id.into(),
+            name: name.into(),
+            size: 100,
+            description: None,
+        }
+    }
+
+    /// Two installations pushing the same content-addressed update can both
+    /// land a file with the same name. The reader must keep exactly one
+    /// deterministic winner per name (lowest id) and nominate the identical
+    /// extras for trashing — while never touching non-update records.
+    #[test]
+    fn same_named_update_duplicates_resolve_to_lowest_id_winner() {
+        let (kept, duplicates) = split_same_named_update_duplicates(vec![
+            listed("id-b", "update-aaa.json"),
+            listed("id-a", "update-aaa.json"),
+            listed("id-c", "update-bbb.json"),
+            // Non-update duplicates are structural problems, not
+            // content-addressed copies; they must survive untouched.
+            listed("id-e", "manifest.json"),
+            listed("id-d", "manifest.json"),
+        ]);
+        assert_eq!(duplicates, vec!["id-b".to_string()]);
+        let kept_ids: Vec<&str> = kept.iter().map(|file| file.id.as_str()).collect();
+        assert_eq!(kept_ids, vec!["id-d", "id-e", "id-a", "id-c"]);
+        // Output stays ordered by (name, id), matching what pull expects.
+        let kept_names: Vec<&str> = kept.iter().map(|file| file.name.as_str()).collect();
+        assert_eq!(
+            kept_names,
+            vec![
+                "manifest.json",
+                "manifest.json",
+                "update-aaa.json",
+                "update-bbb.json"
+            ]
+        );
+    }
 
     struct DropCanary(Arc<AtomicBool>);
 

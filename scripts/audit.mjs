@@ -1106,7 +1106,7 @@ record(
     suggestionPolicyVersionTestSource.includes('rejects copied or duplicate proposal content') &&
     suggestionInspectionSource.includes('suggestion content and decision bodies') &&
     suggestionInspectionTestSource.includes("expect(serialized).not.toContain('Secret suggestion content')") &&
-    editorLedgerSource.includes('"id": "P-08", "phase": 6, "status": "implemented_unverified"') &&
+    editorLedgerSource.includes('"id": "P-08", "phase": 6, "status": "verified"') &&
     existsSync(join(root, 'docs/audits/runs/SUGGESTION-DECISIONS-2026-07-18.json')),
   'immutable proposal/decision ledger, human/model provenance, explicit conflicts, stable-ID-only editor/version markers, content-free inspection, and truthful P-08 status are present',
 )
@@ -1499,8 +1499,8 @@ record(
     scenarioModelTestSource.includes('top-level deletion authoritative') &&
     scenarioModelTestSource.includes('malformed turn order') &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-TURN-RECONCILIATION-2026-08-10.json')) &&
-    text('docs/audits/CAPABILITIES.json').includes('"id": "P-14", "phase": 6, "status": "implemented_unverified"') &&
-    text('docs/audits/CAPABILITIES.json').includes('"id": "P-15", "phase": 6, "status": "implemented_unverified"'),
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-14", "phase": 6, "status": "verified"') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-15", "phase": 6, "status": "verified"'),
   'nested ordered turn/edit CRDTs plus acyclic revision DAGs, durable heads and complete tips, exact-current/tip reconciliation guards, idempotent retry, sibling retention and late-conflict reopening, peer-collision fail-closed IDs, branch inspection, lifecycle/multi-turn CRUD, 80 delivery orders, delete authority, malformed-input tests, and truthful P-14/P-15 statuses are present',
 )
 
@@ -1560,9 +1560,9 @@ record(
     scenarioTurnWorkspaceTestSource.includes("source: 'reconcile', parentEditIds: ['turn-left', 'turn-right']") &&
     scenarioTurnWorkspaceTestSource.includes('fails closed on hostile scenario data without adding a turn revision') &&
     scenarioTurnWorkspaceTestSource.includes('bounds visible turn lineage and exposes conversation pagination') &&
-    text('docs/audits/CAPABILITIES.json').includes('"id": "P-14", "phase": 6, "status": "implemented_unverified"') &&
-    text('docs/audits/CAPABILITIES.json').includes('"id": "P-15", "phase": 6, "status": "implemented_unverified"') &&
-    text('docs/audits/CAPABILITIES.json').includes('"id": "P-19", "phase": 6, "status": "implemented_unverified"') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-14", "phase": 6, "status": "verified"') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-15", "phase": 6, "status": "verified"') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-19", "phase": 6, "status": "verified"') &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-WORKSPACE-2026-07-16.json')) &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-TURN-WORKSPACE-2026-08-01.json')),
   'live Y.Doc subscription, scenario CRUD/status, exact-current manual turn add/edit, visible stale-draft recovery, explicit accessible sibling reconciliation with every tip retained as a merge parent, bounded conversation/lineage, vote/withdraw, graph-integrity write denial, accessible states, and truthful P-14/P-15/P-19 statuses are present',
@@ -1582,7 +1582,7 @@ record(
     scenarioVoteTestSource.includes('concurrent revotes by one participant') &&
     scenarioVoteTestSource.includes('reuse one event identity with different votes') &&
     scenarioVoteTestSource.includes('future-discussion-type') &&
-    text('docs/audits/CAPABILITIES.json').includes('"id": "P-19", "phase": 6, "status": "implemented_unverified"'),
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-19", "phase": 6, "status": "verified"'),
   'versioned discussion namespace, immutable attributed events, replay/revote/withdrawal behavior, 80 delivery orders, collision/orphan/malformed gates, and truthful P-19 status are present',
 )
 
@@ -1601,7 +1601,7 @@ record(
     scenarioAnnotationTestSource.includes('concurrent edit and resolve branches') &&
     scenarioAnnotationTestSource.includes('colliding annotation identity') &&
     scenarioAnnotationTestSource.includes('future-discussion-type') &&
-    text('docs/audits/CAPABILITIES.json').includes('"id": "P-20", "phase": 6, "status": "implemented_unverified"'),
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-20", "phase": 6, "status": "verified"'),
   'separate versioned namespace, immutable parent-linked lifecycle, exact-current guards, 80 delivery orders, collision/orphan gates, and truthful P-20 status are present',
 )
 
@@ -1624,7 +1624,7 @@ record(
     scenarioLabelTestSource.includes('rejects stale rename and assignment events without changing history') &&
     scenarioLabelTestSource.includes('disconnected label identity collisions and reports orphan assignments') &&
     scenarioLabelTestSource.includes("scenario-labels:v1:malformed") &&
-    text('docs/audits/CAPABILITIES.json').includes('"id": "P-21", "phase": 6, "status": "implemented_unverified"'),
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-21", "phase": 6, "status": "verified"'),
   'separate label/assignment namespaces, immutable replay-safe exact-parent events, 80 delivery orders, deterministic filtering, stale/collision/orphan/malformed gates, and truthful P-21 status are present',
 )
 
@@ -1650,8 +1650,8 @@ record(
     scenarioCollaborationTestSource.includes('shows signed, unsigned, and pending annotation attribution') &&
     scenarioCollaborationTestSource.includes('fails visibly closed on invalid collaboration history') &&
     scenarioCollaborationTestSource.includes('discloses deterministic paging for hostile large histories') &&
-    text('docs/audits/CAPABILITIES.json').includes('"id": "P-20", "phase": 6, "status": "implemented_unverified"') &&
-    text('docs/audits/CAPABILITIES.json').includes('"id": "P-21", "phase": 6, "status": "implemented_unverified"'),
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-20", "phase": 6, "status": "verified"') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-21", "phase": 6, "status": "verified"'),
   'selected-scenario note/flag create-edit-resolve-reopen, project-label create-rename-assignment, exact-parent conflict refusal, live integrity rechecks, 50-item paging, and truthful P-20/P-21 statuses are present',
 )
 
@@ -1670,7 +1670,7 @@ record(
     policyVersionTestSource.includes('later changes display name') &&
     policyVersionTestSource.includes('seed <= 40') &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-23", "phase": 3, "status": "implemented_unverified"') &&
-    text('docs/audits/CAPABILITIES.json').includes('"id": "P-27", "phase": 3, "status": "implemented_unverified"'),
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-27", "phase": 3, "status": "verified"'),
   'canonical SHA-256 envelopes, detached verified reads, lineage/project guards, historical attribution, tamper rejection, 40 branch delivery orders, and truthful P-23/P-27 statuses are present',
 )
 
@@ -1694,7 +1694,7 @@ record(
     policyVersionHistoryTestSource.includes('seed <= 40') &&
     policyVersionHistoryTestSource.includes('immutable ancestor is missing') &&
     policyVersionHistoryTestSource.includes('produces a stable engine-free structured diff and change note') &&
-    text('docs/audits/CAPABILITIES.json').includes('"id": "P-28", "phase": 3, "status": "implemented_unverified"') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-28", "phase": 3, "status": "verified"') &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-29", "phase": 3, "status": "implemented_unverified"'),
   'exact-head atomic commit, rollback preserves a version inserted during preparation, bounded lineage verification, restore-as-new-child, retained concurrent branches, 40 delivery orders, pure deterministic diff/note, and truthful P-28/P-29 statuses are present',
 )
@@ -1737,7 +1737,7 @@ record(
     editorAutomationSource.includes('replaceBlocks: (expectedRevision, blocks)') &&
     editorAutomationSource.includes('MAX_SEMANTIC_BLOCK_CONTENT = 500_000') &&
     editorAutomationTestSource.includes('without interpreting paragraph text as markup') &&
-    text('docs/audits/CAPABILITIES.json').includes('"id": "P-28", "phase": 3, "status": "implemented_unverified"') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-28", "phase": 3, "status": "verified"') &&
     policyVersionRailTestSource.includes("toThrow('invalid checkpoint')") &&
     policyVersionRailTestSource.includes("toThrow('head is missing')") &&
     policyVersionRailTestSource.includes("toThrow('missing parent')") &&

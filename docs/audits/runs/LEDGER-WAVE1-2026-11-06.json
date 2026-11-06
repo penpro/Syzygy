@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-11-06",
+  "releaseCandidate": "0.1.26",
+  "command": "scratchpad ledger-wave1 harness over the authenticated LAN MCP control plane (lan-mcp-host + lan_call into both installed applications)",
+  "environment": "Two physical Windows installations (office-primary local, office-secondary over the private LAN), v0.1.26 installs, live shared Google Drive project, production OAuth grants",
+  "capabilities": [
+    "P-01",
+    "P-08",
+    "P-12",
+    "P-13",
+    "P-14",
+    "P-19",
+    "P-20",
+    "P-21",
+    "P-27",
+    "P-28",
+    "P-32"
+  ],
+  "result": {
+    "passed": true,
+    "checks": {
+      "P-01 exact shared project identity": true,
+      "P-14 create returns ready status": true,
+      "P-14 scenario propagated with status": true,
+      "P-14 duplicate scenario id fails closed": true,
+      "P-14 stale research revision fails closed": true,
+      "P-14 missing scenario read fails closed": true,
+      "P-19 cross-install votes converge per participant": true,
+      "P-19 re-vote replaces the participant vote, retains history": true,
+      "P-19 re-vote converged on secondary": true,
+      "P-20 cross-install flag lifecycle (create/update/resolve/reopen)": true,
+      "P-20 stale annotation event fails closed": true,
+      "P-21 concurrent rename: deterministic shared current, branches retained": true,
+      "P-21 assign and remove propagate across installs": true,
+      "P-08 proposal does not mutate the draft on either install": true,
+      "P-08 decision recorded without draft edit": true,
+      "P-08 second decision fails closed; draft still unchanged": true,
+      "P-12 partitioned concurrent edits converge to identical text": true,
+      "P-13 both independent edits retained (no text loss)": true,
+      "P-28 second head is a child of v1 (no rewrite)": true,
+      "P-28 restore created a NEW head child, history intact": true,
+      "P-28 restore reverted the draft to v1 content": true,
+      "P-27 all three immutable versions present on both installs": true,
+      "P-28 restored draft propagated to the second install": true,
+      "P-27/28 stale restore fails closed without adding a version": true,
+      "P-32 diagnostics omit document text markers": true,
+      "P-32 diagnostics omit scenario/annotation bodies": true,
+      "P-32 research inspection omits bodies": true
+    }
+  },
+  "privacy": {
+    "lanAddressesCommitted": false,
+    "oauthDataCommitted": false,
+    "researchBodiesCommitted": false
+  },
+  "limitations": [
+    "Participant IDs are caller-supplied; device signatures were explicitly unsigned on these installs (no registered project devices) — authenticated human identity remains out of scope by design.",
+    "P-14 update/delete surfaces are product-UI-only; create/read/status propagation and fail-closed guards were exercised physically, update/delete remain covered by the headless UI gates.",
+    "Drive transport, 30-second remote poll cadence; same Google account on both installations."
+  ]
+}

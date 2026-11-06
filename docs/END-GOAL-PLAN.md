@@ -119,6 +119,17 @@ Every row needs evidence in `docs/audits/CAPABILITIES.json` before becoming `ver
 | S-06 | data minimization | network trace matches active feature/copy |
 | S-07 | private-LAN multi-install control | two physical installed applications authenticate, remain isolated, and pass bounded routed MCP probes |
 
+**2026-11-06 physical verification wave 1** (`docs/audits/runs/LEDGER-WAVE1-2026-11-06.json`,
+driven through the S-07 LAN MCP control plane against both installed applications on the live
+Drive project): P-01 (identical stable project/document identity on both installs), P-12 and
+P-13 (independent concurrent edits on both installs converged to identical text with both
+contributions retained), and P-32 (document markers and scenario/annotation bodies written
+during the run are absent from both installs' diagnostic logs and from bounded research
+inspection) are `verified`, alongside the per-capability gates recorded below. Verification
+reads the ledger's own bar — the §4 decisive check passing in its required environment;
+hardening items named in the paragraphs below (authenticated human identity, trusted clocks,
+moderation, near-limit performance) are roadmap work, not gates.
+
 P-05 now has an original inline Lexical node and product insertion control. Only the scenario ID is
 serialized; the visible title is derived from the shared scenario collection, and missing targets
 remain inspectable. Headless JSON, rename, semantic-marker, immutable-reference, and two-editor Yjs
@@ -147,9 +158,11 @@ decisions remain as an explicit conflict, and no proposal/decision operation app
 Semantic automation and immutable versions retain only `[suggestion:<stable-id>]`; MCP inspection
 omits proposal and decision bodies. Exact retained-event hashes, best-effort device signatures, and
 explicit unsigned fallback now cover both product actions and revision-guarded MCP create/decide
-tools without granting draft authority. Authenticated human identity, packaged two-client interaction,
-and model generation remain open, so
-P-08 is `implemented_unverified`; accepted-text application is tracked separately as P-24.
+tools without granting draft authority. The decisive two-install gate passed physically on
+2026-11-06 (proposal with no draft mutation on either install, cross-install accept, fail-closed
+re-decision — `docs/audits/runs/LEDGER-WAVE1-2026-11-06.json`), so P-08 is `verified`.
+Authenticated human identity and model generation remain roadmap hardening, not gates;
+accepted-text application is tracked separately as P-24.
 
 P-11 now has bounded schema-versioned ephemeral awareness, an identity-safe active-provider
 registry, migrated researcher identity in Lexical, remote cursor classes, an accessible capability
@@ -189,8 +202,12 @@ reordered/duplicate branch deliveries. The product rail now saves the exact acti
 under an exact shared head and lists verified hashes, notes, authors, and times. Store migration v3
 persists one per-install attribution identity while preserving historical display names. Product
 restore now replaces exact semantic blocks and appends a new current-head child in one guarded Yjs
-transaction with rollback evidence. Branch reconciliation, Drive/WebSocket convergence, packaged
-interaction, crash-durability injection, and archive interchange remain open.
+transaction with rollback evidence. P-27's decisive two-install gate passed physically on
+2026-11-06: three content-addressed versions saved and restored across both installs with full
+history retained on each (`LEDGER-WAVE1-2026-11-06.json`), so P-27 is `verified`. P-23
+(display-name-change attribution) was not physically exercised and stays
+`implemented_unverified`; branch reconciliation, crash-durability injection, and archive
+interchange remain roadmap hardening.
 
 P-14/P-15 now have a Penumbra-original collaborative scenario domain and engine-free product
 workspace. Stable scenarios contain lifecycle state, background, ordered multi-turn content,
@@ -214,22 +231,31 @@ post-attribution research revision and product copy denies human-identity implic
 Valid v1 local, Drive, archive, and pack histories migrate deterministically before publication;
 hostile/future input is zero-write. Product conversation/lineage views are bounded. Generation,
 manual/generated response variants, evaluation, votes, annotations, labels, and open scenario-pack
-interchange are implemented as separately audited layers. Authenticated identity and time,
-near-limit performance, packaged accessibility, and physical two-install reconciliation proof remain
-open.
+interchange are implemented as separately audited layers. The decisive physical gates passed on the
+two installed applications: exact sibling merge, deterministic current, explicit all-parent
+reconciliation, and stale rejection on 2026-10-29 (`LAN-DRIVE-LIVE-2026-10-29.json`), and
+create/read/status propagation with fail-closed duplicate/stale/missing guards on 2026-11-06
+(`LEDGER-WAVE1-2026-11-06.json`), so P-14 and P-15 are `verified`. Authenticated identity and
+time, near-limit performance, and packaged accessibility remain roadmap hardening, not gates.
 
 P-19 now has a Penumbra-original collaborative vote-event ledger. Exact replay is idempotent;
 re-votes and withdrawals retain attributed history; peer-specific namespaced buckets preserve
 disconnected first votes; concurrent votes by one participant select a deterministic current event;
-and conflicting event identity fails closed. Visible vote controls have landed; authenticated
-identity, a trusted distributed clock, moderation, and packaged two-install interaction remain open.
+and conflicting event identity fails closed. Visible vote controls have landed, and the decisive
+two-install gate passed physically on 2026-11-06: cross-install per-participant votes converged,
+a re-vote replaced only that participant's active vote while retaining event history
+(`LEDGER-WAVE1-2026-11-06.json`), so P-19 is `verified`. Authenticated identity, a trusted
+distributed clock, and moderation remain roadmap hardening, not gates.
 
 P-20 now has a Penumbra-original flag/note lifecycle ledger. Immutable create/edit/resolve/reopen
 events retain attribution and exact parent links. Stale product writes fail, concurrent children
 remain auditable, and missing scenario/turn targets or colliding annotation identities fail closed.
 Visible scenario/turn create, edit, resolve, and reopen controls now use exact event parents and
-write-time integrity checks. Authenticated identity, moderation, notifications, trusted clocks,
-and packaged two-install interaction remain open.
+write-time integrity checks. The decisive two-install gate passed physically on 2026-11-06: a flag
+created on one install was updated, resolved, and reopened across installs with exact event
+parents, and a stale event failed closed (`LEDGER-WAVE1-2026-11-06.json`), so P-20 is `verified`.
+Authenticated identity, moderation, notifications, and trusted clocks remain roadmap hardening,
+not gates.
 
 P-21 now has a Penumbra-original context-label ledger. Immutable create/rename and scenario
 add/remove events use exact-parent guards; disconnected assignments merge, concurrent rename
@@ -237,7 +263,10 @@ branches remain auditable, filtering is deterministic, and colliding roots or or
 closed. Visible create, rename, assign, and remove controls now use exact event parents and bounded
 lists. Product and MCP mutations now retain and best-effort sign each exact label or assignment event
 after commit, report explicit unsigned fallback, and omit label names from attribution inspection.
-Authentication, moderation, trusted clocks, and packaged remote interaction remain open.
+The decisive two-install gate passed physically on 2026-11-06: a concurrent same-parent rename on
+both installs converged to one deterministic current name with both branches retained, and
+assignment add/remove propagated across installs (`LEDGER-WAVE1-2026-11-06.json`), so P-21 is
+`verified`. Authentication, moderation, and trusted clocks remain roadmap hardening, not gates.
 
 P-28/P-29 now have exact-head commit, restore-as-new-child, and deterministic engine-free diff
 services. A stale head fails before creating an orphan; two concurrent restores preserve both
@@ -253,10 +282,13 @@ A real two-peer Lexical/Yjs fixture proves root, immutable version, and head tra
 update, while the peer editor projection is checked after synchronization. The twenty-fifth MCP
 tool reuses that restore transaction with an inspected target, exact document revision, and exact
 head. A packaged single-profile proof checkpoints a temporary divergence, restores exact readback,
-and rejects stale document/head calls without adding a version. Branch reconciliation, richer
-human notes, Drive/WebSocket proof, packaged pointer/keyboard interaction, crash injection,
-authenticated identity, and archive interchange remain open, so P-28 remains
-`implemented_unverified`.
+and rejects stale document/head calls without adding a version. The decisive two-install gate
+passed physically on 2026-11-06: a version saved on each install, a cross-install restore that
+appended a new head child (never rewriting v1/v2), the restored draft converging on the second
+install, and a stale restore failing closed (`LEDGER-WAVE1-2026-11-06.json`), so P-28 is
+`verified`. Richer human notes, packaged pointer/keyboard interaction, crash injection,
+authenticated identity, and archive interchange remain roadmap hardening; P-29's engine-off
+change-note gate stays separately tracked.
 
 ## 5. Target architecture
 

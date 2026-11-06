@@ -380,9 +380,7 @@ fn split_same_named_update_duplicates(
     let mut duplicates = Vec::new();
     for file in listed {
         match kept.last() {
-            Some(previous)
-                if previous.name == file.name && file.name.starts_with("update-") =>
-            {
+            Some(previous) if previous.name == file.name && file.name.starts_with("update-") => {
                 duplicates.push(file.id);
             }
             _ => kept.push(file),

@@ -915,8 +915,8 @@ record(
     existsSync(join(root, 'docs/audits/runs/STABLE-POLICY-CONTENT-2026-07-31.json')) &&
     editorLedgerSource.includes('docs/audits/runs/STABLE-POLICY-CONTENT-2026-07-31.json') &&
     editorLedgerSource.includes('"id": "P-09", "phase": 2, "status": "implemented_unverified"') &&
-    editorLedgerSource.includes('"id": "P-10", "phase": 2, "status": "implemented_unverified"') &&
-    editorLedgerSource.includes('"id": "P-34", "phase": 2, "status": "implemented_unverified"'),
+    editorLedgerSource.includes('"id": "P-10", "phase": 2, "status": "verified"') &&
+    editorLedgerSource.includes('"id": "P-34", "phase": 2, "status": "verified"'),
   'deterministic Y.Text content/status identity, strict Lexical adapter, atomic local migration, skip-writeback projection, partition and append-only delivery-order convergence, legacy/invalid fail-closed UI, archive persistence, and truthful statuses are present',
 )
 
@@ -1027,7 +1027,7 @@ record(
     scenarioEditorAutomationTestSource.includes('round-trips scenario reference markers as stable semantic nodes') &&
     scenarioVersionAutomationSource.includes('scenarioIds: snapshot.scenarioIds') &&
     scenarioVersionAutomationTestSource.includes('expect(saved.version.scenarioIds).toEqual(snapshot.scenarioIds)') &&
-    editorLedgerSource.includes('"id": "P-05", "phase": 6, "status": "implemented_unverified"') &&
+    editorLedgerSource.includes('"id": "P-05", "phase": 6, "status": "verified"') &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-REFERENCE-2026-07-17.json')),
   'stable-ID-only node, live rename-safe projection, missing-target state, toolbar insertion, Yjs/JSON/semantic-marker fixtures, immutable reference retention, and truthful P-05 status are present',
 )
@@ -1045,7 +1045,7 @@ record(
     scenarioEditorAutomationTestSource.includes('round-trips scenario spotlights as exact stable semantic blocks') &&
     scenarioVersionModelSource.includes("block.kind === 'spotlight'") &&
     scenarioVersionAutomationTestSource.includes("{ kind: 'spotlight', text: '', scenarioId: 'scenario-access' }") &&
-    editorLedgerSource.includes('"id": "P-06", "phase": 6, "status": "implemented_unverified"') &&
+    editorLedgerSource.includes('"id": "P-06", "phase": 6, "status": "verified"') &&
     existsSync(join(root, 'docs/audits/runs/SCENARIO-SPOTLIGHT-2026-07-18.json')),
   'stable-ID-only live projection, toolbar embed, link collapse, undo/redo, Yjs convergence, semantic marker, immutable restore, and truthful P-06 status are present',
 )

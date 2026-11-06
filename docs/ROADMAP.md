@@ -729,7 +729,19 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   reconciliation evidence carried from 2026-10-29 (P-15), per-participant idempotent votes
   (P-19), cross-install flag lifecycle (P-20), concurrent label rename with retained branches
   (P-21), immutable content-addressed versions and restore-as-new-head across installs
-  (P-27/P-28), and research-content-free diagnostics (P-32). P-29 followed the same day: with the engine off, a save on the installed app produced the exact deterministic change note (ENGINE-OFF-CHANGE-NOTE-2026-11-06.json). The audit's truthful-status pins
+  (P-27/P-28), and research-content-free diagnostics (P-32). P-29 followed the same day: with the engine off, a save on the installed app produced the exact deterministic change note (ENGINE-OFF-CHANGE-NOTE-2026-11-06.json).
+
+- **2026-11-06 — ledger verification wave 2: packaged pointer/keyboard gates closed by real UI
+  automation.** The installed GUI was relaunched with a WebView2 remote-debugging port
+  (`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port`), and a CDP harness dispatched
+  REAL mouse and keyboard events into the packaged app — no DOM shortcuts for the interactions
+  under test — while the LAN control plane asserted convergence on the second install. All ten
+  checks passed (`PACKAGED-UI-WAVE2-2026-11-06.json`): P-05 (pointer chip insert, stable-ID
+  serialization), P-06 (pointer spotlight embed, packaged Undo/Redo, two-install propagation),
+  P-10 (Alt+Shift keyboard reorder and pointer Move control), P-34 (outline derived live from
+  headings). 19/42 verified. The CDP relaunch pattern is the new packaged-UI verification tool;
+  remaining UI-bucket gates (P-02/03/09 fixtures, P-35 accessibility/themes, websocket transport
+  switch for S-05/P-11) can now be driven the same way. The audit's truthful-status pins
   moved in the same commit. Also: release CI's `macos-14` image was retired by GitHub (jobs
   cancelled at queue time), fixed to `macos-15`; v0.1.26 stayed an unpublished draft, superseded
   by the v0.1.27 tag. Remaining unverified gates cluster into: packaged pointer/UI interaction
@@ -739,8 +751,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **42 capabilities**: **27 are
-`implemented_unverified`, 0 are `planned`, and 15 are `verified`** — S-01 and S-07
+The machine-readable end-goal ledger currently contains **42 capabilities**: **23 are
+`implemented_unverified`, 0 are `planned`, and 19 are `verified`** — S-01 and S-07
 (2026-10-29), then P-01, P-08, P-12, P-13, P-14, P-15, P-19, P-20, P-21, P-27, P-28, and P-32
 (2026-11-06), every one physically verified across the two installed applications through the
 LAN MCP control plane on the live Drive project. MCP onboarding improves

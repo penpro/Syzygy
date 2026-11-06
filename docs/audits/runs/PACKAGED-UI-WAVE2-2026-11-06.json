@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-11-06",
+  "releaseCandidate": "0.1.26",
+  "command": "scratchpad ledger-wave2 harness: WebView2 CDP pointer/keyboard events into the installed office-primary GUI (--remote-debugging-port), cross-install assertions over the LAN MCP control plane",
+  "environment": "Installed packaged application on office-primary driven by real Input.dispatchMouseEvent/dispatchKeyEvent; office-secondary installed application asserting convergence over the live Drive project",
+  "capabilities": [
+    "P-05",
+    "P-06",
+    "P-10",
+    "P-34"
+  ],
+  "result": {
+    "passed": true,
+    "checks": {
+      "P-34 outline lists exactly the document headings": true,
+      "P-34 outline updated live from a document edit (derived, not duplicated)": true,
+      "P-10 keyboard reorder (Alt+Shift+Down) swapped the blocks": true,
+      "P-10 pointer reorder (Move ↑ control) restored the order": true,
+      "P-05 pointer-inserted scenario chip renders with a resolved target": true,
+      "P-05 chip serializes only the stable scenario ID": true,
+      "P-06 pointer spotlight embed rendered": true,
+      "P-06 spotlight embed is undoable via the packaged Undo control": true,
+      "P-06 spotlight embed is redoable via the packaged Redo control": true,
+      "P-05/P-06/P-10 pointer-authored state converged on the second install": true
+    }
+  },
+  "privacy": {
+    "researchBodiesCommitted": false,
+    "oauthDataCommitted": false,
+    "lanAddressesCommitted": false
+  }
+}

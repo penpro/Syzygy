@@ -130,17 +130,31 @@ reads the ledger's own bar — the §4 decisive check passing in its required en
 hardening items named in the paragraphs below (authenticated human identity, trusted clocks,
 moderation, near-limit performance) are roadmap work, not gates.
 
+**2026-11-06 physical verification wave 2** (`docs/audits/runs/PACKAGED-UI-WAVE2-2026-11-06.json`):
+the installed office-primary GUI was launched with a WebView2 remote-debugging port and driven by
+REAL pointer and keyboard events (CDP `Input.dispatchMouseEvent`/`dispatchKeyEvent`), with
+cross-install convergence asserted over the LAN control plane. P-10 (Alt+Shift keyboard reorder
+and the pointer Move control both reordered policy blocks in the shared document), P-34 (the
+packaged outline listed exactly the document headings and updated live from an edit — derived,
+never duplicate truth), P-05 and P-06 (chip and spotlight, recorded in their paragraphs below)
+are `verified`. P-29 is `verified` the same day: with the engine off, a save on the installed
+application produced the exact deterministic change note
+(`ENGINE-OFF-CHANGE-NOTE-2026-11-06.json`).
+
 P-05 now has an original inline Lexical node and product insertion control. Only the scenario ID is
 serialized; the visible title is derived from the shared scenario collection, and missing targets
 remain inspectable. Headless JSON, rename, semantic-marker, immutable-reference, and two-editor Yjs
-gates pass. Packaged pointer interaction remains open, so the capability is
-`implemented_unverified`.
+gates pass. The packaged pointer gate passed physically on 2026-11-06: a real pointer click on the
+packaged toolbar inserted a resolved chip that serialized only its stable scenario ID and converged
+on the second install (`PACKAGED-UI-WAVE2-2026-11-06.json`), so P-05 is `verified`.
 
 P-06 now has an original block-level Lexical node and product control. It persists only the stable
 scenario ID, renders live scenario fields, collapses to the inline link, and preserves the
 presentation transition through undo/redo and two-editor Yjs updates. Exact semantic markers and
-immutable checkpoint restore are covered headlessly. Packaged two-install pointer interaction
-remains open, so the capability is `implemented_unverified`.
+immutable checkpoint restore are covered headlessly. The packaged two-install pointer gate passed
+physically on 2026-11-06: pointer clicks on the packaged toolbar embedded a spotlight, undid and
+redid it, and the pointer-authored state converged on the second install
+(`PACKAGED-UI-WAVE2-2026-11-06.json`), so P-06 is `verified`.
 
 P-07 now has an original collaborative response-revision domain and a visible selected-scenario
 workspace. Manual no-AI creation and human editing append exact-parent revisions with stable author

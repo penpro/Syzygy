@@ -287,8 +287,10 @@ passed physically on 2026-11-06: a version saved on each install, a cross-instal
 appended a new head child (never rewriting v1/v2), the restored draft converging on the second
 install, and a stale restore failing closed (`LEDGER-WAVE1-2026-11-06.json`), so P-28 is
 `verified`. Richer human notes, packaged pointer/keyboard interaction, crash injection,
-authenticated identity, and archive interchange remain roadmap hardening; P-29's engine-off
-change-note gate stays separately tracked.
+authenticated identity, and archive interchange remain roadmap hardening. P-29's decisive gate
+also passed physically on 2026-11-06: with the bundled engine not running (11435 refused), a
+save on the installed application produced the exact deterministic change note for one appended
+block (`ENGINE-OFF-CHANGE-NOTE-2026-11-06.json`), so P-29 is `verified`.
 
 ## 5. Target architecture
 

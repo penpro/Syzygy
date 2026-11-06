@@ -1695,7 +1695,7 @@ record(
     policyVersionHistoryTestSource.includes('immutable ancestor is missing') &&
     policyVersionHistoryTestSource.includes('produces a stable engine-free structured diff and change note') &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-28", "phase": 3, "status": "verified"') &&
-    text('docs/audits/CAPABILITIES.json').includes('"id": "P-29", "phase": 3, "status": "implemented_unverified"'),
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-29", "phase": 3, "status": "verified"'),
   'exact-head atomic commit, rollback preserves a version inserted during preparation, bounded lineage verification, restore-as-new-child, retained concurrent branches, 40 delivery orders, pure deterministic diff/note, and truthful P-28/P-29 statuses are present',
 )
 

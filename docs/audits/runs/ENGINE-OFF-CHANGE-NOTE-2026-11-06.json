@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-11-06",
+  "releaseCandidate": "0.1.26",
+  "command": "scratchpad p29-engine-off harness over the LAN MCP control plane (installed office-primary application)",
+  "environment": "Installed packaged application, bundled engine NOT running (11435 refused); live Drive project",
+  "capabilities": [
+    "P-29"
+  ],
+  "result": {
+    "passed": true,
+    "engineOff": true,
+    "changeNoteFormat": "N change(s): A added, R removed, C changed, M moved; U unchanged.",
+    "oneAppendedParagraphCountedAsOneAdded": true
+  },
+  "privacy": {
+    "researchBodiesCommitted": false,
+    "oauthDataCommitted": false
+  }
+}

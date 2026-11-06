@@ -921,8 +921,14 @@ is still open, so it is `implemented_unverified`.
 P-24 now separates human acceptance from draft mutation. Its product action binds the exact
 proposal and accepted decision to a deterministic unchanged-policy fingerprint, exact live editor
 revision, unique marker, and stable policy identity; the real Lexical controller replaces only that
-card with one review policy block. Authenticated identity, packaged two-client interaction, MCP
-application, partial edit, and semantic-quality proof remain open, so it is `implemented_unverified`.
+card with one review policy block. The decisive packaged gate passed physically on 2026-11-06
+(`PACKAGED-UI-WAVE5-P24-2026-11-06.json`): a typed proposal accepted and applied through the real
+suggestion card landed as a review policy block on the exact unchanged draft and converged on the
+second install, while a drifted draft refused the application with the exact-source message and
+stayed untouched — so P-24 is `verified`. Authenticated identity, MCP application, partial edit,
+and semantic-quality proof remain roadmap hardening. Finding from the run: the inline
+`[suggestion:<id>]` editor anchor is local to the proposing installation (absent from the Y.Doc
+after reload); the replicated collaboration surface is the shared proposal/decision record system.
 
 P-30 now has a persistent exact-version/exact-scenario rerun queue with bounded peer-namespaced
 events, sequential local/API execution, begin-before-send and atomic completion, crash resume,

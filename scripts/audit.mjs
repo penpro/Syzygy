@@ -1156,7 +1156,7 @@ record(
     suggestionNodeSource.includes('Apply to draft') &&
     suggestionNodeTestSource.includes('only if the policy content is unchanged') &&
     suggestionContextSource.includes('applyAcceptedSuggestion(shared.discussions, controller') &&
-    editorLedgerSource.includes('"id": "P-24", "phase": 7, "status": "implemented_unverified"') &&
+    editorLedgerSource.includes('"id": "P-24", "phase": 7, "status": "verified"') &&
     existsSync(join(root, 'docs/audits/runs/SUGGESTION-APPLICATION-2026-07-19.json')),
   'deterministic marker-excluding source revision, exact accepted decision/current editor guards, zero-write stale/collision/race tests, real Lexical linked policy replacement, explicit product action, and truthful P-24 status are present',
 )

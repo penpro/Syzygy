@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-11-06",
+  "releaseCandidate": "0.1.26",
+  "command": "scratchpad ledger-wave5-p24 harness: real typed proposal + pointer Accept/Apply on the installed GUI; cross-install assertions over the LAN MCP control plane",
+  "environment": "Installed packaged application; suggestion authored through the toolbar input, accepted and applied through the suggestion card; live Drive project; second installation asserting convergence",
+  "capabilities": [
+    "P-24"
+  ],
+  "result": {
+    "passed": true,
+    "checks": {
+      "P-24 proposal and acceptance do not change the draft": true,
+      "P-24 accepted proposal applied to the unchanged draft": true,
+      "P-24 changed draft refuses the application and the draft is untouched": true,
+      "P-24 applied draft (anchor lines aside) converged on the second install": true
+    }
+  },
+  "notes": [
+    "An accepted typed proposal applied to the exact unchanged draft as a review-status policy block; the applied block converged on the second install.",
+    "After the draft drifted, the application refused with 'The policy content changed since this suggestion was proposed' and the draft stayed untouched.",
+    "Observed: the inline [suggestion:<id>] editor anchor is local to the proposing installation (it is absent from the Y.Doc after reload); the shared proposal/decision record system replicates and is the collaboration surface. Recorded as a finding, not a P-24 gate condition."
+  ],
+  "privacy": {
+    "researchBodiesCommitted": false
+  }
+}

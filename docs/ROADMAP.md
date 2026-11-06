@@ -739,7 +739,7 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
   checks passed (`PACKAGED-UI-WAVE2-2026-11-06.json`): P-05 (pointer chip insert, stable-ID
   serialization), P-06 (pointer spotlight embed, packaged Undo/Redo, two-install propagation),
   P-10 (Alt+Shift keyboard reorder and pointer Move control), P-34 (outline derived live from
-  headings). 19/42 verified at the time. Wave 3 followed the same day via the same pattern (PACKAGED-UI-WAVE3-2026-11-06.json): P-23 (Settings rename preserves historical attribution under one participant identity), P-02/P-03/P-09 (typed formatting fixture, reload round trip, cross-install convergence) — 23/42 verified at that point. Wave 4 closed P-35 (PACKAGED-UI-WAVE4-A11Y-2026-11-06.json): all six themes apply with WCAG AA contrast on every measured sample (min 4.95), prefers-reduced-motion freezes the steady-state tip-rotator animation through the global a11y.css rule, and real Tab events traverse the packaged UI (skip link included) with no trap — 24/42 verified. The CDP relaunch pattern is the new packaged-UI verification tool;
+  headings). 19/42 verified at the time. Wave 3 followed the same day via the same pattern (PACKAGED-UI-WAVE3-2026-11-06.json): P-23 (Settings rename preserves historical attribution under one participant identity), P-02/P-03/P-09 (typed formatting fixture, reload round trip, cross-install convergence) — 23/42 verified at that point. Wave 4 closed P-35 (PACKAGED-UI-WAVE4-A11Y-2026-11-06.json): all six themes apply with WCAG AA contrast on every measured sample (min 4.95), prefers-reduced-motion freezes the steady-state tip-rotator animation through the global a11y.css rule, and real Tab events traverse the packaged UI (skip link included) with no trap — 24/42 at that point; wave 5 closed P-24 (typed proposal applied through the real suggestion card to the exact unchanged draft, drifted draft refused — PACKAGED-UI-WAVE5-P24-2026-11-06.json) — 25/42 verified. Run finding: inline [suggestion:<id>] editor anchors are local to the proposing installation; the shared proposal/decision records are the replicated surface. The CDP relaunch pattern is the new packaged-UI verification tool;
   remaining UI-bucket gates (websocket transport
   switch for S-05/P-11) can now be driven the same way. The audit's truthful-status pins
   moved in the same commit. Also: release CI's `macos-14` image was retired by GitHub (jobs
@@ -751,8 +751,8 @@ protocol are in [`END-GOAL-PLAN.md`](END-GOAL-PLAN.md). This file remains the sh
 
 ## Current completion snapshot
 
-The machine-readable end-goal ledger currently contains **42 capabilities**: **18 are
-`implemented_unverified`, 0 are `planned`, and 24 are `verified`** — S-01 and S-07
+The machine-readable end-goal ledger currently contains **42 capabilities**: **17 are
+`implemented_unverified`, 0 are `planned`, and 25 are `verified`** — S-01 and S-07
 (2026-10-29), then P-01, P-08, P-12, P-13, P-14, P-15, P-19, P-20, P-21, P-27, P-28, and P-32
 (2026-11-06), every one physically verified across the two installed applications through the
 LAN MCP control plane on the live Drive project. MCP onboarding improves

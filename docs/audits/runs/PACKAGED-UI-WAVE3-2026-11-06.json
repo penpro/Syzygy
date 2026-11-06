@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-11-06",
+  "releaseCandidate": "0.1.26",
+  "command": "scratchpad ledger-wave3 harness: WebView2 CDP real input into the installed office-primary GUI; cross-install assertions over the LAN MCP control plane",
+  "environment": "Installed packaged application, product Settings and version rail driven by real pointer/keyboard/insertText events; second installed application asserting convergence over the live Drive project",
+  "capabilities": [
+    "P-02",
+    "P-03",
+    "P-09",
+    "P-23"
+  ],
+  "result": {
+    "passed": true,
+    "checks": {
+      "P-23 settings rename typed via real input": true,
+      "P-23 new save carries the new display name": true,
+      "P-23 historical save keeps its original display name": true,
+      "P-23 one stable participant identity across the rename": true,
+      "P-23 preserved attribution visible on the second install": true,
+      "P-09 typed marks and structures render (bold/h2/quote/policy)": true,
+      "P-02/P-03 typed fixture serializes every supported structure": true,
+      "P-02 round trip preserves every typed structure through app reload": true,
+      "P-02 serialized text identical after reload": true,
+      "P-03 typed fixture converged on the second install": true
+    }
+  },
+  "notes": [
+    "P-23: a product version saved before the Settings rename retained its original display name after a product save under the new name; both carried one stable participant identity, on both installs.",
+    "P-02/P-03/P-09: a typed fixture (paragraph, bold mark, heading 2, quote, policy block) authored with real input events serialized to exact semantic text, survived a full webview reload byte-identical, and converged on the second install."
+  ],
+  "privacy": {
+    "researchBodiesCommitted": false,
+    "oauthDataCommitted": false
+  }
+}

@@ -141,6 +141,8 @@ are `verified`. P-29 is `verified` the same day: with the engine off, a save on 
 application produced the exact deterministic change note
 (`ENGINE-OFF-CHANGE-NOTE-2026-11-06.json`).
 
+**2026-11-06 physical verification wave 3** (`docs/audits/runs/PACKAGED-UI-WAVE3-2026-11-06.json`): P-23 — a product version saved before a real Settings rename kept its original display name after a product save under the new name, both under one stable participant identity, converged on the second install. P-02/P-03/P-09 — a fixture typed with real input events (paragraph, bold mark, heading 2, quote, policy block) serialized to exact semantic text, survived a full webview reload byte-identical, and converged on the second install. All four are `verified`.
+
 P-05 now has an original inline Lexical node and product insertion control. Only the scenario ID is
 serialized; the visible title is derived from the shared scenario collection, and missing targets
 remain inspectable. Headless JSON, rename, semantic-marker, immutable-reference, and two-editor Yjs

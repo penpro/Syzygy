@@ -914,7 +914,7 @@ record(
     !policyBlockTestSource.includes("it.fails('preserves a concurrent text edit") &&
     existsSync(join(root, 'docs/audits/runs/STABLE-POLICY-CONTENT-2026-07-31.json')) &&
     editorLedgerSource.includes('docs/audits/runs/STABLE-POLICY-CONTENT-2026-07-31.json') &&
-    editorLedgerSource.includes('"id": "P-09", "phase": 2, "status": "implemented_unverified"') &&
+    editorLedgerSource.includes('"id": "P-09", "phase": 2, "status": "verified"') &&
     editorLedgerSource.includes('"id": "P-10", "phase": 2, "status": "verified"') &&
     editorLedgerSource.includes('"id": "P-34", "phase": 2, "status": "verified"'),
   'deterministic Y.Text content/status identity, strict Lexical adapter, atomic local migration, skip-writeback projection, partition and append-only delivery-order convergence, legacy/invalid fail-closed UI, archive persistence, and truthful statuses are present',
@@ -1669,7 +1669,7 @@ record(
     policyVersionTestSource.includes('Tampered policy') &&
     policyVersionTestSource.includes('later changes display name') &&
     policyVersionTestSource.includes('seed <= 40') &&
-    text('docs/audits/CAPABILITIES.json').includes('"id": "P-23", "phase": 3, "status": "implemented_unverified"') &&
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-23", "phase": 3, "status": "verified"') &&
     text('docs/audits/CAPABILITIES.json').includes('"id": "P-27", "phase": 3, "status": "verified"'),
   'canonical SHA-256 envelopes, detached verified reads, lineage/project guards, historical attribution, tamper rejection, 40 branch delivery orders, and truthful P-23/P-27 statuses are present',
 )

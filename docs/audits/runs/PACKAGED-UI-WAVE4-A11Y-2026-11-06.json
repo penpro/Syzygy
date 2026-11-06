@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-11-06",
+  "releaseCandidate": "0.1.26",
+  "command": "scratchpad ledger-wave4 harness: CDP computed-style measurement and real Tab key events in the installed office-primary GUI",
+  "environment": "Installed packaged application; themes applied through the product settings path; prefers-reduced-motion emulated at the webview; WCAG relative-luminance contrast computed from composited computed styles",
+  "capabilities": [
+    "P-35"
+  ],
+  "result": {
+    "passed": true,
+    "checks": {
+      "P-35 theme syzygy applies and meets WCAG AA text contrast (>=4.5)": true,
+      "P-35 theme penumbra applies and meets WCAG AA text contrast (>=4.5)": true,
+      "P-35 theme synthwave applies and meets WCAG AA text contrast (>=4.5)": true,
+      "P-35 theme cyber applies and meets WCAG AA text contrast (>=4.5)": true,
+      "P-35 theme ember applies and meets WCAG AA text contrast (>=4.5)": true,
+      "P-35 theme bloodmoon applies and meets WCAG AA text contrast (>=4.5)": true,
+      "P-35 all six themes render distinct palettes": true,
+      "P-35 prefers-reduced-motion stops every steady-state animation": true,
+      "P-35 Tab traverses the packaged UI without a keyboard trap": true
+    },
+    "themeContrasts": {
+      "syzygy": {
+        "applied": true,
+        "bodyContrast": 15.35,
+        "minSampleContrast": 4.95
+      },
+      "penumbra": {
+        "applied": true,
+        "bodyContrast": 19.55,
+        "minSampleContrast": 9.2
+      },
+      "synthwave": {
+        "applied": true,
+        "bodyContrast": 19.21,
+        "minSampleContrast": 8.85
+      },
+      "cyber": {
+        "applied": true,
+        "bodyContrast": 19.95,
+        "minSampleContrast": 9.2
+      },
+      "ember": {
+        "applied": true,
+        "bodyContrast": 19.41,
+        "minSampleContrast": 9.02
+      },
+      "bloodmoon": {
+        "applied": true,
+        "bodyContrast": 19.05,
+        "minSampleContrast": 8.85
+      }
+    },
+    "reducedMotion": {
+      "animatedNormally": [
+        "side-tip-text"
+      ],
+      "animatedUnderReduce": []
+    },
+    "keyboardFocusStops": 14
+  },
+  "notes": [
+    "All six shipped themes apply via the product path with distinct palettes; every measured text sample meets WCAG AA (minimum 4.95, dark themes 8.85-9.20).",
+    "Under emulated prefers-reduced-motion the steady-state tip-rotator animation is effectively frozen by the global a11y.css duration-zero rule.",
+    "Real Tab key events traversed 14 stops across distinct interactive elements including a skip-to-content link; no keyboard trap."
+  ],
+  "privacy": {
+    "researchBodiesCommitted": false
+  }
+}

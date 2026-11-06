@@ -32,3 +32,7 @@ src-tauri/bin/
 
 # Machine-local Codex MCP registration written by the app (local IPs/paths)
 .codex/
+
+# Stray pack exports saved from manual dialog clicks
+*.syzygy-scenarios.json
+!docs/samples/*.syzygy-scenarios.json

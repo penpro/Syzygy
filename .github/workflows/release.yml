@@ -21,7 +21,7 @@ jobs:
         include:
           - os: windows-latest   # Windows installer (.exe / NSIS)
           - os: ubuntu-22.04      # Linux (.AppImage / .deb)
-          - os: macos-14          # macOS Apple Silicon (.dmg / .app, Metal)
+          - os: macos-15          # macOS Apple Silicon (.dmg / .app, Metal); macos-14 was retired 2026-11 (jobs cancel at queue time with zero steps)
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

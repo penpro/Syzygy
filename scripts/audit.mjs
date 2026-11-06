@@ -2462,7 +2462,7 @@ record(
     pluginWorkspaceSource.includes('plugin never receives draft mutation authority') &&
     text('frontend/src/automationBridge.ts').includes("case 'plugin.applyAccepted'") &&
     mcpSource.includes('"apply_accepted_plugin_review" => live("plugin.applyAccepted"') &&
-    mcpSource.includes('assert_eq!(names.len(), 49)') &&
+    mcpSource.includes('assert_eq!(names.len(), 51)') &&
     text('scripts/mcp-harness.mjs').includes("tool.name === 'apply_accepted_plugin_review'") &&
     platformContractsSource.includes('"pluginReview": "shared-proposal-ledger-human-decision-revision-guarded-attributed-application"') &&
     frontendPackage.scripts?.['test:plugin-composition']?.includes('pluginReviewApplication.test.ts') &&
@@ -2741,7 +2741,7 @@ record(
     automationBridgeSource.includes("case 'project.configureRelayPolicy'") &&
     mcpSource.includes('"inspect_relay_approval_policy"') &&
     mcpSource.includes('"configure_relay_approval_policy"') &&
-    mcpSource.includes('assert_eq!(names.len(), 49)') &&
+    mcpSource.includes('assert_eq!(names.len(), 51)') &&
     mcpHarnessSource.includes("tool.name === 'inspect_relay_approval_policy'") &&
     mcpHarnessSource.includes("tool.name === 'configure_relay_approval_policy'") &&
     relayPolicyAutomationEvidence.includes('"supervisedRunId": "20260811-165714-c11043"') &&

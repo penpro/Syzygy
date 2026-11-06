@@ -169,6 +169,8 @@ fn call_tool(name: &str, arguments: Value, live: &LiveCall<'_>) -> Value {
         "set_scenario_label_assignment" => live("project.setScenarioLabelAssignment", arguments),
         "create_suggestion" => live("project.createSuggestion", arguments),
         "decide_suggestion" => live("project.decideSuggestion", arguments),
+        "export_project_archive" => live("project.exportArchive", arguments),
+        "export_scenario_pack" => live("project.exportScenarioPack", arguments),
         "save_active_policy_version" => live("project.savePolicyVersion", arguments),
         "restore_active_policy_version" => live("project.restorePolicyVersion", arguments),
         "replace_active_document" => live("document.replace", arguments),
@@ -637,6 +639,23 @@ fn tool_definitions() -> Vec<Value> {
             ),
         ),
         tool(
+            "export_project_archive",
+            "Return the active project's complete portable offline archive as text: the same checksummed, identity-bound serialization the product's Export offline copy writes, with any live-collaboration binding stripped. Read-only; nothing is written to disk and the project is unchanged.",
+            object_schema(&[], &[]),
+        ),
+        tool(
+            "export_scenario_pack",
+            "Return the active project's scenarios as a portable open-format scenario pack (the same schema-validated serialization the product's pack export writes), attributed to this installation's researcher identity. Read-only; nothing is written to disk and the project is unchanged.",
+            object_schema(
+                &[
+                    ("title", string_schema("Non-empty human-readable pack title.")),
+                    ("description", string_schema("Optional pack description.")),
+                    ("license", string_schema("Optional license string, for example CC0-1.0.")),
+                ],
+                &["title"],
+            ),
+        ),
+        tool(
             "save_active_policy_version",
             "Save the exact active document revision as a new immutable policy-version head, then attempt a best-effort exact-envelope registered-device signature. Requires expectedDocumentRevision from read_active_project and, when one exists, expectedHeadVersionId from inspect_research_state. The response reports signed or explicitly unsigned attribution plus the post-attribution research revision; signing failure never rolls back the checkpoint and does not authenticate a person. This does not edit document text or restore history.",
             object_schema(
@@ -944,6 +963,8 @@ mod tests {
         assert!(names.contains(&"set_scenario_label_assignment"));
         assert!(names.contains(&"create_suggestion"));
         assert!(names.contains(&"decide_suggestion"));
+        assert!(names.contains(&"export_project_archive"));
+        assert!(names.contains(&"export_scenario_pack"));
         assert!(names.contains(&"save_active_policy_version"));
         assert!(names.contains(&"restore_active_policy_version"));
         assert!(names.contains(&"start_adversarial_review"));
@@ -951,7 +972,7 @@ mod tests {
         assert!(names.contains(&"cancel_adversarial_review"));
         assert!(names.contains(&"save_adversarial_review"));
         assert!(names.contains(&"decide_adversarial_review"));
-        assert_eq!(names.len(), 49);
+        assert_eq!(names.len(), 51);
         assert!(names.contains(&"replace_active_document"));
         for tool_name in ["save_adversarial_review", "decide_adversarial_review"] {
             let review_tool = tools["result"]["tools"]

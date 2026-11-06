@@ -1,0 +1,214 @@
+{
+  "format": "syzygy-scenario-pack",
+  "schemaVersion": 2,
+  "packId": "48b80624-b51f-4772-b6c5-068d3e445813",
+  "title": "Syzygy live collaboration proof scenarios",
+  "description": "",
+  "license": null,
+  "source": {
+    "projectId": "1d53eee9-c8b7-49c8-8e26-a3abf8bd00e3",
+    "documentId": "dc30a604-24b7-431f-955a-acd6ca68b74d",
+    "projectTitle": "Archive graph mw4hga7q",
+    "exportedBy": "87216e76-eea9-4cd4-8f62-68acd1ed3edc",
+    "exportedByDisplayName": "PC 1",
+    "exportedAt": 1793939829491
+  },
+  "scenarios": [
+    {
+      "schemaVersion": 2,
+      "id": "policy-evidence-review",
+      "title": "Policy evidence review",
+      "background": "A policy claim cites two reports that may share funding or underlying data.",
+      "status": "ready",
+      "parentScenarioId": null,
+      "createdBy": "example-researcher",
+      "createdAt": 1700000000000,
+      "turns": [
+        {
+          "id": "independence-question",
+          "createdBy": "example-researcher",
+          "createdAt": 1700000000001,
+          "role": "user",
+          "content": "Are these sources independent in funding, authorship, and underlying data?",
+          "headEditId": "refine-independence-question",
+          "tipEditIds": [
+            "refine-independence-question"
+          ],
+          "revisions": [
+            {
+              "editId": "create-independence-question",
+              "role": "user",
+              "content": "Are these sources independent?",
+              "authorId": "example-researcher",
+              "timestamp": 1700000000001,
+              "parentEditIds": [],
+              "source": "migration-v1"
+            },
+            {
+              "editId": "refine-independence-question",
+              "role": "user",
+              "content": "Are these sources independent in funding, authorship, and underlying data?",
+              "authorId": "second-researcher",
+              "timestamp": 1700000000002,
+              "parentEditIds": [
+                "create-independence-question"
+              ],
+              "source": "migration-v1"
+            }
+          ]
+        }
+      ],
+      "edits": [
+        {
+          "editId": "create-policy-evidence-review",
+          "authorId": "example-researcher",
+          "timestamp": 1700000000000,
+          "fields": [
+            "title",
+            "background",
+            "status"
+          ],
+          "changes": {
+            "title": "Policy evidence review",
+            "background": "A policy claim cites two reports that may share funding or underlying data.",
+            "status": "ready"
+          }
+        }
+      ]
+    },
+    {
+      "schemaVersion": 2,
+      "id": "w8-branch-b-mw4hga7q",
+      "title": "Branch B",
+      "background": "Child of root.",
+      "status": "draft",
+      "parentScenarioId": "w8-root-mw4hga7q",
+      "createdBy": "lan-primary",
+      "createdAt": 1793939827199,
+      "turns": [],
+      "edits": [
+        {
+          "editId": "mcp-c87a9014-11f1-4769-9045-11668e29b614",
+          "authorId": "lan-primary",
+          "timestamp": 1793939827199,
+          "fields": [
+            "title",
+            "background",
+            "status"
+          ],
+          "changes": {
+            "title": "Branch B",
+            "background": "Child of root.",
+            "status": "draft"
+          }
+        }
+      ]
+    },
+    {
+      "schemaVersion": 2,
+      "id": "w8-branch-c-mw4hga7q",
+      "title": "Branch C",
+      "background": "Second child of root.",
+      "status": "draft",
+      "parentScenarioId": "w8-root-mw4hga7q",
+      "createdBy": "lan-primary",
+      "createdAt": 1793939827215,
+      "turns": [],
+      "edits": [
+        {
+          "editId": "mcp-a4707a72-41f8-4ae2-a46a-20c83541c148",
+          "authorId": "lan-primary",
+          "timestamp": 1793939827215,
+          "fields": [
+            "title",
+            "background",
+            "status"
+          ],
+          "changes": {
+            "title": "Branch C",
+            "background": "Second child of root.",
+            "status": "draft"
+          }
+        }
+      ]
+    },
+    {
+      "schemaVersion": 2,
+      "id": "w8-root-mw4hga7q",
+      "title": "Root scenario",
+      "background": "Branch graph root.",
+      "status": "draft",
+      "parentScenarioId": null,
+      "createdBy": "lan-primary",
+      "createdAt": 1793939827178,
+      "turns": [
+        {
+          "id": "w8-turn-mw4hga7q",
+          "createdBy": "lan-primary",
+          "createdAt": 1793939827247,
+          "role": "user",
+          "content": "Turn revision two mw4hga7q",
+          "headEditId": "mcp-a8713d12-c060-4e92-9eb0-92f8aae2e7b9",
+          "tipEditIds": [
+            "mcp-a8713d12-c060-4e92-9eb0-92f8aae2e7b9"
+          ],
+          "revisions": [
+            {
+              "editId": "mcp-0cbaba8b-174d-4929-a114-728badd4d8ec",
+              "role": "user",
+              "content": "Turn base mw4hga7q",
+              "authorId": "lan-primary",
+              "timestamp": 1793939827247,
+              "parentEditIds": [],
+              "source": "create"
+            },
+            {
+              "editId": "mcp-134ccdb9-4d31-4871-9f21-c4c48705827f",
+              "role": "user",
+              "content": "Turn revision one mw4hga7q",
+              "authorId": "lan-primary",
+              "timestamp": 1793939827265,
+              "parentEditIds": [
+                "mcp-0cbaba8b-174d-4929-a114-728badd4d8ec"
+              ],
+              "source": "edit"
+            },
+            {
+              "editId": "mcp-a8713d12-c060-4e92-9eb0-92f8aae2e7b9",
+              "role": "user",
+              "content": "Turn revision two mw4hga7q",
+              "authorId": "lan-primary",
+              "timestamp": 1793939827336,
+              "parentEditIds": [
+                "mcp-134ccdb9-4d31-4871-9f21-c4c48705827f"
+              ],
+              "source": "edit"
+            }
+          ]
+        }
+      ],
+      "edits": [
+        {
+          "editId": "mcp-fe21b95d-0f8c-495c-b523-2446d4d45823",
+          "authorId": "lan-primary",
+          "timestamp": 1793939827178,
+          "fields": [
+            "title",
+            "background",
+            "status"
+          ],
+          "changes": {
+            "title": "Root scenario",
+            "background": "Branch graph root.",
+            "status": "draft"
+          }
+        }
+      ]
+    }
+  ],
+  "checksum": {
+    "algorithm": "SHA-256",
+    "canonicalization": "syzygy-json-v1",
+    "value": "283b6769e7c439e3f43c786e308c2b3bf8287bd649630a9081a89fdb3bb7b456"
+  }
+}

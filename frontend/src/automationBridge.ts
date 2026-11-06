@@ -44,7 +44,9 @@ import {
 } from './workspace/scenarioAutomation'
 import type { ScenarioAnnotation, ScenarioAnnotationKind } from './workspace/scenarioAnnotationModel'
 import type { ScenarioLabel, ScenarioLabelAssignment } from './workspace/scenarioLabelModel'
-import type { ResearchScenario, ScenarioStatus, ScenarioTurn, ScenarioTurnRole } from './workspace/scenarioModel'
+import { listScenarios, type ResearchScenario, type ScenarioStatus, type ScenarioTurn, type ScenarioTurnRole } from './workspace/scenarioModel'
+import { createProjectArchive } from './workspace/projectArchive'
+import { createScenarioPack } from './workspace/scenarioPack'
 import type { ScenarioVoteChoice } from './workspace/scenarioVoteModel'
 import { refreshDriveProjectDiscovery } from './workspace/driveProjectDiscovery'
 import {
@@ -62,7 +64,7 @@ import { currentDriveProjectStatus } from './workspace/driveProjectStatus'
 import { getLog } from './log'
 import { driveTitleRepairJobs, type DriveTitleRepairJob } from './workspace/driveTitleRepairJobs'
 import { automationProjectDocumentReady, getAutomationProjectDocument } from './workspace/workspaceAutomationRegistry'
-import { projectStateFingerprint } from './workspace/projectModel'
+import { getProjectSharedTypes, projectStateFingerprint } from './workspace/projectModel'
 import { restoreAutomationPolicyVersion, saveAutomationPolicyVersion } from './workspace/versionAutomation'
 import {
   createAutomationSuggestion,
@@ -582,6 +584,53 @@ export async function dispatchAutomationRequest(
         attribution,
         researchRevision: projectStateFingerprint(document),
         deterministicChangeNote: restored.changeNote,
+      }
+    }
+    case 'project.exportArchive': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const document = getAutomationProjectDocument(project.id)
+      const archive = await createProjectArchive(project, document)
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        archive,
+        byteLength: archive.length,
+      }
+    }
+    case 'project.exportScenarioPack': {
+      const latest = useStore.getState()
+      const project = latest.projects.find(
+        (candidate) => candidate.id === latest.activeProjectId && !candidate.archivedAt,
+      )
+      if (!project) throw new Error('No research project is active; list or create a project first')
+      const settings = latest.settings
+      if (!settings.researcherId || !settings.researcherName.trim()) {
+        throw new Error('Set a researcher name in Settings before exporting scenario history')
+      }
+      const document = getAutomationProjectDocument(project.id)
+      const { scenarios } = getProjectSharedTypes(document)
+      const pack = await createScenarioPack({
+        packId: `mcp-pack-${crypto.randomUUID()}`,
+        title: requiredString(params, 'title'),
+        description: optionalString(params, 'description') ?? '',
+        license: optionalString(params, 'license'),
+        source: {
+          projectId: project.id,
+          documentId: project.documentId,
+          projectTitle: project.title,
+          exportedBy: settings.researcherId,
+          exportedByDisplayName: settings.researcherName.trim(),
+          exportedAt: Date.now(),
+        },
+        scenarios: listScenarios(scenarios),
+      })
+      return {
+        project: summarizeProject(project, latest.activeProjectId),
+        pack,
+        byteLength: pack.length,
       }
     }
     case 'project.createScenario': {

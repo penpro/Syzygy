@@ -74,6 +74,10 @@ Three layers, all CSS:
   header out of view (seen 2026-11-06: a visually-hidden file input without `top/left` kept
   its static position ~27,000px down and stretched the document — anchor sr-only elements).
 
+- Rows that live inside resizable columns (presence strip, toolbars) wrap on their own
+  (flex-wrap): a page-width media query cannot see a narrow COLUMN in a wide window
+  (three-pane layouts broke the presence strip 2026-11-06).
+
 ## Motion
 
 - Subtle and purposeful; the splash alignment loop (4.6s) is the ceiling for flourish.

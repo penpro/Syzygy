@@ -3654,7 +3654,12 @@ input.workspace-title-input:focus {
   min-width: 0;
   padding: 7px 10px;
   align-items: center;
-  gap: 10px;
+  /* The editor COLUMN can be narrow while the window is wide (three panes),
+     so a page-width media query cannot save this row: it must wrap on its
+     own. Without it the participant pills and the ephemeral-presence
+     disclaimer overlapped (seen 2026-11-06 on a self-hosted project). */
+  flex-wrap: wrap;
+  gap: 6px 10px;
   border-block: 1px solid var(--border);
   background: var(--panel);
   color: var(--text-2);
@@ -3701,7 +3706,7 @@ input.workspace-title-input:focus {
   background: var(--accent);
 }
 .presence-warning { color: var(--danger); }
-.research-presence small { margin-left: auto; color: var(--faint); }
+.research-presence small { margin-left: auto; flex: 1 1 260px; min-width: 0; color: var(--faint); }
 .research-collab-cursor {
   width: 1px;
   z-index: 10;

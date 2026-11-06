@@ -67,6 +67,13 @@ Three layers, all CSS:
 - Paper is **flat**: no glow, no starfield. `[data-theme='syzygy'] body` kills the
   Aphelion background stack.
 
+## Shell
+
+- The window never scrolls: `html/body/#root` are viewport-pinned with `overflow: hidden`,
+  and only inner panel scrollers move. A page scrollbar scrolls the title bar and workspace
+  header out of view (seen 2026-11-06: a visually-hidden file input without `top/left` kept
+  its static position ~27,000px down and stretched the document — anchor sr-only elements).
+
 ## Motion
 
 - Subtle and purposeful; the splash alignment loop (4.6s) is the ceiling for flourish.

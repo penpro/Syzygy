@@ -1090,6 +1090,14 @@ transport.
 
 Updater endpoint: `https://github.com/penpro/Syzygy/releases/latest/download/latest.json`.
 
+**The in-app updater IS the deploy mechanism** (same streamlined flow as Aphelion:
+passive install, no wizard, auto-relaunch). Manual NSIS installs — silent or not — are
+only for builds that are not yet published, and every one of them costs the user the
+installer prompts. If the release feed is behind (draft release, unpushed tag), fix the
+feed rather than hand-installing; the 2026-11 stretch of scp + `/S` deploys existed only
+because the feed was wedged on a retired CI runner image. The updater accepts only
+CI-signed artifacts, so locally built installers can never feed it — by design.
+
 ### Release configuration split
 
 - Base `tauri.conf.json`: `createUpdaterArtifacts: false`, nsis-only — local builds need

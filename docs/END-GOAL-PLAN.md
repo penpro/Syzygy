@@ -207,7 +207,7 @@ P-11 is `implemented_unverified`.
 
 P-04 now has a Penumbra-original typed Yjs domain service and deterministic headless evidence for
 concurrent add, independent field edit, attributed edit history, and delete-versus-edit without
-resurrection. This closes the data-model convergence slice only; the visible block editor,
+resurrection. The decisive dual-UI gate passed physically on 2026-11-06: concurrent heuristic creation fired simultaneously in BOTH installed applications converged into both real heuristic lists with matching zero-invalid integrity counts (DUAL-PACKAGED-UI-WAVE6-2026-11-06.json), so P-04 is verified — the product exposes create plus example add/remove, and edit/delete convergence remains covered by the deterministic headless domain gates. The visible block editor,
 examples and the P-26 explainable checker are now separate implemented-unverified slices; broader evaluation and packaged interaction remain open.
 
 P-23/P-27 now have a Penumbra-original immutable version domain service. Canonical structured
@@ -910,8 +910,11 @@ dialog. Product domain orchestration still must decide which frozen snapshots en
 
 P-18 now has immutable attributed positive/negative example history, replay/collision/hostile-
 input gates, disconnected convergence, engine-free product controls, and content-free MCP inspection.
-Packaged two-install interaction, authenticated identity, semantic quality, and evaluation remain
-unproven, so it is `implemented_unverified`.
+The decisive dual-UI gate passed physically on 2026-11-06: a positive example added in the
+primary's real UI appeared in the secondary's UI with visible attribution, a negative example
+converged back, and a cross-install removal converged while history retained the removed event on
+both installs (`DUAL-PACKAGED-UI-WAVE6-2026-11-06.json`), so P-18 is `verified`. Authenticated
+identity, semantic quality, and evaluation remain roadmap hardening.
 
 P-22 now has a real-domain four-node branch fixture that preserves stable ancestry, ordered
 turn/revision content, and workflow state through portable export, local persistence, and disconnected

@@ -1274,7 +1274,7 @@ record(
     heuristicWorkspaceTestSource.includes('renders attributed polarity while keeping removal explicit') &&
     heuristicExampleInspectionTestSource.includes('without example bodies or attribution') &&
     scenarioWorkspaceGenerationSource.includes('heuristics={doc ? <HeuristicWorkspace') &&
-    editorLedgerSource.includes('"id": "P-18", "phase": 6, "status": "implemented_unverified"') &&
+    editorLedgerSource.includes('"id": "P-18", "phase": 6, "status": "verified"') &&
     existsSync(join(root, 'docs/audits/runs/HEURISTIC-EXAMPLES-2026-07-19.json')),
   'bounded immutable events, exact replay/removal history, disconnected convergence, hostile/collision denial, engine-free UI, content-free inspection, and truthful P-18 status are present',
 )
@@ -1471,7 +1471,7 @@ record(
     heuristicsModelTestSource.includes('Mutated plugin copy') &&
     heuristicsModelTestSource.includes('peer supplies malformed edit fields') &&
     heuristicsModelTestSource.includes("toThrow('Heuristic edit ID was reused')") &&
-    text('docs/audits/CAPABILITIES.json').includes('"id": "P-04", "phase": 2, "status": "implemented_unverified"'),
+    text('docs/audits/CAPABILITIES.json').includes('"id": "P-04", "phase": 2, "status": "verified"'),
   'nested field/edit CRDT maps, detached bounded reads, hostile-input and peer-collision fail-closed attribution, 80 seeded merge orders, delete-without-resurrection, and truthful P-04 status are present',
 )
 

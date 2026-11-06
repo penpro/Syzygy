@@ -137,6 +137,11 @@ body,
 #root {
   height: 100%;
   margin: 0;
+  /* App shell: the window itself never scrolls — only the inner panel
+     scrollers do. A page scrollbar would scroll the title bar and workspace
+     header out of view (seen 2026-11-06 when an unanchored visually-hidden
+     input stretched the document). */
+  overflow: hidden;
 }
 #root {
   display: flex;
@@ -2522,6 +2527,13 @@ input.workspace-title-input:focus {
 }
 .project-archive-file {
   position: absolute;
+  /* Anchor the visually-hidden input. Without top/left an absolutely
+     positioned box keeps its static flow position — here ~27,000px down the
+     scenario workspace — and absolute boxes escape the inner scroller's clip,
+     so the WINDOW grew a page scrollbar that scrolled the whole app shell
+     (title bar included) out of view. */
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   padding: 0;

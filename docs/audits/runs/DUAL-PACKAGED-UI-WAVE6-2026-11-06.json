@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-11-06",
+  "releaseCandidate": "0.1.26",
+  "command": "scratchpad ledger-wave6 harness: BOTH installed GUIs driven concurrently by real CDP input (local 9333; darktower 9333 through an SSH tunnel), convergence asserted in each other UI and via LAN MCP integrity counts",
+  "environment": "Two physical installed applications, each with a WebView2 remote-debugging port (darktower agent runs under a wrapper task that sets the env var); live Drive project",
+  "capabilities": [
+    "P-04",
+    "P-18"
+  ],
+  "result": {
+    "passed": true,
+    "checks": {
+      "P-04 concurrent heuristic creation converged into both real UIs": true,
+      "P-04 heuristic integrity counts match on both installs": true,
+      "P-18 attributed positive example visible across installs": true,
+      "P-18 negative example converged into the primary UI": true,
+      "P-18 cross-install removal converged; remaining example retained": true,
+      "P-18 example integrity counts match on both installs (removal retained in history)": true
+    }
+  },
+  "notes": [
+    "Concurrent heuristic creation fired simultaneously in both real UIs converged into both heuristic lists; integrity counts match with zero invalid records.",
+    "A positive example added on the primary appeared in the secondary UI with visible attribution; a negative example from the secondary converged back; the primary removed the secondary example and the removal converged while history retained the removed event on both installs.",
+    "The product exposes heuristic create and example add/remove; heuristic edit/delete convergence remains covered by the deterministic headless domain gates (no product surface to exercise)."
+  ],
+  "privacy": {
+    "researchBodiesCommitted": false
+  }
+}

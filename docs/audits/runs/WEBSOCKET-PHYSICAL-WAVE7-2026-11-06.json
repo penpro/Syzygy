@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "runDate": "2026-11-06",
+  "releaseCandidate": "0.1.27-pre (primary) / 0.1.26 (secondary)",
+  "command": "scratchpad ledger-wave7 harness: a y-websocket relay on the private LAN; share and join driven in BOTH installed GUIs by real input; convergence/presence asserted over the LAN MCP control plane",
+  "environment": "Two physical installed applications; relay @y/websocket-server (pinned 0.1.1 line) listening on the LAN; project switched local->websocket through the product controls; bearer v1 invitation joined through the product join form",
+  "capabilities": [
+    "P-11",
+    "S-05"
+  ],
+  "result": {
+    "passed": true,
+    "checks": {
+      "S-05 primary project switched to the websocket transport via the real UI": true,
+      "S-05 secondary joined over the relay via the real UI": true,
+      "S-05 realtime convergence over the relay (well under the Drive poll cadence)": true,
+      "S-05 realtime convergence both directions": true,
+      "P-11 two-client live awareness over the websocket transport": true,
+      "P-11 disconnect cleanup without ghost sessions": true
+    },
+    "crossInstallLatencyMs": 15,
+    "presenceMode": "live"
+  },
+  "notes": [
+    "A fresh local project was bound to the relay through the real share controls and joined on the second install through the real invitation form.",
+    "Edits converged across the physical installs in ~15 ms each direction — realtime, versus the 30-second Drive poll cadence.",
+    "Live two-client awareness appeared on both installs (presence mode live) and the remote session count returned to zero cleanly when the second install left the project — no ghost sessions."
+  ],
+  "privacy": {
+    "lanAddressesCommitted": false,
+    "researchBodiesCommitted": false
+  }
+}

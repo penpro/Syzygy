@@ -1212,7 +1212,7 @@ record(
     researchEditorSource.includes('awarenessData={awarenessData}') &&
     researchPresenceInspectionSource.includes('presence reports only active provider mode') &&
     researchPresenceInspectionTestSource.includes('without participant identity or cursor data') &&
-    editorLedgerSource.includes('"id": "P-11", "phase": 5, "status": "implemented_unverified"') &&
+    editorLedgerSource.includes('"id": "P-11", "phase": 5, "status": "verified"') &&
     existsSync(join(root, 'docs/audits/runs/PRESENCE-LIFECYCLE-2026-07-18.json')),
   '200-state hostile-input bound, schema identity, two-client packets, removal tombstones, stale-registration guard, honest local/Drive/live UI, content-free MCP counts, and truthful P-11 status are present',
 )

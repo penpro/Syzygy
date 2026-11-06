@@ -197,9 +197,7 @@ absent, expose stable-key correlation, retain conflicting participant claims, an
 read-only MCP inspection. They are self-registration evidence, not shared approval. The managed
 relay separately has explicit operator enrollment, signed installation-key roles, one-use fresh
 connection proofs, and a second action-bound signature for device-administered exact-revision room
-membership. A repeatable exact-binary five-client partition/reconnect soak passes. Shared-directory
-approval, propagated identity revocation, device-key rotation/recovery, presence-proof replay
-rejection, and physical two-install product proof remain open. Exact retained-event signing now
+membership. A repeatable exact-binary five-client partition/reconnect soak passes. The decisive physical gate passed on 2026-11-06: live two-client awareness appeared on both installed applications over a LAN relay joined through the real product controls, and presence cleaned up without ghosts when one install left (WEBSOCKET-PHYSICAL-WAVE7-2026-11-06.json), so P-11 is verified. Shared-directory approval, propagated identity revocation, device-key rotation/recovery, and presence-proof replay rejection remain roadmap hardening. Exact retained-event signing now
 covers all twelve named research-event domains, including immutable full single-provider review
 archives, so
 P-11 is `implemented_unverified`.
@@ -524,9 +522,7 @@ next identity increments are device-key rotation/recovery, authenticated human/o
 policy/approval withdrawal or relay attestation before the product may say authenticated consent.
 
 Gate: five-client rapid-edit soak converges; stale presence disappears; restart/partition loses
-no edit; schema is unchanged when switching providers; P-11/P-12/S-05 pass. The deterministic
-same-process binary soak now satisfies the first three transport assertions; packaged physical-client
-and provider-switch evidence still determines the full gate.
+no edit; schema is unchanged when switching providers; P-11/P-12/S-05 pass. The deterministic same-process binary soak satisfies the first three transport assertions, and the packaged physical-client and provider-switch evidence landed 2026-11-06: a real project switched local to websocket through the product controls, was joined on the second physical install via the product invitation form, and converged in ~15 ms each direction with live presence and clean disconnect (WEBSOCKET-PHYSICAL-WAVE7-2026-11-06.json) — P-11 and S-05 are verified.
 
 Progress: the provider lifecycle now declares exact realtime/awareness/local-durability/
 remote-persistence/attachment capabilities, and the first stable-Yjs-13
